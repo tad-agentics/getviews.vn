@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Utilization map v1.2 (Wave 3 resync + Wave 4 gate)
+
+- **`data-utilization-map-v1.md` v1.2:** baseline @ `9cd0957`; §7 depth split marked shipped; §10 Wave 4 cross-check (W4-1…W4-4 ↔ FIELD matrix).
+- Roadmap Wave 4: W4-0 utilization gate ✅.
+
 ## 2026-05-22 — Wave 3 depth audit fixes
 
 - **Optimistic credits on SSE resume:** `optimisticAnswerCreditsUsed()` returns 2 for video primary + `deep`; `useSessionStream` / `AnswerScreen` resume pass `analysisDepth`.

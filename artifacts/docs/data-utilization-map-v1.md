@@ -2,12 +2,12 @@
 
 > **Pivot SSOT (2026-05-21+):** Cohort canonical = `(content_class_id, creator_tier)`; browse/filter = junction `content_class_id` — [`system-design.md`](system-design.md) §9 · [`two-axis-niche-model.md`](two-axis-niche-model.md).
 
-**Version:** 1.1 (as-built resync)  
+**Version:** 1.2 (Wave 3 resync + Wave 4 gate)  
 **Last updated:** 2026-05-22  
-**Code baseline:** `main` @ Wave 2 complete (`8d4759a` housekeeping + W2-4 batch)  
+**Code baseline:** `main` @ Wave 3 ship (`9cd0957` — `analysis_depth`, cache PK, atomic billing)  
 **Status:** As-built FIELD × feature matrix + V1 gap markers (`🔨`)  
 **Vision:** [`feature-map-v1.md`](feature-map-v1.md) v2.0 FINAL  
-**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0 ✅ · Wave 1 ✅ @ `e3b5d01` · Wave 2 ✅  
+**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0 ✅ · Wave 1 ✅ · Wave 2 ✅ · Wave 3 ✅ (W3-5 upsell deferred)  
 **As-built routes:** [`feature-map.md`](feature-map.md)  
 **Technical audit:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) (tier A–D, trim-safe)  
 **Schema source:** [`models.py`](../../cloud-run/getviews_pipeline/models.py) `VideoAnalysis` · [`corpus_ingest.py`](../../cloud-run/getviews_pipeline/corpus_ingest.py) `_build_corpus_row`
@@ -28,7 +28,7 @@
 |--------------------|--------|
 | Ô bình thường (`bench`, `MV`, …) | **Shipped** — có consumer trong code hoặc cron today |
 | **`🔨`** trong cột Ghi chú | Vision / roadmap item — **chưa** wire end-to-end |
-| §7 depth split | **V1 target** — `analysis_depth` basic/deep **chưa** trong FE/BE/migrations |
+| §7 depth split | **✅ Wave 3** — `analysis_depth` basic/deep; whitelist §4.2; cache `(video_id, analysis_depth)` |
 
 **Prod pivot defaults (2026-05-21):** `CORPUS_SCORE_COHORT=class`, `CORPUS_INGEST_LOOP=class`, `LIVE_COHORT_CLASS_FIRST=true`, `CORPUS_WRITE_NICHE_ID=false`, `REFRESH_NICHE_INTELLIGENCE_MV=false`, HI-11 `route` on batch + user pods.
 
@@ -38,10 +38,10 @@
 
 | Cột | ID | Mô tả |
 |-----|-----|--------|
-| **F2** | F2 | Video **Cơ bản** — whitelist §4.2, manifest cap 3, Win default từ Xu hướng (**🔨** depth param) |
-| **F1** | F1 | Video **Chuyên sâu** — full `SECTION_POOL` + `boost_attribution` + cap 5 (**🔨** depth param) |
-| **F5** | F5 | Soi kênh **Nhanh** — card ED + 1–2 finding P0 (**🔨** `channel_findings`) |
-| **F4** | F4 | Soi kênh **Sâu** — SSE memo + trajectory/score_card (**🔨** `channel_findings[]` §5.3) |
+| **F2** | F2 | Video **Cơ bản** — whitelist §4.2, manifest cap 3, billing 1×, cache `(video_id, basic)` |
+| **F1** | F1 | Video **Chuyên sâu** — full `SECTION_POOL` + `boost_attribution` (**🔨** live M3) + cap 5, billing 2×, cache `(video_id, deep)` |
+| **F5** | F5 | Soi kênh **Nhanh** — card ED + 1–2 finding P0 (**🔨** `channel_findings` — W4-1) |
+| **F4** | F4 | Soi kênh **Sâu** — SSE memo + trajectory/score_card (**🔨** `channel_findings[]` §5.3 — W4-1) |
 | **F6** | F6 | **Xu hướng** — công thức viral + kho video (class-first browse) |
 | **STU** | Studio §3.1 | **Gợi ý hôm nay** I Morning Signal · II hooks · III within-niche breakouts |
 | **F7** | F7 | **Script Studio** — hook, shot list, scene intel, ritual prefill |
@@ -67,7 +67,7 @@
 | `feed` | Feed Xu hướng / pattern deck / explore sort |
 | `MV` | Materialized view / nightly batch job |
 | `gate` | Gate section / claim tier / eligibility |
-| `teaser` | Manifest tính đủ; F2 **không** synthesize section (§4.2 upsell — **🔨** until `analysis_depth`) |
+| `teaser` | Manifest tính đủ; F2 **không** synthesize section F1-only (§4.2); upsell CTA **🔨** W3-5 |
 | `ref` | Reference pool / proximity ranking |
 | `—` | Không consumer cột này (giải thích §8 nếu vẫn extract) |
 
@@ -238,15 +238,23 @@
 | **F6 Cross-niche** `CrossNicheBreakoutLane` | `video_corpus` | `content_class_id NOT IN` user junction |
 | **F6 TrendsRail** | `useTrendsRailVideos` | Within `ingest_loop_niche_id` — 7d + viral rails |
 | **F1/F2 diagnosis** | `fetch_video_benchmark_with_axis` | tier MV → class MV → niche fallback |
-| **F4 channel peers** | `video_corpus` by handle | Class+tier fallback chain; **no** `reference_eligible` filter yet |
+| **F4 channel peers** | `video_corpus` by handle | Class+tier fallback chain; **no** `reference_eligible` filter yet (**🔨** W4-4) |
 
 ---
 
-## §7 — Depth split (F2 whitelist vs F1-only) — **V1 vision 🔨**
+## §7 — Depth split (F2 whitelist vs F1-only) — **✅ Wave 3 @ `9cd0957`**
 
-**Not in code:** no `analysis_depth` param, no F2 section whitelist enforcement, no separate cache key. Today all video diagnoses use **one depth** (full section pool path).
+**Shipped:** một lần extract Gemini; `analysis_depth` đổi section whitelist + `manifest_for_prompt` cap + billing + cache partition ([`feature-map-v1.md`](feature-map-v1.md) §4.0, §4.12).
 
-**Target (unchanged from vision):** cùng một lần extract — `analysis_depth` chỉ đổi synthesis ([`feature-map-v1.md`](feature-map-v1.md) §4.0, §4.12).
+| Layer | As-built |
+|-------|----------|
+| FE | `QueryComposer` pills; handoff `?depth=basic\|deep`; `AnswerScreen` → `append_turn.analysis_depth` |
+| BE whitelist | `BASIC_SECTION_ALLOWLIST` in `diagnose_sections.select_sections_to_emit(depth=)` |
+| Manifest cap | 3/section (basic) · 5/section (deep) — `manifest_for_prompt(depth=)` |
+| Billing | 1× basic · 2× deep primary video — `decrement_credit(p_amount)` |
+| Cache | PK `(video_id, analysis_depth)` — `video_analyze.py` lookup/upsert |
+| Legacy `/stream` | Explicit `analysis_depth=deep` in `pipelines.py` (full pool parity) |
+| **Not shipped** | §4.11.3 post-basic upsell UI — **🔨** W3-5 |
 
 ### F2 synthesize (whitelist §4.2) — target
 
@@ -273,7 +281,7 @@
 | `script_structure` | affiliate phases, livestream funnel |
 | `boost_attribution` | M1/M3/M4, `stats_history`, `boost_attribution` col |
 
-**Cap manifest:** F2 = 3 signals/section · F1 = 5 — **🔨** Wave 3+.
+**Cap manifest:** F2 = 3 signals/section · F1 = 5 — **✅** Wave 3.
 
 ---
 
@@ -284,34 +292,70 @@
 | `key_messages[]` | **Orphan** | Trim after ablation — trim-safe |
 | `persona_consistency_signals` | **Orphan** | **🔨** wire F4 P2 or defer |
 | `peer_percentile` / `peer_percentile_label` | **Strong** | Wired W1-3 when tier MV + `creator_tier` on corpus row |
-| `win_er_above_niche_p75` / `win_hook_aligns_niche_top` | **Strong** | `signals/win.py`; `tier_gate=hit`; W1-6 |
-| `win_*` signals (§4.8 W0) | **Missing** | **🔨** W1-6 `signals/win.py` |
-| `channel_findings[]` roll-ups | **Missing** | **🔨** W4 — aggregate `analysis_json` on handle |
+| `win_er_above_niche_p75` / `win_hook_aligns_niche_top` | **Strong** | **✅** `signals/win.py`; `tier_gate=hit`; W1-6 |
+| `win_breakout_vs_channel` / `win_format_in_growth` / `win_replicable_cta` | **Missing** | **🔨** W4-3 — W0 Win còn lại (§4.8.3) |
+| `channel_findings[]` roll-ups | **Missing** | **🔨** W4-1 — aggregate `analysis_json` on handle |
 | `key_timestamps[]` | Weak | Schema compat; defer |
 | `energy_level` | Weak | `pattern_fingerprint` only — OK BAT |
 | `hook_analysis.hook_notes` | Weak | Prompt filler |
 | `content_context.primary_subjects` | Weak | Synthesis only |
 | `niche_classification` on **peer** rows | Intentional skip | Ref score ignores |
 | `douyin_origin` on TikTok corpus | Null at ingest | F1 on-demand only |
-| Live `boost_attribution` (M3) | **Partial** | Batch col ✅; user-video heuristic **🔨** W4 |
+| Live `boost_attribution` (M3) | **Partial** | Batch col ✅ (`corpus_boost_suspect`); user-video heuristic **🔨** W4-2 |
+| F4 channel peer `reference_eligible` | **Partial** | Video ref pool ✅ (`corpus_context`); channel `_run_peer_corpus_query` **🔨** W4-4 |
 
 **Không coi orphan:** `commerce_intent`, `text_overlays[]`, `audio_track_role`, `target_audience`, `pain_points`, `style_tags`.
 
 ---
 
-## §9 — Coverage checklist (v1.1 as-built)
+## §9 — Coverage checklist (v1.2 @ `9cd0957`)
 
-| Kiểm tra | Target | Kết quả @ `8ad7ab0` |
-|----------|--------|---------------------|
+| Kiểm tra | Target | Kết quả |
+|----------|--------|---------|
 | `VideoAnalysis` fields có ≥1 ô hoặc §8 | 100% | ✅ ~70 rows §1–§4 |
 | Promoted + F8 columns có ≥1 ô | 100% | ✅ §5 (+ Phase C cols) |
 | Batch aggregates có ≥1 feature | 100% | ✅ §6 (+ class MVs) |
 | Class-first surfaces documented | Yes | ✅ §6.1 |
 | True orphans với action | ≤5 | ✅ 2 + weak group §8 |
-| Depth split | Documented | ✅ §7 marked **🔨 vision** |
+| Depth split (F2/F1) | Shipped | ✅ §7 — whitelist + cap + cache + billing |
 | Wave 0 F8 verify | Done | ✅ ref pool + boost batch + channel 3× credit |
+| Wave 4 gate doc | Cross-check | ✅ §10 — FIELD × W4-1…W4-4 |
 
-**Open gates (incremental roadmap):** W3 `analysis_depth` · W4 channel findings + live boost · W1-1–W1-6 ✅ (except W1-5 doc resync).
+**Open gates (incremental roadmap):** W3-5 upsell UI · **W4** (§10) · W1-5 utilization resync ✅ @ v1.2.
+
+---
+
+## §10 — Wave 4 cross-check (roadmap ↔ utilization map)
+
+*Gate trước implement: mỗi W4 item phải có ≥1 hàng FIELD/aggregate ở §1–§6; sau ship → bỏ `🔨`, cập nhật §8.*
+
+| ID | Roadmap deliverable | Utilization map rows (§) | Feature-map § | Fields / aggregates consumed | As-built @ `9cd0957` | W4 acceptance | Primary files |
+|----|---------------------|--------------------------|---------------|------------------------------|----------------------|---------------|---------------|
+| **W4-1** | `build_channel_findings()` P0 (4 findings) + prompt `<<<CHANNEL FINDINGS>>>` | §8 `channel_findings[]`; F4/F5 rollup cols; §6 `channel_diagnoses` | §5.3 C1 | Rollup trên handle: `compliance_flags`, `commerce_intent.*`, `hook_*`, `engagement_rate`, `breakout_multiplier`, `content_format`, `analysis_json` peers | Memo SSE free-form; **no** findings layer | ≥1 finding → inject; **no** FYP% claims | `channel_findings.py` (new), `channel_diagnose.py`, prompts |
+| **W4-2** | Live M3 `boost_attribution` on user video (F1 deep) | §5 `boost_attribution`; §7 F1-only `boost_attribution` section; §8 live M3 | §4.7 M3, §4.8 P0 `boost_*` | `views`, `likes`, `comments`, `engagement_rate`, `breakout_multiplier`, `niche_meta` percentiles (`median_er`, `p90_views`) | Batch ingest col ✅; live diagnosis **no** section | Heuristic in `signals/distribution.py` (hoặc module mới); copy “có dấu hiệu”; **no** `signals/boost.py` | `signals/distribution.py`, `diagnose_sections.py`, `gemini.py` |
+| **W4-3** | §4.8 P0 backlog + 3 Win W0 còn lại | §8 Win remainder; §1–§4 rows cho từng signal | §4.8.3 W0 + P0 table | **Win W0 còn:** `win_breakout_vs_channel` → `breakout_multiplier`, `creator_median_views`; `win_format_in_growth` → `content_format`, `format_distribution`; `win_replicable_cta` → `cta`, `content_format`. **P0 flop:** `boost_views_er_mismatch`, `boost_breakout_low_engagement`, `niche_format_underrepresented`, `niche_hook_percentile_gap` | **2/5** Win W0 in `signals/win.py`; P0 flop backlog **missing** | Fire-rate logged; unit test per new `signal.id` | `signals/win.py`, `signals/*.py`, tests |
+| **W4-4** | Channel peer query `.eq("reference_eligible", True)` | §5 `reference_eligible`; §6.1 F4 peers | §4.7 M2, §4.8.4 | Promoted col `reference_eligible` (from `corpus_boost_suspect` at ingest) | Video ref pool ✅ (`fetch_corpus_reference_pool`); channel peers **unfiltered** | `_run_peer_corpus_query` + fallback chain §4.7.5; peers not ads-skew | `channel_diagnose.py` |
+
+### W4-3 signal ↔ FIELD trace (implement checklist)
+
+| `signal.id` | Wave | § map FIELD | `section_id` | Notes |
+|-------------|------|-------------|--------------|-------|
+| `win_breakout_vs_channel` | W4-3 | §5 `breakout_multiplier`, `creator_median_views` | `channel_pattern` | F1-only; `tier_gate=hit` |
+| `win_format_in_growth` | W4-3 | §5 `content_format` + `niche_meta.format_distribution` | `niche_pattern` | F1-only; `tier_gate=hit` |
+| `win_replicable_cta` | W4-3 | §2 `cta` / `cta_type`, §5 `content_format` | `next_video` | F1-only; `tier_gate=hit` |
+| `boost_views_er_mismatch` | W4-3 | §5 `views`, `engagement_rate`, `niche_meta` | `boost_attribution` | Overlap W4-2 section; `tier_gate=any` |
+| `boost_breakout_low_engagement` | W4-3 | §5 `breakout_multiplier`, `engagement_rate` | `boost_attribution` | Same |
+| `niche_format_underrepresented` | W4-3 | §5 `content_format`, format MV | `niche_pattern` | P0 flop |
+| `niche_hook_percentile_gap` | W4-3 | §1 `hook_type`, `niche_meta.hook_distribution` | `hook_analysis` | P0 flop |
+
+### W4 exit ↔ map
+
+| Exit criterion (roadmap) | Map evidence when done |
+|--------------------------|-------------------------|
+| §5.3 C1 channel findings | §8 `channel_findings[]` → **Strong**; F4/F5 rollup cols populated |
+| §4.7 P1 partial (M3 live) | §5 `boost_attribution` F1 live ≠ `—`; §7 `boost_attribution` section emits |
+| Channel memo evidence-backed | §6 `channel_diagnoses` row note drops **🔨 findings inject** |
+| F8 M2 on channel peers | §6.1 F4 peers row drops **🔨 W4-4** |
 
 ---
 

@@ -287,7 +287,15 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 | **W4-3** §4.8 P0 signal backlog + remaining W0 win signals (3) | L | Med | Manifest density | More sections | — | Fire-rate logged; tests per signal id | `signals/win.py`, `signals/*.py`, tests |
 | **W4-4** Channel peer sort `.eq("reference_eligible", True)` on corpus queries | M | Med | F8 M2 on channel | — | Peers not ads-skew | `_run_peer_corpus_query` + fallback chain filter §4.7.5 | `channel_diagnose.py` |
 
-**Wave 4 exit:** §5.3 C1 + §4.7 P1 partial; channel memo evidence-backed.
+**Wave 4 exit:** §5.3 C1 + §4.7 P1 partial; channel memo evidence-backed. **Utilization gate:** [`data-utilization-map-v1.md`](../docs/data-utilization-map-v1.md) §10 — cross-check W4-1…W4-4 ↔ FIELD matrix trước merge.
+
+| Item | Status | Notes |
+|------|--------|-------|
+| W4-0 Utilization map Wave 4 gate | ✅ | §10 cross-check @ map v1.2 (`9cd0957` baseline) |
+| W4-1 `channel_findings` | 🔨 | — |
+| W4-2 Live M3 boost | 🔨 | — |
+| W4-3 Signal backlog + Win W0 remainder | 🔨 | 2/5 Win shipped W1-6 |
+| W4-4 Channel `reference_eligible` peers | 🔨 | Video ref pool ✅ |
 
 ---
 
