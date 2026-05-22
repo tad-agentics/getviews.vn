@@ -1,11 +1,13 @@
-# Feature Map (main @ 6a69ab3)
+# Feature Map (main @ da76f96)
 
 *Comprehensive full-stack inventory of user-facing surfaces, backend endpoints, synthesis paths, and database tables. **Source of truth** for what ships where — update this file in the same commit as any route, endpoint, or orchestration change.*
 
 *User value / JTBD / gap analysis:* [`product-value-audit.md`](product-value-audit.md) (value → data, doc-only).  
 *V1 product vision (chỉ phạm vi ship GTM V1):* [`feature-map-v1.md`](feature-map-v1.md) — **không** liệt kê tính năng ngoài V1; xem **§ Post-V1 backlog** bên dưới.
 
-*Verified against codebase **2026-05-20** (`6a69ab3`). Spot-checked: `routes.ts` mounts; dual SSE orchestration (`useSessionStream` `answer_turn` vs `/stream`); video report path `build_video_report` → `run_video_analyze_*` → `finalize_video_narrative_layer` → `synthesize_diagnosis_v2`; `/stream` dispatch (`intent.py:265`); `/channel/diagnose` + **7-day** DB cache (`video.py:291`, `736`); `/home/*` (`home.py:31/49/67/87`, `regenerate-ritual` 181); `/answer/sessions*` including PATCH/DELETE (`answer.py:62/94/260/280/291/306`); `/script/*` (`script.py:37–192`); `/admin/*` (`admin.py:771–1453`); `/batch/*` (`batch.py:23–1257`); Edge `api/chat.ts` + `api/landing-stats.ts`; `history_union` RPC; PayOS `create-payment`; embed-tile contract (`gemini.py` `EMBED_CONTRACT_VERSION`, `video_analyze.py` schema v3).*
+*Verified against codebase **2026-05-22** (`da76f96`). Spot-checked: two-axis browse (`corpusNicheFilter.ts`, `useTopBreakouts`, `useCrossNicheBreakouts`); Home tier I–III (`MorningSignalStrip`, `HooksTable`, `BreakoutGrid`); Trends Explore (`CrossNicheBreakoutLane`, `TrendsRail`, class MV thin banner); taxonomy v2 (16 active niches, 82 classes); dual SSE + answer path unchanged from prior audit.*
+
+*Pivot SSOT:* Production ingest/browse defaults — [`system-design.md`](system-design.md) §9 · taxonomy tables — [`two-axis-niche-model.md`](two-axis-niche-model.md).*
 
 ---
 
@@ -33,6 +35,7 @@
 | **Đổi route `/app/trends` → `/app/xu-huong`** | Open product (D4 in vision doc) | SEO/i18n |
 | **Xu hướng — segment TikTok \| Douyin (cấp 1)** | — | V1 freeze: một trang Explore; `TrendsDouyinCard` optional |
 | **Xu hướng — block “Hôm nay” / ritual duplicate** | — | Ritual chỉ Studio `HomeSuggestionsToday` tier I |
+| **Cross-niche breakout lane (Wave 3b)** | — | **Shipped** on `/app/trends` — `CrossNicheBreakoutLane`; distinct from Home tier III (within-niche) |
 | **F6 full UX reshape** | — | V1: giữ Công thức + Kho video; chỉ handoff §4.10 |
 
 **Maintenance:** Khi defer hoặc cut một tính năng khỏi V1, **xóa** khỏi `feature-map-v1.md` và **thêm một dòng** vào bảng này trong cùng PR doc.
@@ -79,10 +82,15 @@
 - **FE:** `src/routes/_app/home/HomeScreen.tsx`
 - **Sub-surfaces:**
   1. **Ticker marquee** — `TickerMarquee`, pulls `/home/ticker`
-  2. **Daily ritual widget** — `HomeSuggestionsToday`, pulls `/home/daily-ritual` + `/home/pulse`
+  2. **Gợi ý hôm nay (3 tầng)** — `HomeSuggestionsToday.tsx`:
+     - **Tier I — Hôm nay quay ngay:** `MorningSignalStrip` (`useClassMorningSignals` → `content_class_intelligence` MV, primary junction only, energy toggle `productionFriction.ts`) + `StudioHero` (`GET /home/daily-ritual` — 3 ranked ritual scripts)
+     - **Tier II — Công thức nền:** `HooksTable` embedded (`useTopPatterns` → `video_patterns` / pattern scope from legacy niche + junction)
+     - **Tier III — Cảm hứng:** `BreakoutGrid` (`useTopBreakouts` → `video_corpus`, **within** user's junction `content_class_id`; cap 3; rotating window; copy: breakout trong ngách từ creator khác) → link `/app/trends`
   3. **Starter creators** — `/home/starter-creators`
-  4. **Pulse data** — `/home/pulse`
-  5. **Query composer** — video URL / niche questions → intent router → `/app/answer` (or other destinations)
+  4. **Pulse data** — `DataFreshnessPill` + `/home/pulse`
+  5. **Query composer** — 4 pills + Cơ bản/Chuyên sâu → intent router → `/app/answer` | `/app/channel` | `/app/script`
+  6. **Niche picker** — session-scoped browse anchor (`studioNicheSession.ts`); profile `creator_niche_id` is SSOT
+- **FE hooks (browse filter):** `fetchContentClassIdsForCreatorNiche`, `applyVideoCorpusNicheFilter` (`src/lib/corpusNicheFilter.ts`)
 - **BE endpoints:**
   - GET `/home/pulse` → `cloud-run/getviews_pipeline/routers/home.py:31`
   - GET `/home/ticker` → `home.py:49` — hot hooks (3 per niche)
@@ -92,7 +100,8 @@
 - **Synthesis paths invoked (batch/cron):**
   - Daily ritual: `/batch/morning-ritual` or `POST /admin/trigger/morning_ritual`
   - Pulse aggregation (daily corpus snapshot)
-- **DB tables:** `daily_ritual`, `starter_creators`, `niche_insights`, `answer_sessions`, `answer_turns`
+  - Class MV refresh chain (post-ingest): `content_class_intelligence` → tier → `creator_niche_content_class_stats` (see [`two-axis-niche-model.md`](two-axis-niche-model.md) §9)
+- **DB tables / MVs:** `daily_ritual`, `starter_creators`, `answer_sessions`, `answer_turns`, `video_corpus`, `creator_niche_content_classes`, `content_class_intelligence` (MV), `creator_niche_content_class_stats` (MV), `video_patterns`
 - **Status:** shipped & live
 
 ---
@@ -128,7 +137,7 @@
   - Canonical: `narrative_vi.diagnosis_vi.sections[].embedded_tiles` joined to `reference_videos` in `DiagnosisSectionRenderer.tsx`
   - Cache repair: `embed_contract_version` + `repair_diagnosis_vi_embedded_tiles()` on corpus/on-demand cache hits (`finalize-lite`); `ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3`
   - FE fallback: `embeddedTilesFromEvidenceAnchors` when anchors carry `aweme_id` (`VideoBody.tsx`)
-- **Signals (read-only lookups):** `hook_effectiveness`, `video_patterns`, `niche_insights`, `signal_grades`, corpus peers
+- **Signals (read-only lookups):** `hook_effectiveness`, `video_patterns`, `content_class_intelligence`, `signal_grades`, corpus peers; **`peer_percentile` / `peer_percentile_label`** on diagnosis payload → `FlopDiagnosisStrip` (`VideoBody.tsx`)
 - **DB tables:** `answer_sessions`, `answer_turns`, `video_diagnostics`, `video_corpus`, `content_classifications`
 - **Status:** shipped & live
 
@@ -182,10 +191,19 @@
 
 ## 6. /app/trends — Niche Intelligence & Pattern Explorer
 
-- **FE:** `src/routes/_app/trends/route.tsx` → ExploreScreen
-- **Param:** `?niche=<id>` (defaults to user's primary niche)
-- **BE:** GET `/home/pulse`; GET `/script/hook-patterns` (`script.py:84`)
-- **DB tables:** `video_patterns`, `trend_velocity`, `hook_effectiveness`, `niche_taxonomy`
+- **FE:** `src/routes/_app/trends/route.tsx` → `ExploreScreen.tsx` (lazy + `Suspense`)
+- **Params:** `?niche=<legacy_niche_id>` (defaults to user's primary legacy niche via `profileFirstNicheId`)
+- **Primary blocks (V1 freeze):**
+  1. **Công thức từ video viral trong ngách** — `TrendsPatternThesisHero` + `TrendsPatternGrid` + `PatternModal` (`useTopPatterns`, `video_patterns`)
+  2. **Kho video** (`II — KHO VIDEO`) — searchable `video_corpus` grid + `ExploreCorpusVideoModal`; filters via `applyVideoCorpusNicheFilter` (`content_class_id IN junction`)
+- **Auxiliary blocks (shipped, not V1 gate):**
+  - **`CrossNicheBreakoutLane`** — `useCrossNicheBreakouts`: cap 3 tiles, `content_class_id NOT IN` user's junction, `breakout_multiplier ≥ 1.5`, 14d window (**cross-format** inspiration — distinct from Home tier III within-niche breakouts)
+  - **`TrendsRail`** (desktop, `lg+`) — `useTrendsRailVideos`: top 5 breakouts (30d, `ingest_loop_niche_id`) + top 5 virals; list layout with navigate-to-answer CTA
+  - **`TrendsNichePills`**, **`TrendingSoundsSection`**, **`TrendsDouyinCard`**
+- **Thin-corpus banner:** `useContentClassIntelligence` — sum junction `sample_size` from `content_class_intelligence` MV gates “dữ liệu chưa đầy đủ” copy
+- **BE (direct Supabase reads):** `video_corpus`, `creator_niche_content_classes`, `content_classifications`, MVs `content_class_intelligence`, `content_class_tier_intelligence`, `creator_niche_content_class_stats`
+- **BE (Cloud Run):** GET `/home/pulse` (shared hook); GET `/script/hook-patterns` (`script.py:84`)
+- **Legacy tables still referenced in places:** `niche_taxonomy` (pill labels / legacy id bridge), `trend_velocity`, `hook_effectiveness`
 - **Status:** shipped & live
 
 ---
@@ -236,7 +254,7 @@
 ## 10. /app/onboarding
 
 - **FE:** `src/routes/_app/onboarding/route.tsx`
-- **Purpose:** Single-niche picker (`creator_niches` → `profiles.creator_niche_id`)
+- **Purpose:** Single-niche picker — **16 active** `creator_niches` rows → `profiles.creator_niche_id` (includes restored `comedy`, new `art_craft`)
 - **Status:** shipped & live
 
 ---
@@ -341,10 +359,13 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 
 **Gemini:** `gemini_text_only()` + prompt dedup cache across paths.
 
-### Niche taxonomy dual-mode
-- **Legacy:** `niche_taxonomy` (corpus `niche_id` filtering)
-- **UX axis:** `creator_niches` (16 buckets) ↔ `content_classifications` (74) via `creator_niche_content_classes`
+### Niche taxonomy (two-axis, taxonomy v2 2026-05-22)
+- **UX axis:** `creator_niches` — **16 active** buckets (`comedy` id=5 restored; `art_craft` id=17 added; `pets_home` id=13 retired)
+- **Content axis:** `content_classifications` — **82 classes** (77 video + 5 carousel); class **82** `ai_tool_workflow_tutorial` (primary `tech_gaming`, secondary `business`)
+- **Junction:** `creator_niche_content_classes` — M:N map; browse filter = `content_class_id IN (...)` via `applyVideoCorpusNicheFilter` (Phase C: no `video_corpus.niche_id` FE fallback)
+- **Legacy bridge:** `niche_taxonomy` + `ingest_loop_niche_id` on corpus rows; `legacyNicheIdForCreatorNiche()` / Python mirror for ingest loop + Trends rail
 - **User:** `profiles.creator_niche_id` (single niche since 2026-05-05)
+- **Class MVs (canonical browse benchmarks):** `content_class_intelligence`, `content_class_tier_intelligence`, `creator_niche_content_class_stats` — nightly refresh §9 [`two-axis-niche-model.md`](two-axis-niche-model.md); legacy `niche_intelligence` MV refresh **skipped** in prod (`REFRESH_NICHE_INTELLIGENCE_MV=false`)
 
 ### Dormant / legacy
 - `/app/video` deleted 2026-04-28 — render `VideoBody` inside answer sessions only
@@ -371,11 +392,11 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 |---|---|---|---|
 | Landing | / | live | Pre-rendered SEO |
 | Auth | /login, /signup, /auth/callback | live | Supabase; Facebook OAuth |
-| Home | /app | live | Ritual, ticker, starter creators |
-| Answer | /app/answer | live (video 1-turn V1) | `answer_turn` SSE; follow-up turns Post-V1 |
+| Home | /app | live | 3-tier Gợi ý hôm nay + Morning Signal + within-niche breakouts |
+| Answer | /app/answer | live (video 1-turn V1) | `answer_turn` SSE; `FlopDiagnosisStrip` peer percentile; follow-up turns Post-V1 |
 | History | /app/history | live | `history_union` RPC |
 | Channel | /app/channel | live | UI 3 / BE 1 credit (see §5); 7d cache |
-| Trends | /app/trends | live | Pattern explorer |
+| Trends | /app/trends | live | Pattern grid + kho video + cross-niche lane + desktop rail |
 | Script | /app/script | live (core) | Scene intel WIP |
 | Compare | /app/compare | codebase only (not V1 GTM) | `/stream`; see Post-V1 backlog |
 | Douyin | /app/douyin | live (read) | Batch ingest live |
@@ -402,6 +423,8 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 |---|---|
 | Routes | `src/routes.ts` |
 | Intent routing | `src/routes/_app/intent-router.ts` |
+| Browse / junction filter | `src/lib/corpusNicheFilter.ts`, `src/lib/profileNiches.ts` |
+| Class intelligence hooks | `src/hooks/useContentClassIntelligence.ts`, `src/hooks/useClassMorningSignals.ts`, `src/hooks/useCrossNicheBreakouts.ts`, `src/hooks/useTopBreakouts.ts`, `src/hooks/useTrendsRailVideos.ts` |
 | Answer API | `src/lib/answerApi.ts`, `src/hooks/useSessionStream.ts` |
 | Video report | `cloud-run/getviews_pipeline/report_video.py`, `video_analyze.py` |
 | Legacy stream diagnosis | `cloud-run/getviews_pipeline/pipelines.py` (`run_video_diagnosis`) |
