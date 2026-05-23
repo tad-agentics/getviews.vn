@@ -1,0 +1,44 @@
+{
+  "wave": 5,
+  "generated_at": "2026-05-23",
+  "items": {
+    "W5-1": {
+      "status": "done",
+      "commit": "f3054f5",
+      "evidence": [
+        "src/lib/intentCtaSuggestions.ts",
+        "src/components/v2/answer/IntentCtaRail.tsx",
+        "cloud-run/getviews_pipeline/answer_session.py intent_type override"
+      ]
+    },
+    "W5-2": {
+      "status": "done",
+      "commit": "d9e4628",
+      "evidence": [
+        "cloud-run/getviews_pipeline/report_types.py _attach_narrative_vi_headline",
+        "src/components/v2/answer/ReportNarrativeHeadline.tsx"
+      ]
+    },
+    "W5-3": {
+      "status": "done",
+      "evidence": [
+        "cloud-run/getviews_pipeline/models.py key_messages removed",
+        "artifacts/docs/data-utilization-map-v1.md §8 updated"
+      ],
+      "human_note": "G6 fire-rate ablation metrics not run — trim applied per audit trim-safe gate"
+    },
+    "W5-4": {
+      "status": "done",
+      "evidence": [
+        "GET /channel/quick-peek",
+        "src/routes/_app/trends/components/ChannelQuickPeekTeaser.tsx"
+      ],
+      "human_note": "Cloud Run user pod deploy required for live teaser"
+    },
+    "W5-5": {
+      "status": "partial",
+      "evidence": ["artifacts/qa-reports/wave5-baseline.json"],
+      "human_note": "feature-map-v1 §13B checkbox sweep pending human review"
+    }
+  }
+}

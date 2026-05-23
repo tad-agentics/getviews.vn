@@ -3,7 +3,7 @@
 **Version:** 2.0 — **FINAL (GTM scope)**  
 **Last updated:** 2026-05-21  
 **Codebase ref:** `9b97207` (W4 ship; W3 @ `9cd0957`)  
-**Status:** W0–W4 ✅ shipped — W5-1 ✅ @ `f3054f5`; W5-2…W5-5 open; freeze UI Studio + Xu hướng
+**Status:** W0–W5 ✅ shipped @ `98814cb` (W5-3 G6 ablation deferred); freeze UI Studio + Xu hướng
 
 > **Pivot SSOT (2026-05-21+, prod defaults ON):** Class-first ingest/browse/benchmark — [`system-design.md`](system-design.md) §9. **`content_class_intelligence`** + tier/stats MVs canonical; legacy `niche_intelligence` refresh **skipped** in prod (bridge only for unmigrated percentile paths).
 
@@ -633,7 +633,7 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 
 | File | V1 contract | Status |
 |------|-------------|--------|
-| [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx) | Turn 1: pill/params; turn 2+: **IntentCtaRail** (ẩn `FollowUpComposer` free text) | ✅ W1 + W3 entry; **W5-1** CTA rail |
+| [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx) | Turn 1: pill/params; turn 2+: **IntentCtaRail** (ẩn `FollowUpComposer` free text) | ✅ W1 + W3 entry + **W5-1** CTA rail @ `f3054f5` |
 | [`intent-router.ts`](../../src/routes/_app/intent-router.ts) | Turn 1: `detectIntent` → `planAnswerEntry`; turn 2+ CTA: **`intent_type` explicit** (bypass free-text classify) | ✅ invariant @ W2-1a |
 | [`QueryComposer.tsx`](../../src/components/QueryComposer.tsx) | Entry Studio: 4 pill + Cơ bản/Chuyên sâu — **không** follow-up slot chat | ✅ W3-0 |
 | [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx), handoff helpers | Full query: `depth=basic&mode=win&from=trends` | ✅ W1-1 (`answerHandoff.ts`) |
@@ -1345,8 +1345,10 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [x] §4.8: deep `manifest_for_prompt` cap 5; basic cap 3 — ✅ W3-2 @ `9cd0957` (P1 signal backlog partial — only P0 subset in W4-3)
 - [x] §5.3: F4 có `channel_findings` P0; memo không claim FYP/shadowban chắc chắn — ✅ W4-1 @ `9b97207`
 - [x] Composer entry + intent-router SSOT (§3.1.2) — turn 1 qua pill/handoff `?q=`
-- [ ] **W5-1:** Intent CTA pill follow-up — matrix §4.10.2; thay `FollowUpComposer` free text; `source_entry=intent_cta`
-- [ ] **W5-2:** Intent output format — `narrative_vi` / body parity per `AnswerSessionFormat`
+- [x] **W5-1:** Intent CTA pill follow-up — matrix §4.10.2; thay `FollowUpComposer` free text; `source_entry=intent_cta` — ✅ @ `f3054f5`
+- [x] **W5-2:** Intent output format — `narrative_vi` / body parity per `AnswerSessionFormat` — ✅ @ `d9e4628`
+- [x] **W5-3:** `key_messages[]` trim — extraction schema — ✅ @ `65e4145` (G6 ablation metrics deferred)
+- [x] **W5-4:** F5 channel quick peek on Trends card — ✅ @ `98814cb`
 
 ---
 
@@ -1408,8 +1410,8 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 - [x] Cross-niche ≠ Home Tier III? → **Yes** (§3.1.1, §3.2.2)  
 - [x] Handoff spec? → **`depth=basic` + `mode=win`** (§4.10) — ✅ W1-1 wired  
 - [x] Composer entry + router turn 1? → pill/handoff → `planAnswerEntry` (§3.1.2)  
-- [ ] Follow-up = CTA intent pill? → **W5-1** §4.10.2 — không composer chat tự do  
-- [ ] Intent output format round? → **W5-2** — `narrative_vi` per format  
+- [x] Follow-up = CTA intent pill? → **W5-1** §4.10.2 — ✅ @ `f3054f5`  
+- [x] Intent output format round? → **W5-2** — `narrative_vi` per format — ✅ @ `d9e4628`  
 - [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12) — ✅ W3 @ `9cd0957`  
 - [x] Pre-launch cost ≠ cắt feature? → **§8.6–§8.8** — utilize kho; ingest policy tách track A/B  
 - [x] Video depth / composer 4 pill — ✅ W3 @ `9cd0957`; W3-5 upsell UI ✅  

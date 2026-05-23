@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — W5-5 GTM copy + §13B sweep
+
+- **`feature-map-v1.md`:** §13B W5-1…W5-4 checkboxes evidence-linked.
+- **`artifacts/qa-reports/wave5-baseline.json`:** Wave 5 trace skeleton.
+
 ## 2026-05-23 — W5-4 F5 channel quick peek on Trends
 
 - **BE:** `GET /channel/quick-peek` + `pick_channel_quick_peek()` (P0 ceiling/entropy).
