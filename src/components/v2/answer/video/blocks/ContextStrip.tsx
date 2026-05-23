@@ -1,4 +1,5 @@
 import type { VideoAnalyzeMeta, VideoEnrichment } from "@/lib/api-types";
+import { videoToneVi } from "@/lib/constants/enum-labels-vi";
 import { formatViews } from "@/lib/formatters";
 
 const PROMOTION_LABEL_VI: Record<NonNullable<VideoEnrichment["promotion_type"]>, string> = {
@@ -23,8 +24,16 @@ export function ContextStrip({
   const styleTags = (enrichment?.style_tags ?? []).filter((s) => s.trim().length > 0);
   const promotion = enrichment?.promotion_type ?? "organic";
   const showPromotion = promotion !== "organic";
+  const toneLabel = enrichment?.tone ? videoToneVi(enrichment.tone) : "";
 
-  if (!hasRatio && !audience && painPoints.length === 0 && styleTags.length === 0 && !showPromotion) {
+  if (
+    !hasRatio &&
+    !audience &&
+    painPoints.length === 0 &&
+    styleTags.length === 0 &&
+    !showPromotion &&
+    !toneLabel
+  ) {
     return null;
   }
 
@@ -48,6 +57,14 @@ export function ContextStrip({
             <p className="m-0 text-xs text-[color:var(--gv-ink-3)]">
               Trung vị {formatViews(median!)} view trên các bài gần đây
             </p>
+          </div>
+        ) : null}
+        {toneLabel ? (
+          <div>
+            <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wider text-[color:var(--gv-ink-3)]">
+              GIỌNG ĐIỆU
+            </p>
+            <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink)]">{toneLabel}</p>
           </div>
         ) : null}
         {audience ? (

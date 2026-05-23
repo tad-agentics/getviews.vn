@@ -536,6 +536,26 @@ def _normalise_hook_timeline(raw: Any) -> list[dict[str, Any]]:
     return out
 
 
+# Gemini ``VideoAnalysis.tone`` — mirrors ``ToneType`` in models.py.
+VIDEO_TONE_VALUES = frozenset({
+    "educational",
+    "entertaining",
+    "emotional",
+    "humorous",
+    "inspirational",
+    "urgent",
+    "conversational",
+    "authoritative",
+})
+
+
+def _normalize_video_tone(raw: Any) -> str | None:
+    tone = str(raw or "").strip().lower().replace("-", "_")
+    if tone in ("none", "unknown", "other", ""):
+        return None
+    return tone if tone in VIDEO_TONE_VALUES else None
+
+
 def _is_carousel_analysis(video: dict[str, Any], analysis: dict[str, Any]) -> bool:
     fmt = str(video.get("content_format") or "").lower()
     if "carousel" in fmt:
@@ -662,8 +682,9 @@ def _response_from_diagnostics_row(
     promotion_type = str(analysis.get("promotion_type") or "organic").strip().lower()
     pain_points = [str(p).strip() for p in pain_points_raw if isinstance(p, str) and p.strip()]
     style_tags = [str(s).strip() for s in style_tags_raw if isinstance(s, str) and s.strip()]
+    tone = _normalize_video_tone(analysis.get("tone"))
     enrichment: dict[str, Any] | None = None
-    if target_audience or pain_points or style_tags or promotion_type != "organic":
+    if target_audience or pain_points or style_tags or promotion_type != "organic" or tone:
         enrichment = {
             "target_audience": target_audience or None,
             "pain_points": pain_points,
@@ -671,6 +692,7 @@ def _response_from_diagnostics_row(
                 "organic", "brand_deal", "affiliate", "self_promotion",
             ) else "organic",
             "style_tags": style_tags,
+            "tone": tone,
         }
 
     nid_kpi = int(video.get("niche_id") or 0)

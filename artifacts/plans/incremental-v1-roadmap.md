@@ -338,34 +338,37 @@ Map: extract field → signal (`signals/registry.py`) → `section_id` → UI (`
 
 ### 5.1 Wired (as-built — maintain)
 
-| Extract / promote | Signal / path | Section | UI |
-|-------------------|---------------|---------|-----|
-| `hook_*`, `hook_phrase` | `hook_*` | `hook_analysis`, `diagnosis` | Hook blocks, ContextStrip |
-| `commerce_intent.*` | `commerce_*` | `commerce` | Commerce section |
-| `tone`, `target_audience`, `pain_points` | persona/distribution | various | `ContextStrip` |
-| `scenes[]` | editing, script | `editing`, F7 | Scene intel panel |
-| `performance_tier` + corpus stats | performance signals | `diagnosis` | FlopDiagnosisStrip, tier badges |
-| `reference_videos` + proximity | `niche_reference_anchor` | `niche_pattern` | Embedded tiles |
-| `douyin_*` (on-demand) | `douyin_origin_*` | `douyin_origin` | Section when flag on |
-| Batch `boost_attribution` + `reference_eligible` | ingest + ref pool filter; live M3 ✅ W4-2 | BAT / refs / `boost_attribution` section (F1 deep) | Corpus refs + live deep diagnosis |
+Baseline extract → signal → UI map. **Depth:** F2 vs F1 rules in **§5.3** (commerce, distribution strips, boost, carousel deep-only). **Graduated from backlog:** `stats_history`, `hook_timeline`, boost FE block → **§5.2** ✅.
+
+| Extract / promote | Signal / path | Section | UI | Status |
+|-------------------|---------------|---------|-----|--------|
+| `hook_*`, `hook_phrase` | `hook_*` | `hook_analysis`, `diagnosis` | `HookPhaseGrid`, `HookTimelineStrip` (§5.2), copy from `meta.hook_phrase` | ✅ maintain |
+| `commerce_intent.*` | `commerce_*` | `commerce` | `DiagnosisSectionRenderer` — **F1 deep only**; F2 → locked upsell (§5.3) | ✅ maintain |
+| `target_audience`, `pain_points`, `style_tags`, `promotion_type`, `tone` | persona / enrichment | sidebar context | `ContextStrip` via `report.enrichment` + `videoToneVi` | ✅ maintain |
+| `scenes[]` (video extract) | editing signals | `editing` | BE segments + v6 `editing` prose when **F1 deep** | ✅ maintain |
+| `scene_intelligence` (F7 corpus) | nightly batch | F7 script | `SceneIntelligencePanel` — **unwired**; see **feature-map F7 partial** (not §5.1 video path) | ⏸ F7 backlog |
+| `performance_tier` + corpus stats | performance signals | `diagnosis` | `PerformanceTierChip`, `FlopDiagnosisStrip`, `KpiGrid` | ✅ maintain |
+| `reference_videos` + proximity | `niche_reference_anchor` | `niche_pattern` | `VideoTileRow` / `EvidenceVideoEmbed` / `FormatCardsGrid`; `reference_eligible` pool filter | ✅ maintain |
+| `douyin_*` (on-demand) | `douyin_origin_*` | `douyin_origin` | v6 section when `douyin_match` populates extract — **F1 deep only** (not Douyin browse `KHO_*` flag) | ✅ maintain |
+| Batch `boost_attribution` + `reference_eligible` | ingest + ref pool; live M3 ✅ W4-2 | `boost_attribution` (F1) | `BoostAttributionBlock` + ref tiles — **§5.2** FE; **§5.3** basic = upsell `teaser_vi` only | ✅ maintain |
 
 ### 5.2 Missing / weak (incremental priority)
 
 | Extract | Target signal/section | Wave | Notes |
 |---------|----------------------|------|-------|
-| `stats_history` M4 | `distribution_spike_then_flat` | ✅ Launch 2b + §5 FE | BE cron + signal shipped; `StatsHistoryStrip` in `VideoBody` after `distribution` |
+| `stats_history` M4 | `distribution_spike_then_flat` | ✅ Launch 2b + §5 FE | `StatsHistoryStrip` — **F1 deep only** (§5.3 @ `d864f065`) |
 | `hook_analysis.hook_timeline[]` | pacing signals (P1) | ✅ Launch 2a + §5 FE | BE `hook_timeline_pacing_sparse`; `hook_timeline` on analyze response + `HookTimelineStrip` in `VideoBody` |
 | `transitions_per_second` | `editing_cut_pace_*` | ✅ Launch 2a | Signal in synthesis `editing` section — no dedicated strip (F1 audit path) |
 | `persona_consistency_signals` | channel rollup | ✅ Launch 2a | `channel_persona_drift` on channel path — not video `VideoBody` |
 | `key_messages[]` | — | ✅ W5-3 @ `65e4145` | **Trimmed** from extraction schema — G6: trim without formal ablation metrics |
-| Dedicated FE `boost_attribution` UI block | — | ✅ §5 FE | `BoostAttributionBlock` after `boost_attribution` section + meta fallback |
+| Dedicated FE `boost_attribution` UI block | — | ✅ §5 FE | `BoostAttributionBlock` — F1 deep; meta fallback deep-only (§5.3 @ `d864f065`) |
 | §4.11.3 post-basic upsell UI | teaser + “Phân tích chuyên sâu” CTA | W3-5 | ✅ Shipped — `VideoDeepUpsell` + `locked_sections` metadata |
 
 ### 5.4 Carousel path
 
 | Extract | Target | Status | UI |
 |---------|--------|--------|-----|
-| `CarouselAnalysis.slides[]` + ME-19 fields | swipe psychology / slide intel | ✅ §5 FE | `CarouselIntelStrip` in `VideoBody` when `carousel_intel.slides` present |
+| `CarouselAnalysis.slides[]` + ME-19 fields | swipe psychology / slide intel | ✅ §5 FE | `CarouselIntelStrip` — **F1 deep only** (§5.3 @ `d864f065`) |
 | `content_arc`, `swipe_trigger_type`, pacing | synthesis `hook_analysis` / distribution | ✅ BE | Carousel meta chips in strip; save-rate hint in `FlopDiagnosisStrip` |
 
 ### 5.3 F2 vs F1 depth split (post-W3) — ✅ complete

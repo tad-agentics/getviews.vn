@@ -12,6 +12,7 @@ import {
   hookTimelineEventVi,
   overlayStyleVi,
   sceneTypeVi,
+  videoToneVi,
 } from "./enum-labels-vi";
 
 describe("overlayStyleVi", () => {
@@ -66,5 +67,11 @@ describe("firstFrameVi", () => {
 describe("hookTimelineEventVi", () => {
   it("translates face_enter — the exact leak the QA audit caught", () => {
     expect(hookTimelineEventVi("face_enter")).toBe("Khuôn mặt xuất hiện");
+  });
+});
+
+describe("videoToneVi", () => {
+  it("translates educational", () => {
+    expect(videoToneVi("educational")).toBe("Giáo dục");
   });
 });

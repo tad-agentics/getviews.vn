@@ -83,7 +83,19 @@ SCENE_TYPE_VI: dict[str, str] = {
     "other": "Khác",
 }
 
-# Carousel subformat — display labels in Vietnamese for the report header.
+# ``VideoAnalysis.tone`` — creative voice read from Gemini extraction.
+VIDEO_TONE_VI: dict[str, str] = {
+    "educational": "Giáo dục",
+    "entertaining": "Giải trí",
+    "emotional": "Cảm xúc",
+    "humorous": "Hài hước",
+    "inspirational": "Truyền cảm hứng",
+    "urgent": "Khẩn trương",
+    "conversational": "Trò chuyện",
+    "authoritative": "Chuyên gia",
+}
+
+
 # Enum values produced by _carousel_subformat() in pipelines.py.
 CAROUSEL_SUBFORMAT_VI: dict[str, str] = {
     "carousel_product_roundup": "So sánh",
@@ -141,6 +153,10 @@ def scene_type_vi(value: str | None, *, default: str | None = None) -> str:
 
 def overlay_style_vi(value: str | None, *, default: str | None = None) -> str:
     return _lookup(OVERLAY_STYLE_VI, value, default)
+
+
+def video_tone_vi(value: str | None, *, default: str | None = None) -> str:
+    return _lookup(VIDEO_TONE_VI, value, default)
 
 
 def carousel_subformat_vi(value: str | None, *, default: str | None = None) -> str:

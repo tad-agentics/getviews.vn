@@ -475,6 +475,21 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/Trung vị 100\.0K view/)).toBeTruthy();
   });
 
+  it("renders enrichment tone in ContextStrip", () => {
+    renderInRouter(
+      makeWinReport({
+        enrichment: {
+          pain_points: [],
+          promotion_type: "organic",
+          style_tags: [],
+          tone: "entertaining",
+        },
+      }),
+    );
+    expect(screen.getByText(/GIỌNG ĐIỆU/)).toBeTruthy();
+    expect(screen.getByText("Giải trí")).toBeTruthy();
+  });
+
   it("renders enrichment chips, audience, and pain points", () => {
     renderInRouter(
       makeFlopReport({

@@ -58,6 +58,18 @@ export const HOOK_TIMELINE_EVENT_VI: Record<string, string> = {
   reveal: "Khoảnh khắc chốt hạ",
 };
 
+/** ``VideoAnalysis.tone`` — mirrors ``enum_labels_vi.VIDEO_TONE_VI``. */
+export const VIDEO_TONE_VI: Record<string, string> = {
+  educational: "Giáo dục",
+  entertaining: "Giải trí",
+  emotional: "Cảm xúc",
+  humorous: "Hài hước",
+  inspirational: "Truyền cảm hứng",
+  urgent: "Khẩn trương",
+  conversational: "Trò chuyện",
+  authoritative: "Chuyên gia",
+};
+
 function lookup(
   table: Record<string, string>,
   value: string | null | undefined,
@@ -86,3 +98,6 @@ export const firstFrameVi = (v: string | null | undefined, fallback?: string) =>
 
 export const hookTimelineEventVi = (v: string | null | undefined, fallback?: string) =>
   lookup(HOOK_TIMELINE_EVENT_VI, v, fallback);
+
+export const videoToneVi = (v: string | null | undefined, fallback?: string) =>
+  lookup(VIDEO_TONE_VI, v, fallback);

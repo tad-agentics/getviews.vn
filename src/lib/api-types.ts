@@ -261,6 +261,16 @@ export interface VideoEnrichment {
   pain_points: string[];
   promotion_type: "organic" | "brand_deal" | "affiliate" | "self_promotion";
   style_tags: string[];
+  tone?:
+    | "educational"
+    | "entertaining"
+    | "emotional"
+    | "humorous"
+    | "inspirational"
+    | "urgent"
+    | "conversational"
+    | "authoritative"
+    | null;
 }
 
 export interface VideoAnalyzeResponse {

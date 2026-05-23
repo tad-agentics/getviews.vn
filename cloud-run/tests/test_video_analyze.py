@@ -849,6 +849,7 @@ def test_response_surfaces_enrichment_from_analysis_json() -> None:
         "pain_points": ["da dầu mụn ẩn", "ngân sách hạn chế"],
         "promotion_type": "brand_deal",
         "style_tags": ["talking_head", "POV", "fast_cuts"],
+        "tone": "educational",
     })
     out = _response_from_diagnostics_row(
         video,
@@ -866,6 +867,39 @@ def test_response_surfaces_enrichment_from_analysis_json() -> None:
     assert enrichment["pain_points"] == ["da dầu mụn ẩn", "ngân sách hạn chế"]
     assert enrichment["promotion_type"] == "brand_deal"
     assert enrichment["style_tags"] == ["talking_head", "POV", "fast_cuts"]
+    assert enrichment["tone"] == "educational"
+
+
+def test_response_enrichment_omits_invalid_tone() -> None:
+    video = _video_for_response(analysis_json={"tone": "other"})
+    out = _response_from_diagnostics_row(
+        video,
+        _empty_diag(),
+        mode="win",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Beauty",
+        retention_source="modeled",
+    )
+    assert out["enrichment"] is None
+
+
+def test_response_enrichment_surfaces_tone_only() -> None:
+    video = _video_for_response(analysis_json={"tone": "humorous"})
+    out = _response_from_diagnostics_row(
+        video,
+        _empty_diag(),
+        mode="win",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Beauty",
+        retention_source="modeled",
+    )
+    assert out["enrichment"] is not None
+    assert out["enrichment"]["tone"] == "humorous"
+    assert out["enrichment"]["pain_points"] == []
 
 
 def test_response_omits_enrichment_when_analysis_empty() -> None:

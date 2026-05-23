@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — §5.1 tone enrichment in ContextStrip
+
+- **BE:** `VideoEnrichmentPayload.tone` + `_normalize_video_tone()` on analyze response.
+- **FE:** `ContextStrip` GIỌNG ĐIỆU chip via `videoToneVi` (`enum-labels-vi` ↔ `enum_labels_vi.py`).
+- **Roadmap:** §5.1 split video `scenes[]` vs F7 `scene_intelligence` panel.
+
 ## 2026-05-23 — §5.3 F2/F1 depth split complete (manifest upsell teasers)
 
 - **BE:** `upsell_locked_sections()` adds `signal_count` from full manifest + `teaser_vi` for `boost_attribution` on basic depth.

@@ -492,6 +492,19 @@ class VideoEnrichmentPayload(BaseModel):
     pain_points: list[str] = Field(default_factory=list)
     promotion_type: Literal["organic", "brand_deal", "affiliate", "self_promotion"] = "organic"
     style_tags: list[str] = Field(default_factory=list)
+    tone: (
+        Literal[
+            "educational",
+            "entertaining",
+            "emotional",
+            "humorous",
+            "inspirational",
+            "urgent",
+            "conversational",
+            "authoritative",
+        ]
+        | None
+    ) = None
 
     model_config = {"extra": "allow"}
 
