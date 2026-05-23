@@ -333,6 +333,20 @@ def build_channel_findings(
     return candidates
 
 
+_QUICK_PEEK_FINDING_IDS = frozenset({
+    "channel_view_ceiling_300",
+    "channel_format_entropy_high",
+})
+
+
+def pick_channel_quick_peek(findings: list[ChannelFinding]) -> dict[str, str] | None:
+    """F5 — return first P0 ceiling/entropy teaser for Trends card."""
+    for finding in findings:
+        if finding.id in _QUICK_PEEK_FINDING_IDS:
+            return {"finding_id": finding.id, "teaser": finding.claim}
+    return None
+
+
 def format_findings_for_prompt(findings: list[ChannelFinding]) -> str:
     """Render top findings for LLM context block."""
     if not findings:

@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — W5-4 F5 channel quick peek on Trends
+
+- **BE:** `GET /channel/quick-peek` + `pick_channel_quick_peek()` (P0 ceiling/entropy).
+- **FE:** `ChannelQuickPeekTeaser` on `PatternCard`.
+
 ## 2026-05-23 — W5-3 key_messages trim (G6)
 
 - Removed `key_messages[]` from `VideoAnalysis` / carousel extraction schema.

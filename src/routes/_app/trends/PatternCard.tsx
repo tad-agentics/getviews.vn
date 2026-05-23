@@ -5,6 +5,7 @@ import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
+import { ChannelQuickPeekTeaser } from "./components/ChannelQuickPeekTeaser";
 
 /**
  * Trends — § I PatternCard.
@@ -41,6 +42,7 @@ export const PatternCard = memo(function PatternCard({
   const headline = pickHeadline(pattern);
   const sub = pickSub(pattern);
   const liftLabel = formatLift(pattern.lift_vs_niche);
+  const peekHandle = pattern.videos[0]?.creator_handle ?? null;
 
   return (
     <article className="overflow-hidden rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.18)]">
@@ -74,6 +76,7 @@ export const PatternCard = memo(function PatternCard({
                 {sub}
               </p>
             ) : null}
+            <ChannelQuickPeekTeaser handle={peekHandle} />
           </div>
 
           {/* Stat strip — tier-aware (Sprint 7b).

@@ -97,6 +97,19 @@ def _summarize_user_search_row(row: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+@router.get("/channel/quick-peek")
+async def channel_quick_peek_endpoint(
+    handle: str = Query(..., min_length=1, max_length=64),
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """F5 — 1–2 P0 channel findings teaser for Trends cards (no credit)."""
+    from getviews_pipeline.channel_quick_peek import channel_quick_peek_for_handle
+
+    _ = user
+    payload = await run_sync(channel_quick_peek_for_handle, handle)
+    return JSONResponse(payload)
+
+
 @router.get("/channel/user-search")
 async def channel_user_search_endpoint(
     user: dict = Depends(require_user),
