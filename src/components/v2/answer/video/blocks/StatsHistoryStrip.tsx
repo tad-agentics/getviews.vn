@@ -54,9 +54,9 @@ export function StatsHistoryStrip({
             key={`${row.phase}-${row.at}`}
             className="rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2"
           >
-            <p className="gv-mono text-[11px] font-semibold tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+            <span className="gv-mono block text-[11px] font-semibold tracking-[0.18em] text-[color:var(--gv-ink-3)]">
               {PHASE_LABEL[row.phase] ?? row.phase}
-            </p>
+            </span>
             <p className="gv-mono mt-1 text-base font-semibold tabular-nums text-[color:var(--gv-ink)]">
               {formatViews(row.views)}
             </p>

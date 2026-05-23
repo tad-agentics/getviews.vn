@@ -1,14 +1,9 @@
 {
   "summary": {
-    "scannedAt": "2026-05-23T10:03:37.722Z",
+    "scannedAt": "2026-05-23T10:04:23.212Z",
     "filesScanned": 252,
-    "totalHits": 1,
-    "byViolationId": {
-      "T-07": {
-        "count": 1,
-        "severity": "MEDIUM"
-      }
-    },
+    "totalHits": 0,
+    "byViolationId": {},
     "routeScores": [
       {
         "name": "Landing",
@@ -181,29 +176,6 @@
     ],
     "phaseFilter": "all"
   },
-  "fileResults": {
-    "src/components/v2/answer/video/blocks/StatsHistoryStrip.tsx": [
-      {
-        "id": "T-07",
-        "severity": "MEDIUM",
-        "line": 57,
-        "snippet": "<p className=\"gv-mono text-[11px] font-semibold tracking-[0.18em] text-[color:var(--gv-ink-4)]\">",
-        "file": "src/components/v2/answer/video/blocks/StatsHistoryStrip.tsx"
-      }
-    ]
-  },
-  "topFiles": [
-    [
-      "src/components/v2/answer/video/blocks/StatsHistoryStrip.tsx",
-      [
-        {
-          "id": "T-07",
-          "severity": "MEDIUM",
-          "line": 57,
-          "snippet": "<p className=\"gv-mono text-[11px] font-semibold tracking-[0.18em] text-[color:var(--gv-ink-4)]\">",
-          "file": "src/components/v2/answer/video/blocks/StatsHistoryStrip.tsx"
-        }
-      ]
-    ]
-  ]
+  "fileResults": {},
+  "topFiles": []
 }
