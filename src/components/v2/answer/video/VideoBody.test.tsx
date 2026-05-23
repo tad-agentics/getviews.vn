@@ -193,9 +193,9 @@ describe("VideoBody render", () => {
     expect(screen.getByText("Kết luận nhanh cho win.")).toBeTruthy();
   });
 
-  it("renders MỔ VIDEO VIRAL kicker + niche label in win mode", () => {
+  it("renders MỔ VIDEO VIEW CAO kicker + niche label in win mode", () => {
     renderInRouter(makeWinReport());
-    expect(screen.getByText(/MỔ VIDEO VIRAL/)).toBeTruthy();
+    expect(screen.getByText(/MỔ VIDEO VIEW CAO/)).toBeTruthy();
     expect(screen.getByText("Làm đẹp")).toBeTruthy();
   });
 
@@ -462,7 +462,7 @@ describe("VideoBody render", () => {
     renderInRouter(withRatio);
     expect(screen.getByText(/SO VỚI KÊNH BẠN/)).toBeTruthy();
     expect(screen.getByText(/0,6× kênh trung bình/)).toBeTruthy();
-    expect(screen.getByText(/Trung vị 100\.000 view/)).toBeTruthy();
+    expect(screen.getByText(/Trung vị 100\.0K view/)).toBeTruthy();
   });
 
   it("renders enrichment chips, audience, and pain points", () => {

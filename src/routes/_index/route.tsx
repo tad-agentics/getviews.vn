@@ -9,6 +9,7 @@ const PAGE_DESC =
 export const meta: MetaFunction = () => [
   { title: PAGE_TITLE },
   { name: "description", content: PAGE_DESC },
+  { tagName: "link", rel: "canonical", href: "https://www.getviews.vn/" },
   { property: "og:title", content: PAGE_TITLE },
   { property: "og:description", content: PAGE_DESC },
   { property: "og:type", content: "website" },

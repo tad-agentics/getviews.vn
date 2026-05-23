@@ -40,7 +40,7 @@ describe("ShotReferenceStrip", () => {
 
   it("shows the count + 'cùng mục đích' kicker", () => {
     render(<ShotReferenceStrip refs={[makeRef(), makeRef({ video_id: "v2" })]} />);
-    expect(screen.getByText(/SHOT THAM KHẢO TỪ VIDEO VIRAL · CÙNG MỤC ĐÍCH/)).toBeTruthy();
+    expect(screen.getByText(/SHOT THAM KHẢO TỪ VIDEO VIEW CAO · CÙNG MỤC ĐÍCH/)).toBeTruthy();
     expect(screen.getByText(/2 SHOT THAM KHẢO/)).toBeTruthy();
   });
 

@@ -1,0 +1,12 @@
+{
+  "task": "uiux-phase1",
+  "date": "2026-05-23",
+  "verdict": "PASS",
+  "summary": "Phase 1 UIUX fixes (motion cap, PRM, lime fill, icon aria) code-verified on branch.",
+  "checks": [
+    { "id": "V-01-partial", "status": "PASS", "note": "gv-fade-up capped at 0.32s (320ms) in app.css" },
+    { "id": "V-02-partial", "status": "PASS", "note": "prefers-reduced-motion guards on landing tickers" },
+    { "id": "V-03", "status": "PASS", "note": "HomeScreen live badge uses accent-soft + lime dot (not full lime fill)" },
+    { "id": "V-04-partial", "status": "PASS", "note": "Lucide icons carry aria-hidden on updated surfaces" }
+  ]
+}

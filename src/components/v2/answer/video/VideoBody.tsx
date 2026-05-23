@@ -406,7 +406,7 @@ export function VideoBody({
           ) : report.carousel_subformat_label ? (
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <span className="gv-mono text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-                MỔ CAROUSEL VIRAL ·{" "}
+                MỔ CAROUSEL VIEW CAO ·{" "}
                 <span className="normal-case text-[color:var(--gv-ink-3)]">
                   {report.carousel_subformat_label}
                   {report.carousel_slide_count ? ` · ${report.carousel_slide_count} slides` : ""}
@@ -426,7 +426,7 @@ export function VideoBody({
           ) : (
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <span className="gv-mono text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-                MỔ VIDEO VIRAL ·{" "}
+                MỔ VIDEO VIEW CAO ·{" "}
                 <span className="normal-case text-[color:var(--gv-ink-3)]">
                   {meta.niche_label ?? "—"}
                 </span>

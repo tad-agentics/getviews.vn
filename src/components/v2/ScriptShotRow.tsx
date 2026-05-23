@@ -112,7 +112,7 @@ export function ScriptShotRow({
                 : "bg-[rgba(0,159,250,0.12)] text-[rgb(0,159,250)]"
             }`}
           >
-            {slow ? "⚠" : "✓"} {span.toFixed(1)}s · ngách {shot.winnerAvg}s
+            {slow ? "✕" : "✓"} {span.toFixed(1)}s · ngách {shot.winnerAvg}s
           </div>
           {onRegenerate ? (
             <button

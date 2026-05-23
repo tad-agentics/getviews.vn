@@ -1,3 +1,4 @@
+import { Calendar, Search, Sparkles, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import type { ActionCardPayloadData } from "@/lib/api-types";
@@ -15,16 +16,16 @@ function defaultRoute(a: ActionCardPayloadData): string {
   return "/app";
 }
 
-function actionIcon(symbol: string): string {
+function actionIcon(symbol: string): LucideIcon {
   switch (symbol) {
     case "sparkles":
-      return "✨";
+      return Sparkles;
     case "search":
-      return "🔎";
+      return Search;
     case "calendar":
-      return "📅";
+      return Calendar;
     default:
-      return "•";
+      return Sparkles;
   }
 }
 
@@ -35,6 +36,7 @@ export function PatternActionCards({ actions }: { actions: ActionCardPayloadData
     <ul className="grid grid-cols-1 gap-3 min-[900px]:grid-cols-3">
       {actions.map((a) => {
         const primary = Boolean(a.primary);
+        const Icon = actionIcon(a.icon);
         const forecastBg = primary
           ? "bg-[color:var(--gv-forecast-primary-bg)]"
           : "bg-[color:var(--gv-canvas-2)]";
@@ -43,8 +45,8 @@ export function PatternActionCards({ actions }: { actions: ActionCardPayloadData
             key={a.title}
             className={`flex flex-col rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4 ${primary ? "ring-1 ring-[color:var(--gv-accent)]" : ""}`}
           >
-            <div className="mb-2 text-[20px] leading-none" aria-hidden>
-              {actionIcon(a.icon)}
+            <div className="mb-2" aria-hidden>
+              <Icon className="h-5 w-5 text-[color:var(--gv-ink-3)]" strokeWidth={1.8} />
             </div>
             <p className="gv-serif text-[16px] text-[color:var(--gv-ink)]">{a.title}</p>
             <p className="mt-1 text-sm text-[color:var(--gv-ink-3)]">{a.sub}</p>

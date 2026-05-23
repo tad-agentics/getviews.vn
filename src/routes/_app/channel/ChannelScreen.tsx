@@ -196,9 +196,14 @@ export default function ChannelScreen() {
               <>
                 <div className="flex flex-col gap-3">
                   {/* Depth picker also shown after handle load — separate entry points */}
-                  <ChannelDepthPicker depth={channelDepth} onDepthChange={setChannelDepth} />
+                  <ChannelDepthPicker
+                    depth={channelDepth}
+                    onDepthChange={setChannelDepth}
+                    creditsRemaining={credits}
+                    sauCreditCost={CREDIT_COST}
+                  />
                   <div
-                    className="flex items-stretch overflow-hidden rounded-[14px] border-[1.5px] border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)]"
+                    className="flex items-stretch overflow-hidden rounded-xl border-[1.5px] border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)]"
                     style={{ boxShadow: "3px 3px 0 var(--gv-ink)" }}
                   >
                     <span
@@ -230,7 +235,7 @@ export default function ChannelScreen() {
                         }}
                         placeholder="@handle  hoặc dán link đầy đủ"
                         aria-label="Handle hoặc URL kênh TikTok"
-                        className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3.5 text-base font-medium text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)]"
+                        className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3.5 text-base font-medium text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--gv-accent)]"
                       />
                       <button
                         type="submit"
@@ -286,6 +291,8 @@ export default function ChannelScreen() {
                 lastDiagnoseHandleRef.current = null;
                 setChannelDepth(depth);
               }}
+              creditsRemaining={credits}
+              sauCreditCost={CREDIT_COST}
             />
             {channelDepth === "nhanh" ? (
               <ChannelNhanhPanel
@@ -397,7 +404,7 @@ function ChannelDiagnosisBody({
             value={another}
             onChange={(e) => setAnother(e.target.value)}
             placeholder={at}
-            className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-base text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
+            className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-base text-[color:var(--gv-ink)] outline-none focus-visible:border-[color:var(--gv-accent)] focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-1"
             autoComplete="off"
           />
         </label>
@@ -422,7 +429,7 @@ function ChannelDiagnosisBody({
               value={videoUrlInput}
               onChange={(e) => setVideoUrlInput(e.target.value)}
               placeholder="https://tiktok.com/@handle/video/..."
-              className="min-w-0 flex-1 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-base text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
+              className="min-w-0 flex-1 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-base text-[color:var(--gv-ink)] outline-none focus-visible:border-[color:var(--gv-accent)] focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-1"
               autoComplete="off"
             />
             <Btn
@@ -455,7 +462,7 @@ function ChannelDiagnosisBody({
 
       {/* Streaming progress */}
       {isStreaming && diagnose.sections.length === 0 && (
-        <div className="rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
+        <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
           <StepProgress
             activeStepIndex={diagnose.activeStepIndex}
             activeStepLabel={diagnose.activeStepLabel}
@@ -467,7 +474,7 @@ function ChannelDiagnosisBody({
 
       {/* Narrative sections */}
       {diagnose.sections.length > 0 && (
-        <div className="rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 sm:px-7">
+        <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 sm:px-7">
           {isStreaming && !diagnose.scoreCard ? <ScoreCardSkeleton /> : null}
           {diagnose.scoreCard ? <ScoreCard card={diagnose.scoreCard} /> : null}
           {diagnose.sections.map((section) => (

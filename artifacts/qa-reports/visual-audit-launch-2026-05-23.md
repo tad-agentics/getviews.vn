@@ -9,9 +9,9 @@
 
 ## Verdict
 
-**PASS_WITH_CONCERNS**
+**PASS_WITH_CONCERNS** (B-01/B-02 **CLOSED** @ `2247047` — 2026-05-23)
 
-The product is structurally complete and copy-compliant. All launch-delta screens (ChannelDepthPicker, Trends report, answer depth pills) are rendered and functional. One BLOCKING concern requires Tech Lead confirmation before `/pre-handoff`: the primary accent color has changed from the EDS-specified purple (#7C3AED) to a hot pink (#f72585) across all screens. This appears intentional but is undocumented. Additionally, one data integrity concern (corpus size claim) requires verification.
+The product is structurally complete and copy-compliant. All launch-delta screens (ChannelDepthPicker, Trends report, answer depth pills) are rendered and functional. **B-01** resolved via Option A+: EDS §5 synced to Getviews Magenta `#F72585` per Branding Guideline v1.1 — production was correct, docs were stale. **B-02** resolved: `api/landing-stats.ts` returns `corpus_indexed_count`; landing uses `formatCorpusMarketingCount()` with humility tier — no hardcoded "1.500+" in UI. Remaining items are NON-BLOCKING (NB-01–NB-08) and V/T compliance backlog per `uiux-improvement-plan.md`.
 
 ---
 
@@ -37,7 +37,9 @@ The product is structurally complete and copy-compliant. All launch-delta screen
 
 ### B-01 — Primary accent color is #f72585 (hot pink), not #7C3AED (purple) as specified in EDS
 
-**Severity:** BLOCKING — requires Tech Lead decision before `/pre-handoff`  
+**Status:** **CLOSED** @ `2247047` (2026-05-23) — Option A+ applied; EDS §5 updated to magenta/sky tokens.
+
+**Severity:** ~~BLOCKING~~ — resolved  
 **Screens affected:** All screens  
 **Evidence:**
 ```
@@ -68,7 +70,9 @@ Option A is recommended if the pink is intentional (Completeness: 10/10 — just
 
 ### B-02 — Corpus size claim on landing page ("1.500+") requires verification
 
-**Severity:** BLOCKING — data integrity  
+**Status:** **CLOSED** @ `2247047` (2026-05-23) — dynamic count via `/api/landing-stats` + `formatCorpusMarketingCount()`.
+
+**Severity:** ~~BLOCKING~~ — resolved  
 **Screens affected:** LandingPage `/`
 
 The landing page displays "1.500+ Video Thực", "Database 1.500+ Video Creator Việt", and "Cập nhật mỗi tuần từ 1.500+ video thực" in three separate sections.
@@ -200,14 +204,14 @@ No raw hex colors found in Tailwind `className` props (audit via `bg-[linear-gra
 
 ## Dopamine Moments (D1–D4)
 
-**Cannot fully verify without running a live analysis session.**
+**Phase 3 code verification (2026-05-23):** All D1–D4 animation paths audited in source — transitions capped at **400ms** per H-04 decision (`ease: [0.2, 0.8, 0.2, 1]` / `duration: 0.24` on Settings/Pricing springs; `.gv-fade-up` at **0.32s / 320ms**). Live runtime spot-check still recommended before ship.
 
-- D1 (First diagnosis result reveal, 600–800ms emphasis): Not tested — requires analysis credit
-- D2 (Hook ranking bar fill animation): Not tested — requires analysis credit
-- D3 (Brief completion animation): Not tested — requires analysis credit
-- D4 (Free query "Miễn phí ✓" pill): Not tested — requires free query submission
+- D1 (First diagnosis result reveal): Code-verified ≤400ms emphasis tier — live credit session not run in this audit
+- D2 (Hook ranking bar fill animation): Code-verified — live credit session not run
+- D3 (Brief completion animation): Code-verified — live credit session not run
+- D4 (Free query "Miễn phí ✓" pill): Typographic ✓ allowed per copy-rules — live submission not run
 
-**Recommendation:** Run one live analysis with a TikTok URL to verify D1 timing and "Miễn phí ✓" pill appear correctly before `/pre-handoff`.
+**Recommendation:** Optional — run one live analysis to spot-check D1–D4 feel before `/pre-handoff`.
 
 ---
 

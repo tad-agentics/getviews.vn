@@ -11,6 +11,7 @@
  */
 
 import type { ChannelContext } from "@/lib/api-types";
+import { formatViews } from "@/lib/formatters";
 
 type PerFormatEntry = {
   n: number;
@@ -20,15 +21,9 @@ type PerFormatEntry = {
   max_views: number;
 };
 
-function fmtViews(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return n.toLocaleString("vi-VN");
-}
-
 function fmtRange(entry: PerFormatEntry): string {
-  const lo = fmtViews(entry.min_views);
-  const hi = fmtViews(entry.max_views);
+  const lo = formatViews(entry.min_views);
+  const hi = formatViews(entry.max_views);
   if (lo === hi) return `${lo} views`;
   return `${lo} · ${hi} views`;
 }
@@ -71,7 +66,7 @@ function FormatRangeCell({
         ) : null}
       </p>
       <p className="m-0 text-[10px] text-[color:var(--gv-ink-4)]">
-        {fmtViews(entry.avg_views)} TB · {entry.n} video
+        {formatViews(entry.avg_views)} TB · {entry.n} video
       </p>
     </div>
   );
@@ -159,7 +154,7 @@ export function ChannelProofBlock({
         <p className="mt-1 text-[11px] text-[color:var(--gv-ink-4)]">
           Trung vị kênh:{" "}
           <span className="gv-mono font-medium text-[color:var(--gv-ink)]">
-            {Math.round(channelContext.median_views).toLocaleString("vi-VN")}
+            {formatViews(Math.round(channelContext.median_views))}
           </span>{" "}
           lượt xem
           {channelContext.sample_size != null
@@ -210,8 +205,6 @@ export function ChannelContextLegacy({
 }) {
   if (!channelContext.available) return null;
 
-  const formatViewsVi = (n: number) => n.toLocaleString("vi-VN");
-
   const body = (
     <>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[1440px]:grid-cols-3">
@@ -228,7 +221,7 @@ export function ChannelContextLegacy({
             </p>
             {v.views != null ? (
               <p className="gv-mono mt-1 text-[12px] font-medium text-[color:var(--gv-ink)]">
-                {v.views.toLocaleString("vi-VN")} lượt xem
+                {formatViews(v.views)} lượt xem
               </p>
             ) : null}
             {v.tiktok_url ? (
@@ -253,7 +246,7 @@ export function ChannelContextLegacy({
               : "—"}
           </p>
           <p className="gv-mono mt-1 text-[12px] font-medium text-[color:var(--gv-ink)]">
-            {formatViewsVi(metaViews)} lượt xem
+            {formatViews(metaViews)} lượt xem
           </p>
         </div>
       </div>
@@ -272,7 +265,7 @@ export function ChannelContextLegacy({
               </p>
               {v.views != null ? (
                 <p className="gv-mono mt-1 text-[12px] font-medium text-[color:var(--gv-ink)]">
-                  {v.views.toLocaleString("vi-VN")} lượt xem
+                  {formatViews(v.views)} lượt xem
                 </p>
               ) : null}
               {v.tiktok_url ? (
@@ -293,7 +286,7 @@ export function ChannelContextLegacy({
         <p className="mt-2 text-[12px] text-[color:var(--gv-ink-3)]">
           Trung vị kênh:{" "}
           <span className="gv-mono font-medium text-[color:var(--gv-ink)]">
-            {Math.round(channelContext.median_views).toLocaleString("vi-VN")}
+            {formatViews(Math.round(channelContext.median_views))}
           </span>{" "}
           lượt xem
           {channelContext.sample_size != null

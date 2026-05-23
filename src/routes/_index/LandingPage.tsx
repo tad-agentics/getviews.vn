@@ -16,7 +16,7 @@ import { pricingPlans, pricingSavings } from "@/lib/mock-data";
  * ``motion/react`` (~125 KB raw / ~45 KB gzip) was on the critical
  * path purely for decorative ``whileInView`` fade-ups (mostly no-ops
  * because ``initial={false}`` left elements at their final state)
- * and a hover-lift that the cards' ``hover:shadow-lg`` already
+ * and a hover-lift that the cards' border emphasis already
  * implies. The local ``motion`` and ``AnimatePresence`` shims below
  * silently strip animation props and render plain DOM, so the
  * bundle no longer includes the library while the JSX shape stays
@@ -64,7 +64,7 @@ function buildFaqs(corpusLabel: string) {
   },
   {
     q: "Khác gì Kalodata hay Shoplus?",
-    a: "Kalodata và Shoplus tập trung vào bán hàng — sản phẩm nào chạy, doanh số bao nhiêu. GetViews tập trung vào nội dung — TẠI SAO video đó viral, hook mở đầu như thế nào, nhịp cắt và format ra sao. Hai loại công cụ bổ trợ nhau, không thay thế nhau.",
+    a: "Kalodata và Shoplus tập trung vào bán hàng — sản phẩm nào chạy, doanh số bao nhiêu. GetViews tập trung vào nội dung — TẠI SAO video đó view cao, hook mở đầu như thế nào, nhịp cắt và format ra sao. Hai loại công cụ bổ trợ nhau, không thay thế nhau.",
   },
   {
     q: "1 credit tính như thế nào?",
@@ -93,7 +93,7 @@ const testimonials = [
     niche: "Làm đẹp · Skincare",
     followers: "~120K",
     quote:
-      "Trước đây toàn phải screenshot thủ công rồi quên sạch. Giờ chỉ cần hỏi \"hook nào hot tuần này\" — AI lọc ra luôn 5 mẫu đang viral nhất, kèm link video gốc để học theo.",
+      "Trước đây toàn phải screenshot thủ công rồi quên sạch. Giờ chỉ cần hỏi \"hook nào hot tuần này\" — AI lọc ra luôn 5 mẫu view cao nhất, kèm link video gốc để học theo.",
     stat: "3.2x avg views",
   },
   {
@@ -244,7 +244,7 @@ function SolutionCardsSection() {
           Công Cụ Nghiên Cứu TikTok Của Bạn
         </h2>
         <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-2xl mx-auto leading-relaxed">
-          GetViews xem hàng nghìn video TikTok và trả lời mọi câu hỏi bạn cần — từ nghiên cứu đối thủ, tìm hook viral, đến viết brief cho KOL. Dựa trên data thực, không đoán mò.
+          GetViews xem hàng nghìn video TikTok và trả lời mọi câu hỏi bạn cần — từ nghiên cứu đối thủ, tìm hook đang nổi, đến viết brief cho KOL. Dựa trên data thực, không đoán mò.
         </p>
         <div className="grid md:grid-cols-2 gap-4">
 
@@ -253,7 +253,7 @@ function SolutionCardsSection() {
             initial={false} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0 }}
             whileHover={{ y: -4 }}
-            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] cursor-pointer"
           >
             <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Đối thủ đang đăng gì?"</p>
             <div className="flex gap-2 overflow-hidden">
@@ -284,7 +284,7 @@ function SolutionCardsSection() {
             initial={false} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.1 }}
             whileHover={{ y: -4 }}
-            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] cursor-pointer"
             style={{ minHeight: 220 }}
           >
             <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Creator nào nên hire?"</p>
@@ -310,9 +310,9 @@ function SolutionCardsSection() {
             initial={false} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.2 }}
             whileHover={{ y: -4 }}
-            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] cursor-pointer"
           >
-            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Hook nào viral nhất tuần này?"</p>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Hook nào view cao nhất tuần này?"</p>
             <div className="flex gap-3 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-3">
               <div className="flex-shrink-0 overflow-hidden rounded-lg bg-[color:var(--gv-canvas-2)]" style={{ width: 48, height: 64 }}>
                 <VideoThumb id={HOOK_EXAMPLE.id} className="h-full w-full" />
@@ -339,7 +339,7 @@ function SolutionCardsSection() {
             initial={false} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.3 }}
             whileHover={{ y: -4 }}
-            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] cursor-pointer"
           >
             <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Video nào nên làm?"</p>
             {/* Responsive grid: at 360px baseline 5 cells = 72px each
@@ -362,12 +362,6 @@ function SolutionCardsSection() {
       </div>
     </section>
   );
-}
-
-function formatViewsShort(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
-  return String(v);
 }
 
 const SIGNALS: { key: keyof typeof SIGNAL_VIDEOS; dot: string; label: string; sub: string }[] = [
@@ -572,7 +566,7 @@ const INFRA_FEATURE_TEMPLATES = [
   { icon: Database,      labelKey: "corpus" as const,      sub: "Kho dữ liệu TikTok Việt Nam, kiểm chứng được" },
   { icon: Play,          labelKey: "analyze" as const,    sub: "AI xem frame thực, không đoán mò" },
   { icon: Globe,         labelKey: "niche" as const,      sub: "Làm đẹp, ẩm thực, tài chính, công nghệ..." },
-  { icon: Zap,           labelKey: "hook" as const,       sub: "Từ video đã viral, không phải lý thuyết" },
+  { icon: Zap,           labelKey: "hook" as const,       sub: "Từ video breakout thực tế, không phải lý thuyết" },
   { icon: Search,        labelKey: "rival" as const,      sub: "Tra @handle, ra ngay chiến lược của họ" },
   { icon: MessageCircle, labelKey: "vi" as const,         sub: "Hỏi tiếng Việt, trả lời tiếng Việt" },
   { icon: ExternalLink,  labelKey: "cite" as const,       sub: "Mọi gợi ý đều kèm video thật, bấm xem được" },
@@ -726,11 +720,11 @@ function HowItWorksSection() {
     {
       num: "02",
       title: "Đối chiếu với Data thực",
-      body: "AI so sánh video đó với hàng nghìn video viral khác trong cùng niche ngay tại thời điểm hiện tại.",
+      body: "AI so sánh video đó với hàng nghìn video view cao khác trong cùng niche ngay tại thời điểm hiện tại.",
     },
     {
       num: "03",
-      title: "Nhận \"đề bài\" để viral",
+      title: "Nhận \"đề bài\" để leo view",
       body: "Biết ngay vì sao video flop, cần sửa hook ở giây thứ mấy, hay chuyển sang format nào để lên xu hướng.",
     },
   ];
@@ -842,7 +836,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
               <motion.div
                 initial={false}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
+                transition={{ duration: 0.32 }}
               >
                 <div className="inline-flex items-center gap-2 bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-full px-4 py-2 mb-6">
                   <span className="text-sm font-medium text-[color:var(--gv-ink-3)]">Trợ lý AI số 1 cho TikTok Creator Việt</span>
@@ -896,11 +890,11 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             <motion.div
               initial={false}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
               className="relative hidden lg:block"
             >
               {/* Floating Stats Card */}
-              <div className="absolute top-8 -left-8 bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-4 shadow-lg z-10">
+              <div className="absolute top-8 -left-8 bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-4 z-10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded bg-[color:var(--gv-ink)] flex items-center justify-center">
                     <span className="text-white font-mono font-bold text-sm">↑</span>
@@ -913,7 +907,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
               </div>
 
               {/* Main Mock Chat */}
-              <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-6 shadow-lg">
+              <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[color:var(--gv-rule)]">
                   <div className="w-10 h-10 rounded bg-[color:var(--gv-ink)] flex items-center justify-center text-white font-bold text-xs">GV</div>
                   <div>
@@ -931,7 +925,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="font-bold text-[color:var(--danger)]">✕</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[color:var(--gv-ink)] mb-1">Hook vào quá chậm (2.3s)</p>
-                        <p className="text-xs text-[color:var(--gv-ink-3)]">Top video viral thường mở màn ở 0.5s</p>
+                        <p className="text-xs text-[color:var(--gv-ink-3)]">Top video view cao thường mở màn ở 0.5s</p>
                       </div>
                     </div>
                   </div>
@@ -961,7 +955,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
               </div>
 
               {/* Floating Niche Badge */}
-              <div className="absolute -bottom-4 -right-4 bg-[color:var(--gv-ink)] text-white rounded-xl px-5 py-3 shadow-lg">
+              <div className="absolute -bottom-4 -right-4 bg-[color:var(--gv-ink)] text-white rounded-xl px-5 py-3 border border-[color:var(--gv-ink)]">
                 <p className="text-xs opacity-70 mb-0.5">Phủ sóng 21 niche creator</p>
                 <p className="font-bold text-sm">Skincare · Review · Food · Affiliate...</p>
               </div>
@@ -972,7 +966,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
           <motion.div
             initial={false}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
+            transition={{ duration: 0.32, delay: 0.4 }}
             className="mt-16 flex flex-wrap items-center justify-center gap-6 text-sm text-[color:var(--gv-ink-3)]"
           >
             <div className="flex items-center gap-2"><span>Data 100% từ TikTok Việt</span></div>
@@ -986,7 +980,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
           <motion.div
             initial={false}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
+            transition={{ duration: 0.32, delay: 0.4 }}
             className="mt-10 overflow-hidden border-t border-[color:var(--gv-rule)] pt-5"
           >
             <p className="text-xs text-[color:var(--gv-ink-3)] mb-3 text-center">Các mẫu Hook đang "lên ngôi" tuần này</p>
@@ -1005,7 +999,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       <section className="px-4 py-20 md:py-28 bg-[color:var(--gv-paper)]">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="gv-landing-h2-lg font-extrabold text-[color:var(--gv-ink)] leading-[1.4]">
-            Công cụ duy nhất tự động "soi" hàng nghìn video mỗi&nbsp;ngày để tìm ra công&nbsp;thức viral cho bạn
+            Công cụ duy nhất tự động "soi" hàng nghìn video mỗi&nbsp;ngày để tìm ra công&nbsp;thức breakout cho bạn
           </h2>
         </div>
       </section>
@@ -1087,6 +1081,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             viewport={{ once: true }}
             transition={{ duration: 0.4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-6 md:p-8 mb-6"
+            aria-label="TRƯỚC 2.000 view · video review nồi chiên — SAU 45.000 view · quay lại theo gợi ý"
           >
             <div className="grid md:grid-cols-[1fr_80px_1fr] gap-6 items-center">
               <div>
@@ -1203,7 +1198,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: idx * 0.05 }}
                 whileHover={{ y: -4 }}
-                className={`border rounded-xl p-5 relative bg-[color:var(--gv-paper)] transition-shadow duration-200 hover:shadow-lg ${
+                className={`border rounded-xl p-5 relative bg-[color:var(--gv-paper)] transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] ${
                   plan.popular ? "border-[color:var(--gv-ink)] border-2" : "border-[color:var(--gv-rule)]"
                 }`}
               >

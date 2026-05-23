@@ -9,13 +9,7 @@ import {
 } from "@/lib/productionFriction";
 import { scriptPrefillFromMorningSignal } from "@/lib/scriptPrefill";
 import { useClassMorningSignals } from "@/hooks/useClassMorningSignals";
-
-function formatViews(n: number | null): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return n.toLocaleString("vi-VN");
-}
+import { formatViews } from "@/lib/formatters";
 
 function signalHeadline(signal: ClassMorningSignal): string {
   switch (signal.signal_type) {
@@ -33,7 +27,7 @@ function signalHeadline(signal: ClassMorningSignal): string {
 }
 
 function signalBody(signal: ClassMorningSignal): string {
-  const views = formatViews(signal.avg_views);
+  const views = signal.avg_views != null ? formatViews(signal.avg_views) : "—";
   if (signal.signal_type === "new_class") {
     return `${signal.label_vn} — ${signal.corpus_citation}, chưa có baseline tuần trước. View TB hiện tại ${views}.`;
   }

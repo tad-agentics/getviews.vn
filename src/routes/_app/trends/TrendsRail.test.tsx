@@ -73,8 +73,8 @@ describe("TrendsRail", () => {
       getByText("Top 5 view 7 ngày trong ngách bạn chọn — bấm để phân tích vì sao nổ"),
     ).toBeTruthy();
     expect(getByText("VIDEO LEO ĐỈNH")).toBeTruthy();
-    expect(getByText("Đang Viral")).toBeTruthy();
-    expect(getByText("Top 5 viral all-time trong ngách — khác rail 7 ngày phía trên")).toBeTruthy();
+    expect(getByText("Leo đỉnh")).toBeTruthy();
+    expect(getByText("Top 5 view cao all-time trong ngách — khác rail 7 ngày phía trên")).toBeTruthy();
   });
 
   it("renders one row per video with hook phrase as the title", () => {

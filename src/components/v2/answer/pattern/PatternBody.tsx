@@ -16,6 +16,7 @@ import { WoWDiffBand } from "./WoWDiffBand";
 import { tiktokVideoHref, wowDiffHasContent } from "./patternFormat";
 import { PatternSubreports } from "../multi/PatternSubreport";
 import { NicheInsightCard } from "../ideas/NicheInsightCard";
+import { formatViews } from "@/lib/formatters";
 import { patternLabelsForSessionIntent } from "../sessionIntentLabels";
 
 function sumToneClass(tone: SumStatData["tone"]): string {
@@ -25,13 +26,6 @@ function sumToneClass(tone: SumStatData["tone"]): string {
 }
 
 function OutlierStoryBanner({ story }: { story: OutlierStory }) {
-  const fmtViews = (v: number) =>
-    v >= 1_000_000
-      ? `${(v / 1_000_000).toFixed(1)}M`
-      : v >= 1_000
-        ? `${Math.round(v / 1_000)}K`
-        : v.toLocaleString("vi-VN");
-
   return (
     <div className="mb-6 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-3.5">
       <p className="gv-mono mb-1 text-[9px] uppercase tracking-widest text-[color:var(--gv-ink-4)]">
@@ -40,7 +34,7 @@ function OutlierStoryBanner({ story }: { story: OutlierStory }) {
       <p className="text-[15px] leading-snug text-[color:var(--gv-ink)]">
         <span className="font-semibold">{story.creator_handle}</span> đạt{" "}
         <span className="font-mono font-bold text-[color:var(--gv-accent)]">
-          {fmtViews(story.views)} view
+          {formatViews(story.views)} view
         </span>{" "}
         — gấp{" "}
         <span className="font-mono font-bold">
@@ -213,7 +207,10 @@ export function PatternBody({
               <div key={c.label} className="text-center">
                 <p className="gv-mono text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">{c.label}</p>
                 <p className="gv-serif mt-1 text-[22px] text-[color:var(--gv-ink)]">{c.value}</p>
-                <p className={`gv-mono mt-1 text-[11px] ${sumToneClass(c.tone)}`}>{c.trend}</p>
+                <p className={`gv-mono mt-1 text-[11px] ${sumToneClass(c.tone)}`}>
+                  {c.tone === "up" ? "↑ " : c.tone === "down" ? "↓ " : ""}
+                  {c.trend}
+                </p>
               </div>
             ))}
           </div>

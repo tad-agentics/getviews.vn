@@ -62,7 +62,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
   ) : null;
 
   return (
-    <section aria-label="Công thức từ video viral trong ngách" className="mb-14">
+    <section aria-label="Công thức từ video view cao trong ngách" className="mb-14">
       {/* Header */}
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <div className="min-w-0">
@@ -70,7 +70,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
             Phần I — Pattern
           </p>
           <h2 className="gv-tight m-0 text-[clamp(22px,2.5vw,28px)] font-semibold tracking-[-0.02em] text-[color:var(--gv-ink)]">
-            Công thức từ video viral trong ngách
+            Công thức từ video view cao trong ngách
           </h2>
         </div>
         <p className="gv-mono max-w-[200px] text-right text-[10px] leading-snug tracking-[0.06em] text-[color:var(--gv-ink-4)]">

@@ -1,4 +1,5 @@
 import type { VideoAnalyzeMeta, VideoEnrichment } from "@/lib/api-types";
+import { formatViews } from "@/lib/formatters";
 
 const PROMOTION_LABEL_VI: Record<NonNullable<VideoEnrichment["promotion_type"]>, string> = {
   organic: "Tự sản xuất",
@@ -45,7 +46,7 @@ export function ContextStrip({
               {ratio!.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}× kênh trung bình
             </p>
             <p className="m-0 text-[11.5px] text-[color:var(--gv-ink-3)]">
-              Trung vị {median!.toLocaleString("vi-VN")} view trên các bài gần đây
+              Trung vị {formatViews(median!)} view trên các bài gần đây
             </p>
           </div>
         ) : null}

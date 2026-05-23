@@ -71,7 +71,7 @@ export const DouyinToolbar = memo(function DouyinToolbar({
       aria-label="Bộ lọc Kho Douyin"
     >
       {/* Search */}
-      <label className="flex h-9 w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 transition-colors hover:border-[color:var(--gv-ink-4)] lg:max-w-[280px]">
+      <label className="flex h-9 w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 transition-colors hover:border-[color:var(--gv-ink-4)] focus-within:border-[color:var(--gv-accent)] focus-within:ring-2 focus-within:ring-[color:var(--gv-accent)] focus-within:ring-offset-1 lg:max-w-[280px]">
         <Search
           className="h-3.5 w-3.5 shrink-0 text-[color:var(--gv-ink-4)]"
           strokeWidth={2}
@@ -111,7 +111,7 @@ export const DouyinToolbar = memo(function DouyinToolbar({
         <select
           value={filters.sort}
           onChange={(e) => setSort(e.target.value as DouyinSortKey)}
-          className="h-11 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 text-[16px] text-[color:var(--gv-ink)] outline-none transition-colors hover:border-[color:var(--gv-ink-4)] sm:h-8 sm:text-[12px]"
+          className="h-11 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 text-[16px] text-[color:var(--gv-ink)] outline-none transition-colors hover:border-[color:var(--gv-ink-4)] focus-visible:border-[color:var(--gv-accent)] focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-1 sm:h-8 sm:text-[12px]"
           aria-label="Sắp xếp video"
         >
           {SORT_OPTIONS.map((opt) => (

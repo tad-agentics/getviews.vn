@@ -210,7 +210,7 @@ describe("CreatorTileRow", () => {
   it("renders follower count", () => {
     const creator = makeCreator({ followers: 123_000 });
     render(<CreatorTileRow creators={[creator]} />);
-    expect(screen.getByText("123K followers")).toBeDefined();
+    expect(screen.getByText("123.0K followers")).toBeDefined();
   });
 
   it("uses placeholder when thumbnail_url is empty", () => {

@@ -92,7 +92,7 @@ const Row = memo(function Row({
     <motion.span
       className="inline-flex"
       whileHover={{ x: 2 }}
-      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      transition={{ type: "tween", ease: [0.2, 0.8, 0.2, 1], duration: 0.24 }}
     >
       <ChevronRight
         className="h-3.5 w-3.5 text-[color:var(--gv-ink-4)] group-hover:text-[color:var(--gv-ink-2)]"
@@ -413,7 +413,7 @@ function PlanPanel({
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${creditPct}%` }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
             className="h-full rounded-full bg-[color:var(--gv-accent)]"
           />
         </div>
@@ -434,16 +434,16 @@ function PlanPanel({
         </Card>
       </div>
 
-      <div className="rounded-xl border border-[color:var(--gv-accent)]/25 bg-[color:var(--gv-accent)]/8 p-4">
+      <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
         <div className="flex flex-wrap items-start gap-3">
-          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[color:var(--gv-accent)]/15">
-            <Zap className="h-4 w-4 text-[color:var(--gv-accent-deep)]" strokeWidth={2.2} />
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)]">
+            <Zap className="h-4 w-4 text-[color:var(--gv-ink-2)]" strokeWidth={2.2} />
           </div>
           <div className="min-w-0 flex-1">
             <p className="mb-0.5 text-sm font-bold text-[color:var(--gv-ink)]">Mở thêm phân tích</p>
             <p className="text-xs text-[color:var(--gv-ink-3)]">Chọn gói phù hợp trên trang thanh toán.</p>
           </div>
-          <Btn variant="accent" size="sm" type="button" onClick={goToPricing} className="shrink-0">
+          <Btn variant="ink" size="sm" type="button" onClick={goToPricing} className="shrink-0">
             Xem gói
           </Btn>
         </div>
@@ -479,7 +479,7 @@ const NicheRadioRow = memo(function NicheRadioRow({
       disabled={disabled}
       onClick={handleClick}
       whileTap={{ scale: 0.98 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      transition={{ type: "tween", ease: [0.2, 0.8, 0.2, 1], duration: 0.24 }}
       className={`flex items-center justify-between gap-2 rounded-lg border px-4 py-3.5 text-left text-sm transition-colors duration-[120ms] ${
         selected
           ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
@@ -636,7 +636,7 @@ const ALERT_DEFAULTS: { title: string; description: string; initial: boolean }[]
     initial: true,
   },
   {
-    title: "Đối thủ post video viral",
+    title: "Đối thủ post video view cao",
     description: "Khi kênh trong shortlist post bài >2× view trung bình",
     initial: true,
   },
@@ -818,7 +818,7 @@ function LogoutSection({
                 <Dialog.Close asChild>
                   <button
                     type="button"
-                    className="flex-1 rounded-xl border border-[color:var(--gv-rule)] py-2.5 text-sm text-[color:var(--gv-ink-2)] transition-colors duration-[120ms] hover:bg-[color:var(--gv-canvas-2)]"
+                    className="flex-1 min-h-[44px] rounded-xl border border-[color:var(--gv-rule)] py-2.5 text-sm text-[color:var(--gv-ink-2)] transition-colors duration-[120ms] hover:bg-[color:var(--gv-canvas-2)]"
                   >
                     Huỷ
                   </button>
@@ -827,7 +827,7 @@ function LogoutSection({
                   type="button"
                   onClick={onConfirm}
                   disabled={logout.isPending}
-                  className="flex-1 rounded-xl bg-[color:var(--gv-danger)] py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className="flex-1 min-h-[44px] rounded-xl bg-[color:var(--gv-danger)] py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   Đăng xuất
                 </button>
@@ -869,7 +869,7 @@ export default function SettingsScreen() {
             <button
               type="button"
               onClick={() => void refetch()}
-              className="rounded-lg bg-[color:var(--gv-ink)] px-4 py-2 text-sm font-semibold text-[color:var(--gv-canvas)]"
+              className="min-h-[44px] min-w-[44px] rounded-lg bg-[color:var(--gv-ink)] px-4 py-2 text-sm font-semibold text-[color:var(--gv-canvas)]"
             >
               Thử lại
             </button>
@@ -894,7 +894,7 @@ export default function SettingsScreen() {
                     key={s.id}
                     type="button"
                     onClick={() => setActiveSection(s.id)}
-                    className={`rounded-md px-3 py-2.5 text-left text-[13px] font-medium transition-colors duration-[120ms] ${
+                    className={`min-h-[44px] rounded-md px-3 py-2.5 text-left text-[13px] font-medium transition-colors duration-[120ms] ${
                       activeSection === s.id
                         ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
                         : "text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-canvas-2)]"

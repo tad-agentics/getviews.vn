@@ -127,7 +127,7 @@
 
 /* GetViews.vn is light mode only */
 .dark {
-  --background: oklch(0.93 0.00 0);
+  --background: var(--gv-canvas);
   --foreground: var(--ink);
 }
 
@@ -255,6 +255,16 @@
   animation-play-state: paused;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll-infinite,
+  .animate-scroll-ticker {
+    animation: none;
+  }
+  .gv-pulse {
+    animation: none !important;
+  }
+}
+
 /* ── Accordion open/close animations ─────────────────────────────── */
 @keyframes accordion-down {
   from { height: 0; opacity: 0; }
@@ -291,6 +301,7 @@
   --gv-canvas:         #FBFCFD;
   --gv-canvas-2:       #F2F4F6;
   --gv-paper:          #FFFFFF;
+  --gv-faint:          var(--gv-canvas-2); /* disabled control surface */
 
   /* ── Ink scale ─────────────────────────────────────────────────── */
   --gv-ink:            #0A0D12;
@@ -443,16 +454,15 @@
  */
 .gv-kicker {
   font-family: var(--gv-font-mono);
-  font-size: 10px;
-  line-height: 1.2;
-  /* Reference section kickers (e.g. kol.jsx) use ~0.16em; shell `mono uc` labels use .gv-uc (0.08em) */
-  letter-spacing: 0.16em;
+  font-size: 11px;
+  line-height: 1.64;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--gv-ink-3);
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-weight: 400;
 }
 .gv-kicker--dot::before {
   content: "";
@@ -504,6 +514,59 @@
 .gv-landing-h3     { font-size: clamp(1.5rem,  4vw,   2rem);    }
 .gv-landing-h3-tight { font-size: clamp(1.5rem,  3.5vw, 2rem);  }
 .gv-landing-stat   { font-size: clamp(2rem,    5vw,   2.75rem); }
+
+/* Type scale — DS §03 (product surfaces) */
+.gv-type-h1 {
+  font-family: var(--gv-font-display);
+  font-size: 48px;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 500;
+}
+.gv-type-h2 {
+  font-family: var(--gv-font-display);
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-weight: 500;
+}
+.gv-type-h3 {
+  font-family: var(--gv-font-display);
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  font-weight: 600;
+}
+.gv-type-lede {
+  font-family: var(--gv-font-sans);
+  font-size: 17px;
+  line-height: 1.45;
+  letter-spacing: -0.012em;
+  font-weight: 500;
+  color: var(--gv-ink-2);
+}
+.gv-type-caption {
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--gv-ink-3);
+}
+.gv-type-metric-sm {
+  font-family: var(--gv-font-sans);
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.gv-type-metric-md {
+  font-family: var(--gv-font-sans);
+  font-size: 32px;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Italic accent: emphasis words inside headlines + quoted script titles.
  * Renders in Instrument Serif italic per the design pack (Branding Guideline §05) —
@@ -635,7 +698,7 @@
   }
 }
 .gv-fade-up {
-  animation: gv-fade-up 0.45s ease-out both;
+  animation: gv-fade-up 0.32s ease-out both;
 }
 @media (prefers-reduced-motion: reduce) {
   .gv-fade-up {

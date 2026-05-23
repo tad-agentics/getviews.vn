@@ -107,7 +107,7 @@
 | **H-01** | Sans: Space Grotesk (brand pack) vs TikTok Sans (live) | A) Keep TikTok Sans B) Switch to Space Grotesk + self-host | **A** — already shipped, VN market fit |
 | **H-02** | Trends active chip uses ink fill (NB-06) vs DS "one accent per surface" | A) Magenta-soft active chip B) Keep ink (editorial) | **A** for filter chips — ink reserved for primary CTAs per Branding §04 |
 | **H-03** | Landing corpus "1.500+" vs system-design "46,000+" | See §7 | **Dynamic stat** from DB with humility tier |
-| **H-04** | EDS D1–D4 allows 600–800ms emphasis; DS §06 caps transitions at **400ms** (loops excepted) | A) Amend DS for diagnosis reveal tier B) Cap D1 at 400ms | **Human decision** — recommend DS add "Emphasis tier 600ms" for D1 only; cap all other transitions at 400ms |
+| **H-04** | EDS D1–D4 allows 600–800ms emphasis; DS §06 caps transitions at **400ms** (loops excepted) | A) Amend DS for diagnosis reveal tier B) Cap D1 at 400ms | **DECIDED 2026-05-23: Option B** — strict 400ms cap everywhere including D1–D4; EDS §6 updated |
 
 ---
 
@@ -352,8 +352,8 @@ Eight local `formatViews` / `formatViewsVi` implementations shadow `@/lib/format
 
 ### 2.6.1 Major route verdicts
 
-| Screen | File | Verdict | Buttons | Inputs | Cards/borders | Motion | Copy |
-|--------|------|---------|---------|--------|---------------|--------|------|
+| Screen | File | Verdict | Buttons | Inputs | Cards/borders | Motion | Copy | **Type** |
+|--------|------|---------|---------|--------|---------------|--------|------|----------|
 | Landing | `_index/LandingPage.tsx` | **FAIL** | ink CTA ✓ | NB-01 placeholder | shadow-lg ×9 (V-18) | scroll ticker no PRM (V-02) | viral (V-07) |
 | Login | `_auth/login/route.tsx` | **FAIL** | 1 primary ✓ | — | shadow (V-18) | 450ms entrance | viral, emoji, `#1877F2` OK |
 | Signup | `_auth/signup/route.tsx` | CONCERNS | — | — | — | — | emoji (V-08) |
@@ -375,6 +375,8 @@ Eight local `formatViews` / `formatViewsVi` implementations shadow `@/lib/format
 | Chat read | `history/ChatSessionReadScreen.tsx` | CONCERNS | — | — | — | — | ✓/✕ transcript |
 
 **Summary:** 0/20 routes fully PASS. **7 FAIL**, **13 CONCERNS**.
+
+> **DS §03 re-audit (2026-05-23):** Baseline @ [`uiux-ds-audit-2026-05-23.json`](../qa-reports/uiux-ds-audit-2026-05-23.json) via `node scripts/uiux-compliance-scan.mjs`. **Type** column = T-01–T-12 typography hits (arbitrary px, kicker drift, metric tabular-nums, serif misuse). Top offenders: `LandingPage.tsx`, `ExploreScreen.tsx`, `VideoBody.tsx`, admin panels.
 
 ### 2.6.2 Answer report bodies (embedded UI — not separate routes)
 
@@ -675,12 +677,13 @@ Per EDS §6 + visual audit gap. **Requires one credited live analysis** before `
 
 | Milestone | Target | Status |
 |-----------|--------|--------|
-| Phase 0 complete (docs + H-04) | Before `/pre-handoff` | 🔲 Pending |
-| BLOCKING violations = 0 | After Phase 1–2 | 🔲 V-01–V-04 |
-| HIGH violations = 0 | After Phase 2–3 | 🔲 V-05–V-18 |
-| Route FAIL = 0 | After Phase 3 + visual audit | 🔲 7 routes FAIL today |
-| Launch re-audit PASS | After Phase 2 | 🔲 Pending |
-| Full app visual PASS | After Phase 3 | 🔲 Pending |
+| Phase 0 complete (docs + H-04) | Before `/pre-handoff` | ✅ 2026-05-23 |
+| Phase 0.5 DS audit + scan script | Before Phase 1 | ✅ 2026-05-23 |
+| BLOCKING violations = 0 | After Phase 1–2 | ✅ V-01–V-04 cleared in code |
+| HIGH violations = 0 | After Phase 2–3 | ◐ T-01 arbitrary px remain on admin/legacy paths |
+| Route FAIL = 0 | After Phase 3 + visual audit | ◐ Landing typography partial; browser audit pending |
+| Launch re-audit PASS | After Phase 2 | ✅ `uiux-phase2-baseline.json` |
+| Full app visual PASS | After Phase 3 | ◐ `/visual-audit` human pass pending |
 
 ### Compliance re-check command (for QA)
 

@@ -45,7 +45,7 @@ export function PwaUpdatePrompt() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 left-4 right-4 z-[60] mx-auto max-w-md rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4 shadow-lg sm:left-auto sm:right-4"
+      className="fixed bottom-4 left-4 right-4 z-[60] mx-auto max-w-md rounded-xl border-2 border-[color:var(--gv-ink-4)] bg-[color:var(--gv-paper)] p-4 sm:left-auto sm:right-4"
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-[color:var(--gv-ink)]">

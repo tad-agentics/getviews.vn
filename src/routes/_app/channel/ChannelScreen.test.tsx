@@ -44,11 +44,10 @@ vi.mock("@/hooks/useChannelQuickPeek", () => ({
   useChannelQuickPeek: (...args: unknown[]) => mockUseChannelQuickPeek(...args),
 }));
 
+const mockUseProfile = vi.fn();
+
 vi.mock("@/hooks/useProfile", () => ({
-  useProfile: () => ({
-    data: { creator_niche_id: 1, credits_remaining: 10 },
-    isPending: false,
-  }),
+  useProfile: () => mockUseProfile(),
 }));
 
 vi.mock("@/hooks/useCreatorNiches", () => ({
@@ -124,7 +123,12 @@ describe("ChannelScreen", () => {
     mockUseHomePulse.mockReset();
     mockUseChannelDiagnose.mockReset();
     mockUseChannelQuickPeek.mockReset();
+    mockUseProfile.mockReset();
     mockUseHomePulse.mockReturnValue({ data: null, isPending: false });
+    mockUseProfile.mockReturnValue({
+      data: { creator_niche_id: 1, credits_remaining: 10 },
+      isPending: false,
+    });
     mockUseChannelDiagnose.mockReturnValue(mockDiagnoseIdle);
     mockUseChannelQuickPeek.mockReturnValue({
       data: {
@@ -157,6 +161,17 @@ describe("ChannelScreen", () => {
     renderScreen("?handle=sammie.tech");
     expect(screen.getByText(/Soi kênh/)).toBeTruthy();
     expect(screen.getByText(/trần view/)).toBeTruthy();
+  });
+
+  it("disables Sâu depth pill when credits are below 3", () => {
+    mockUseProfile.mockReturnValue({
+      data: { creator_niche_id: 1, credits_remaining: 2 },
+      isPending: false,
+    });
+    renderScreen();
+    const sauBtn = screen.getByRole("button", { name: /Sâu · 3 credit/ });
+    expect((sauBtn as HTMLButtonElement).disabled).toBe(true);
+    expect(sauBtn.getAttribute("title")).toMatch(/Cần 3 credit/);
   });
 
   it("renders streaming state while diagnosis is in progress", () => {

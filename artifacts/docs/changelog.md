@@ -1,5 +1,32 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — UIUX audit fix pass
+
+- **V-06:** Remaining video answer blocks (`EvidenceVideoEmbed`, `FormatCardsGrid`, `CrossFormatPanel`, `ContextStrip`) use `formatViews()` for view counts.
+- **V-17:** Depth pills (`ChannelDepthPicker`, `QueryComposer`) use faint disabled surface instead of `disabled:opacity-40`.
+- **V-08:** `ScriptShotRow` slow indicator `⚠` → `✕` (diagnosis glyph set).
+- **V-18:** `dialog`, `alert-dialog`, `PwaUpdatePrompt` — `shadow-lg` → `border-2` emphasis.
+- **T-01:** `Btn` lg size `text-[15px]` → `text-sm`; depth pills `text-[13px]` → `text-sm`.
+- **Tooling:** `uiux-compliance-scan.mjs` — skip `//` comments, line-level V-06, smarter V-07 (API fields), `--phase 1|2|3` filter.
+- **Docs:** Phase 1 baseline V-03 note corrected (HomeScreen live badge); visual audit `.gv-fade-up` duration note → 320ms.
+
+## 2026-05-23 — UIUX Phase 0–3 implementation
+
+- **Phase 0:** B-01/B-02 CLOSED in visual audit; H-04 strict 400ms cap recorded in EDS §6; H-01 TikTok Sans footnote.
+- **Phase 0.5:** `scripts/uiux-compliance-scan.mjs` + `uiux-ds-audit-2026-05-23.json`; §2.6 Type column.
+- **Phase 1:** V-02 PRM loops; V-03 lime; V-04 aria; V-07 viral (/app); V-17 disabled buttons; NB-04/05; DS §03 type tokens + kicker fix.
+- **Phase 2:** V-01 motion 320ms; V-05 left-border cards; V-06 formatViews consolidation; V-10–V-12; V-16/V-18; NB-06/08 Sâu credit guard.
+- **Phase 3:** V-08 emoji→Lucide; V-09 tween; V-14 background alias; V-15 chat ink; V-19/V-20; landing copy/shadows.
+
+## 2026-05-23 — UIUX Phase 3 polish
+
+- **V-08/V-15:** Emoji → Lucide on StudioHero, Pattern/Ideas action cards, TrendingSoundCard, VideoRefCard; DurationInsight uses `gv-kicker` text; chat meta gray → `--gv-ink-4`.
+- **V-09:** Settings + Pricing spring transitions → DS tween `ease [0.2,0.8,0.2,1]` / `0.24s`.
+- **V-07/V-18:** Landing viral marketing strings → breakout/view-cao alternatives; card `shadow-lg` → border emphasis.
+- **V-19:** Channel panels `rounded-[14px]` → `rounded-xl`.
+- **V-20:** Checkout/Pricing/Settings touch targets `min-h-[44px]`.
+- **NB-01:** Landing hero input placeholder kept as URL-first default per `uiux-improvement-plan.md` — product sign-off deferred, not a regression.
+
 ## 2026-05-23 — Launch gate B-01/B-02 (Option A pre-handoff)
 
 - **B-01 CLOSED:** `emotional-design-system.md` §5 synced to Getviews Magenta `#F72585` + sky/ink/canvas tokens (matches `src/app.css` + Branding Guideline v1.1).

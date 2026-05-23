@@ -198,7 +198,7 @@ function SourceBadge({ tool }: { tool: string }) {
     <span
       className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
         isTiktok
-          ? "bg-[#010101] text-white"
+          ? "bg-[color:var(--gv-ink)] text-white"
           : "border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] text-[var(--gv-ink-3)]"
       }`}
     >
@@ -529,7 +529,7 @@ export function LivePipelineStrip({
           role="alert"
           className="mt-2 flex items-start gap-2 rounded-md border border-[color:var(--gv-neg)]/40 bg-[color:var(--gv-neg)]/8 px-3 py-2 text-[12.5px] text-[color:var(--gv-neg-deep)]"
         >
-          <span aria-hidden>⚠</span>
+          <span aria-hidden className="font-mono">✕</span>
           <div className="flex flex-col gap-0.5">
             <span className="font-medium">{errorEvents[0]!.message_vi}</span>
             <span className="gv-mono text-[10px] opacity-70">

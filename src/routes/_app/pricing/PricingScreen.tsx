@@ -230,7 +230,7 @@ function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period
           key={p}
           type="button"
           onClick={() => onChange(p)}
-          className={`relative px-4 py-2 rounded-lg text-sm transition-colors duration-[120ms] z-10 ${
+          className={`relative px-4 py-2 min-h-[44px] rounded-lg text-sm transition-colors duration-[120ms] z-10 ${
             value === p ? "text-white font-semibold" : "text-[var(--gv-ink-3)] hover:text-[var(--ink)]"
           }`}
         >
@@ -239,7 +239,7 @@ function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period
               layoutId="period-pill"
               className="absolute inset-0 rounded-lg"
               style={{ background: "var(--gradient-primary)" }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              transition={{ type: "tween", ease: [0.2, 0.8, 0.2, 1], duration: 0.24 }}
             />
           )}
           <span className="relative z-10 flex items-center gap-1.5">
@@ -306,7 +306,7 @@ function PlanCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: index * 0.06, ease: "easeOut" }}
       className={`relative rounded-xl overflow-hidden flex flex-col ${
-        plan.popular ? "border-2 border-[var(--gv-accent)] shadow-lg" : "border border-[var(--border)]"
+        plan.popular ? "border-2 border-[var(--gv-accent)]" : "border border-[var(--border)]"
       } bg-[var(--surface)]`}
     >
       {plan.popular && (
@@ -402,7 +402,7 @@ function PlanCard({
           <button
             type="button"
             onClick={() => navigate("/app")}
-            className="w-full py-2.5 rounded-lg border border-[var(--border)] text-sm text-[var(--gv-ink-3)] font-semibold hover:bg-[var(--surface-alt)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
+            className="w-full min-h-[44px] py-2.5 rounded-lg border border-[var(--border)] text-sm text-[var(--gv-ink-3)] font-semibold hover:bg-[var(--surface-alt)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
           >
             {plan.cta}
           </button>
@@ -411,7 +411,7 @@ function PlanCard({
             <button
               type="button"
               onClick={goCheckoutStarter}
-              className="w-full py-2.5 rounded-lg text-sm text-white font-semibold transition-opacity duration-[120ms] hover:opacity-90"
+              className="w-full min-h-[44px] py-2.5 rounded-lg text-sm text-white font-semibold transition-opacity duration-[120ms] hover:opacity-90"
               style={{ background: "var(--gradient-primary)" }}
             >
               {plan.cta}
@@ -420,7 +420,7 @@ function PlanCard({
             <button
               type="button"
               onClick={goCheckoutStarter}
-              className="w-full py-2.5 rounded-lg border border-[var(--gv-accent)]/40 text-sm text-[var(--gv-accent)] font-semibold hover:bg-[var(--gv-accent)]/5 transition-colors duration-[120ms]"
+              className="w-full min-h-[44px] py-2.5 rounded-lg border border-[var(--gv-accent)]/40 text-sm text-[var(--gv-accent)] font-semibold hover:bg-[var(--gv-accent)]/5 transition-colors duration-[120ms]"
             >
               {plan.cta}
             </button>
@@ -430,7 +430,7 @@ function PlanCard({
             type="button"
             disabled
             title="Gói đang được cập nhật"
-            className="w-full py-2.5 rounded-lg border border-[var(--border)] text-sm text-[var(--muted)] font-semibold opacity-60 cursor-not-allowed"
+            className="w-full min-h-[44px] py-2.5 rounded-lg border border-[var(--border)] text-sm text-[var(--muted)] font-semibold opacity-60 cursor-not-allowed"
           >
             {plan.cta}
           </button>
@@ -531,9 +531,10 @@ function PricingContent() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 4 }}
                 transition={{ duration: 0.15 }}
-                className="text-xs font-semibold text-[var(--gv-accent)] text-center"
+                className="text-xs font-semibold text-[var(--gv-accent)] text-center inline-flex items-center justify-center gap-1.5"
               >
-                ✦ {savingsMsg}
+                <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {savingsMsg}
               </motion.p>
             ) : (
               <motion.span key="empty" initial={{ opacity: 0 }} animate={{ opacity: 0 }} />
@@ -559,7 +560,7 @@ function PricingContent() {
                 key={pack.pack}
                 type="button"
                 onClick={() => navigate("/app/checkout", { state: { plan: pack.pack } })}
-                className={`relative flex flex-col items-center justify-center text-center p-4 rounded-xl border transition-all duration-[120ms] ${
+                className={`relative flex flex-col items-center justify-center text-center min-h-[44px] p-4 rounded-xl border transition-all duration-[120ms] ${
                   pack.highlight
                     ? "border-[var(--gv-accent)] bg-[var(--surface)]"
                     : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gv-ink)]"

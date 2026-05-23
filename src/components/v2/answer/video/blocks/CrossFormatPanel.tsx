@@ -1,5 +1,6 @@
 import { SectionMini } from "@/components/SectionMini";
 import type { VideoReportPayload } from "@/lib/api-types";
+import { formatViews } from "@/lib/formatters";
 
 export function CrossFormatPanel({
   signal,
@@ -28,7 +29,7 @@ export function CrossFormatPanel({
                 {h.hook_type_vi || h.hook_type}
               </span>
               <span className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
-                {Math.round(h.avg_views).toLocaleString("vi-VN")} view ·{" "}
+                {formatViews(Math.round(h.avg_views))} view ·{" "}
                 {h.niche_spread} ngách
               </span>
             </li>

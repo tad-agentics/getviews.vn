@@ -277,11 +277,10 @@ export default function HomeScreen() {
             <div className="mb-3.5 flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2.5">
                 <span
-                  className="inline-flex items-center gap-2 rounded-full border-transparent px-3 py-1 gv-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink)]"
-                  style={{ background: "var(--gv-lime)" }}
+                  className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-accent-soft)] px-3 py-1 gv-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink)]"
                 >
                   <span
-                    className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-ink)]"
+                    className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-lime)]"
                     style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
                   />
                   <span>{liveBadgeLabel}</span>

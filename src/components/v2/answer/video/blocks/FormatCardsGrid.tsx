@@ -4,6 +4,7 @@ import type {
   FormatCardExample,
   ReferenceVideoCard,
 } from "@/lib/api-types";
+import { formatViews } from "@/lib/formatters";
 
 function atHandle(raw: string | null | undefined): string {
   const s = (raw ?? "").trim();
@@ -108,7 +109,7 @@ export function FormatCardsGrid({
                           {atHandle(ex.creator_handle)} · {ex.desc || "(không có caption)"}
                         </span>
                         <span className="gv-mono shrink-0 font-semibold tabular-nums text-[color:var(--gv-ink)]">
-                          {ex.play_count.toLocaleString("vi-VN")}
+                          {formatViews(ex.play_count)}
                         </span>
                       </a>
                     ))}

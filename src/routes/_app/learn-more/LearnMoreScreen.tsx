@@ -35,7 +35,7 @@ const sections: { heading: string; items: LearnMoreItem[] }[] = [
       {
         title: "TikTok Trends Hub",
         summary:
-          "Bảng xu hướng toàn cầu của TikTok — theo dõi hashtag, âm nhạc và nội dung đang viral mỗi tuần.",
+          "Bảng xu hướng toàn cầu của TikTok — theo dõi hashtag, âm nhạc và nội dung đang nổi mỗi tuần.",
         url: "https://www.tiktok.com/trending",
       },
     ],

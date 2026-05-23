@@ -3,9 +3,9 @@
  *
  * DurationInsight maps `durationSec` to one of four Vietnamese copy tiers:
  *   < 22    → "Ngắn — phù hợp hook thuần, ít dữ liệu"      (ink-4)
- *   22–40   → "★ Vùng vàng — 71% video thắng nằm đây"      (benchmark)
+ *   22–40   → gv-kicker "Vùng vàng" — 71% video thắng…      (benchmark)
  *   41–60   → "Dài hơn TB — cần payoff rõ lúc 40s"          (ink-4)
- *   > 60    → "⚠ > 60s retention giảm 34%"                  (accent-deep)
+ *   > 60    → gv-kicker "Cảnh báo" — > 60s retention…       (accent-deep)
  */
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -24,9 +24,9 @@ describe("DurationInsight", () => {
 
   it("renders the sweet-spot tier for 22–40s inclusive with benchmark colour", () => {
     const { getByText } = render(<DurationInsight durationSec={28} />);
-    const node = getByText(/Vùng vàng — 71% video thắng/);
+    const node = getByText(/71% video thắng nằm đây/);
     expect(node).toBeTruthy();
-    expect(node.className).toMatch(/gv-chart-benchmark/);
+    expect(node.closest("p")?.className).toMatch(/gv-chart-benchmark/);
   });
 
   it("tier boundary at exactly 22s lands in the sweet spot", () => {
@@ -48,6 +48,6 @@ describe("DurationInsight", () => {
     const { getByText } = render(<DurationInsight durationSec={75} />);
     const node = getByText(/> 60s retention giảm 34%/);
     expect(node).toBeTruthy();
-    expect(node.className).toMatch(/gv-accent-deep/);
+    expect(node.closest("p")?.className).toMatch(/gv-accent-deep/);
   });
 });

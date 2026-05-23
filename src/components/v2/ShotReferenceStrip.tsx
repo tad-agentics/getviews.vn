@@ -177,7 +177,7 @@ export function ShotReferenceStrip({ refs, density = "row" }: ShotReferenceStrip
   return (
     <div className="border-t border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 py-2.5">
       <div className="gv-mono gv-uc mb-2 text-[9px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
-        ✻ {refs.length} SHOT THAM KHẢO TỪ VIDEO VIRAL · CÙNG MỤC ĐÍCH
+        {refs.length} SHOT THAM KHẢO TỪ VIDEO VIEW CAO · CÙNG MỤC ĐÍCH
       </div>
       <div className="flex gap-2 overflow-x-auto pb-0.5">
         {refs.map((r, i) => (

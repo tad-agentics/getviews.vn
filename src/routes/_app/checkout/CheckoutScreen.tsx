@@ -122,7 +122,7 @@ export default function CheckoutScreen() {
             <button
               type="button"
               onClick={() => navigate("/app/pricing")}
-              className="mt-14 lg:mt-0 text-sm text-[var(--muted)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
+              className="mt-14 lg:mt-0 inline-flex min-h-[44px] min-w-[44px] items-center text-sm text-[var(--muted)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
             >
               ← Quay lại
             </button>
@@ -153,7 +153,7 @@ export default function CheckoutScreen() {
                     <RadioGroup.Item
                       key={value}
                       value={value}
-                      className="w-full flex items-center gap-3 p-4 bg-[var(--surface)] border rounded-xl cursor-pointer transition-all duration-[120ms] data-[state=checked]:border-[var(--gv-accent)] data-[state=checked]:bg-[var(--gv-accent-soft)] hover:border-[var(--gv-ink)]"
+                      className="w-full flex items-center gap-3 min-h-[44px] p-4 bg-[var(--surface)] border rounded-xl cursor-pointer transition-all duration-[120ms] data-[state=checked]:border-[var(--gv-accent)] data-[state=checked]:bg-[var(--gv-accent-soft)] hover:border-[var(--gv-ink)]"
                     >
                       <div
                         className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors duration-[120ms] ${

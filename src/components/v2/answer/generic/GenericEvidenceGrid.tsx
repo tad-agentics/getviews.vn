@@ -13,16 +13,11 @@ import { inheritHandoffFromSearch } from "@/lib/answerHandoff";
 
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { EvidenceCardPayloadData } from "@/lib/api-types";
+import { formatViews } from "@/lib/formatters";
 
 function tiktokUrlFor(handle: string, videoId: string): string {
   const h = handle.replace(/^@/, "");
   return `https://www.tiktok.com/@${h}/video/${videoId}`;
-}
-
-function formatViews(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return String(n);
 }
 
 function formatDuration(sec: number): string {

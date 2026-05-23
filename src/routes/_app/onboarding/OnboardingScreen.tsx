@@ -131,7 +131,8 @@ export default function OnboardingScreen() {
                 <button
                   type="button"
                   onClick={skip}
-                  className="inline-flex items-center gap-1.5 text-[13px] text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors"
+                  aria-label="Bỏ qua chọn ngách"
+                  className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1.5 text-[13px] text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors"
                 >
                   <ArrowLeft className="h-3 w-3" strokeWidth={1.7} />
                   Bỏ qua

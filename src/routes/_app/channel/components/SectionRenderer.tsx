@@ -35,7 +35,7 @@ export function SectionRenderer({
   if (section_id === "recommendations") {
     return (
       <div className="mb-6">
-        <h2 className="text-base font-bold text-[color:var(--foreground)] leading-snug">
+        <h2 className="gv-type-h3 text-[color:var(--foreground)] leading-snug">
           {title}
         </h2>
         {recommendations.length > 0 ? (
@@ -50,7 +50,7 @@ export function SectionRenderer({
   if (section_id === "hashtag_insights") {
     return (
       <div className="mb-6">
-        <h2 className="text-base font-bold text-[color:var(--foreground)] leading-snug">{title}</h2>
+        <h2 className="gv-type-h3 text-[color:var(--foreground)] leading-snug">{title}</h2>
         <HashtagInsightsBlock insights={hashtag_insights ?? []} />
         <div className="relative mt-2">
           <SectionProseBlocks text={text} />
@@ -68,7 +68,7 @@ export function SectionRenderer({
   if (section_id === "next_video") {
     return (
       <div className="mb-6">
-        <h2 className="text-base font-bold text-[color:var(--foreground)] leading-snug">{title}</h2>
+        <h2 className="gv-type-h3 text-[color:var(--foreground)] leading-snug">{title}</h2>
         {next_video ? (
           <NextVideoCard concept={next_video} streaming={streaming} />
         ) : (
@@ -81,7 +81,7 @@ export function SectionRenderer({
   return (
     <div className="mb-6">
       {/* Section heading */}
-      <h2 className="text-base font-bold text-[color:var(--foreground)] leading-snug">
+      <h2 className="gv-type-h3 text-[color:var(--foreground)] leading-snug">
         {title}
       </h2>
 

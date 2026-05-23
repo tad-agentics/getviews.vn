@@ -32,12 +32,7 @@ export function evidenceTiktokHref(v: EvidenceCardPayloadData): string | null {
   });
 }
 
-export function formatViews(n: number): string {
-  if (!Number.isFinite(n) || n < 0) return "0";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(Math.round(n));
-}
+export { formatViews } from "@/lib/formatters";
 
 export function formatDurationSec(sec: number): string {
   const s = Math.max(0, Math.floor(sec));

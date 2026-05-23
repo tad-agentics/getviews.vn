@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowRight, ChevronDown, Music2 } from "lucide-react";
+import { ArrowRight, ChevronDown, Flame, Music2 } from "lucide-react";
 
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { Btn } from "@/components/v2/Btn";
@@ -143,7 +143,7 @@ export const StudioHero = memo(function StudioHero({
 
 /**
  * L2.2 Sprint 3 — Sound Radar recommendation strip rendered inside each
- * StudioHero ritual row. Shows: 🔊 sound name · ↑+200% · 🔥 Đăng trong 48h
+ * StudioHero ritual row. Shows: sound name · ↑+200% · Đăng trong 48h
  * (or → · Tuần này for peaking). Renders nothing when ``sound_id`` is
  * absent — pre-Sprint-3 ritual rows look unchanged.
  */
@@ -169,10 +169,11 @@ const SoundRecommendationStrip = memo(function SoundRecommendationStrip({
 
   const urgencyCopy =
     script.urgency_band === "post_within_48h"
-      ? "🔥 Đăng trong 48h"
+      ? "Đăng trong 48h"
       : script.urgency_band === "this_week"
         ? "Tuần này"
         : null;
+  const showUrgencyFlame = script.urgency_band === "post_within_48h";
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[color:var(--gv-ink-3)]">
@@ -203,6 +204,9 @@ const SoundRecommendationStrip = memo(function SoundRecommendationStrip({
                 }
           }
         >
+          {showUrgencyFlame ? (
+            <Flame className="h-2.5 w-2.5 shrink-0" strokeWidth={2.2} aria-hidden />
+          ) : null}
           {urgencyCopy}
         </span>
       ) : null}

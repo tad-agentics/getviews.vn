@@ -1,7 +1,7 @@
 import type { ChannelDepth } from "@/lib/channelDepth";
 
 const DEPTH_PILL_BASE =
-  "inline-flex h-10 shrink-0 items-center rounded-md border px-3 text-[13px] leading-tight transition-colors disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex h-10 shrink-0 items-center rounded-md border px-3 text-sm leading-tight transition-colors disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)]";
 
 function depthPillClass(active: boolean): string {
   return active
@@ -13,10 +13,24 @@ type ChannelDepthPickerProps = {
   depth: ChannelDepth;
   onDepthChange: (depth: ChannelDepth) => void;
   disabled?: boolean;
+  creditsRemaining?: number;
+  sauCreditCost?: number;
 };
 
 /** §5.1 — Nhanh (0×) vs Sâu (3×) before channel analysis. */
-export function ChannelDepthPicker({ depth, onDepthChange, disabled }: ChannelDepthPickerProps) {
+export function ChannelDepthPicker({
+  depth,
+  onDepthChange,
+  disabled,
+  creditsRemaining = 0,
+  sauCreditCost = 3,
+}: ChannelDepthPickerProps) {
+  const sauDisabled = disabled || creditsRemaining < sauCreditCost;
+  const sauTitle =
+    creditsRemaining < sauCreditCost
+      ? `Cần ${sauCreditCost} credit — bạn còn ${creditsRemaining}`
+      : undefined;
+
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Mức phân tích kênh">
       <button
@@ -30,7 +44,8 @@ export function ChannelDepthPicker({ depth, onDepthChange, disabled }: ChannelDe
       </button>
       <button
         type="button"
-        disabled={disabled}
+        disabled={sauDisabled}
+        title={sauTitle}
         className={depthPillClass(depth === "sau")}
         aria-pressed={depth === "sau"}
         onClick={() => onDepthChange("sau")}

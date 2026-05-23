@@ -1,5 +1,6 @@
 import type { EvidenceCardPayloadData, HookFindingData } from "@/lib/api-types";
-import { formatViews, momentumVi, tiktokVideoHref } from "./patternFormat";
+import { formatViews } from "@/lib/formatters";
+import { momentumVi, tiktokVideoHref } from "./patternFormat";
 
 function TonePill({ tone }: { tone: "up" | "down" | "neutral" }) {
   const cls =
@@ -8,7 +9,12 @@ function TonePill({ tone }: { tone: "up" | "down" | "neutral" }) {
       : tone === "down"
         ? "text-[color:var(--gv-neg)]"
         : "text-[color:var(--gv-ink-3)]";
-  return <span className={`font-mono text-[10px] ${cls}`}>●</span>;
+  const glyph = tone === "up" ? "↑" : tone === "down" ? "↓" : "—";
+  return (
+    <span className={`font-mono text-[10px] ${cls}`} aria-hidden="true">
+      {glyph}
+    </span>
+  );
 }
 
 function InlineThumbnail({ video }: { video: EvidenceCardPayloadData }) {
@@ -125,7 +131,7 @@ export function HookFindingCard({
 
         {/* VN cultural framing */}
         {row.cultural_framing?.trim() ? (
-          <div className="mt-2 flex items-start gap-2 rounded-md border-l-2 border-[color:var(--gv-accent)] bg-[color:var(--gv-canvas-2)] px-3 py-2">
+          <div className="mt-2 flex items-start gap-2 rounded-md bg-[color:var(--gv-accent-soft)] px-3 py-2">
             <span
               className="gv-mono mt-0.5 shrink-0 text-[9px] font-semibold uppercase tracking-wider text-[color:var(--gv-accent)]"
               aria-label="Văn hóa Việt Nam"

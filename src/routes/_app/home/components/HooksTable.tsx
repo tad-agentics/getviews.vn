@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { useTopPatterns, STUDIO_HOME_TOP_PATTERNS_LIMIT, type TopPattern, type TopPatternsScope } from "@/hooks/useTopPatterns";
+import { formatViews } from "@/lib/formatters";
 
 /**
  * HooksTable — 6-col table matching the design's Home block:
@@ -33,16 +34,6 @@ function deltaCell(curr: number, prev: number) {
       {up ? "+" : "-"}{Math.abs(deltaPct)}%
     </span>
   );
-}
-
-function formatViews(n: number | null): string {
-  if (n == null) return "—";
-  if (n >= 1_000_000) {
-    const m = n / 1_000_000;
-    return m >= 10 ? `${Math.round(m)}M` : `${m.toFixed(1).replace(/\.0$/, "")}M`;
-  }
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return n.toString();
 }
 
 export const HooksTable = memo(function HooksTable({
@@ -130,7 +121,7 @@ export const HooksTable = memo(function HooksTable({
                   View TB
                 </dt>
                 <dd className="gv-mono mt-0.5 text-sm text-[color:var(--gv-ink)]">
-                  {formatViews(p.avg_views)}
+                  {p.avg_views == null ? "—" : formatViews(p.avg_views)}
                 </dd>
               </div>
             </dl>
@@ -198,7 +189,7 @@ export const HooksTable = memo(function HooksTable({
                     {p.niche_video_count.toLocaleString("vi-VN")}
                   </td>
                   <td className="px-3 py-3 text-right gv-mono text-xs text-[color:var(--gv-ink)]">
-                    {formatViews(p.avg_views)}
+                    {p.avg_views == null ? "—" : formatViews(p.avg_views)}
                   </td>
                   <td className="px-3 py-3 text-xs text-[color:var(--gv-ink-3)] italic truncate max-w-[260px]">
                     {p.sample_hook ? `"${p.sample_hook}"` : "—"}

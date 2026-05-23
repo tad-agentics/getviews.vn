@@ -58,14 +58,14 @@ export function ScoreCard({ card }: ScoreCardProps) {
 
   return (
     <div
-      className="mb-5 rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-4 py-4 sm:px-5"
+      className="mb-5 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-4 py-4 sm:px-5"
       aria-label="Tóm tắt số liệu kênh"
     >
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink-3)]">
+        <p className="gv-kicker mb-3">
           Tóm tắt nhanh
         </p>
-        <p className="text-[10px] text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono text-[10px] tabular-nums text-[color:var(--gv-ink-4)]">
           n={card.sample_size_videos ?? "—"} video · {cohortMeta}
         </p>
       </div>
@@ -93,7 +93,7 @@ export function ScoreCard({ card }: ScoreCardProps) {
 export function ScoreCardSkeleton() {
   return (
     <div
-      className="mb-5 animate-pulse rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-4 py-4 sm:px-5"
+      className="mb-5 animate-pulse rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-4 py-4 sm:px-5"
       aria-hidden
     >
       <div className="mb-3 h-3 w-28 rounded bg-[color:var(--gv-canvas-2)]" />

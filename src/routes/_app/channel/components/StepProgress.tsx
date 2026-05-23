@@ -56,7 +56,7 @@ export function StepProgress({
           </div>
           <div className="h-1 rounded-full bg-[color:var(--gv-canvas-2)]">
             <div
-              className="h-1 rounded-full bg-[color:var(--primary)] transition-all duration-500"
+              className="h-1 rounded-full bg-[color:var(--primary)] transition-all duration-300"
               style={{ width: `${Math.min((activeStepIndex / totalSteps) * 100, 100)}%` }}
             />
           </div>

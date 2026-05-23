@@ -46,9 +46,12 @@ export function SectionHeader({
       <div className="min-w-0 flex-1">
         <span
           className={[
-            "gv-uc mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold",
+            "gv-kicker mb-1.5",
+            kickerSparkles ? "" : "gv-kicker--dot",
             kickerSparkles ? "text-[color:var(--gv-accent-deep)]" : kickerColor,
-          ].join(" ")}
+            !kickerSparkles && kickerTone === "muted" ? "gv-kicker--muted" : "",
+            !kickerSparkles && kickerTone === "pos" ? "gv-kicker--pos" : "",
+          ].filter(Boolean).join(" ")}
         >
           {kickerSparkles ? (
             <>
@@ -56,11 +59,11 @@ export function SectionHeader({
               {kicker}
             </>
           ) : (
-            <>● {kicker}</>
+            kicker
           )}
         </span>
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3 sm:gap-y-1">
-          <h2 className="gv-tight m-0 w-full text-[22px] font-semibold leading-[1.1] tracking-[-0.02em] text-[color:var(--gv-ink)] sm:w-auto sm:max-w-[min(100%,36rem)] sm:text-[26px] sm:leading-none lg:text-[28px]">
+          <h2 className="gv-type-h3 gv-tight m-0 w-full sm:w-auto sm:max-w-[min(100%,36rem)]">
             {title}
           </h2>
           {caption ? (

@@ -1,6 +1,7 @@
 /**
  * TrendingSoundCard — compact row for a trending TikTok sound (U3).
  */
+import { CircleDollarSign, Music2 } from "lucide-react";
 import { formatVN } from "@/lib/formatters";
 
 export interface TrendingSoundData {
@@ -18,9 +19,7 @@ export function TrendingSoundCard({ data }: Props) {
   return (
     <div className="min-w-[200px] flex-shrink-0 rounded-xl border border-gray-100 bg-white p-3">
       <div className="flex items-start gap-2">
-        <span className="text-base leading-none" aria-hidden>
-          🎵
-        </span>
+        <Music2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--gv-ink-3)]" aria-hidden />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-bold leading-snug text-[var(--ink)] line-clamp-2">{data.sound_name}</p>
@@ -30,13 +29,14 @@ export function TrendingSoundCard({ data }: Props) {
           </div>
           <p className="mt-1 font-mono text-xs text-[color:var(--gv-ink-3)] tabular-nums">{formatVN(data.total_views)} lượt xem</p>
           {data.commerce_signal ? (
-            <span className="mt-1 inline-block rounded px-1.5 text-xs font-medium bg-amber-50 text-amber-700">
-              💰 Thương mại
+            <span className="mt-1 inline-flex items-center gap-1 rounded px-1.5 text-xs font-medium bg-amber-50 text-amber-700">
+              <CircleDollarSign className="h-3 w-3 shrink-0" aria-hidden />
+              Thương mại
             </span>
           ) : null}
         </div>
       </div>
-      <p className="mt-2 text-xs text-gray-400">{formatVN(data.usage_count)} video dùng tuần này</p>
+      <p className="mt-2 text-xs text-[color:var(--gv-ink-4)]">{formatVN(data.usage_count)} video dùng tuần này</p>
     </div>
   );
 }

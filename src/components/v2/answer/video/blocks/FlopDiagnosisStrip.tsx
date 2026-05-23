@@ -1,10 +1,7 @@
 import type { VideoAnalyzeMeta, VideoNicheMeta } from "@/lib/api-types";
+import { formatViews } from "@/lib/formatters";
 
 const WINNERS_CLAIM_MIN = 10;
-
-function formatViewsVi(n: number): string {
-  return n.toLocaleString("vi-VN");
-}
 
 export function formatSaveRatePct(meta: VideoAnalyzeMeta): string {
   const r = meta.save_rate;
@@ -27,7 +24,7 @@ export function FlopDiagnosisStrip({
   const retLabel = retentionEnd != null ? `${Math.round(retentionEnd)}% giữ chân` : "— giữ chân";
   const nicheViews =
     nicheMeta?.avg_views != null && nicheMeta.avg_views > 0
-      ? formatViewsVi(nicheMeta.avg_views)
+      ? formatViews(nicheMeta.avg_views)
       : "—";
   const isContentClass = nicheMeta?.benchmark_axis === "content_class";
   const cohortLabel =
@@ -55,7 +52,7 @@ export function FlopDiagnosisStrip({
     <div className="border-t-2 border-[color:var(--gv-ink)] pt-5">
       <div className="flex flex-wrap gap-x-4 gap-y-1 font-[family-name:var(--gv-font-mono)] text-xs text-[color:var(--gv-ink-3)]">
         <span>
-          {formatViewsVi(meta.views)} view · {retLabel} · save {savePct}
+          {formatViews(meta.views)} view · {retLabel} · save {savePct}
           {carouselSaveHint ? ` · ${carouselSaveHint}` : ""}
         </span>
         <span className="text-[color:var(--gv-ink-4)]">/</span>

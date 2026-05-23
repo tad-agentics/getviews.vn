@@ -88,7 +88,7 @@ function CategoryCard({
         {category.finding}
       </p>
       {category.fix_preview ? (
-        <p className="mt-3 rounded border-l-2 border-[color:var(--gv-accent)] bg-[color:var(--gv-canvas-2)] px-3 py-2 text-sm leading-snug text-[color:var(--gv-ink-2)]">
+        <p className="mt-3 rounded bg-[color:var(--gv-accent-soft)] px-3 py-2 text-sm leading-snug text-[color:var(--gv-ink-2)]">
           {category.fix_preview}
         </p>
       ) : null}

@@ -18,6 +18,15 @@ describe("formatViews", () => {
 
   it("returns string for counts under 1000", () => {
     expect(formatViews(42)).toBe("42");
+    expect(formatViews(999)).toBe("999");
+  });
+
+  it("formats 1200 as 1.2K", () => {
+    expect(formatViews(1200)).toBe("1.2K");
+  });
+
+  it("formats 4200000 as 4.2M", () => {
+    expect(formatViews(4_200_000)).toBe("4.2M");
   });
 });
 

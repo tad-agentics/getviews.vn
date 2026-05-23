@@ -207,7 +207,7 @@ function DeleteConfirmDialog({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed z-[301] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-2xl shadow-2xl overflow-hidden"
+        className="fixed z-[301] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-5">
@@ -267,7 +267,7 @@ function ContextMenu({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: -4 }}
         transition={{ duration: 0.1, ease: 'easeOut' }}
-        className="fixed z-[200] w-[152px] bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-lg shadow-xl overflow-hidden"
+        className="fixed z-[200] w-[152px] bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-lg overflow-hidden"
         style={{ top, left }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -376,7 +376,7 @@ function SessionRow({
               if (e.key === 'Escape') { setDraft(displayLabel); setRenaming(false); }
             }}
             onBlur={commitRename}
-            className="flex-1 min-w-0 text-xs bg-[color:var(--gv-paper)] border border-[color:var(--gv-accent)]/50 rounded px-2 py-1 text-[color:var(--gv-ink)] outline-none"
+            className="flex-1 min-w-0 text-xs bg-[color:var(--gv-paper)] border border-[color:var(--gv-accent)]/50 rounded px-2 py-1 text-[color:var(--gv-ink)] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-1"
           />
           <button
             onMouseDown={(e) => { e.preventDefault(); commitRename(); }}
@@ -684,6 +684,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             </button>
             {onClose && (
               <button
+                type="button"
                 onClick={onClose}
                 aria-label="Đóng menu"
                 className="flex h-11 w-11 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
@@ -980,7 +981,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               className="fixed z-50 w-[260px]"
               style={{ bottom: '16px', left: '12px' }}
             >
-              <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl shadow-2xl overflow-hidden">
+              <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl overflow-hidden">
                 <div className="p-4">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[color:var(--gv-accent)] to-[color:var(--gv-accent-deep)] flex items-center justify-center flex-shrink-0">
@@ -991,7 +992,9 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                       <p className="truncate text-xs text-[color:var(--gv-ink-3)]">{email}</p>
                     </div>
                     <button
+                      type="button"
                       onClick={() => setShowProfileModal(false)}
+                      aria-label="Đóng"
                       className="w-6 h-6 flex items-center justify-center rounded-md text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] transition-colors duration-[120ms] flex-shrink-0"
                     >
                       <X className="w-3.5 h-3.5" strokeWidth={1.8} />

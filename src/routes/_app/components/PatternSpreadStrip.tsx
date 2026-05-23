@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { Flame, TrendingUp, ArrowRightLeft } from "lucide-react";
+import { formatViews } from "@/lib/formatters";
 
 export type PatternSpreadNiche = { id: number; label: string };
 
@@ -12,10 +13,6 @@ export type TrendPattern = {
   niche_spread: PatternSpreadNiche[];
   signature?: Record<string, unknown>;
 };
-
-function formatVN(n: number): string {
-  return n.toLocaleString("vi-VN");
-}
 
 function deltaLabel(delta: number, prev: number): string {
   if (prev === 0) return delta > 0 ? "mới tuần này" : "—";
@@ -85,7 +82,7 @@ function PatternSpreadCard({
         </p>
         <div className="flex flex-shrink-0 items-center gap-1 text-xs">
           <TrendingUp className={`h-3.5 w-3.5 ${deltaColor(pattern.weekly_delta)}`} strokeWidth={2.2} />
-          <span className="text-[var(--ink)]">{formatVN(pattern.instance_count_week)} video</span>
+          <span className="text-[var(--ink)]">{formatViews(pattern.instance_count_week)} video</span>
         </div>
       </div>
       <p className={`mt-0.5 text-[11px] ${deltaColor(pattern.weekly_delta)}`}>

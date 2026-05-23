@@ -20,7 +20,7 @@ export function NextVideoCard({ concept, streaming = false }: NextVideoCardProps
   const href = concept.sample_video_url?.startsWith("http") ? concept.sample_video_url : undefined;
 
   return (
-    <div className="mt-3 overflow-hidden rounded-[14px] border border-[color:var(--gv-accent)]/35 bg-[color-mix(in_srgb,var(--gv-accent)_8%,var(--gv-paper))]">
+    <div className="mt-3 overflow-hidden rounded-xl border border-[color:var(--gv-accent)]/35 bg-[color-mix(in_srgb,var(--gv-accent)_8%,var(--gv-paper))]">
       <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-stretch">
         {href ? (
           <a

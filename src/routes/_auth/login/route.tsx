@@ -215,7 +215,7 @@ export default function LoginRoute() {
         <motion.div
           initial={{ opacity: 0, y: 18, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
           className="w-full overflow-hidden rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] shadow-[0_20px_50px_-12px_rgb(10_12_16/0.2)]"
         >
           <div className="h-1 w-full bg-[color:var(--gv-accent)]" role="presentation" aria-hidden />
@@ -241,7 +241,7 @@ export default function LoginRoute() {
             <h1 className="mb-2 text-center text-2xl font-extrabold leading-tight tracking-[-0.02em] text-[color:var(--gv-ink)] sm:text-[1.65rem]">
               <span className="block">Bắt trend TikTok trước</span>
               <span className="mt-0.5 block">
-                khi nó <span className="text-[color:var(--gv-accent)]">viral</span>
+                khi nó <span className="text-[color:var(--gv-accent)]">nổi</span>
               </span>
             </h1>
             <p className="text-sm leading-relaxed text-[color:var(--gv-ink-3)]">

@@ -56,7 +56,7 @@ export function TimingBody({
       <VarianceNote note={report.variance_note} />
 
       {report.contrarian_note ? (
-        <div className="mt-4 rounded-lg border-l-4 border-[color:var(--gv-accent)] bg-[color:var(--gv-canvas-2)] px-4 py-3">
+        <div className="mt-4 rounded-lg bg-[color:var(--gv-accent-soft)] px-4 py-3">
           <p className="gv-mono mb-1 text-[9px] uppercase tracking-widest text-[color:var(--gv-accent)]">
             Insight thực tế
           </p>

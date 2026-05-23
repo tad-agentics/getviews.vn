@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import type { FormatCardExample, ReferenceVideoCard } from "@/lib/api-types";
+import { formatViews } from "@/lib/formatters";
 
 interface EvidenceVideoEmbedProps {
   aweme_id: string | null;
@@ -28,7 +29,7 @@ function CorpusEvidenceCard({ ex }: { ex: FormatCardExample }) {
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
           <span className="gv-mono text-[11px] font-medium text-[color:var(--gv-ink)]">
-            {ex.play_count.toLocaleString("vi-VN")} lượt xem
+            {formatViews(ex.play_count)} lượt xem
           </span>
           {ex.tiktok_url ? (
             <a
@@ -95,7 +96,7 @@ export function EvidenceVideoEmbed({
         <div className="flex flex-wrap items-center gap-3">
           {video.views != null ? (
             <span className="gv-mono text-[11px] font-medium text-[color:var(--gv-ink)]">
-              {video.views.toLocaleString("vi-VN")} lượt xem
+              {formatViews(video.views)} lượt xem
             </span>
           ) : null}
           {video.tiktok_url ? (

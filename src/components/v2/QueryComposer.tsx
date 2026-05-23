@@ -31,8 +31,11 @@ export type QueryComposerProps = {
   followUpSlot?: ReactNode;
 };
 
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)]";
+
 const DEPTH_PILL_BASE =
-  "inline-flex h-10 shrink-0 items-center rounded-md border px-3 text-[13px] leading-tight transition-colors disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex h-10 shrink-0 items-center rounded-md border px-3 text-sm leading-tight transition-colors disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)]";
 
 function depthPillClass(active: boolean): string {
   return active
@@ -83,7 +86,7 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
           placeholder={placeholder}
           rows={3}
           disabled={disabled}
-          className="w-full resize-none border-0 bg-transparent font-[family-name:var(--gv-font-sans)] text-[17px] leading-relaxed text-[var(--gv-ink)] outline-none placeholder:text-[var(--gv-ink-4)]"
+          className={`w-full resize-none border-0 bg-transparent font-[family-name:var(--gv-font-sans)] text-[17px] leading-relaxed text-[var(--gv-ink)] placeholder:text-[var(--gv-ink-4)] ${FOCUS_RING}`}
         />
         {showNicheCaption && nicheLabel ? (
           <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-[var(--gv-ink-4)]">

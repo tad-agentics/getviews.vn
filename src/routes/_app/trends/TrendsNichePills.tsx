@@ -75,7 +75,7 @@ function Pill({
       className={
         "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] transition-colors duration-[120ms] disabled:opacity-50 " +
         (active
-          ? "border border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] font-semibold text-[color:var(--gv-canvas)]"
+          ? "border border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] font-semibold text-[color:var(--gv-accent-deep)]"
           : "border border-[color:var(--gv-rule)] bg-transparent font-medium text-[color:var(--gv-ink-2)] hover:border-[color:var(--gv-ink-4)]")
       }
     >

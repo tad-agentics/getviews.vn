@@ -21,7 +21,7 @@ export function ShotListCard({ data }: Props) {
         <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 text-xs font-bold text-purple-700">
           {data.beat}
         </span>
-        <span className="flex-1 text-xs text-gray-400">{data.duration}</span>
+        <span className="flex-1 text-xs text-[color:var(--gv-ink-4)]">{data.duration}</span>
       </div>
       <p className="mt-2 text-sm font-medium text-gray-800">{data.action}</p>
       {data.overlay?.trim() ? (
@@ -29,7 +29,7 @@ export function ShotListCard({ data }: Props) {
           {data.overlay}
         </div>
       ) : null}
-      {data.note?.trim() ? <p className="mt-1 text-xs italic text-gray-400">{data.note}</p> : null}
+      {data.note?.trim() ? <p className="mt-1 text-xs italic text-[color:var(--gv-ink-4)]">{data.note}</p> : null}
     </div>
   );
 }

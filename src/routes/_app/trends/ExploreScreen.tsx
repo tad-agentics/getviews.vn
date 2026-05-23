@@ -346,7 +346,7 @@ function VideoCard({
             ) : null}
             {showViral ? (
               <span className="rounded-[3px] px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[var(--ink)] bg-[var(--gv-accent-2)]">
-                VIRAL
+                VIEW CAO
               </span>
             ) : null}
           </div>
@@ -1053,7 +1053,7 @@ export default function ExploreScreen() {
               </div>
 
               <div className="w-full shrink-0 min-[1100px]:w-[min(100%,22rem)] min-[1100px]:max-w-[40%]">
-                <div className="flex h-11 w-full min-w-0 items-center gap-2.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]">
+                <div className="flex h-11 w-full min-w-0 items-center gap-2.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)] focus-within:border-[color:var(--gv-accent)] focus-within:ring-2 focus-within:ring-[color:var(--gv-accent)] focus-within:ring-offset-1">
                   <Search
                     className="h-3.5 w-3.5 shrink-0 text-[var(--faint)]"
                     strokeWidth={1.8}
@@ -1108,7 +1108,7 @@ export default function ExploreScreen() {
                     onClick={() => setShowFormatMenu((v) => !v)}
                   />
                   {showFormatMenu ? (
-                    <div className="absolute left-0 top-full z-20 mt-1.5 min-w-[140px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)] shadow-lg">
+                    <div className="absolute left-0 top-full z-20 mt-1.5 min-w-[140px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)]">
                       {TYPE_FORMAT_OPTIONS.map((opt) => (
                         <button
                           key={opt.value}
@@ -1133,7 +1133,7 @@ export default function ExploreScreen() {
                     onClick={() => setShowSortMenu((v) => !v)}
                   />
                   {showSortMenu ? (
-                    <div className="absolute left-0 top-full z-20 mt-1.5 min-w-[150px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)] shadow-lg">
+                    <div className="absolute left-0 top-full z-20 mt-1.5 min-w-[150px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)]">
                       {(["indexed_at", "views", "engagement_rate"] as SortOption[]).map((opt) => (
                         <button
                           key={opt}

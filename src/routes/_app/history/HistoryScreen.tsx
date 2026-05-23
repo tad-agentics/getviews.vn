@@ -318,7 +318,7 @@ export default function HistoryScreen() {
                   <p className="mb-4 text-[color:var(--gv-ink-3)]">
                     Chưa có phiên nào. Bắt đầu phân tích để tạo phiên đầu tiên.
                   </p>
-                  <Button type="button" variant="primary" onClick={() => navigate("/app/answer")}>
+                  <Button type="button" variant="secondary" onClick={() => navigate("/app/answer")}>
                     Bắt đầu phân tích →
                   </Button>
                 </>

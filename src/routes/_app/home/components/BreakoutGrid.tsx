@@ -3,21 +3,13 @@ import { Link } from "react-router";
 import { ArrowRight } from "lucide-react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
+import { formatViews } from "@/lib/formatters";
 import { useTopBreakouts, type BreakoutVideo } from "@/hooks/useTopBreakouts";
 
 /**
  * BreakoutGrid — UIUX `home.jsx`: 4/5 tiles, gap 18px, BREAKOUT + duration,
  * 22px quoted title on panel, mono row + ↑ views in pos-deep below.
  */
-
-function formatViews(n: number): string {
-  if (n >= 1_000_000) {
-    const m = n / 1_000_000;
-    return m >= 10 ? `${Math.round(m)}M` : `${m.toFixed(1).replace(/\.0$/, "")}M`;
-  }
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return n.toLocaleString("vi-VN");
-}
 
 function formatDuration(sec: number | string | null | undefined): string | null {
   const n = sec == null ? NaN : Number(sec);
@@ -27,7 +19,11 @@ function formatDuration(sec: number | string | null | undefined): string | null 
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const FALLBACK_PANEL = ["bg-[#2d2640]", "bg-[#5c1f2a]", "bg-[#1f3d2d]"] as const;
+const FALLBACK_PANEL = [
+  "bg-[color:var(--gv-avatar-2)]",
+  "bg-[color:var(--gv-avatar-6)]",
+  "bg-[color:var(--gv-avatar-4)]",
+] as const;
 
 /** Single breakout tile with hover-to-play video preview. */
 function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {

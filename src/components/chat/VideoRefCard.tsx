@@ -8,7 +8,7 @@
  * The card body below keeps only breakout badge and handle/link row for accessibility.
  */
 import { useEffect, useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Star } from "lucide-react";
 import { getVideoMeta, r2FrameUrl, type VideoMeta } from "@/lib/services/corpus-service";
 import { formatBreakoutVI } from "@/lib/formatters";
 import { VideoThumb } from "./VideoThumb";
@@ -78,8 +78,9 @@ export function VideoRefCard({ data, className = "" }: Props) {
       <div className="px-2 py-1.5 space-y-1">
         {/* Breakout badge — not visible on thumbnail */}
         {data.breakout && data.breakout > 2 ? (
-          <span className="inline-block rounded bg-[color:var(--gv-accent)]/80 px-1 py-0.5 text-[9px] font-semibold text-white">
-            {formatBreakoutVI(data.breakout)}{data.breakout > 5 ? " ★" : ""}
+          <span className="inline-flex items-center gap-0.5 rounded bg-[color:var(--gv-accent)]/80 px-1 py-0.5 text-[9px] font-semibold text-white">
+            {formatBreakoutVI(data.breakout)}
+            {data.breakout > 5 ? <Star className="h-2.5 w-2.5 shrink-0" aria-hidden /> : null}
           </span>
         ) : null}
 

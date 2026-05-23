@@ -17,7 +17,7 @@ export function ChannelNhanhPanel({ handle, onUpgradeToSau }: ChannelNhanhPanelP
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-8 text-[13px] text-[color:var(--gv-ink-3)]">
+      <div className="flex items-center gap-2 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-8 text-[13px] text-[color:var(--gv-ink-3)]">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
         Đang đọc kho corpus cho {at}…
       </div>
@@ -26,7 +26,7 @@ export function ChannelNhanhPanel({ handle, onUpgradeToSau }: ChannelNhanhPanelP
 
   if (isError || !data || data.corpus_video_count < 3) {
     return (
-      <div className="rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6">
+      <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6">
         <p className="m-0 text-[13px] text-[color:var(--gv-ink-3)]">
           Chưa đủ video của {at} trong kho để soi nhanh — thử{" "}
           <button type="button" className="font-semibold text-[color:var(--gv-accent)] underline-offset-2 hover:underline" onClick={onUpgradeToSau}>
@@ -44,7 +44,7 @@ export function ChannelNhanhPanel({ handle, onUpgradeToSau }: ChannelNhanhPanelP
     : null;
 
   return (
-    <div className="flex flex-col gap-4 rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 sm:px-7">
+    <div className="flex flex-col gap-4 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 sm:px-7">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="gv-mono m-0 text-[10px] uppercase tracking-[0.12em] text-[color:var(--gv-accent-deep)]">

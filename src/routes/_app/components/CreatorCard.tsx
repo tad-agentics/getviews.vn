@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { CheckCircle2, AlertTriangle, Mail, Phone, ExternalLink } from "lucide-react";
 
 import { VideoThumbnail } from "@/components/VideoThumbnail";
+import { formatFollowers, formatViews } from "@/lib/formatters";
 
 export type CreatorTier = "nano" | "micro" | "macro" | "mega";
 
@@ -158,7 +159,7 @@ export function CreatorCard({
     const parts: string[] = [];
     if (data.engagement_rate_followers > 0)
       parts.push(`ER thật ${data.engagement_rate_followers.toFixed(1)}%`);
-    if (data.median_views > 0) parts.push(`median ${formatVND(data.median_views)} views`);
+    if (data.median_views > 0) parts.push(`median ${formatViews(data.median_views)} views`);
     if (trend) parts.push(trend);
     return parts.length ? parts.join(" · ") : null;
   })();
@@ -204,7 +205,7 @@ export function CreatorCard({
             </span>
           </div>
           <p className="truncate text-xs text-[var(--muted)]">
-            {[data.display_name, data.followers > 0 ? `${formatVND(data.followers)} followers` : null]
+            {[data.display_name, data.followers > 0 ? `${formatFollowers(data.followers)} followers` : null]
               .filter(Boolean)
               .join(" · ")}
           </p>
@@ -238,7 +239,7 @@ export function CreatorCard({
           />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-[var(--ink)]">
-              Video hay nhất · {formatVND(data.best_video.views)} views
+              Video hay nhất · {formatViews(data.best_video.views)} views
             </p>
             <p className="mt-0.5 text-xs text-[var(--muted)]">
               {data.best_video.why_it_worked}

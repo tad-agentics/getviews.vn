@@ -54,6 +54,8 @@ When two layers conflict in a design decision, higher priority wins.
 ## 5. Visual Direction
 
 > **Token sync (2026-05-23):** Production + Branding Guideline v1.1 use **Getviews Magenta** `#F72585` (`--gv-accent`), not legacy TikTok Purple. Implementation SSOT: `src/app.css` `--gv-*`. Prose below that says `--purple` maps to `--gv-accent`.
+>
+> **Sans stack (H-01, 2026-05-23):** Brand/DS HTML specimens show Space Grotesk; **ship uses self-hosted TikTok Sans** for VN diacritics and creator familiarity (`--gv-font-sans` in `src/app.css`). Do not switch to Space Grotesk without explicit brand rollback.
 
 ### Brand Colors
 | Role | Name | OKLCH | Hex | Usage |
@@ -114,9 +116,9 @@ All transitions in the product use these tiers. No custom durations — consiste
 | **Fast** | 120ms | `ease-out` | Hover bg tint, border color, icon color, focus ring |
 | **Normal** | 200ms | `ease-out` | Card expand, panel slide, tab switch, tooltip appear |
 | **Emphasis** | 400ms | `cubic-bezier(0.16, 1, 0.3, 1)` | Diagnosis row reveal, bar chart fill, card stack stagger |
-| **Slow** | 600–800ms | `cubic-bezier(0.16, 1, 0.3, 1)` | Full dopamine moments only (D1–D4). Reserved. |
+| **Slow** | 320–400ms | `cubic-bezier(0.16, 1, 0.3, 1)` | Dopamine moments D1–D4 (H-04: strict DS §06 cap — no 600–800ms tier). |
 
-**Hard rule: nothing in the product takes >800ms.** If it feels slow, the system is broken, not the animation.
+**Hard rule: nothing in the product takes >400ms** (loops/shimmer excepted per DS §06). **H-04 decided 2026-05-23:** cap D1–D4 at 400ms like all other transitions; stagger delays preserve sequential reveal.
 
 ### Element State Specifications
 
@@ -297,7 +299,7 @@ Minh's primary device is a phone (360–393px). The desktop layout (centered 720
 - Loading: Streaming status text (see §5b loading table)
 - Reveal: ✕/✓ markers appear one at a time with 150ms stagger. Each row slides in from left, opacity 0→1. Red ✕ items appear first (what's wrong), green ✓ last (what's right).
 - Highlight: The first ✕ row has a subtle purple-tinted left border (2px) — draws eye to the most important fix.
-**Duration:** 800ms total for 3-row stagger
+**Duration:** ≤400ms total for 3-row stagger (150ms steps; H-04 cap)
 **After this moment:** No upsell. No "Bạn cũng có thể..." The next input prompt waits. Let Minh absorb.
 
 ### D2 — Hook Ranking Bars
@@ -308,7 +310,7 @@ Minh's primary device is a phone (360–393px). The desktop layout (centered 720
 - Loading: None — data is pre-computed, instant
 - Reveal: Horizontal bars animate width from 0% to final value, 400ms `cubic-bezier(0.16, 1, 0.3, 1)`, 100ms stagger between bars. Top bar (highest performing) animates first.
 - Highlight: Top bar is purple. Others are progressively lighter gray. The multiplier number (e.g., "3.2x") fades in at the end of bar animation.
-**Duration:** 600ms total
+**Duration:** ≤400ms total (H-04 cap)
 **After this moment:** Corpus citation appears below: "412 video · 7 ngày · Updated 4h ago" — reinforces authority.
 
 ### D3 — Brief Delivered
@@ -319,7 +321,7 @@ Minh's primary device is a phone (360–393px). The desktop layout (centered 720
 - Loading: "Đang viết brief..." streaming text
 - Reveal: Brief blocks (Hook Options, Shot Structure, KOL) appear sequentially, each sliding in with 200ms delay. Each block has a subtle background tint (`--surface-alt`).
 - Highlight: "Copy brief" button appears at the end with a subtle scale-in (0.95→1.0, 200ms).
-**Duration:** 600ms reveal, button appears 200ms after last block
+**Duration:** ≤400ms reveal, button appears after last block (H-04 cap)
 **After this moment:** No "Bạn muốn chỉnh gì không?" — let Linh copy and forward. She'll come back if she needs changes.
 
 ### D4 — Creator Cards Found

@@ -15,7 +15,7 @@ export function DiagnosisRow({ row, index }: { row: DiagnosisRowData; index: num
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.15, delay: index * 0.1, ease: "easeOut" }}
-      className={`flex gap-3 py-3 ${isFirstFail ? "border-l-2 border-[var(--gv-accent)] pl-3" : ""}`}
+      className={`flex gap-3 py-3 ${isFirstFail ? "rounded-md bg-[color:var(--gv-accent-soft)] px-3" : ""}`}
     >
       <div className="mt-0.5 flex-shrink-0">
         {row.type === "fail" ? (

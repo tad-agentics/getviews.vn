@@ -61,7 +61,7 @@ describe("TrendsPatternGrid", () => {
       <TrendsPatternGrid patternScope={sampleScope} legacyNicheId={4} />,
     );
     expect(getByText(/Phần I — Pattern/)).toBeTruthy();
-    expect(getByText(/Công thức từ video viral trong ngách/)).toBeTruthy();
+    expect(getByText(/Công thức từ video view cao trong ngách/)).toBeTruthy();
     expect(getByText(/Chạm thẻ để xem công thức đầy đủ/)).toBeTruthy();
   });
 
