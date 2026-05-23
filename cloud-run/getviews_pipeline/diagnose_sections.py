@@ -306,28 +306,37 @@ def select_sections_to_emit(
     return full
 
 
+_BOOST_ATTRIBUTION_TEASER_VI = (
+    "Kiểm tra phân phối bất thường và benchmark đã lọc outlier"
+)
+
+
 def upsell_locked_sections(
     manifest: Manifest,
     ctx: dict,
     *,
     depth: str,
     performance_tier: str,
-) -> list[dict[str, str]]:
-    """§4.11.3 — deep-only sections in manifest for post-basic upsell teasers."""
+) -> list[dict[str, str | int]]:
+    """§4.11.3 — deep-only sections + manifest signal counts for post-basic upsell."""
     if depth != "basic":
         return []
     deep_ids = select_sections_to_emit(manifest, ctx, depth="deep")
     basic_ids = set(select_sections_to_emit(manifest, ctx, depth="basic"))
-    locked: list[dict[str, str]] = []
+    locked: list[dict[str, str | int]] = []
     for sid in deep_ids:
         if sid in basic_ids:
             continue
-        locked.append(
-            {
-                "section_id": sid,
-                "title_vi": default_section_title(sid, performance_tier),
-            }
-        )
+        row: dict[str, str | int] = {
+            "section_id": sid,
+            "title_vi": default_section_title(sid, performance_tier),
+        }
+        signal_count = len(manifest.get(sid) or [])
+        if signal_count > 0:
+            row["signal_count"] = signal_count
+        if sid == "boost_attribution":
+            row["teaser_vi"] = _BOOST_ATTRIBUTION_TEASER_VI
+        locked.append(row)
     return locked
 
 

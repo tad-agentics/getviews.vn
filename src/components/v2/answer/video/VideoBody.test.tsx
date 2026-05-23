@@ -57,10 +57,17 @@ vi.mock("@/routes/_app/components/ThumbnailTile", () => ({
   ThumbnailTile: () => <div data-testid="thumbnail-tile" />,
 }));
 vi.mock("@/components/v2/answer/video/VideoDeepUpsell", () => ({
-  VideoDeepUpsell: ({ lockedSections }: { lockedSections: { title_vi: string }[] }) => (
+  VideoDeepUpsell: ({
+    lockedSections,
+  }: {
+    lockedSections: { title_vi: string; signal_count?: number }[];
+  }) => (
     <div data-testid="video-deep-upsell">
       {lockedSections.map((s) => (
-        <span key={s.title_vi}>{s.title_vi}</span>
+        <span key={s.title_vi}>
+          {s.title_vi}
+          {s.signal_count ? ` +${s.signal_count}` : ""}
+        </span>
       ))}
     </div>
   ),
@@ -145,10 +152,13 @@ function makeFlopReport(overrides: Partial<VideoReportPayload> = {}): VideoRepor
   };
 }
 
-function renderInRouter(report: VideoReportPayload) {
+function renderInRouter(
+  report: VideoReportPayload,
+  videoBodyProps: Omit<React.ComponentProps<typeof VideoBody>, "report"> = {},
+) {
   return render(
     <MemoryRouter>
-      <VideoBody report={report} />
+      <VideoBody report={report} {...videoBodyProps} />
     </MemoryRouter>,
   );
 }
@@ -522,7 +532,13 @@ describe("VideoBody render", () => {
         <VideoBody
           report={makeWinReport({
             analysis_depth: "basic",
-            locked_sections: [{ section_id: "sound", title_vi: "Âm thanh và nhịp điệu" }],
+            locked_sections: [
+              {
+                section_id: "sound",
+                title_vi: "Âm thanh và nhịp điệu",
+                signal_count: 2,
+              },
+            ],
           })}
           analysisDepth="basic"
           showDeepUpsell
@@ -530,7 +546,22 @@ describe("VideoBody render", () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId("video-deep-upsell")).toBeTruthy();
-    expect(screen.getByText("Âm thanh và nhịp điệu")).toBeTruthy();
+    expect(screen.getByText(/Âm thanh và nhịp điệu \+2/)).toBeTruthy();
+  });
+
+  it("hides BoostAttributionBlock meta fallback on basic depth", () => {
+    const base = makeWinReport();
+    renderInRouter(
+      makeWinReport({
+        analysis_depth: "basic",
+        meta: {
+          ...base.meta,
+          boost_attribution: "suspect_medium",
+          reference_eligible: false,
+        },
+      }),
+    );
+    expect(screen.queryByLabelText("Phân loại nguồn view")).toBeNull();
   });
 
   it("hides deep upsell for deep analysis depth", () => {
@@ -566,10 +597,11 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/Khuôn mặt xuất hiện/)).toBeTruthy();
   });
 
-  it("renders StatsHistoryStrip after distribution section", () => {
+  it("renders StatsHistoryStrip after distribution section on deep depth", () => {
     const base = makeWinReport();
     renderInRouter(
       makeWinReport({
+        analysis_depth: "deep",
         meta: {
           ...base.meta,
           stats_history: [
@@ -589,16 +621,18 @@ describe("VideoBody render", () => {
           },
         },
       }),
+      { analysisDepth: "deep" },
     );
     expect(screen.getByLabelText("Diễn biến view theo thời gian")).toBeTruthy();
     expect(screen.getByText(/Spike rồi phẳng/)).toBeTruthy();
     expect(screen.getByText("1.0K")).toBeTruthy();
   });
 
-  it("renders StatsHistoryStrip fallback when distribution section is absent", () => {
+  it("renders StatsHistoryStrip fallback when distribution section is absent on deep depth", () => {
     const base = makeWinReport();
     renderInRouter(
       makeWinReport({
+        analysis_depth: "deep",
         meta: {
           ...base.meta,
           stats_history: [
@@ -617,9 +651,28 @@ describe("VideoBody render", () => {
           },
         },
       }),
+      { analysisDepth: "deep" },
     );
     expect(screen.getByLabelText("Diễn biến view theo thời gian")).toBeTruthy();
     expect(screen.getByText("2.0K")).toBeTruthy();
+  });
+
+  it("hides StatsHistoryStrip on basic depth even when stats_history present", () => {
+    const base = makeWinReport();
+    renderInRouter(
+      makeWinReport({
+        analysis_depth: "basic",
+        meta: {
+          ...base.meta,
+          stats_history: [
+            { at: "a", phase: "t0", views: 2000, likes: 40, comments: 8, shares: 2 },
+            { at: "b", phase: "t24h", views: 9000, likes: 90, comments: 15, shares: 6 },
+          ],
+        },
+      }),
+      { analysisDepth: "basic" },
+    );
+    expect(screen.queryByLabelText("Diễn biến view theo thời gian")).toBeNull();
   });
 
   it("renders BoostAttributionBlock after boost_attribution section", () => {
@@ -653,17 +706,34 @@ describe("VideoBody render", () => {
     expect(screen.getAllByText("View spike").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders CarouselIntelStrip when carousel_intel present", () => {
+  it("renders CarouselIntelStrip when carousel_intel present on deep depth", () => {
     renderInRouter(
       makeWinReport({
+        analysis_depth: "deep",
         carousel_subformat_label: "So sánh",
         carousel_intel: {
           content_arc: "list",
           slides: [{ index: 0, text_preview: "Slide 1" }],
         },
       }),
+      { analysisDepth: "deep" },
     );
     expect(screen.getByText(/Logic lướt · 1 slide/)).toBeTruthy();
     expect(screen.getByText("Slide 1")).toBeTruthy();
+  });
+
+  it("hides CarouselIntelStrip on basic depth", () => {
+    renderInRouter(
+      makeWinReport({
+        analysis_depth: "basic",
+        carousel_intel: {
+          content_arc: "list",
+          slides: [{ index: 0, text_preview: "Slide 1" }],
+        },
+      }),
+      { analysisDepth: "basic" },
+    );
+    expect(screen.queryByText(/Logic lướt · 1 slide/)).toBeNull();
+    expect(screen.queryByText("Slide 1")).toBeNull();
   });
 });

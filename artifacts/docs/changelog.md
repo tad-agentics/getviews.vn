@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — §5.3 F2/F1 depth split complete (manifest upsell teasers)
+
+- **BE:** `upsell_locked_sections()` adds `signal_count` from full manifest + `teaser_vi` for `boost_attribution` on basic depth.
+- **FE:** `VideoDeepUpsell` shows "+N nhận định" / boost teaser subtitle; `BoostAttributionBlock` meta fallback gated to deep-only; `StatsHistoryStrip` + `CarouselIntelStrip` deep-only (§5.3).
+- **Roadmap:** §5.3 marked ✅ complete.
+
 ## 2026-05-23 — §5 post-V1 utilization (boost + carousel FE)
 
 - **boost_attribution:** `BoostAttributionBlock` — corpus M1 badge, ref-pool eligibility, section findings; meta `boost_attribution` / `reference_eligible` on analyze response.

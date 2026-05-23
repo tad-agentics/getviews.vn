@@ -368,13 +368,14 @@ Map: extract field → signal (`signals/registry.py`) → `section_id` → UI (`
 | `CarouselAnalysis.slides[]` + ME-19 fields | swipe psychology / slide intel | ✅ §5 FE | `CarouselIntelStrip` in `VideoBody` when `carousel_intel.slides` present |
 | `content_arc`, `swipe_trigger_type`, pacing | synthesis `hook_analysis` / distribution | ✅ BE | Carousel meta chips in strip; save-rate hint in `FlopDiagnosisStrip` |
 
-### 5.3 F2 vs F1 depth split (post-W3)
+### 5.3 F2 vs F1 depth split (post-W3) — ✅ complete
 
-| Section | F2 basic | F1 deep |
-|---------|----------|---------|
-| `diagnosis`, `hook_analysis`, `niche_pattern`, `next_video` | synthesize | synthesize |
-| `distribution`, `commerce`, `sound`, `persona`, `editing`, `metadata` | teaser/manifest | synthesize |
-| `boost_attribution` | teaser only | synthesize when M3 fires |
+| Section | F2 basic | F1 deep | Status |
+|---------|----------|---------|--------|
+| `diagnosis`, `hook_analysis`, `niche_pattern`, `next_video` | synthesize | synthesize | ✅ `BASIC_SECTION_ALLOWLIST` + synthesis |
+| `distribution`, `commerce`, `sound`, `persona`, `editing`, `metadata` | teaser/manifest | synthesize | ✅ BE whitelist + `locked_sections` with `signal_count`; FE upsell pills; `StatsHistoryStrip` deep-only |
+| `boost_attribution` | teaser only | synthesize when M3 fires | ✅ deep-only synthesis @ W4-2; basic `teaser_vi` in upsell; no meta fallback on basic |
+| §5.4 carousel slide intel | locked upsell | full strip | ✅ `CarouselIntelStrip` deep-only |
 
 ---
 

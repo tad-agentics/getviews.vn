@@ -139,7 +139,38 @@ def test_upsell_locked_sections_basic_only() -> None:
     locked = upsell_locked_sections(manifest, ctx, depth="basic", performance_tier="average")
     assert locked
     assert all(row["section_id"] not in BASIC_SECTION_ALLOWLIST for row in locked)
+    commerce = next(row for row in locked if row["section_id"] == "commerce")
+    assert int(commerce.get("signal_count") or 0) >= 1
     assert upsell_locked_sections(manifest, ctx, depth="deep", performance_tier="average") == []
+
+
+def test_upsell_locked_sections_boost_teaser_vi() -> None:
+    ctx = build_diagnosis_ctx(
+        user_analysis={"hook_analysis": {"hook_type": "question", "first_frame_type": "face"}},
+        user_stats={
+            "views": 120_000,
+            "likes": 200,
+            "comments": 0,
+            "engagement_rate": 0.5,
+            "breakout_multiplier": 2.0,
+        },
+        reference_videos=[{"video_id": "1", "views": 1000}],
+        channel_context={"available": True, "sample_size": 5, "median_views": 1000},
+        performance_tier="average",
+        niche_meta={
+            "sample_size": 100,
+            "median_er": 4.0,
+            "p25_er": 2.5,
+            "p75_views": 10_000,
+            "p90_views": 50_000,
+        },
+    )
+    manifest = build_signal_manifest(ctx)
+    locked = upsell_locked_sections(manifest, ctx, depth="basic", performance_tier="average")
+    boost = next((row for row in locked if row["section_id"] == "boost_attribution"), None)
+    assert boost is not None
+    assert boost.get("teaser_vi")
+    assert int(boost.get("signal_count") or 0) >= 1
 
 
 def test_builder_for_intent_cta_maps_intents() -> None:

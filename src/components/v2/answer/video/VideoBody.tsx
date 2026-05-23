@@ -238,15 +238,20 @@ export function VideoBody({
       ),
     [lockedSections, report.locked_sections],
   );
-  const renderDeepUpsell =
-    showDeepUpsell && shouldShowDeepUpsell(analysisDepth, report.analysis_depth);
+  const isBasicDepth = shouldShowDeepUpsell(analysisDepth, report.analysis_depth);
+  const renderDeepUpsell = showDeepUpsell && isBasicDepth;
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const hasChannelPattern = sectionIds.has("channel_pattern");
   const hasHookAnalysis = sectionIds.has("hook_analysis");
   const hasDistribution = sectionIds.has("distribution");
   const hasBoostAttribution = sectionIds.has("boost_attribution");
   const showStatsHistory = (meta.stats_history?.length ?? 0) >= 2;
+  /** §5.3 — M4 stats + carousel slide intel are deep-only; basic gets locked-section upsell. */
+  const showStatsHistoryStrip = showStatsHistory && !isBasicDepth;
+  const showCarouselIntel =
+    !isBasicDepth && (report.carousel_intel?.slides?.length ?? 0) > 0;
   const showBoostFallback =
+    !isBasicDepth &&
     !hasBoostAttribution &&
     shouldShowBoostAttributionBlock(meta.boost_attribution, meta.reference_eligible);
 
@@ -528,7 +533,7 @@ export function VideoBody({
                   {sid === "hook_analysis" && report.hook_timeline?.length ? (
                     <HookTimelineStrip events={report.hook_timeline} />
                   ) : null}
-                  {sid === "distribution" && showStatsHistory ? (
+                  {sid === "distribution" && showStatsHistoryStrip ? (
                     <StatsHistoryStrip
                       history={meta.stats_history}
                       distributionShape={meta.distribution_shape}
@@ -553,7 +558,7 @@ export function VideoBody({
           <DiagnosisPostingContextBlock payload={nichePostingContextEffective} />
         ) : null}
 
-        {!hasDistribution && showStatsHistory ? (
+        {!hasDistribution && showStatsHistoryStrip ? (
           <StatsHistoryStrip
             history={meta.stats_history}
             distributionShape={meta.distribution_shape}
@@ -567,7 +572,7 @@ export function VideoBody({
           />
         ) : null}
 
-        {report.carousel_intel?.slides?.length ? (
+        {showCarouselIntel ? (
           <CarouselIntelStrip intel={report.carousel_intel} />
         ) : null}
 

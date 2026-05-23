@@ -1204,7 +1204,12 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   /** §4.11.3 — echo billing tier on persisted video report. */
   analysis_depth?: "basic" | "deep";
   /** §4.11.3 — deep-only sections available in manifest but not synthesized at basic depth. */
-  locked_sections?: { section_id: string; title_vi: string }[];
+  locked_sections?: {
+    section_id: string;
+    title_vi: string;
+    signal_count?: number;
+    teaser_vi?: string;
+  }[];
 };
 
 /** §J — 6-shot TikTok script (answer ``builder_fmt == "script"``). */
