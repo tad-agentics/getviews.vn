@@ -3,7 +3,7 @@
 **Version:** 2.0 — **FINAL (GTM scope)**  
 **Last updated:** 2026-05-21  
 **Codebase ref:** `9b97207` (W4 ship; W3 @ `9cd0957`)  
-**Status:** W0–W4 ✅ shipped — W5 open (CTA follow-up W5-1, format W5-2); freeze UI Studio + Xu hướng
+**Status:** W0–W4 ✅ shipped — W5-1 ✅ @ `f3054f5`; W5-2…W5-5 open; freeze UI Studio + Xu hướng
 
 > **Pivot SSOT (2026-05-21+, prod defaults ON):** Class-first ingest/browse/benchmark — [`system-design.md`](system-design.md) §9. **`content_class_intelligence`** + tier/stats MVs canonical; legacy `niche_intelligence` refresh **skipped** in prod (bridge only for unmigrated percentile paths).
 

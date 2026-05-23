@@ -477,7 +477,7 @@ Format per project AskUserQuestion: Tech Lead presents options A/B/C with Comple
 
 Incremental V1 **launch-ready** when:
 
-- W0–W2 complete + ✅ **W3 depth** @ `9cd0957` (W3-5 upsell UI deferred)
+- W0–W2 complete + ✅ **W3 depth** @ `9cd0957` + W3-5 @ `a271b1e`; W5-1 CTA rail @ `f3054f5`
 - ✅ **W4 channel_findings P0** @ `9b97207` — memo evidence-backed via `channel_findings.py` + peer `reference_eligible` filter
 - §13B items traced to wave IDs in QA report
 - F8: no undocumented orphans; `key_messages` trim only after G6
