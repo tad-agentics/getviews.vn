@@ -18,7 +18,16 @@
 - **`data-utilization-map-v1.md`:** shipped launch rows drop 🔨 (hook/editing P1, channel roll-ups, M4).
 - **§4.8.6:** `test_analysis_depth_486_sample.py` (10-profile sample); artifact `launch-phase2-signal-density-486.json`; feature-map checkbox checked.
 - **`corpus-health.sql`:** comment on corpus vs patterns axis mismatch.
-- **`database.types.ts`:** manual `stats_history` / `distribution_shape` — **regen required after migration apply** (not from live schema yet).
+- **`database.types.ts`:** regen from live schema @ `4632b75` after M4 migrations `20260827000002`/`000003` applied — manual M4 patch removed.
+
+## 2026-05-23 — Cloud Run deploy + cron/vault verify
+
+- **Image:** `gcr.io/project-ddfb2960-ee81-4c98-b4f/getviews-pipeline` (Cloud Build SUCCESS).
+- **Revisions:** user `getviews-pipeline-user-00165-t6s`, batch `getviews-pipeline-batch-00132-4sg`.
+- **Smoke:** `POST /batch/ping` 200; `POST /batch/stats-history-refetch?limit=2` 200 (route live post-deploy).
+- **Vault:** `cloud_run_api_url` → batch hostname; `cloud_run_batch_secret` matches batch pod `BATCH_SECRET`.
+- **pg_cron:** `cron-batch-stats-history-refetch` active (`15 * * * *`); `batch_job_runs` records `status=ok`.
+- **pg_net:** `admin_pg_net_batch_http_4xx_events(24)` → 0.
 
 ## 2026-05-23 — docs: as-built resync @ 680c803
 

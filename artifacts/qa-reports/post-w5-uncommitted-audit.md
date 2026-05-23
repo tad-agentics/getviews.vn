@@ -11,7 +11,7 @@
 | Issue | Fix |
 |-------|-----|
 | Stale `data-utilization-map-v1.md` 🔨 rows | Shipped P1/P2/M4 rows updated (hook_timeline, transitions, disclosure, persona, slang, stats_history) |
-| `database.types.ts` manual M4 patch | Documented in changelog — regen after `db push` still required |
+| `database.types.ts` manual M4 patch | **Resolved** — regen from live schema after `db push` |
 | Private `_fetch_niche_benchmarks` import | Renamed public `fetch_niche_benchmarks()` + legacy alias |
 | Silent peer fetch failures | `logger.warning` in `_fetch_peer_corpus_rows` |
 | §4.8.6 acceptance gap | `test_analysis_depth_486_sample.py` + `launch-phase2-signal-density-486.json` |
@@ -33,16 +33,27 @@
 
 ---
 
-## Human gates (unchanged)
+## Human gates
 
-1. `supabase db push` — migrations `20260827000000`, `20260827000001`
-2. Regen `database.types.ts` from applied schema
-3. Cloud Run deploy — batch + user pods
-4. pg_cron + vault verify
-5. `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy`
+| Gate | Status |
+|------|--------|
+| `supabase db push` (`20260827000002`/`000003`) | **Done** |
+| Regen `database.types.ts` | **Done** |
+| Cloud Run deploy (user + batch) | **Done** — user `00165-t6s`, batch `00132-4sg` |
+| pg_cron + vault verify | **PASS** — see deploy evidence below |
+| `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` | **Pending** |
 
----
+### Cron / vault evidence (2026-05-23)
 
-## Note on commits
+| Check | Result |
+|-------|--------|
+| `cron-batch-stats-history-refetch` | Active, schedule `15 * * * *` (jobid 27) |
+| Vault `cloud_run_api_url` | Points at batch hostname (`getviews-pipeline-batch-…run.app`) |
+| Vault `cloud_run_batch_secret` | Matches Cloud Run `BATCH_SECRET` on batch pod |
+| `admin_pg_net_batch_http_4xx_events(24)` | **0** recent 4xx |
+| `POST /batch/ping` | **200** |
+| `POST /batch/stats-history-refetch?limit=2` | **200** (was 404 pre-deploy) |
+| `batch_job_runs` | `batch/stats-history-refetch` rows `status=ok` |
 
-Working tree still uncommitted until human approves atomic commit strategy for ~58 launch files.
+**Batch URL:** https://getviews-pipeline-batch-720640652377.asia-southeast1.run.app  
+**User URL:** https://getviews-pipeline-user-720640652377.asia-southeast1.run.app
