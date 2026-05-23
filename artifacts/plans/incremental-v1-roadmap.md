@@ -358,8 +358,15 @@ Map: extract field → signal (`signals/registry.py`) → `section_id` → UI (`
 | `transitions_per_second` | `editing_cut_pace_*` | ✅ Launch 2a | Signal in synthesis `editing` section — no dedicated strip (F1 audit path) |
 | `persona_consistency_signals` | channel rollup | ✅ Launch 2a | `channel_persona_drift` on channel path — not video `VideoBody` |
 | `key_messages[]` | — | ✅ W5-3 @ `65e4145` | **Trimmed** from extraction schema — G6: trim without formal ablation metrics |
-| Dedicated FE `boost_attribution` UI block | — | Post-V1 | Section emits in synthesis; no standalone FE block |
+| Dedicated FE `boost_attribution` UI block | — | ✅ §5 FE | `BoostAttributionBlock` after `boost_attribution` section + meta fallback |
 | §4.11.3 post-basic upsell UI | teaser + “Phân tích chuyên sâu” CTA | W3-5 | ✅ Shipped — `VideoDeepUpsell` + `locked_sections` metadata |
+
+### 5.4 Carousel path
+
+| Extract | Target | Status | UI |
+|---------|--------|--------|-----|
+| `CarouselAnalysis.slides[]` + ME-19 fields | swipe psychology / slide intel | ✅ §5 FE | `CarouselIntelStrip` in `VideoBody` when `carousel_intel.slides` present |
+| `content_arc`, `swipe_trigger_type`, pacing | synthesis `hook_analysis` / distribution | ✅ BE | Carousel meta chips in strip; save-rate hint in `FlopDiagnosisStrip` |
 
 ### 5.3 F2 vs F1 depth split (post-W3)
 
@@ -368,10 +375,6 @@ Map: extract field → signal (`signals/registry.py`) → `section_id` → UI (`
 | `diagnosis`, `hook_analysis`, `niche_pattern`, `next_video` | synthesize | synthesize |
 | `distribution`, `commerce`, `sound`, `persona`, `editing`, `metadata` | teaser/manifest | synthesize |
 | `boost_attribution` | teaser only | synthesize when M3 fires |
-
-### 5.4 Carousel path (deferred detail)
-
-`CarouselAnalysis` shares HI-16 taxonomy — separate utilization rows when carousel diagnosis ships. Incremental W1–4 focus **video file** path; carousel save-rate hint in `FlopDiagnosisStrip` is forward-compatible only.
 
 ---
 
@@ -509,7 +512,7 @@ Wave 5 tasks complete — **Launch phase (full pre-launch):** Phases 0 → 1 →
 5. ~~**Phase 2c**~~ ✅ — Remaining §5.3.3 + §4.8.3 P1/P2 backlog + SSE Layer B (`launch-phase2c-baseline.json`)
 6. ~~**Phase 3 infra**~~ ✅ — `db push`, types regen `b479f64`, Cloud Run deploy, cron/vault verify (`launch-phase3-baseline.json`, `post-w5-uncommitted-audit.md`)
 7. **Phase 3 GTM** — `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` (Vercel SPA) — **deferred** (human gates)
-8. ~~**§5 video FE utilization**~~ ✅ — `StatsHistoryStrip` + `HookTimelineStrip` in `VideoBody`; `hook_timeline` on analyze response
+8. ~~**§5 video FE utilization**~~ ✅ — `StatsHistoryStrip` + `HookTimelineStrip` + `BoostAttributionBlock` + `CarouselIntelStrip` in `VideoBody`
 
 *W0–W5 complete @ `680c803`; **Launch Phases 0–2c + infra complete** @ `b479f64`; §5 video FE wired 2026-05-23; GTM deferred.*
 

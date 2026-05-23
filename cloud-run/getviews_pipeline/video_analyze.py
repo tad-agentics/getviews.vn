@@ -447,7 +447,8 @@ def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
         "video_id,creator_handle,views,likes,comments,shares,saves,save_rate,"
         "engagement_rate,thumbnail_url,created_at,niche_id:ingest_loop_niche_id,content_class_id,"
         "content_format,analysis_json,breakout_multiplier,tiktok_url,"
-        "creator_median_views,caption,stats_history,distribution_shape"
+        "creator_median_views,caption,stats_history,distribution_shape,"
+        "boost_attribution,reference_eligible"
     )
     try:
         vres = user_sb.table("video_corpus").select(cols).eq("video_id", vid).maybe_single().execute()
@@ -535,6 +536,82 @@ def _normalise_hook_timeline(raw: Any) -> list[dict[str, Any]]:
     return out
 
 
+def _is_carousel_analysis(video: dict[str, Any], analysis: dict[str, Any]) -> bool:
+    fmt = str(video.get("content_format") or "").lower()
+    if "carousel" in fmt:
+        return True
+    slides = analysis.get("slides")
+    return isinstance(slides, list) and len(slides) > 0
+
+
+def _carousel_subformat_from_analysis(analysis: dict[str, Any]) -> str:
+    arc = str(analysis.get("content_arc") or "").lower()
+    if arc in ("list", "gallery"):
+        return "carousel_product_roundup"
+    if arc in ("tutorial_steps",):
+        return "carousel_tutorial"
+    if arc in ("story", "narrative"):
+        return "carousel_story"
+    return "carousel"
+
+
+def _normalise_carousel_slides(raw: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        try:
+            idx = int(item.get("index"))
+        except (TypeError, ValueError):
+            continue
+        texts = item.get("text_on_slide")
+        preview = ""
+        if isinstance(texts, list):
+            preview = " ".join(str(t).strip() for t in texts if str(t).strip())[:160]
+        row: dict[str, Any] = {"index": idx, "text_preview": preview or None}
+        for key in (
+            "has_face",
+            "has_product",
+            "word_count",
+            "text_density",
+            "swipe_anchor",
+            "layout",
+        ):
+            if item.get(key) is not None:
+                row[key] = item.get(key)
+        out.append(row)
+    out.sort(key=lambda x: x["index"])
+    return out
+
+
+def _attach_carousel_payload(
+    payload: dict[str, Any],
+    video: dict[str, Any],
+    analysis: dict[str, Any],
+) -> None:
+    if not _is_carousel_analysis(video, analysis):
+        return
+    from getviews_pipeline.enum_labels_vi import carousel_subformat_vi
+
+    sub = _carousel_subformat_from_analysis(analysis)
+    slides = _normalise_carousel_slides(analysis.get("slides"))
+    payload["carousel_subformat"] = sub
+    payload["carousel_subformat_label"] = carousel_subformat_vi(sub, default=sub)
+    if slides:
+        payload["carousel_slide_count"] = len(slides)
+    payload["carousel_intel"] = {
+        "swipe_trigger_type": analysis.get("swipe_trigger_type"),
+        "has_numbered_hook": analysis.get("has_numbered_hook"),
+        "content_arc": analysis.get("content_arc"),
+        "visual_consistency": analysis.get("visual_consistency"),
+        "estimated_read_time_seconds": analysis.get("estimated_read_time_seconds"),
+        "slide_pacing_score": analysis.get("slide_pacing_score"),
+        "slides": slides,
+    }
+
+
 def _response_from_diagnostics_row(
     video: dict[str, Any],
     diag: dict[str, Any],
@@ -603,7 +680,7 @@ def _response_from_diagnostics_row(
         else ((None, None), (None, None))
     )
 
-    return {
+    out = {
         "video_id": video["video_id"],
         "mode": mode,
         "meta": {
@@ -640,6 +717,9 @@ def _response_from_diagnostics_row(
             "is_breakout": float(video.get("breakout_multiplier") or 0.0) >= 1.5,
             "stats_history": video.get("stats_history"),
             "distribution_shape": video.get("distribution_shape"),
+            "content_format": str(video.get("content_format") or "").strip() or None,
+            "boost_attribution": video.get("boost_attribution"),
+            "reference_eligible": video.get("reference_eligible"),
         },
         "enrichment": enrichment,
         "kpis": build_kpis(
@@ -673,6 +753,8 @@ def _response_from_diagnostics_row(
         "reference_videos": diag.get("reference_videos"),
         "niche_posting_context": diag.get("niche_posting_context"),
     }
+    _attach_carousel_payload(out, video, analysis)
+    return out
 
 
 # ── Corpus row helpers (UUID guard for video_id collisions) ──────────

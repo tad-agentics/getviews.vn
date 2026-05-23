@@ -37,7 +37,10 @@ import { DiagnosisPostingContextBlock } from "@/components/diagnosis/DiagnosisPo
 import { CreatorComparisonCard } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopDiagnosisStrip } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
 import { StatsHistoryStrip } from "@/components/v2/answer/video/blocks/StatsHistoryStrip";
+import { BoostAttributionBlock } from "@/components/v2/answer/video/blocks/BoostAttributionBlock";
+import { CarouselIntelStrip } from "@/components/v2/answer/video/blocks/CarouselIntelStrip";
 import { HookTimelineStrip } from "@/routes/_app/components/HookTimelineStrip";
+import { shouldShowBoostAttributionBlock } from "@/lib/boostAttributionLabels";
 import { resolveDiagnosisSections } from "@/lib/resolveDiagnosisSections";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
 import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/PerformanceTierChip";
@@ -241,7 +244,11 @@ export function VideoBody({
   const hasChannelPattern = sectionIds.has("channel_pattern");
   const hasHookAnalysis = sectionIds.has("hook_analysis");
   const hasDistribution = sectionIds.has("distribution");
+  const hasBoostAttribution = sectionIds.has("boost_attribution");
   const showStatsHistory = (meta.stats_history?.length ?? 0) >= 2;
+  const showBoostFallback =
+    !hasBoostAttribution &&
+    shouldShowBoostAttributionBlock(meta.boost_attribution, meta.reference_eligible);
 
   const goScript = () => {
     if (isFlop) logUsage("flop_cta_click", { video_id: report.video_id });
@@ -527,6 +534,13 @@ export function VideoBody({
                       distributionShape={meta.distribution_shape}
                     />
                   ) : null}
+                  {sid === "boost_attribution" ? (
+                    <BoostAttributionBlock
+                      attribution={meta.boost_attribution}
+                      referenceEligible={meta.reference_eligible}
+                      findings={sec.findings}
+                    />
+                  ) : null}
                 </Fragment>
               );
             })}
@@ -544,6 +558,17 @@ export function VideoBody({
             history={meta.stats_history}
             distributionShape={meta.distribution_shape}
           />
+        ) : null}
+
+        {showBoostFallback ? (
+          <BoostAttributionBlock
+            attribution={meta.boost_attribution}
+            referenceEligible={meta.reference_eligible}
+          />
+        ) : null}
+
+        {report.carousel_intel?.slides?.length ? (
+          <CarouselIntelStrip intel={report.carousel_intel} />
         ) : null}
 
         {diagnosisSections.length > 0 && !hasChannelPattern && report.creator_comparison ? (

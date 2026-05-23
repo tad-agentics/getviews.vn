@@ -781,6 +781,45 @@ def test_response_exposes_hook_timeline_and_stats_history() -> None:
     assert len(out["meta"]["stats_history"]) == 2
 
 
+def test_response_exposes_boost_attribution_and_carousel_intel() -> None:
+    video = _video_for_response(
+        content_format="photo_carousel",
+        boost_attribution="suspect_medium",
+        reference_eligible=False,
+        analysis_json={
+            "content_arc": "list",
+            "swipe_trigger_type": "list_momentum",
+            "slides": [
+                {
+                    "index": 0,
+                    "visual_type": "text_card",
+                    "text_on_slide": ["7 mẹo"],
+                    "swipe_anchor": "numbered_progression",
+                },
+                {
+                    "index": 1,
+                    "visual_type": "text_card",
+                    "text_on_slide": ["Bước 1"],
+                },
+            ],
+        },
+    )
+    out = _response_from_diagnostics_row(
+        video,
+        _empty_diag(),
+        mode="flop",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Tech",
+        retention_source="modeled",
+    )
+    assert out["meta"]["boost_attribution"] == "suspect_medium"
+    assert out["meta"]["reference_eligible"] is False
+    assert out["carousel_subformat"] == "carousel_product_roundup"
+    assert out["carousel_intel"]["slides"][0]["text_preview"] == "7 mẹo"
+
+
 def test_response_meta_omits_ratio_when_creator_median_missing() -> None:
     """On-demand path (or pre-2026-05-08 corpus rows) has no
     `creator_median_views` — meta should report None for both fields

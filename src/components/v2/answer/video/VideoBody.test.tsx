@@ -621,4 +621,49 @@ describe("VideoBody render", () => {
     expect(screen.getByLabelText("Diễn biến view theo thời gian")).toBeTruthy();
     expect(screen.getByText("2.0K")).toBeTruthy();
   });
+
+  it("renders BoostAttributionBlock after boost_attribution section", () => {
+    const base = makeWinReport();
+    renderInRouter(
+      makeWinReport({
+        meta: {
+          ...base.meta,
+          boost_attribution: "suspect_medium",
+          reference_eligible: false,
+        },
+        narrative_vi: {
+          ...base.narrative_vi!,
+          _schema_version: "v6",
+          diagnosis_vi: {
+            headline_vi: "H",
+            sections: [
+              {
+                section_id: "boost_attribution",
+                title: "Boost",
+                text: "Prose.",
+                findings: [{ title_vi: "View spike", body_vi: "ER thấp so cohort." }],
+              },
+            ],
+          },
+        },
+      }),
+    );
+    expect(screen.getByLabelText("Phân loại nguồn view")).toBeTruthy();
+    expect(screen.getByText(/Loại khỏi pool tham chiếu organic/)).toBeTruthy();
+    expect(screen.getAllByText("View spike").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders CarouselIntelStrip when carousel_intel present", () => {
+    renderInRouter(
+      makeWinReport({
+        carousel_subformat_label: "So sánh",
+        carousel_intel: {
+          content_arc: "list",
+          slides: [{ index: 0, text_preview: "Slide 1" }],
+        },
+      }),
+    );
+    expect(screen.getByText(/Logic lướt · 1 slide/)).toBeTruthy();
+    expect(screen.getByText("Slide 1")).toBeTruthy();
+  });
 });

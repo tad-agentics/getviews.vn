@@ -62,7 +62,17 @@ export interface VideoAnalyzeMeta {
   stats_history?: StatsHistorySnapshot[] | null;
   /** Derived from ``stats_history`` — ``spike_then_flat`` when M4 criteria match. */
   distribution_shape?: "spike_then_flat" | string | null;
+  /** Batch M1 ingest heuristic — ``organic_confident`` | ``suspect_low`` | ``suspect_medium`` | ``unknown``. */
+  boost_attribution?: BoostAttributionLevel | string | null;
+  /** False when ``boost_attribution`` is ``suspect_medium`` (excluded from ref pool). */
+  reference_eligible?: boolean | null;
 }
+
+export type BoostAttributionLevel =
+  | "unknown"
+  | "organic_confident"
+  | "suspect_low"
+  | "suspect_medium";
 
 /** One row in ``video_corpus.stats_history`` (M4 cron). */
 export interface StatsHistorySnapshot {
@@ -88,6 +98,29 @@ export interface HookTimelineEvent {
   t: number;
   event: HookTimelineEventType;
   note?: string;
+}
+
+/** One slide row from ``CarouselAnalysis.slides[]`` (ME-19 utilization). */
+export interface CarouselSlideIntel {
+  index: number;
+  text_preview?: string | null;
+  has_face?: boolean | null;
+  has_product?: boolean | null;
+  word_count?: number | null;
+  text_density?: string | null;
+  swipe_anchor?: string | null;
+  layout?: string | null;
+}
+
+/** Carousel-level extraction surfaced on video diagnosis (§5.4). */
+export interface CarouselIntelPayload {
+  swipe_trigger_type?: string | null;
+  has_numbered_hook?: boolean | null;
+  content_arc?: string | null;
+  visual_consistency?: string | null;
+  estimated_read_time_seconds?: number | null;
+  slide_pacing_score?: number | null;
+  slides?: CarouselSlideIntel[];
 }
 
 export interface VideoKpi {
@@ -1155,6 +1188,8 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   carousel_subformat_label?: string;
   /** Carousel-only: number of slides in the post */
   carousel_slide_count?: number;
+  /** Carousel-only: structured slide intel from ``analysis_json`` (§5.4). */
+  carousel_intel?: CarouselIntelPayload | null;
   narrative_vi?: NarrativeVi;
   bright_spot_signal?: BrightSpotSignal;
   /** Flop-only qualitative upside ladder (hook → format rewrite). */

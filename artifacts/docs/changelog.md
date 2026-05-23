@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — §5 post-V1 utilization (boost + carousel FE)
+
+- **boost_attribution:** `BoostAttributionBlock` — corpus M1 badge, ref-pool eligibility, section findings; meta `boost_attribution` / `reference_eligible` on analyze response.
+- **Carousel §5.4:** `CarouselIntelStrip` — slide list + ME-19 meta from `carousel_intel` on analyze response; `_attach_carousel_payload()` in Cloud Run.
+- **Labels:** `boostAttributionLabels.ts`, `carouselLabels.ts` (Vietnamese enum mirrors).
+
 ## 2026-05-23 — §5 video diagnosis utilization (FE wiring)
 
 - **M4 stats_history:** `StatsHistoryStrip` in `VideoBody` — t0/t6h/t24h view progression + `spike_then_flat` badge when `meta.distribution_shape` matches.
