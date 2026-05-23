@@ -44,6 +44,12 @@ import {
   ChannelContextLegacy,
 } from "@/components/v2/answer/video/blocks/ChannelProofBlock";
 import { isV5Report } from "@/lib/v5-compat";
+import { VideoDeepUpsell } from "@/components/v2/answer/video/VideoDeepUpsell";
+import {
+  normalizeLockedSectionTeasers,
+  shouldShowDeepUpsell,
+  type LockedSectionTeaser,
+} from "@/lib/videoDeepUpsell";
 import type {
   BrightSpotSignal,
   ChannelContext,
@@ -130,11 +136,19 @@ export function VideoBody({
   preSynthesisData = null,
   channelContext = null,
   narrativeReady = null,
+  analysisDepth = null,
+  showDeepUpsell = false,
+  onRequestDeepAnalysis,
+  lockedSections,
 }: {
   report: VideoReportPayload;
   preSynthesisData?: VideoAnswerPreSynthesisPayload | null;
   channelContext?: ChannelContext | null;
   narrativeReady?: VideoAnswerNarrativeReadyPayload | null;
+  analysisDepth?: "basic" | "deep" | null;
+  showDeepUpsell?: boolean;
+  onRequestDeepAnalysis?: () => void;
+  lockedSections?: LockedSectionTeaser[];
 }) {
   const navigate = useNavigate();
   const meta = report.meta;
@@ -214,6 +228,17 @@ export function VideoBody({
     () => resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, viewMode),
     [narrativeVi, flopIssuesForNarrative, viewMode],
   );
+  const lockedSectionTeasers = useMemo(
+    () =>
+      normalizeLockedSectionTeasers(
+        lockedSections ?? report.locked_sections ?? null,
+      ),
+    [lockedSections, report.locked_sections],
+  );
+  const renderDeepUpsell =
+    showDeepUpsell &&
+    shouldShowDeepUpsell(analysisDepth, report.analysis_depth) &&
+    typeof onRequestDeepAnalysis === "function";
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const hasChannelPattern = sectionIds.has("channel_pattern");
   const hasHookAnalysis = sectionIds.has("hook_analysis");
@@ -517,6 +542,13 @@ export function VideoBody({
               <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
             </Btn>
           </div>
+        ) : null}
+
+        {renderDeepUpsell ? (
+          <VideoDeepUpsell
+            lockedSections={lockedSectionTeasers}
+            onRequestDeepAnalysis={onRequestDeepAnalysis}
+          />
         ) : null}
 
         {/* Standalone channel block: shown when channel data is available but

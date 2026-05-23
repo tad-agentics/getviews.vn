@@ -56,6 +56,24 @@ vi.mock("@/routes/_app/components/CommentRadarTile", () => ({
 vi.mock("@/routes/_app/components/ThumbnailTile", () => ({
   ThumbnailTile: () => <div data-testid="thumbnail-tile" />,
 }));
+vi.mock("@/components/v2/answer/video/VideoDeepUpsell", () => ({
+  VideoDeepUpsell: ({
+    lockedSections,
+    onRequestDeepAnalysis,
+  }: {
+    lockedSections: { title_vi: string }[];
+    onRequestDeepAnalysis: () => void;
+  }) => (
+    <div data-testid="video-deep-upsell">
+      {lockedSections.map((s) => (
+        <span key={s.title_vi}>{s.title_vi}</span>
+      ))}
+      <button type="button" onClick={onRequestDeepAnalysis}>
+        Phân tích chuyên sâu (2 credit)
+      </button>
+    </div>
+  ),
+}));
 
 import { VideoBody } from "./VideoBody";
 
@@ -505,5 +523,40 @@ describe("VideoBody render", () => {
     renderInRouter(withMissingUrls);
     expect(screen.getAllByText(/Chưa có link TikTok cho video này/).length).toBe(2);
     expect(screen.queryAllByRole("link", { name: /Xem video/ })).toHaveLength(0);
+  });
+
+  it("renders deep upsell when basic depth and showDeepUpsell", () => {
+    const onRequest = vi.fn();
+    render(
+      <MemoryRouter>
+        <VideoBody
+          report={makeWinReport({
+            analysis_depth: "basic",
+            locked_sections: [{ section_id: "sound", title_vi: "Âm thanh và nhịp điệu" }],
+          })}
+          analysisDepth="basic"
+          showDeepUpsell
+          onRequestDeepAnalysis={onRequest}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("video-deep-upsell")).toBeTruthy();
+    expect(screen.getByText("Âm thanh và nhịp điệu")).toBeTruthy();
+    screen.getByRole("button", { name: "Phân tích chuyên sâu (2 credit)" }).click();
+    expect(onRequest).toHaveBeenCalledOnce();
+  });
+
+  it("hides deep upsell for deep analysis depth", () => {
+    render(
+      <MemoryRouter>
+        <VideoBody
+          report={makeWinReport({ analysis_depth: "deep" })}
+          analysisDepth="deep"
+          showDeepUpsell
+          onRequestDeepAnalysis={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId("video-deep-upsell")).toBeNull();
   });
 });

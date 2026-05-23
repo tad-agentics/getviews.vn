@@ -7,7 +7,7 @@
 **Changelog v1.1:** As-built audit — fix ref-pool vs channel-peer gaps, `peer_percentile` wiring, W1-4 done scope, handoff inventory, Compare GTM note, F8 DoD.  
 **Wave 0 (2026-05-22):** ✅ Complete — see §4 Wave 0 status.  
 **Wave 1 (2026-05-22):** ✅ Complete — `feat(wave1): handoffs + peer_percentile + win signals` @ `e3b5d01`.  
-**Wave 3 (2026-05-22):** ✅ Complete @ `9cd0957` — depth epic (W3-5 upsell deferred).  
+**Wave 3 (2026-05-22):** ✅ Complete @ `9cd0957` + W3-5 upsell UI (§4.11.3).  
 **Wave 4 (2026-05-23):** ✅ Complete @ `9b97207` — channel findings + deep utilization.
 
 **Related docs:**
@@ -284,7 +284,7 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 | W3-2 BE whitelist + manifest cap | ✅ | `BASIC_SECTION_ALLOWLIST`; cap 3/5 |
 | W3-3 Billing 1×/2× | ✅ | `append_turn` deduct ×2 on video deep |
 | W3-4 Cache partition | ✅ | PK `(video_id, analysis_depth)`; on-demand URL keyed |
-| W3-5 §4.11.3 post–Cơ bản upsell UI | ⏸ | **Deferred** — teaser + “Phân tích chuyên sâu” CTA not shipped; depth pills + billing only |
+| W3-5 §4.11.3 post–Cơ bản upsell UI | ✅ | Teaser pills + sticky “Phân tích chuyên sâu (2 credit)” CTA; `locked_sections` from BE manifest |
 
 ---
 
@@ -348,7 +348,7 @@ Map: extract field → signal (`signals/registry.py`) → `section_id` → UI (`
 | `persona_consistency_signals` | channel rollup OR defer | W5 | Orphan §8 — wire F4 P2 or defer |
 | `key_messages[]` | — | W5 | **Trim-safe** — not wire |
 | Dedicated FE `boost_attribution` UI block | — | Post-V1 | Section emits in synthesis; no standalone FE block |
-| §4.11.3 post-basic upsell UI | teaser + “Phân tích chuyên sâu” CTA | W3-5 | **Deferred** — depth pills + billing only |
+| §4.11.3 post-basic upsell UI | teaser + “Phân tích chuyên sâu” CTA | W3-5 | ✅ Shipped — `VideoDeepUpsell` + `locked_sections` metadata |
 
 ### 5.3 F2 vs F1 depth split (post-W3)
 
@@ -492,7 +492,7 @@ Incremental V1 **launch-ready** when:
 3. **W5-3** — `key_messages[]` trim post-ablation (G6).
 4. **W5-4** — F5 channel quick peek on Trends card.
 5. **W5-5** — GTM copy + §13B sweep.
-5. **W3-5** (deferred) — §4.11.3 post–Cơ bản upsell UI.
+5. ~~**W3-5** (deferred) — §4.11.3 post–Cơ bản upsell UI.~~ ✅ Done
 
 *W0–W4 complete — W3 @ `9cd0957`, W4 @ `9b97207`; see §4 status tables.*
 

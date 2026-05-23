@@ -35,7 +35,11 @@ import {
   parseAnswerHandoffParams,
   planAnswerEntry,
 } from "@/routes/_app/intent-router";
-import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
+import {
+  buildAnswerHandoffPath,
+  resolveVideoHandoffQuery,
+  type AnswerHandoffDepth,
+} from "@/lib/answerHandoff";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
 import {
@@ -606,6 +610,34 @@ export default function AnswerScreen() {
       ? { preSynthesisData, channelContext, narrativeReady }
       : undefined;
 
+  const onRequestDeepAnalysis = useCallback(() => {
+    const report = lastPayload?.kind === "video" ? lastPayload.report : null;
+    const meta = report?.meta;
+    const url = resolveVideoHandoffQuery({
+      seedQ,
+      sessionInitialQ: detailQuery.data?.session?.initial_q,
+      videoId: report?.video_id,
+      creatorHandle: typeof meta?.creator === "string" ? meta.creator : null,
+    });
+    if (!url) return;
+    navigate(
+      buildAnswerHandoffPath({
+        q: url,
+        depth: "deep",
+        mode: handoff.mode ?? "win",
+        ...(handoff.from ? { from: handoff.from } : {}),
+      }),
+      { replace: true },
+    );
+  }, [
+    navigate,
+    seedQ,
+    handoff.mode,
+    handoff.from,
+    lastPayload,
+    detailQuery.data?.session?.initial_q,
+  ]);
+
   return (
     <AppLayout active="answer" enableMobileSidebar>
       <div className="w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
@@ -800,6 +832,19 @@ export default function AnswerScreen() {
                         t.payload.kind === "video" &&
                         idx === turns.length - 1
                           ? videoStreamProgress
+                          : undefined
+                      }
+                      analysisDepth={handoff.depth}
+                      showDeepUpsell={
+                        t.payload.kind === "video" &&
+                        idx === turns.length - 1 &&
+                        !loading &&
+                        handoff.depth === "basic"
+                      }
+                      onRequestDeepAnalysis={onRequestDeepAnalysis}
+                      lockedSections={
+                        t.payload.kind === "video"
+                          ? t.payload.report.locked_sections
                           : undefined
                       }
                     />

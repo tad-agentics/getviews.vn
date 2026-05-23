@@ -44,6 +44,27 @@ export function parseAnswerHandoffParams(
   return { depth, mode, from };
 }
 
+/** Resolve TikTok URL/`q` for depth upsell when `?q=` is absent (session-only URLs). */
+export function resolveVideoHandoffQuery(options: {
+  seedQ?: string | null;
+  sessionInitialQ?: string | null;
+  videoId?: string | null;
+  creatorHandle?: string | null;
+}): string | null {
+  const fromSeed = options.seedQ?.trim();
+  if (fromSeed) return fromSeed;
+  const fromSession = options.sessionInitialQ?.trim();
+  if (fromSession) return fromSession;
+  const vid = String(options.videoId ?? "").trim();
+  if (!vid) return null;
+  const raw = String(options.creatorHandle ?? "").trim();
+  if (raw) {
+    const handle = raw.startsWith("@") ? raw.slice(1) : raw;
+    if (handle) return `https://www.tiktok.com/@${handle}/video/${vid}`;
+  }
+  return `https://www.tiktok.com/video/${vid}`;
+}
+
 /** Trends / kho video — corpus-hit win path entry. */
 export function trendsVideoHandoffPath(q: string): string {
   return buildAnswerHandoffPath({ q, depth: "basic", mode: "win", from: "trends" });

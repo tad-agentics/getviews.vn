@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from getviews_pipeline.diagnose_sections import BASIC_SECTION_ALLOWLIST, select_sections_to_emit
+from getviews_pipeline.diagnose_sections import (
+    BASIC_SECTION_ALLOWLIST,
+    select_sections_to_emit,
+    upsell_locked_sections,
+)
 from getviews_pipeline.signals.base import Signal
 from getviews_pipeline.signals.registry import (
     build_diagnosis_ctx,
@@ -104,6 +108,38 @@ def test_select_sections_default_is_basic() -> None:
     basic_sections = select_sections_to_emit(manifest, ctx, depth="basic")
     assert default_sections == basic_sections
     assert "commerce" not in default_sections
+
+
+def test_upsell_locked_sections_basic_only() -> None:
+    ctx = build_diagnosis_ctx(
+        user_analysis={
+            "promotion_type": "organic",
+            "commerce_intent": {
+                "conversion_objective": "shop_direct",
+                "product_price_tier": "not_commerce",
+                "creator_type": "kos_seller",
+                "verbal_cta_present": True,
+                "disclosure_present": True,
+                "disclosure_form": "voice",
+            },
+            "hook_analysis": {
+                "first_frame_type": "face",
+                "hook_phrase": "x",
+                "hook_type": "question",
+                "hook_notes": "",
+                "hook_timeline": [],
+            },
+        },
+        user_stats={"caption": "hi", "views": 50_000, "commerce_conversion": {"order_count": 80}},
+        reference_videos=[],
+        channel_context=None,
+        performance_tier="average",
+    )
+    manifest = build_signal_manifest(ctx)
+    locked = upsell_locked_sections(manifest, ctx, depth="basic", performance_tier="average")
+    assert locked
+    assert all(row["section_id"] not in BASIC_SECTION_ALLOWLIST for row in locked)
+    assert upsell_locked_sections(manifest, ctx, depth="deep", performance_tier="average") == []
 
 
 def test_append_turn_deduct_credits_atomic(monkeypatch) -> None:

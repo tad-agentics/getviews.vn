@@ -1015,6 +1015,76 @@ def _persist_embed_repair_to_diagnostics(out: dict[str, Any]) -> None:
         )
 
 
+def _attach_depth_upsell_metadata(
+    out: dict[str, Any],
+    depth: AnalysisDepth,
+    *,
+    analysis: dict[str, Any] | None = None,
+    content_format: str | None = None,
+) -> None:
+    """§4.11.3 — echo analysis_depth + locked deep-only section teasers on basic reports."""
+    from getviews_pipeline.compliance import collect_compliance_flags
+    from getviews_pipeline.diagnose_sections import upsell_locked_sections
+    from getviews_pipeline.signals.registry import build_diagnosis_ctx, build_signal_manifest
+
+    out["analysis_depth"] = depth
+    if depth != "basic":
+        out.pop("locked_sections", None)
+        return
+
+    analysis_obj = (
+        analysis
+        if isinstance(analysis, dict) and analysis
+        else out.get("__narrative_analysis")
+    )
+    if not isinstance(analysis_obj, dict) or not analysis_obj:
+        out.pop("locked_sections", None)
+        return
+
+    meta = out.get("meta") if isinstance(out.get("meta"), dict) else {}
+    niche_meta = out.get("niche_meta") if isinstance(out.get("niche_meta"), dict) else {}
+    content_format_str = str(
+        content_format
+        or out.get("__narrative_content_format")
+        or meta.get("content_format")
+        or ""
+    )
+    views = int(meta.get("views") or 0)
+    user_stats: dict[str, Any] = {
+        "views": views,
+        "likes": int(meta.get("likes") or 0),
+        "comments": int(meta.get("comments") or 0),
+        "shares": int(meta.get("shares") or 0),
+        "duration_sec": float(meta.get("duration_sec") or 0.0),
+        "save_rate": float(meta.get("save_rate") or 0.0),
+        "caption": str(meta.get("caption") or meta.get("title") or ""),
+        "engagement_rate": float(meta.get("engagement_rate") or 0.0),
+    }
+    cc_raw = meta.get("commerce_conversion")
+    if isinstance(cc_raw, dict) and cc_raw:
+        user_stats["commerce_conversion"] = cc_raw
+
+    ctx = build_diagnosis_ctx(
+        user_analysis=analysis_obj,
+        user_stats=user_stats,
+        reference_videos=out.get("reference_videos") or [],
+        channel_context=out.get("channel_context"),
+        performance_tier=str(out.get("performance_tier") or "unknown"),
+        niche_meta=niche_meta,
+        compliance_flags=collect_compliance_flags(analysis_obj, user_stats),
+        content_format=content_format_str,
+        niche_name=str(meta.get("niche_label") or ""),
+        corpus_size=int(niche_meta.get("sample_size") or niche_meta.get("corpus_size") or 0),
+    )
+    manifest = build_signal_manifest(ctx)
+    tier = str(out.get("performance_tier") or "unknown")
+    locked = upsell_locked_sections(manifest, ctx, depth=depth, performance_tier=tier)
+    if locked:
+        out["locked_sections"] = locked
+    else:
+        out.pop("locked_sections", None)
+
+
 def finalize_video_narrative_layer(
     out: dict[str, Any],
     *,
@@ -1055,10 +1125,6 @@ def finalize_video_narrative_layer(
         and isinstance(_narrative, dict)
         and _narrative.get("van_de_chinh")
     ):
-        # Strip pipeline-private keys so the response shape stays clean
-        # for the caller (matches the post-synthesis branch below).
-        out.pop("__narrative_analysis", None)
-        out.pop("__narrative_content_format", None)
         if _response_needs_embed_tile_repair(out):
             _apply_embed_tile_repair_to_out(
                 out,
@@ -1073,6 +1139,11 @@ def finalize_video_narrative_layer(
 
             if int(out.get("embed_contract_version") or 0) < EMBED_CONTRACT_VERSION:
                 out["embed_contract_version"] = EMBED_CONTRACT_VERSION
+        _attach_depth_upsell_metadata(out, depth)
+        # Strip pipeline-private keys so the response shape stays clean
+        # for the caller (matches the post-synthesis branch below).
+        out.pop("__narrative_analysis", None)
+        out.pop("__narrative_content_format", None)
         return
 
     from getviews_pipeline.gemini import synthesize_diagnosis_v2
@@ -1574,6 +1645,13 @@ def finalize_video_narrative_layer(
                 )
         except Exception as _exc:
             logger.warning("[finalize] corpus promote failed video_id=%s: %s", on_demand_vid, _exc)
+
+    _attach_depth_upsell_metadata(
+        out,
+        depth,
+        analysis=analysis,
+        content_format=content_format,
+    )
 
 
 def run_video_analyze_pipeline(

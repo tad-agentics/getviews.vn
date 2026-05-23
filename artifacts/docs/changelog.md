@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — W3-5 post–Cơ bản upsell UI (§4.11.3)
+
+- **FE:** `VideoDeepUpsell` sticky CTA + locked-section teaser pills on basic `VideoBody`; handoff to new session via `buildAnswerHandoffPath({ depth: 'deep' })`.
+- **FE fix:** `resolveVideoHandoffQuery()` — deep upsell works on `?session=` URLs (falls back to `initial_q` / reconstructed TikTok URL); preserve entry `from` (no `intent_cta` default).
+- **BE:** `upsell_locked_sections()` + `_attach_depth_upsell_metadata()` on `finalize_video_narrative_layer`; `VideoReportPayload.locked_sections` + `analysis_depth`.
+
 ## 2026-05-21 — roadmap ↔ feature-map-v1 consistency pass
 
 - Align Wave 2 decision #5 (no Studio free text); G6 → W5-3; feature-map-v1 header @ `9b97207`; §9/§12/§13A stale 🔨 → ✅; `source_entry=intent_cta`.

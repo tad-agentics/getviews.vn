@@ -1412,7 +1412,7 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 - [ ] Intent output format round? → **W5-2** — `narrative_vi` per format  
 - [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12) — ✅ W3 @ `9cd0957`  
 - [x] Pre-launch cost ≠ cắt feature? → **§8.6–§8.8** — utilize kho; ingest policy tách track A/B  
-- [x] Video depth / composer 4 pill — ✅ W3 @ `9cd0957` (W3-5 upsell UI deferred)  
+- [x] Video depth / composer 4 pill — ✅ W3 @ `9cd0957`; W3-5 upsell UI ✅  
 - [ ] Human sign-off §14 D2, D4, D6, D8–D10 trước implement video depth — **depth shipped; D2 channel depth still open**  
 - [ ] Chốt danh sách **ngách hero** + chạy `corpus-health` theo §8.7 trước GTM  
 

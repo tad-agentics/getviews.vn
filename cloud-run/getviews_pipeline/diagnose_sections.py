@@ -306,5 +306,30 @@ def select_sections_to_emit(
     return full
 
 
+def upsell_locked_sections(
+    manifest: Manifest,
+    ctx: dict,
+    *,
+    depth: str,
+    performance_tier: str,
+) -> list[dict[str, str]]:
+    """§4.11.3 — deep-only sections in manifest for post-basic upsell teasers."""
+    if depth != "basic":
+        return []
+    deep_ids = select_sections_to_emit(manifest, ctx, depth="deep")
+    basic_ids = set(select_sections_to_emit(manifest, ctx, depth="basic"))
+    locked: list[dict[str, str]] = []
+    for sid in deep_ids:
+        if sid in basic_ids:
+            continue
+        locked.append(
+            {
+                "section_id": sid,
+                "title_vi": default_section_title(sid, performance_tier),
+            }
+        )
+    return locked
+
+
 def section_ids_ordered() -> list[str]:
     return [s.section_id.value for s in sorted(SECTION_POOL, key=lambda x: x.display_order)]

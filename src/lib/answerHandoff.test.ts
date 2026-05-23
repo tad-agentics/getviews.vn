@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAnswerHandoffPath,
   parseAnswerHandoffParams,
+  resolveVideoHandoffQuery,
   scriptRouteRedirectPath,
   scriptShootRedirectPath,
   trendsVideoHandoffPath,
@@ -48,5 +49,32 @@ describe("answerHandoff", () => {
     const path = scriptShootRedirectPath("draft-9", sp);
     expect(path).toContain("session=sess-1");
     expect(path).toContain("shoot=draft-9");
+  });
+
+  it("resolveVideoHandoffQuery prefers seedQ then session initial_q", () => {
+    expect(
+      resolveVideoHandoffQuery({
+        seedQ: "https://tiktok.com/@a/video/1",
+        sessionInitialQ: "https://tiktok.com/@b/video/2",
+      }),
+    ).toBe("https://tiktok.com/@a/video/1");
+    expect(
+      resolveVideoHandoffQuery({
+        seedQ: "",
+        sessionInitialQ: "https://tiktok.com/@b/video/2",
+      }),
+    ).toBe("https://tiktok.com/@b/video/2");
+  });
+
+  it("resolveVideoHandoffQuery reconstructs URL from video_id + creator", () => {
+    expect(
+      resolveVideoHandoffQuery({
+        videoId: "7123456789",
+        creatorHandle: "@creatorx",
+      }),
+    ).toBe("https://www.tiktok.com/@creatorx/video/7123456789");
+    expect(resolveVideoHandoffQuery({ videoId: "7123456789" })).toBe(
+      "https://www.tiktok.com/video/7123456789",
+    );
   });
 });

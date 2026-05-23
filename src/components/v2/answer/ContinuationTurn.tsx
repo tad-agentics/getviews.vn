@@ -27,6 +27,8 @@ import {
   patternAnswerBlockKicker,
   timingAnswerBlockKicker,
 } from "@/components/v2/answer/sessionIntentLabels";
+import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
+import type { LockedSectionTeaser } from "@/lib/videoDeepUpsell";
 
 // Map ``AnswerTurnRow.kind`` → accent kicker copy. Continuation turns
 // only — primary is omitted at render time (AnswerScreen hero). Keys are
@@ -134,6 +136,10 @@ function ReportPayloadBody({
   videoStreamProgress,
   sessionId,
   onOpenScriptShoot,
+  analysisDepth,
+  showDeepUpsell,
+  onRequestDeepAnalysis,
+  lockedSections,
 }: {
   payload: ReportV1;
   /** Intent phiên (câu đầu) — tinh chỉnh kickers/copy khi trùng `format`. */
@@ -146,6 +152,10 @@ function ReportPayloadBody({
   };
   sessionId?: string | null;
   onOpenScriptShoot?: (draftId: string) => void;
+  analysisDepth?: AnswerHandoffDepth | null;
+  showDeepUpsell?: boolean;
+  onRequestDeepAnalysis?: () => void;
+  lockedSections?: LockedSectionTeaser[];
 }) {
   // Kicker strings intentionally Vietnamese — matches CLAUDE.md's
   // "primary language for user-facing copy: Vietnamese. No English
@@ -200,6 +210,10 @@ function ReportPayloadBody({
             preSynthesisData={videoStreamProgress?.preSynthesisData ?? null}
             channelContext={videoStreamProgress?.channelContext ?? null}
             narrativeReady={videoStreamProgress?.narrativeReady ?? null}
+            analysisDepth={analysisDepth ?? null}
+            showDeepUpsell={showDeepUpsell}
+            onRequestDeepAnalysis={onRequestDeepAnalysis}
+            lockedSections={lockedSections}
           />
         </AnswerBlock>
       );
@@ -256,6 +270,10 @@ export function ContinuationTurn({
   videoStreamProgress,
   sessionId,
   onOpenScriptShoot,
+  analysisDepth,
+  showDeepUpsell,
+  onRequestDeepAnalysis,
+  lockedSections,
 }: {
   turn: AnswerTurnRow;
   sessionIntentType?: string;
@@ -266,6 +284,10 @@ export function ContinuationTurn({
   };
   sessionId?: string | null;
   onOpenScriptShoot?: (draftId: string) => void;
+  analysisDepth?: AnswerHandoffDepth | null;
+  showDeepUpsell?: boolean;
+  onRequestDeepAnalysis?: () => void;
+  lockedSections?: LockedSectionTeaser[];
 }) {
   // Primary turn duplicates AnswerScreen hero (“Câu hỏi” + H1). Divider +
   // H2 are for follow-ups only (see module comment on TURN_KIND_LABEL).
@@ -279,6 +301,10 @@ export function ContinuationTurn({
         videoStreamProgress={videoStreamProgress}
         sessionId={sessionId}
         onOpenScriptShoot={onOpenScriptShoot}
+        analysisDepth={analysisDepth}
+        showDeepUpsell={showDeepUpsell}
+        onRequestDeepAnalysis={onRequestDeepAnalysis}
+        lockedSections={lockedSections}
       />
     </article>
   );
