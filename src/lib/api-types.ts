@@ -58,6 +58,36 @@ export interface VideoAnalyzeMeta {
   /** Canonical content format slug (e.g. "talking_head", "voiceover_b_roll").
    * Present on v5 responses; undefined on older corpus rows. */
   content_format?: string | null;
+  /** §4.7 M4 — time-series snapshots (t0 / t6h / t24h) when corpus refetch ran. */
+  stats_history?: StatsHistorySnapshot[] | null;
+  /** Derived from ``stats_history`` — ``spike_then_flat`` when M4 criteria match. */
+  distribution_shape?: "spike_then_flat" | string | null;
+}
+
+/** One row in ``video_corpus.stats_history`` (M4 cron). */
+export interface StatsHistorySnapshot {
+  at: string;
+  phase: string;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+}
+
+/** Gemini hook micro-events in the opening 0–3s window. */
+export type HookTimelineEventType =
+  | "face_enter"
+  | "first_word"
+  | "text_overlay"
+  | "sound_drop"
+  | "cut"
+  | "product_enter"
+  | "reveal";
+
+export interface HookTimelineEvent {
+  t: number;
+  event: HookTimelineEventType;
+  note?: string;
 }
 
 export interface VideoKpi {
@@ -207,6 +237,8 @@ export interface VideoAnalyzeResponse {
   kpis: VideoKpi[];
   segments: VideoSegment[];
   hook_phases: VideoHookPhase[];
+  /** Opening 0–3s micro-events from Gemini extraction; empty on legacy rows. */
+  hook_timeline?: HookTimelineEvent[];
   /** Structured error cards from Call 1 (`error_id` joins `narrative_vi.loi_chinh_narrative`). */
   errors: VideoFlopIssue[];
   /** Same as ``errors`` when both are present — avoids SSE empty-array shadowing. */
@@ -891,6 +923,7 @@ export type VideoDiagnosisSectionId =
   | "editing"
   | "sound"
   | "persona"
+  | "boost_attribution"
   | "script_structure"
   | "next_video";
 

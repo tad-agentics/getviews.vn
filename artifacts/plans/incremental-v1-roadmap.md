@@ -353,10 +353,10 @@ Map: extract field → signal (`signals/registry.py`) → `section_id` → UI (`
 
 | Extract | Target signal/section | Wave | Notes |
 |---------|----------------------|------|-------|
-| `stats_history` M4 | `distribution_spike_then_flat` | W5+ | Cron re-fetch T+6h/24h — **not** W4 scope |
-| `hook_analysis.hook_timeline[]` | pacing signals (P1) | W5+ | Vision §4.8 P1 backlog — only P0 subset in W4-3 |
-| `transitions_per_second` | `editing_cut_pace_*` | W5+ | F6 feed + F1 audit — P1 |
-| `persona_consistency_signals` | channel rollup OR defer | W5 | Orphan §8 — wire F4 P2 or defer |
+| `stats_history` M4 | `distribution_spike_then_flat` | ✅ Launch 2b + §5 FE | BE cron + signal shipped; `StatsHistoryStrip` in `VideoBody` after `distribution` |
+| `hook_analysis.hook_timeline[]` | pacing signals (P1) | ✅ Launch 2a + §5 FE | BE `hook_timeline_pacing_sparse`; `hook_timeline` on analyze response + `HookTimelineStrip` in `VideoBody` |
+| `transitions_per_second` | `editing_cut_pace_*` | ✅ Launch 2a | Signal in synthesis `editing` section — no dedicated strip (F1 audit path) |
+| `persona_consistency_signals` | channel rollup | ✅ Launch 2a | `channel_persona_drift` on channel path — not video `VideoBody` |
 | `key_messages[]` | — | ✅ W5-3 @ `65e4145` | **Trimmed** from extraction schema — G6: trim without formal ablation metrics |
 | Dedicated FE `boost_attribution` UI block | — | Post-V1 | Section emits in synthesis; no standalone FE block |
 | §4.11.3 post-basic upsell UI | teaser + “Phân tích chuyên sâu” CTA | W3-5 | ✅ Shipped — `VideoDeepUpsell` + `locked_sections` metadata |
@@ -508,9 +508,10 @@ Wave 5 tasks complete — **Launch phase (full pre-launch):** Phases 0 → 1 →
 4. ~~**Phase 2b**~~ ✅ — `stats_history` M4 cron + `distribution_spike_then_flat`; migrations `20260827000002`/`000003` applied; batch `00132-4sg` (`launch-phase2b-baseline.json`)
 5. ~~**Phase 2c**~~ ✅ — Remaining §5.3.3 + §4.8.3 P1/P2 backlog + SSE Layer B (`launch-phase2c-baseline.json`)
 6. ~~**Phase 3 infra**~~ ✅ — `db push`, types regen `b479f64`, Cloud Run deploy, cron/vault verify (`launch-phase3-baseline.json`, `post-w5-uncommitted-audit.md`)
-7. **Phase 3 GTM** — `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` (Vercel SPA) — **human gates open**
+7. **Phase 3 GTM** — `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` (Vercel SPA) — **deferred** (human gates)
+8. ~~**§5 video FE utilization**~~ ✅ — `StatsHistoryStrip` + `HookTimelineStrip` in `VideoBody`; `hook_timeline` on analyze response
 
-*W0–W5 complete @ `680c803`; **Launch Phases 0–2c + infra complete** @ `b479f64`; GTM human gates open.*
+*W0–W5 complete @ `680c803`; **Launch Phases 0–2c + infra complete** @ `b479f64`; §5 video FE wired 2026-05-23; GTM deferred.*
 
 ---
 

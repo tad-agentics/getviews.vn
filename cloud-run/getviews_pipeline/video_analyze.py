@@ -500,6 +500,41 @@ def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
         return ""
 
 
+def _normalise_hook_timeline(raw: Any) -> list[dict[str, Any]]:
+    """Expose Gemini hook_timeline for FE ``HookTimelineStrip`` (0–3s window)."""
+    if not isinstance(raw, list):
+        return []
+    allowed = {
+        "face_enter",
+        "first_word",
+        "text_overlay",
+        "sound_drop",
+        "cut",
+        "product_enter",
+        "reveal",
+    }
+    out: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        try:
+            t = float(item.get("t"))
+        except (TypeError, ValueError):
+            continue
+        if t < 0 or t > 3.0:
+            continue
+        ev = str(item.get("event") or "").strip()
+        if ev not in allowed:
+            continue
+        row: dict[str, Any] = {"t": round(t, 1), "event": ev}
+        note = str(item.get("note") or "").strip()
+        if note:
+            row["note"] = note[:120]
+        out.append(row)
+    out.sort(key=lambda x: x["t"])
+    return out
+
+
 def _response_from_diagnostics_row(
     video: dict[str, Any],
     diag: dict[str, Any],
@@ -619,6 +654,7 @@ def _response_from_diagnostics_row(
         ),
         "segments": diag.get("segments") or [],
         "hook_phases": diag.get("hook_phases") or [],
+        "hook_timeline": _normalise_hook_timeline(hook.get("hook_timeline")),
         "errors": diag.get("flop_issues") or [],
         "retention_curve": ret_curve,
         "niche_benchmark_curve": bench_curve,

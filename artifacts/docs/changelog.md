@@ -1,5 +1,13 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — §5 video diagnosis utilization (FE wiring)
+
+- **M4 stats_history:** `StatsHistoryStrip` in `VideoBody` — t0/t6h/t24h view progression + `spike_then_flat` badge when `meta.distribution_shape` matches.
+- **hook_timeline:** Cloud Run `_normalise_hook_timeline()` on analyze response; `HookTimelineStrip` wired after `hook_analysis` (DS tokens + Vietnamese labels).
+- **Types:** `StatsHistorySnapshot`, `HookTimelineEvent`, `VideoAnalyzeMeta.stats_history` / `distribution_shape`, `VideoDiagnosisSectionId` + `boost_attribution`.
+- **Roadmap:** §5.2 rows marked ✅ (Launch 2a/2b BE + §5 FE); post-V1 `boost_attribution` standalone block unchanged.
+- **Audit fixes:** `VideoBody` inline wiring (hook + distribution paths + fallbacks); `resolveHookTimeline()` for chat/answer parity; Vietnamese labels aligned with `enum_labels_vi.py`.
+
 ## 2026-05-23 — UIUX 10/10 completeness sweep
 
 - **Typography:** `scripts/uiux-typography-fix.mjs` — 142 files; off-scale `text-[Npx]` → DS scale + `gv-kicker` consolidation.

@@ -13,6 +13,7 @@ import {
   HookTimelineStrip,
   type HookTimelineEvent,
 } from "@/routes/_app/components/HookTimelineStrip";
+import { resolveHookTimeline } from "@/lib/resolveHookTimeline";
 import {
   ThumbnailTile,
   type ThumbnailAnalysisData,
@@ -121,8 +122,7 @@ export default function ChatSessionReadScreen() {
                 const hasPlain = parsed?.plain && parsed.plain.trim().length > 0;
                 if (!hasStructured && !hasPlain) return null;
                 const richCreators = m.structured_output?.creators ?? [];
-                const hookTimeline =
-                  m.structured_output?.user_video?.analysis?.hook_analysis?.hook_timeline ?? [];
+                const hookTimeline = resolveHookTimeline(m.structured_output);
                 const thumbnailAnalysis = m.structured_output?.thumbnail_analysis ?? null;
                 const thumbnailFrameUrl =
                   m.structured_output?.user_video?.metadata?.thumbnail_url ?? null;

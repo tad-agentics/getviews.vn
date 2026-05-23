@@ -545,4 +545,80 @@ describe("VideoBody render", () => {
     );
     expect(screen.queryByTestId("video-deep-upsell")).toBeNull();
   });
+
+  it("renders HookTimelineStrip after hook_analysis section", () => {
+    renderInRouter(
+      makeWinReport({
+        hook_timeline: [{ t: 0.5, event: "face_enter" }],
+        narrative_vi: {
+          ...makeWinReport().narrative_vi!,
+          _schema_version: "v6",
+          diagnosis_vi: {
+            headline_vi: "H",
+            sections: [
+              { section_id: "hook_analysis", title: "Hook", text: "Hook prose." },
+            ],
+          },
+        },
+      }),
+    );
+    expect(screen.getByText(/Dòng thời gian hook/)).toBeTruthy();
+    expect(screen.getByText(/Khuôn mặt xuất hiện/)).toBeTruthy();
+  });
+
+  it("renders StatsHistoryStrip after distribution section", () => {
+    const base = makeWinReport();
+    renderInRouter(
+      makeWinReport({
+        meta: {
+          ...base.meta,
+          stats_history: [
+            { at: "a", phase: "t0", views: 1000, likes: 50, comments: 10, shares: 5 },
+            { at: "b", phase: "t6h", views: 5000, likes: 80, comments: 12, shares: 4 },
+          ],
+          distribution_shape: "spike_then_flat",
+        },
+        narrative_vi: {
+          ...base.narrative_vi!,
+          _schema_version: "v6",
+          diagnosis_vi: {
+            headline_vi: "H",
+            sections: [
+              { section_id: "distribution", title: "Phân phối", text: "Dist prose." },
+            ],
+          },
+        },
+      }),
+    );
+    expect(screen.getByLabelText("Diễn biến view theo thời gian")).toBeTruthy();
+    expect(screen.getByText(/Spike rồi phẳng/)).toBeTruthy();
+    expect(screen.getByText("1.0K")).toBeTruthy();
+  });
+
+  it("renders StatsHistoryStrip fallback when distribution section is absent", () => {
+    const base = makeWinReport();
+    renderInRouter(
+      makeWinReport({
+        meta: {
+          ...base.meta,
+          stats_history: [
+            { at: "a", phase: "t0", views: 2000, likes: 40, comments: 8, shares: 2 },
+            { at: "b", phase: "t24h", views: 9000, likes: 90, comments: 15, shares: 6 },
+          ],
+        },
+        narrative_vi: {
+          ...base.narrative_vi!,
+          _schema_version: "v6",
+          diagnosis_vi: {
+            headline_vi: "H",
+            sections: [
+              { section_id: "diagnosis", title: "Chẩn đoán", text: "Body." },
+            ],
+          },
+        },
+      }),
+    );
+    expect(screen.getByLabelText("Diễn biến view theo thời gian")).toBeTruthy();
+    expect(screen.getByText("2.0K")).toBeTruthy();
+  });
 });

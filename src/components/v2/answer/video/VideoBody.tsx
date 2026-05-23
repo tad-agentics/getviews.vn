@@ -36,6 +36,8 @@ import { DiagnosisSectionRenderer } from "@/components/diagnosis/DiagnosisSectio
 import { DiagnosisPostingContextBlock } from "@/components/diagnosis/DiagnosisPostingContextBlock";
 import { CreatorComparisonCard } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopDiagnosisStrip } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
+import { StatsHistoryStrip } from "@/components/v2/answer/video/blocks/StatsHistoryStrip";
+import { HookTimelineStrip } from "@/routes/_app/components/HookTimelineStrip";
 import { resolveDiagnosisSections } from "@/lib/resolveDiagnosisSections";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
 import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/PerformanceTierChip";
@@ -239,6 +241,7 @@ export function VideoBody({
   const hasChannelPattern = sectionIds.has("channel_pattern");
   const hasHookAnalysis = sectionIds.has("hook_analysis");
   const hasDistribution = sectionIds.has("distribution");
+  const showStatsHistory = (meta.stats_history?.length ?? 0) >= 2;
 
   const goScript = () => {
     if (isFlop) logUsage("flop_cta_click", { video_id: report.video_id });
@@ -515,6 +518,15 @@ export function VideoBody({
                       <HookPhaseGrid phases={report.hook_phases} />
                     </div>
                   ) : null}
+                  {sid === "hook_analysis" && report.hook_timeline?.length ? (
+                    <HookTimelineStrip events={report.hook_timeline} />
+                  ) : null}
+                  {sid === "distribution" && showStatsHistory ? (
+                    <StatsHistoryStrip
+                      history={meta.stats_history}
+                      distributionShape={meta.distribution_shape}
+                    />
+                  ) : null}
                 </Fragment>
               );
             })}
@@ -525,6 +537,13 @@ export function VideoBody({
         nichePostingContextEffective &&
         !hasDistribution ? (
           <DiagnosisPostingContextBlock payload={nichePostingContextEffective} />
+        ) : null}
+
+        {!hasDistribution && showStatsHistory ? (
+          <StatsHistoryStrip
+            history={meta.stats_history}
+            distributionShape={meta.distribution_shape}
+          />
         ) : null}
 
         {diagnosisSections.length > 0 && !hasChannelPattern && report.creator_comparison ? (
@@ -644,6 +663,10 @@ export function VideoBody({
               </section>
             </CollapsibleContent>
           </Collapsible>
+        ) : null}
+
+        {report.hook_timeline?.length && !hasHookAnalysis ? (
+          <HookTimelineStrip events={report.hook_timeline} />
         ) : null}
 
         <Collapsible defaultOpen={false}>

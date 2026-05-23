@@ -748,6 +748,39 @@ def test_response_meta_carries_creator_median_views_and_ratio() -> None:
     assert out["meta"]["target_vs_creator_median"] == 2.5
 
 
+def test_response_exposes_hook_timeline_and_stats_history() -> None:
+    """§5 utilization — hook_timeline + M4 stats_history pass through to FE."""
+    video = _video_for_response(
+        stats_history=[
+            {"at": "t0", "phase": "t0", "views": 1000, "likes": 50, "comments": 5, "shares": 2},
+            {"at": "t6h", "phase": "t6h", "views": 8000, "likes": 80, "comments": 10, "shares": 4},
+        ],
+        distribution_shape="spike_then_flat",
+        analysis_json={
+            "hook_analysis": {
+                "hook_timeline": [
+                    {"t": 0.2, "event": "face_enter", "note": "ok"},
+                    {"t": 4.0, "event": "cut"},
+                    {"t": "bad", "event": "first_word"},
+                ],
+            },
+        },
+    )
+    out = _response_from_diagnostics_row(
+        video,
+        _empty_diag(),
+        mode="flop",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Tech",
+        retention_source="modeled",
+    )
+    assert out["hook_timeline"] == [{"t": 0.2, "event": "face_enter", "note": "ok"}]
+    assert out["meta"]["distribution_shape"] == "spike_then_flat"
+    assert len(out["meta"]["stats_history"]) == 2
+
+
 def test_response_meta_omits_ratio_when_creator_median_missing() -> None:
     """On-demand path (or pre-2026-05-08 corpus rows) has no
     `creator_median_views` — meta should report None for both fields
