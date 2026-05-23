@@ -1,0 +1,11 @@
+{
+  "task_id": "phase1-d2-channel",
+  "decided_at": "2026-05-23",
+  "decision": "D2",
+  "nhanh_credit_cost": 0,
+  "sau_credit_cost": 3,
+  "rationale": "Plan recommendation applied — Nhanh uses corpus-only GET /channel/quick-peek (F5); Sâu uses POST /channel/diagnose (F4, 3× decrement_credit).",
+  "human_sign_off": "auto_applied_per_plan_recommendation",
+  "fe": "ChannelDepthPicker + depth=nhanh|sau URL param on /app/channel",
+  "be": "channel_quick_peek_for_handle extended F5 payload; CHANNEL_DIAGNOSE_CREDIT_COST unchanged at 3"
+}

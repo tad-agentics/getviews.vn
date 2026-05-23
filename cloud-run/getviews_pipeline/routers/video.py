@@ -236,7 +236,8 @@ async def channel_refresh_mine_endpoint(
 # Section markers the server parses from Gemini output
 _SECTION_HEADER_RE = re.compile(
     r"^=== (verdict|what_worked|what_falling|video_vs_channel"
-    r"|competitive_landscape|next_video|recommendations) ===$",
+    r"|competitive_landscape|next_video|recommendations"
+    r"|account_health|policy_risk) ===$",
     re.MULTILINE,
 )
 _TITLE_RE = re.compile(r"^TITLE:\s*(.+)$", re.MULTILINE)
@@ -386,7 +387,7 @@ async def _run_channel_diagnose(
 ) -> dict[str, Any]:
     """Orchestrator: runs the full channel diagnosis pipeline in a thread pool."""
     from getviews_pipeline.channel_diagnose import (
-        _fetch_niche_benchmarks,
+        fetch_niche_benchmarks,
         build_channel_pattern,
         classify_trajectory,
         compute_creator_match,
@@ -397,6 +398,7 @@ async def _run_channel_diagnose(
         derive_channel_persona,
         derive_next_video_concept,
         fetch_channel_videos_live,
+        fetch_handle_corpus_for_findings,
         hashtag_caption_for_insight,
         normalize_handle,
         normalize_peer_creator_for_fe,
@@ -473,7 +475,7 @@ async def _run_channel_diagnose(
         for u in peer_creators_raw
     ]
     niche_benchmarks = await run_sync(
-        _fetch_niche_benchmarks,
+        fetch_niche_benchmarks,
         sb_user,
         niche_id=legacy_nid,
         content_class_id=persona.get("dominant_content_class_id"),
@@ -557,8 +559,11 @@ async def _run_channel_diagnose(
     from getviews_pipeline.channel_findings import (
         build_channel_findings,
         format_distribution_from_corpus_rows,
+        optional_memo_sections_from_findings,
+        synthesize_optional_section_from_findings,
     )
 
+    handle_corpus_rows = await fetch_handle_corpus_for_findings(sb_user, handle)
     channel_findings = build_channel_findings(
         videos=videos,
         channel_pattern=channel_pattern,
@@ -566,9 +571,11 @@ async def _run_channel_diagnose(
         inflection=inflection,
         niche_benchmarks=niche_benchmarks,
         peer_corpus_rows=peer_corpus_rows,
+        handle_corpus_rows=handle_corpus_rows,
         dominant_format=str(persona.get("dominant_format") or ""),
         niche_format_distribution=format_distribution_from_corpus_rows(peer_corpus_rows),
     )
+    optional_memo_sections = optional_memo_sections_from_findings(channel_findings)
 
     context_str = build_channel_diagnosis_context(
         handle=handle,
@@ -586,6 +593,7 @@ async def _run_channel_diagnose(
         peer_source=peer_source,
         next_video_concept=next_video_seed,
         channel_findings=channel_findings,
+        optional_memo_sections=optional_memo_sections,
     )
 
     from google.genai import types as genai_types
@@ -638,9 +646,19 @@ async def _run_channel_diagnose(
 
     parsed_map = {s["section_id"]: s for s in sections_raw}
 
+    for sid in optional_memo_sections:
+        if sid not in parsed_map:
+            synth = synthesize_optional_section_from_findings(
+                channel_findings, sid, trajectory=trajectory,
+            )
+            if synth:
+                sections_raw.append(synth)
+                parsed_map[sid] = synth
+
     order = [
         "verdict", "what_worked", "what_falling", "video_vs_channel",
-        "competitive_landscape", "hashtag_insights", "next_video", "recommendations",
+        "competitive_landscape", "hashtag_insights", "next_video",
+        "account_health", "policy_risk", "recommendations",
     ]
 
     tile_map: dict[str, list[dict[str, Any]]] = {
@@ -696,6 +714,8 @@ async def _run_channel_diagnose(
             if sid == "what_falling" and trajectory in ("breakout", "new_account"):
                 continue
             if sid == "video_vs_channel" and not video_url:
+                continue
+            if sid in ("account_health", "policy_risk") and sid not in optional_memo_sections:
                 continue
             if sid == "hashtag_insights":
                 sec_title = get_default_title("hashtag_insights", trajectory)

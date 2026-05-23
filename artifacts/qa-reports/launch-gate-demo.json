@@ -1,0 +1,19 @@
+{
+  "task_id": "phase0-copy-demo",
+  "recorded_at": "2026-05-23",
+  "corpus_hit_demo": {
+    "video_id": "7622669408665652488",
+    "creator_handle": "lynguyn.2002",
+    "ingest_loop_niche_id": 3,
+    "views": 9647456,
+    "tiktok_url": "https://www.tiktok.com/@lynguyn.2002/video/7622669408665652488",
+    "answer_staging_url": "https://getviews.vn/app/answer?q=https%3A%2F%2Fwww.tiktok.com%2F%40lynguyn.2002%2Fvideo%2F7622669408665652488&depth=basic",
+    "path": "corpus-hit Answer Cơ bản (no fresh on-demand extract required)"
+  },
+  "humility_copy_sweep": {
+    "api_chat_46k_removed": true,
+    "landing_uses_1500_plus": true,
+    "login_uses_1500_plus": true,
+    "note": "Marketing copy uses 1.500+ not hardcoded 46k; chat prompts updated to corpus-relative language"
+  }
+}

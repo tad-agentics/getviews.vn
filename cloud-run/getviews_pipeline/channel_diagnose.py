@@ -81,7 +81,7 @@ def _decrement_credit_or_raise(user_sb: Any, *, user_id: str) -> None:
             raise InsufficientCreditsError()
 
 
-def _fetch_niche_benchmarks(
+def fetch_niche_benchmarks(
     user_sb: Any,
     *,
     niche_id: int,
@@ -149,6 +149,10 @@ def _fetch_niche_benchmarks(
     except Exception as exc:
         logger.warning("[channel_diagnose] niche_channel_benchmarks RPC failed: %s", exc)
     return fallback
+
+
+# Back-compat alias for internal callers and tests that patch the legacy name.
+_fetch_niche_benchmarks = fetch_niche_benchmarks
 
 # ---------------------------------------------------------------------------
 # Type aliases
@@ -988,6 +992,34 @@ async def derive_channel_persona(
         "dominant_content_class_id": dom_cc,
         "content_class_label": label_vn,
     }
+
+
+async def fetch_handle_corpus_for_findings(
+    user_sb: Any,
+    handle: str,
+    *,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """Recent handle rows for Phase 2a channel findings (compliance, boost, persona, slang)."""
+    h = handle.lower().strip()
+    if not h:
+        return []
+    try:
+        res = (
+            user_sb.table("video_corpus")
+            .select(
+                "video_id,analysis_json,boost_attribution,content_class_id,"
+                "posted_at,caption,indexed_at"
+            )
+            .eq("creator_handle", h)
+            .order("posted_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return list(res.data or [])
+    except Exception as exc:
+        logger.debug("[channel_diagnose] handle corpus for findings failed: %s", exc)
+        return []
 
 
 def compute_posting_cadence(videos: list[dict[str, Any]]) -> dict[str, Any]:

@@ -1,0 +1,85 @@
+{
+  "phase": "0.2",
+  "task": "Post-W5 V1 Launch corpus-health hero niches",
+  "checked_at": "2026-05-23T05:45:36Z",
+  "hero_niche_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    8,
+    9,
+    11
+  ],
+  "reference_pool_threshold_videos_30d": 5,
+  "query_method": "supabase db query --linked",
+  "query_note": "Used ingest_loop_niche_id (Phase C); artifacts/sql/corpus-health.sql still uses dropped video_corpus.niche_id",
+  "heroes": [
+    {
+      "niche_id": 1,
+      "niche": "Shopee affiliate reviews",
+      "videos_30d": 153,
+      "highest_passing_tier": "trend_delta",
+      "below_reference_pool": false
+    },
+    {
+      "niche_id": 2,
+      "niche": "Beauty & skincare",
+      "videos_30d": 271,
+      "highest_passing_tier": "trend_delta",
+      "below_reference_pool": false
+    },
+    {
+      "niche_id": 3,
+      "niche": "fashion_accessories",
+      "videos_30d": 279,
+      "highest_passing_tier": "trend_delta",
+      "below_reference_pool": false
+    },
+    {
+      "niche_id": 4,
+      "niche": "Food, recipes & dining",
+      "videos_30d": 565,
+      "highest_passing_tier": "trend_delta",
+      "below_reference_pool": false
+    },
+    {
+      "niche_id": 5,
+      "niche": "online_business",
+      "videos_30d": 172,
+      "highest_passing_tier": "trend_delta",
+      "below_reference_pool": false
+    },
+    {
+      "niche_id": 8,
+      "niche": "Fitness, gym & health",
+      "videos_30d": 274,
+      "highest_passing_tier": "trend_delta",
+      "below_reference_pool": false
+    },
+    {
+      "niche_id": 9,
+      "niche": "Technology & gadgets",
+      "videos_30d": 132,
+      "highest_passing_tier": "trend_delta",
+      "below_reference_pool": false
+    },
+    {
+      "niche_id": 11,
+      "niche": "Education",
+      "videos_30d": 621,
+      "highest_passing_tier": "trend_delta",
+      "below_reference_pool": false
+    }
+  ],
+  "thin_heroes_below_reference_pool": [],
+  "admin_corpus_health_endpoint_bug": {
+    "file": "cloud-run/getviews_pipeline/routers/admin.py",
+    "confirmed": true,
+    "fixed_in_session": true,
+    "detail": "Aggregation now uses ingest_loop_niche_id with niche_id fallback"
+  },
+  "admin_endpoint_curl_attempted": false,
+  "admin_endpoint_skip_reason": "No local .env.local credentials; SQL via linked Supabase CLI used instead"
+}

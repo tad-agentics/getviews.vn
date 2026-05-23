@@ -11,6 +11,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TopPattern } from "@/hooks/useTopPatterns";
 import { PatternCard } from "./PatternCard";
 
+vi.mock("@/hooks/useChannelQuickPeek", () => ({
+  useChannelQuickPeek: () => ({ data: null, isLoading: false, isError: false }),
+}));
+
 afterEach(() => {
   cleanup();
 });

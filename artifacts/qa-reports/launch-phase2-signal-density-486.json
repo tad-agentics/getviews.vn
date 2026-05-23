@@ -1,0 +1,17 @@
+{
+  "task_id": "phase2-signal-density-486",
+  "verdict": "PASS",
+  "checked_at": "2026-05-23",
+  "acceptance_ref": "feature-map-v1.md §4.8.6",
+  "sample_size": 10,
+  "metric": "mean(signals per emitted section in manifest_for_prompt)",
+  "results": {
+    "basic_avg_signals_per_section": 1.86,
+    "deep_avg_signals_per_section": 2.16,
+    "deep_ge_2": true,
+    "deep_gt_basic": true
+  },
+  "test_file": "cloud-run/tests/test_analysis_depth_486_sample.py",
+  "test_name": "test_section_486_ten_video_deep_vs_basic_signal_density",
+  "notes": "Rich synthetic flop/average/hit profiles; measures prompt-trimmed manifest after select_sections_to_emit(depth=)."
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "phase0-bat-crons",
+  "checked_at": "2026-05-23",
+  "window": "48h",
+  "jobs": [
+    {"jobname": "cron-batch-ingest", "ok_48h": 2, "fail_48h": 0},
+    {"jobname": "cron-batch-refresh", "ok_48h": 2, "fail_48h": 0},
+    {"jobname": "cron-batch-morning-ritual", "ok_48h": 2, "fail_48h": 0},
+    {"jobname": "cron-batch-scene-intelligence", "ok_48h": 2, "fail_48h": 0},
+    {"jobname": "cron-batch-pattern-decks", "ok_48h": 2, "fail_48h": 0},
+    {"jobname": "cron-batch-post-processing", "ok_48h": 2, "fail_48h": 0},
+    {"jobname": "cron-backfill-classification", "ok_48h": 2, "fail_48h": 0},
+    {"jobname": "cron-pg-net-batch-http-4xx-watch", "ok_48h": 48, "fail_48h": 0}
+  ],
+  "pass": true,
+  "note": "All batch-related pg_cron jobs succeeded in last 48h; 4xx watcher green. Vault alignment verified in prior session."
+}

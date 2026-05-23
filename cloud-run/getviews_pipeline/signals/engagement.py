@@ -2,10 +2,21 @@
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from typing import Any
 
 from getviews_pipeline.signals.base import Evidence, Signal
+
+_HIT_TIER = "hit"
+_COMMENT_HOOK_RE = re.compile(
+    r"\?|bình\s*luận|comment|cho\s+mình\s+biết|các\s+bạn\s+nghĩ|"
+    r"bạn\s+nào|ai\s+biết|trả\s+lời",
+    re.IGNORECASE,
+)
+_SAVEABLE_FORMATS = frozenset(
+    {"how_to", "tutorial", "listicle", "checklist", "recipe", "tips", "education"}
+)
 
 
 def _norm(s: str) -> str:
@@ -91,8 +102,75 @@ def extract_loop_architecture_signal(ctx: dict) -> list[Signal]:
     ]
 
 
+def extract_comment_hook_missing_signal(ctx: dict) -> list[Signal]:
+    """P1 — transcript thiếu CTA hỏi / kích comment."""
+    ua = ctx.get("user_analysis") if isinstance(ctx.get("user_analysis"), dict) else {}
+    tr = str(ua.get("audio_transcript") or "").strip()
+    if len(tr) < 20:
+        return []
+    if _COMMENT_HOOK_RE.search(tr):
+        return []
+    return [
+        Signal(
+            id="engagement_comment_hook_missing",
+            section_id="distribution",
+            taxonomy_ref="§9",
+            salience=0.56,
+            claim="Thoại không có câu hỏi/CTA kích comment — bỏ lỡ tín hiệu tương tác sớm.",
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"transcript_len={len(tr)} comment_hook=false",
+                    location="user_analysis.audio_transcript",
+                )
+            ],
+            suggested_fix='Thêm 1 câu hỏi mở cuối hook (VD: "Bạn nào từng gặp?" / "Comment số 1 nếu…").',
+        )
+    ]
+
+
+def extract_save_trigger_weak_signal(ctx: dict) -> list[Signal]:
+    """P1 — hit tier nhưng thiếu kiến trúc save (save_trigger_type)."""
+    if str(ctx.get("performance_tier") or "").lower() != _HIT_TIER:
+        return []
+    ua = ctx.get("user_analysis") if isinstance(ctx.get("user_analysis"), dict) else {}
+    raw = ua.get("save_trigger_type")
+    sv = str(raw or "").strip().lower()
+    if sv and sv not in ("none", "null", "other"):
+        return []
+
+    fmt = str(ctx.get("content_format") or ua.get("content_format") or "").lower()
+    style_tags = {str(t).lower() for t in (ua.get("style_tags") or [])}
+    saveable = fmt in _SAVEABLE_FORMATS or bool(style_tags & {"how_to", "tutorial_bookmark", "educational_slides"})
+    if not saveable:
+        return []
+
+    return [
+        Signal(
+            id="engagement_save_trigger_weak",
+            section_id="diagnosis",
+            taxonomy_ref="§9",
+            salience=0.61,
+            claim=(
+                f"Video hit tier `{fmt or 'saveable'}` nhưng thiếu trigger lưu rõ "
+                "(checklist/deal/recipe) — bỏ lỡ bookmark intent."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"save_trigger_type={sv or 'none'} content_format={fmt}",
+                    location="user_analysis.save_trigger_type+content_format",
+                )
+            ],
+            suggested_fix="Thêm overlay checklist hoặc CTA “lưu lại công thức” trước beat cuối.",
+        )
+    ]
+
+
 def extract_engagement_signals(ctx: dict) -> list[Signal]:
     out: list[Signal] = []
     out.extend(extract_pinned_comment_signal(ctx))
     out.extend(extract_loop_architecture_signal(ctx))
+    out.extend(extract_comment_hook_missing_signal(ctx))
+    out.extend(extract_save_trigger_weak_signal(ctx))
     return out

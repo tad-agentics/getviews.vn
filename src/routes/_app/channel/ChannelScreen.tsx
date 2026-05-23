@@ -10,6 +10,12 @@ import { useChannelDiagnose } from "@/hooks/useChannelDiagnose";
 import { useCreatorNiches } from "@/hooks/useCreatorNiches";
 import { useProfile } from "@/hooks/useProfile";
 import { extractChannelHandleFromMessage, normalizeChannelHandleInput, parseChannelExploreHandle } from "@/lib/channelHandle";
+import {
+  CHANNEL_SAU_CREDIT_COST,
+  channelDepthCreditCost,
+  parseChannelDepth,
+  type ChannelDepth,
+} from "@/lib/channelDepth";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
 import { pushChannelHistory } from "@/lib/channelHistory";
@@ -19,8 +25,10 @@ import { SectionRenderer } from "./components/SectionRenderer";
 import { ScoreCard, ScoreCardSkeleton } from "./components/ScoreCard";
 import { StepProgress, TRAJECTORY_LABELS } from "./components/StepProgress";
 import { ProvenanceLine } from "./components/ProvenanceLine";
+import { ChannelDepthPicker } from "./components/ChannelDepthPicker";
+import { ChannelNhanhPanel } from "./components/ChannelNhanhPanel";
 
-const CREDIT_COST = 3; // Keep in sync with channel_diagnose.CHANNEL_DIAGNOSE_CREDIT_COST
+const CREDIT_COST = CHANNEL_SAU_CREDIT_COST; // Keep in sync with channel_diagnose.CHANNEL_DIAGNOSE_CREDIT_COST
 
 function channelInitial(name: string, handle: string): string {
   const s = (name?.trim() || handle).trim();
@@ -36,6 +44,7 @@ export default function ChannelScreen() {
   const { data: profile } = useProfile();
   const { data: creatorNiches = [] } = useCreatorNiches();
   const rawHandle = searchParams.get("handle");
+  const channelDepth = parseChannelDepth(searchParams.get("depth"));
   const handleKey = useMemo(() => normalizeChannelHandleInput(rawHandle), [rawHandle]);
   const creatorNicheParam = useMemo(() => {
     const r = searchParams.get("creator_niche_id");
@@ -74,7 +83,20 @@ export default function ChannelScreen() {
   const [handleError, setHandleError] = useState<string | null>(null);
 
   const credits = (profile as { credits_remaining?: number } | null | undefined)?.credits_remaining ?? 0;
-  const hasCredits = credits >= CREDIT_COST;
+  const creditCost = channelDepthCreditCost(channelDepth);
+  const hasCredits = channelDepth === "nhanh" || credits >= CREDIT_COST;
+
+  const setChannelDepth = useCallback(
+    (depth: ChannelDepth) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (depth === "nhanh") next.delete("depth");
+        else next.set("depth", depth);
+        return next;
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const openHandle = useCallback(
     (h: string) => {
@@ -119,6 +141,7 @@ export default function ChannelScreen() {
   const nicheId = creatorNicheParam ?? profile?.creator_niche_id ?? creatorNiches[0]?.id ?? 0;
   const diagnoseKey = handleKey ? `${handleKey}::${nicheId}` : "";
   useEffect(() => {
+    if (channelDepth !== "sau") return;
     if (!handleKey || !nicheId || !cloudConfigured || !hasCredits) return;
     if (lastDiagnoseHandleRef.current === diagnoseKey) return;
     lastDiagnoseHandleRef.current = diagnoseKey;
@@ -126,7 +149,7 @@ export default function ChannelScreen() {
     void diagnose.start(handleKey, nicheId, videoUrlInput || undefined);
     // diagnose.start identity is stable (useCallback[qc])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagnoseKey, cloudConfigured, hasCredits]);
+  }, [diagnoseKey, cloudConfigured, hasCredits, channelDepth]);
 
   const emptyParams = !handleKey;
 
@@ -172,6 +195,8 @@ export default function ChannelScreen() {
             ) : (
               <>
                 <div className="flex flex-col gap-3">
+                  {/* Depth picker also shown after handle load — separate entry points */}
+                  <ChannelDepthPicker depth={channelDepth} onDepthChange={setChannelDepth} />
                   <div
                     className="flex items-stretch overflow-hidden rounded-[14px] border-[1.5px] border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)]"
                     style={{ boxShadow: "3px 3px 0 var(--gv-ink)" }}
@@ -236,7 +261,7 @@ export default function ChannelScreen() {
                           : "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg-deep)]")
                       }
                     >
-                      {hasCredits ? `${CREDIT_COST} credit / lần` : `Cần ${CREDIT_COST} credit · còn ${credits}`}
+                      {hasCredits ? `${creditCost} credit / lần` : channelDepth === "sau" ? `Cần ${CREDIT_COST} credit · còn ${credits}` : "0 credit / lần"}
                     </span>
                   </div>
                 </div>
@@ -255,21 +280,35 @@ export default function ChannelScreen() {
           </p>
         ) : (
           <>
-            <ChannelDiagnosisBody
-              handle={handleKey ?? ""}
-              nicheId={nicheId}
-              videoUrlInput={videoUrlInput}
-              setVideoUrlInput={setVideoUrlInput}
-              showVideoUrlInput={showVideoUrlInput}
-              setShowVideoUrlInput={setShowVideoUrlInput}
-              diagnose={diagnose}
-              onRestart={() => {
+            <ChannelDepthPicker
+              depth={channelDepth}
+              onDepthChange={(depth) => {
                 lastDiagnoseHandleRef.current = null;
-                void diagnose.start(handleKey ?? "", nicheId, videoUrlInput || undefined);
-                lastDiagnoseHandleRef.current = diagnoseKey;
+                setChannelDepth(depth);
               }}
-              onChangeHandle={openHandle}
             />
+            {channelDepth === "nhanh" ? (
+              <ChannelNhanhPanel
+                handle={handleKey ?? ""}
+                onUpgradeToSau={() => setChannelDepth("sau")}
+              />
+            ) : (
+              <ChannelDiagnosisBody
+                handle={handleKey ?? ""}
+                nicheId={nicheId}
+                videoUrlInput={videoUrlInput}
+                setVideoUrlInput={setVideoUrlInput}
+                showVideoUrlInput={showVideoUrlInput}
+                setShowVideoUrlInput={setShowVideoUrlInput}
+                diagnose={diagnose}
+                onRestart={() => {
+                  lastDiagnoseHandleRef.current = null;
+                  void diagnose.start(handleKey ?? "", nicheId, videoUrlInput || undefined);
+                  lastDiagnoseHandleRef.current = diagnoseKey;
+                }}
+                onChangeHandle={openHandle}
+              />
+            )}
           </>
         )}
       </main>

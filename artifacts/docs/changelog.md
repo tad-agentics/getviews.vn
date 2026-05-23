@@ -1,5 +1,25 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — Launch Phase 0–2c (pre-ship implementation)
+
+- **Phase 0:** G3 hero confirmation; corpus-health all heroes @ trend_delta; BAT crons green; admin `/corpus-health` ingest_loop_niche_id fix; `corpus-health.sql` class-first column; humility copy in `api/chat.ts`; demo URL in `launch-gate-demo.json`.
+- **Phase 1:** F5 full `GET /channel/quick-peek` payload; ChannelScreen **Nhanh** (0×) / **Sâu** (3×) depth picker; D2 @ `launch-phase1-d2.json`.
+- **Phase 2a:** Channel findings P1/P2 (compliance, boost share, slang, persona drift) + video signals (hook pacing, editing cut pace).
+- **Phase 2b:** M4 `stats_history` migration + cron + `POST /batch/stats-history-refetch` + `distribution_spike_then_flat` signal.
+- **Phase 2c:** Remaining channel findings + SSE Layer B; 15 video P1/P2 signals (`test_phase2c_p1_p2_video_signals.py` 16/16).
+- **Audit fixes:** removed duplicate `/batch/stats-history-refetch`; M4 `engagement_rate` 0–100% scale; `corpus-health.sql` class-first only; `ChannelNhanhPanel` VN labels; `system-design.md` M4 note.
+
+## 2026-05-23 — Audit Round 2/3 hardening
+
+- **`fetch_niche_benchmarks()`:** public API in `channel_diagnose.py`; quick-peek + video router use public name; legacy `_fetch_niche_benchmarks` alias retained.
+- **`channel_quick_peek.py`:** peer corpus fetch logs warnings on Supabase failure (no silent swallow).
+- **`channel_findings.py`:** `_PERSONA_DRIFT_MIN_CC_CHANGES` used in persona drift gate.
+- **`ChannelNhanhPanel`:** full VN labels (`Median lượt xem`, `hookNameVI`, `video nổi bật`).
+- **`data-utilization-map-v1.md`:** shipped launch rows drop 🔨 (hook/editing P1, channel roll-ups, M4).
+- **§4.8.6:** `test_analysis_depth_486_sample.py` (10-profile sample); artifact `launch-phase2-signal-density-486.json`; feature-map checkbox checked.
+- **`corpus-health.sql`:** comment on corpus vs patterns axis mismatch.
+- **`database.types.ts`:** manual `stats_history` / `distribution_shape` — **regen required after migration apply** (not from live schema yet).
+
 ## 2026-05-23 — docs: as-built resync @ 680c803
 
 - **`data-utilization-map-v1.md`:** v1.4 baseline @ `680c803`; Wave 5 ✅; W3-5 upsell shipped; §9 open gates → Launch phase backlog.

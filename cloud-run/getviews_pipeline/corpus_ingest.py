@@ -77,6 +77,7 @@ from getviews_pipeline.r2 import (
 )
 from getviews_pipeline.runtime import get_analysis_semaphore
 from getviews_pipeline.settings import settings as _ingest_settings
+from getviews_pipeline.stats_history_m4 import make_stats_snapshot
 from getviews_pipeline.video_shots_writer import (
     build_video_shot_rows,
     upsert_video_shots_sync,
@@ -1811,6 +1812,15 @@ def _build_corpus_row(
             comments=comments,
             shares=shares,
         ),
+        "stats_history": [
+            make_stats_snapshot(
+                views=views,
+                likes=likes,
+                comments=comments,
+                shares=shares,
+                phase="t0",
+            )
+        ],
 
         # ── Group A: Gemini analysis extraction (11 columns) ──
         "hook_type": normalize_hook_type(hook_info.get("hook_type") or "other"),

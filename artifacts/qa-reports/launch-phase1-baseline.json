@@ -1,0 +1,15 @@
+{
+  "task_id": "phase1-qa",
+  "verdict": "PASS",
+  "checked_at": "2026-05-23",
+  "evidence": [
+    "artifacts/qa-reports/launch-phase1-d2.json",
+    "src/routes/_app/channel/components/ChannelDepthPicker.tsx",
+    "src/routes/_app/channel/components/ChannelNhanhPanel.tsx",
+    "cloud-run/getviews_pipeline/channel_quick_peek.py",
+    "cloud-run/tests/test_channel_quick_peek_payload.py",
+    "src/routes/_app/channel/ChannelScreen.test.tsx"
+  ],
+  "d2": { "nhanh": 0, "sau": 3 },
+  "tests": { "vitest_channel_screen": 8, "pytest_quick_peek": 2 }
+}

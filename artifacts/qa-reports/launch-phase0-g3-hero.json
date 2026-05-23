@@ -1,0 +1,33 @@
+{
+  "task_id": "phase0-g3-hero",
+  "verified_at": "2026-05-23",
+  "baseline_commit": "66fba8a",
+  "human_gate_g3": {
+    "status": "confirmed",
+    "hero_niche_ids": [1, 2, 3, 4, 5, 8, 9, 11],
+    "labels_vn": {
+      "1": "Review đồ Shopee / Gia dụng",
+      "2": "Làm đẹp · Skincare",
+      "3": "Thời trang Phụ kiện",
+      "4": "Ẩm thực & Ăn uống",
+      "5": "Kinh doanh online / Bán hàng",
+      "8": "Gym / Fitness VN",
+      "9": "Công nghệ / Tech",
+      "11": "EduTok VN"
+    }
+  },
+  "batch_pod_env": {
+    "service": "getviews-pipeline-batch",
+    "region": "asia-southeast1",
+    "BATCH_PRIORITY_NICHE_IDS": "code_default_1,2,3,4,5,8,9,11",
+    "BATCH_PRIORITY_NICHE_VPN_FLOOR": "code_default_35",
+    "BATCH_PRIORITY_NICHE_MAX_VPN": "code_default_90",
+    "BATCH_VIDEOS_PER_NICHE": "15",
+    "note": "BATCH_PRIORITY_* not explicitly set on Cloud Run — falls back to settings.py defaults matching G3 table."
+  },
+  "code_ssot": {
+    "settings_default": "cloud-run/getviews_pipeline/settings.py batch_priority_niche_ids=1,2,3,4,5,8,9,11",
+    "test": "cloud-run/tests/test_thin_niche_prioritization.py asserts len(BATCH_PRIORITY_NICHE_IDS) >= 8"
+  },
+  "acceptance": "G3 hero list matches feature-map-v1.md §8.7 L1212–1221; batch ingest priority aligned via code defaults."
+}

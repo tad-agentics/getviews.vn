@@ -502,16 +502,16 @@ Incremental V1 **launch-ready** when:
 
 Wave 5 tasks complete — **Launch phase (full pre-launch):** Phases 0 → 1 → 2a → 2b → 2c must complete before Phase 3 ship gates. Human decision: do all utilization + §13B before GTM (see plan `post-w5_v1_launch`).
 
-1. **Phase 0** — Hero niche depth (G3), corpus-health, BAT crons, humility copy, demo URL
-2. **Phase 1** — Channel depth picker (F5 full + F4 Sâu billing D2)
-3. **Phase 2a** — Core channel findings (3) + video P1 signals (`hook_pacing_cut_frequency`, `editing_cut_pace_outlier`, hook_timeline) + `channel_persona_drift` + G6 ablation
-4. **Phase 2b** — `stats_history` M4 cron + `distribution_spike_then_flat`
-5. **Phase 2c** — Remaining §5.3.3 + §4.8.3 P1/P2 backlog (incl. `distribution_posted_at_ritual_hint`, `channel_video_vs_eligible_peers`) + §4.8.6 signal QA + SSE Layer B
-6. **Phase 3** — Ship gates (qa-agent, visual-audit, dogfood, deploy)
+1. ~~**Phase 0**~~ ✅ — Hero niche depth (G3), corpus-health, BAT crons, humility copy, demo URL (`launch-phase0-baseline.json`)
+2. ~~**Phase 1**~~ ✅ — Channel depth picker (F5 full + F4 Sâu billing D2) (`launch-phase1-baseline.json`)
+3. ~~**Phase 2a**~~ ✅ — Core channel findings + video P1 signals + `channel_persona_drift` + G6 ablation (`launch-phase2a-baseline.json`)
+4. ~~**Phase 2b**~~ ✅ code — `stats_history` M4 cron + `distribution_spike_then_flat` (`launch-phase2b-baseline.json`; migrations pending apply + batch redeploy)
+5. ~~**Phase 2c**~~ ✅ — Remaining §5.3.3 + §4.8.3 P1/P2 backlog + SSE Layer B (`launch-phase2c-baseline.json`)
+6. **Phase 3** — Ship gates in progress: automated QA baselines + typecheck/tests; **human:** migrate, redeploy, visual-audit, dogfood, pre-handoff, deploy (`launch-phase3-baseline.json`)
 
 ~~**W3-5** — §4.11.3 post–Cơ bản upsell UI.~~ ✅ Done (teasers in body; deep CTA in rail @ W5-1)
 
-*W0–W5 complete @ `680c803`; **Launch phase (full)** — Phases 0–2c before Phase 3 ship.*
+*W0–W5 complete @ `680c803`; **Launch Phases 0–2c code complete** (uncommitted); Phase 3 human ship gates open.*
 
 ---
 

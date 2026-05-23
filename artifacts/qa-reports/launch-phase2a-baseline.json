@@ -1,0 +1,18 @@
+{
+  "task_id": "phase2a-qa",
+  "verdict": "PASS",
+  "checked_at": "2026-05-23",
+  "channel_findings": [
+    "channel_compliance_aggregate",
+    "channel_boost_outlier_share",
+    "channel_slang_staleness",
+    "channel_persona_drift"
+  ],
+  "video_signals": [
+    "hook_timeline_pacing_sparse",
+    "hook_pacing_cut_frequency",
+    "editing_cut_pace_outlier"
+  ],
+  "g6": "artifacts/qa-reports/g6-ablation.json",
+  "pytest": { "channel_findings": 13, "phase2a_signals": 11 }
+}

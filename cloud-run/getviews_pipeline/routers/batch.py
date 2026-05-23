@@ -565,6 +565,47 @@ async def batch_trend_velocity(
     })
 
 
+@router.post("/batch/stats-history-refetch")
+async def batch_stats_history_refetch(
+    limit: int = Query(80, ge=1, le=200),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """§4.7 M4 — append ``stats_history`` snapshots at T+6h / T+24h via EnsembleData.
+
+    Metadata-only refetch; derives ``distribution_shape=spike_then_flat`` when
+    criteria match. Intended cadence: hourly pg_cron on the batch pod.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.stats_history_m4 import run_stats_history_refetch
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info("POST /batch/stats-history-refetch triggered limit=%d", limit)
+    client = get_service_client()
+
+    async with record_job_run(client, "batch/stats-history-refetch") as obs_summary:
+        try:
+            result = await run_stats_history_refetch(client=client, limit=limit)
+        except Exception as exc:
+            logger.exception("Batch stats-history-refetch failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update({
+            "candidates": result.candidates,
+            "refreshed": result.refreshed,
+            "missing": result.missing,
+            "errors": result.errors,
+            "shapes_set": result.shapes_set,
+        })
+
+    return JSONResponse({
+        "ok": result.errors == 0 or result.refreshed > 0,
+        "candidates": result.candidates,
+        "refreshed": result.refreshed,
+        "missing": result.missing,
+        "errors": result.errors,
+        "shapes_set": result.shapes_set,
+    })
+
+
 @router.post("/batch/r2-janitor")
 async def batch_r2_janitor(
     request: Request,

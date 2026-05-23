@@ -6,6 +6,8 @@ from typing import Any
 
 from getviews_pipeline.signals.base import Evidence, Signal
 
+_ZERO_VALUE_SUBJECTS = frozenset({"ambient", "mixed", "text"})
+_ZERO_VALUE_PACE = frozenset({"static", "slow"})
 _PHASE_KEYS = (
     "hook_attention",
     "product_showcase",
@@ -116,8 +118,68 @@ def extract_livestream_funnel_signal(ctx: dict) -> list[Signal]:
     ]
 
 
+def extract_zero_value_stretch_signal(ctx: dict) -> list[Signal]:
+    """P1 — video dài nhưng nhiều beat filler / zero-value."""
+    ua = _ua(ctx)
+    scenes = ua.get("scenes")
+    if not isinstance(scenes, list) or len(scenes) < 2:
+        return []
+
+    duration_raw = ua.get("video_duration")
+    duration: float | None = None
+    if duration_raw is not None:
+        try:
+            duration = float(duration_raw)
+        except (TypeError, ValueError):
+            duration = None
+    if duration is None:
+        last = scenes[-1]
+        if isinstance(last, dict) and last.get("end") is not None:
+            try:
+                duration = float(last["end"])
+            except (TypeError, ValueError):
+                duration = None
+    if duration is None or duration < 25.0:
+        return []
+
+    typed = [s for s in scenes if isinstance(s, dict)]
+    if not typed:
+        return []
+    filler = 0
+    for sc in typed:
+        subj = str(sc.get("subject") or sc.get("type") or "").lower().replace("-", "_")
+        pace = str(sc.get("pace") or "").lower().replace("-", "_")
+        if subj in _ZERO_VALUE_SUBJECTS or pace in _ZERO_VALUE_PACE:
+            filler += 1
+    filler_ratio = filler / len(typed)
+    if filler_ratio < 0.45:
+        return []
+
+    return [
+        Signal(
+            id="script_zero_value_stretch",
+            section_id="script_structure",
+            taxonomy_ref="§4",
+            salience=0.69,
+            claim=(
+                f"Video ~{duration:.0f}s nhưng {filler}/{len(typed)} scene "
+                f"({filler_ratio:.0%}) static/ambient — nhịp zero-value kéo dài."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"video_duration={duration:.1f} filler_scenes={filler}",
+                    location="user_analysis.scenes+video_duration",
+                )
+            ],
+            suggested_fix="Cắt beat filler; mỗi 5–8s cần payoff visual hoặc thông tin mới.",
+        )
+    ]
+
+
 def extract_script_signals(ctx: dict) -> list[Signal]:
     return [
         *extract_5_phase_affiliate_signal(ctx),
         *extract_livestream_funnel_signal(ctx),
+        *extract_zero_value_stretch_signal(ctx),
     ]

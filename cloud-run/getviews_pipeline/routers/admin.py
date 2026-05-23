@@ -800,7 +800,7 @@ async def admin_corpus_health(
     last_ingest: dict[int, str] = {}
 
     for row in corpus_rows:
-        nid = row.get("niche_id")
+        nid = row.get("ingest_loop_niche_id")
         created = row.get("created_at")
         if nid is None or not created:
             continue

@@ -17,6 +17,10 @@ vi.mock("@/hooks/useTopPatterns", async () => {
   };
 });
 
+vi.mock("@/hooks/useChannelQuickPeek", () => ({
+  useChannelQuickPeek: () => ({ data: null, isLoading: false, isError: false }),
+}));
+
 const { TrendsPatternGrid } = await import("./TrendsPatternGrid");
 
 beforeEach(() => {

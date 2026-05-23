@@ -1,0 +1,28 @@
+{
+  "task_id": "phase3-ship",
+  "verdict": "PASS_WITH_CONCERNS",
+  "checked_at": "2026-05-23",
+  "automated_gates": {
+    "typecheck": "pass",
+    "vitest": "925/925 pass",
+    "pytest_launch_scope": "58/58 pass (channel findings, phase2a/2c signals, stats_history_m4, admin dropped-column guard, quick-peek)",
+    "pytest_full_suite": "2286 pass, 9 fail pre-existing on main (select_sections default depth=basic; sprint3/6/7/8/9 + video_analyze cache tests)"
+  },
+  "qa_baselines": [
+    "launch-phase0-baseline.json",
+    "launch-phase1-baseline.json",
+    "launch-phase2a-baseline.json",
+    "launch-phase2b-baseline.json",
+    "launch-phase2c-baseline.json"
+  ],
+  "demo": "launch-gate-demo.json",
+  "human_gates_remaining": [
+    "Apply supabase migrations 20260827000000 + 20260827000001",
+    "Redeploy Cloud Run batch + user pods",
+    "/visual-audit on staging",
+    "/dogfood 8 hero niches + demo URL",
+    "/pre-handoff security audit",
+    "/deploy — human ship-it"
+  ],
+  "traceability": "feature-map-v1.md §13B + §16 G3/D2; incremental-v1-roadmap.md §13"
+}

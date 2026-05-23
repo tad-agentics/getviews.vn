@@ -587,7 +587,7 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 - [x] `analysis_depth=deep` → `manifest_for_prompt` cap **5**/section; basic cap **3** — ✅ W3-2 @ `9cd0957`  
 - [ ] ≥**8** signal backlog P0/P1 có test unit trong `cloud-run/tests/test_*_signals*.py` — **partial** (W0+P0 shipped; P1 backlog open)  
 - [ ] Signal mới có `taxonomy_ref` + `evidence[]` với số từ ctx (không bịa) — required for **new** P1 signals  
-- [ ] Deep report trung bình ≥**2** signal/section trong prompt so với basic (sample 10 video QA)  
+- [ ] Deep report trung bình ≥**2** signal/section trong prompt so với basic (sample 10 video QA) — **✅** `test_analysis_depth_486_sample.py` + `launch-phase2-signal-density-486.json` @ launch
 
 ### 4.9 Video Win — JTBD & quyết định kiến trúc
 
@@ -1333,13 +1333,13 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [x] Composer **4 pill** + Cơ bản/Chuyên sâu picker (§3.1.2) — ✅ W3-0 @ `9cd0957`
 - [x] §4.9–§4.12 Win: Xu hướng 1 tap → `depth=basic` + `mode=win` + `from=trends` — ✅ W1-1 (`answerHandoff.ts`)
 - [x] §4.8 W0: ≥2 signal `win_*` + test; salience `tier_gate=hit` — ✅ **5/5** Win W0 @ W1-6 + W4-3 (`signals/win.py`)
-- [ ] Mọi handle → **Nhanh** hoặc **Sâu**; billing đúng spec §10 — channel depth picker **deferred** (video depth only in W3)
+- [x] Mọi handle → **Nhanh** hoặc **Sâu**; billing đúng spec §10 — ✅ Launch Phase 1 @ uncommitted (`ChannelDepthPicker`, D2 Nhanh 0× / Sâu 3×; `launch-phase1-baseline.json`)
 - [x] Kho / pattern tile → Answer handoff §4.10 (không paste URL thủ công) — ✅ W1-1/W1-2
 - [x] Ritual Studio tier I → **Script Studio** ≤2 tap — ✅ W2-1a (Answer prefill)
-- [ ] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier
-- [ ] **§8.7:** 5–8 ngách hero đạt tier tối thiểu `reference_pool` (≥5 video/30d); ưu tiên `niche_norms` / `hook_effectiveness` cho ngách launch
-- [ ] **§8.7:** Xu hướng — mỗi ngách hero có ≥1 `video_patterns` card không rỗng; Kho + `ConfidenceStrip` khớp tier
-- [ ] **§8.7:** ≥1 URL corpus-hit → Answer Cơ bản (demo) — chứng minh synthesis path, không yêu cầu mass on-demand pre-launch
+- [x] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier — ✅ Launch Phase 0 (`launch-phase0-corpus-health.json`; `api/chat.ts` humility sweep)
+- [x] **§8.7:** 5–8 ngách hero đạt tier tối thiểu `reference_pool` (≥5 video/30d); ưu tiên `niche_norms` / `hook_effectiveness` cho ngách launch — ✅ G3 IDs 1,2,3,4,5,8,9,11 @ `trend_delta` (`launch-phase0-g3-hero.json`, `launch-phase0-corpus-health.json`)
+- [x] **§8.7:** Xu hướng — mỗi ngách hero có ≥1 `video_patterns` card không rỗng; Kho + `ConfidenceStrip` khớp tier — ✅ Phase 0 QA (`launch-phase0-baseline.json`; thin heroes none)
+- [x] **§8.7:** ≥1 URL corpus-hit → Answer Cơ bản (demo) — chứng minh synthesis path, không yêu cầu mass on-demand pre-launch — ✅ `launch-gate-demo.json` (`@lynguyn.2002/video/7622669408665652488`)
 - [x] Channel FE/BE credit aligned — ✅ W0-1 (3×)
 - [x] §4.7: reference peers `reference_eligible`; boost section chỉ Chuyên sâu; không claim ads poisoning từ heuristic alone — ✅ W4-2/W4-4 @ `9b97207`
 - [x] §4.8: deep `manifest_for_prompt` cap 5; basic cap 3 — ✅ W3-2 @ `9cd0957` (P1 signal backlog partial — only P0 subset in W4-3)
@@ -1358,7 +1358,7 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 | # | Câu hỏi | Options |
 |---|---------|---------|
 | D1 | ~~Video Cơ bản credit~~ | **Đã chốt:** 1× basic / 2× deep (§10) — implement RPC |
-| D2 | Channel billing (Sâu 3×; Nhanh 0× vs 1×) | **Sâu:** ✅ 3× @ W0-1. **Nhanh + depth picker:** Launch phase (§13B) |
+| D2 | Channel billing (Sâu 3×; Nhanh 0× vs 1×) | **Resolved Launch Phase 1:** Nhanh **0×** / Sâu **3×** — `launch-phase1-d2.json` |
 | D3 | ~~Shell + landing~~ | **Đã chốt:** 2 tab Studio + Xu hướng; **landing = `/app`** (Gợi ý hôm nay + composer) |
 | D11 | ~~Xu hướng scope~~ | **Đã chốt (§3.2.1):** freeze Công thức + Kho video; không segment TikTok/Douyin bắt buộc |
 | D4 | Đổi tên route `/app/trends` → `/app/xu-huong`? | **Deferred post-launch** — SEO/i18n vs redirect cost |
@@ -1416,8 +1416,8 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 - [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12) — ✅ W3 @ `9cd0957`  
 - [x] Pre-launch cost ≠ cắt feature? → **§8.6–§8.8** — utilize kho; ingest policy tách track A/B  
 - [x] Video depth / composer 4 pill — ✅ W3 @ `9cd0957`; W3-5 upsell UI ✅  
-- [ ] Human sign-off §14 **D2 Nhanh billing** + **D4** route rename — **Sâu 3× shipped;** channel Nhanh/Sâu picker **Launch phase**  
-- [ ] Chốt danh sách **ngách hero** + chạy `corpus-health` theo §8.7 trước GTM — **Launch phase** (G3)
+- [x] Human sign-off §14 **D2 Nhanh billing** + **D4** route rename — **D2 Nhanh 0× / Sâu 3×** ✅ Launch Phase 1; D4 rename still deferred post-launch  
+- [x] Chốt danh sách **ngách hero** + chạy `corpus-health` theo §8.7 trước GTM — ✅ G3 @ `launch-phase0-g3-hero.json` + corpus-health @ `launch-phase0-corpus-health.json`
 
 ---
 

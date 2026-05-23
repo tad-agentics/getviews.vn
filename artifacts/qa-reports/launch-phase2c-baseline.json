@@ -1,0 +1,19 @@
+{
+  "task_id": "phase2c-qa",
+  "verdict": "PASS",
+  "checked_at": "2026-05-23",
+  "channel_findings": [
+    "channel_restricted_keyword_exposure",
+    "channel_ad_law_disclosure_gap",
+    "channel_copyright_mute_risk",
+    "channel_posting_cadence_vs_peer",
+    "channel_best_hour_underused",
+    "channel_mega_sale_dip"
+  ],
+  "sse_layer_b": ["account_health", "policy_risk"],
+  "video_signals": 15,
+  "pytest": {
+    "channel_findings": 13,
+    "phase2c_signals": 16
+  }
+}

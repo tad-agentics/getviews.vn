@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from getviews_pipeline.signals.base import Evidence, Signal
+
+_HOOK_SPECIFICITY_MARKERS = re.compile(
+    r"[\d?]|tại\s+sao|vì\s+sao|mẹo|cách\s+|review|so\s+sánh|"
+    r"\d+\s*(k|tr|triệu|%)|shop|shopee|lỗi|sai|tại\s+ao",
+    re.IGNORECASE,
+)
 
 _MIN_NICHE_SAMPLE_FOR_HOOK_RANK = 30
 
@@ -229,6 +236,158 @@ def extract_gia_soc_compliance_signal(ctx: dict) -> list[Signal]:
     ]
 
 
+def _user_transitions_per_second(ctx: dict) -> float | None:
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return None
+    raw = ua.get("transitions_per_second")
+    if raw is None:
+        return None
+    try:
+        val = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return val if val >= 0 else None
+
+
+def _hook_timeline_events_in_window(ha: dict[str, Any]) -> list[dict[str, Any]]:
+    timeline = ha.get("hook_timeline")
+    if not isinstance(timeline, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for ev in timeline:
+        if not isinstance(ev, dict):
+            continue
+        raw_t = ev.get("t")
+        if raw_t is None:
+            continue
+        try:
+            t = float(raw_t)
+        except (TypeError, ValueError):
+            continue
+        if 0.0 <= t <= 3.0:
+            out.append(ev)
+    return out
+
+
+def extract_hook_timeline_pacing_signal(ctx: dict) -> list[Signal]:
+    """P1 — sparse hook_timeline (<2 events in 0–3s) vs Gemini 2–5 event norm."""
+    ha = _hook_analysis_dict(ctx)
+    if not ha:
+        return []
+    events = _hook_timeline_events_in_window(ha)
+    if len(events) >= 2:
+        return []
+    return [
+        Signal(
+            id="hook_timeline_pacing_sparse",
+            section_id="hook_analysis",
+            taxonomy_ref="§3",
+            salience=0.68,
+            claim=(
+                f"Cửa sổ hook chỉ có {len(events)} sự kiện timeline (0–3s) — "
+                "nhịp mở thưa hơn chuẩn 2–5 beat trong ngách VN."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"hook_timeline_events_0_3s={len(events)}",
+                    location="user_analysis.hook_analysis.hook_timeline",
+                )
+            ],
+            suggested_fix=(
+                "Thêm ít nhất 1 beat (cut, text overlay, hoặc reveal) trước giây 3 "
+                "để giữ nhịp dừng lướt."
+            ),
+        )
+    ]
+
+
+def extract_hook_pacing_cut_frequency_signal(ctx: dict) -> list[Signal]:
+    """P1 — whole-video cut pace vs niche avg (hook section)."""
+    nm = ctx.get("niche_meta") or {}
+    if not isinstance(nm, dict):
+        return []
+    sample = int(nm.get("sample_size") or 0)
+    if sample < _MIN_NICHE_SAMPLE_FOR_HOOK_RANK:
+        return []
+
+    tps = _user_transitions_per_second(ctx)
+    avg_raw = nm.get("avg_transitions_per_second")
+    if tps is None or avg_raw is None:
+        return []
+    try:
+        avg = float(avg_raw)
+    except (TypeError, ValueError):
+        return []
+    if avg <= 0:
+        return []
+
+    ratio = tps / avg
+    if ratio >= 0.75:
+        return []
+
+    return [
+        Signal(
+            id="hook_pacing_cut_frequency",
+            section_id="hook_analysis",
+            taxonomy_ref="§3",
+            salience=0.71,
+            claim=(
+                f"Tốc độ cắt {tps:.2f}/s thấp hơn ~{int(round((1 - ratio) * 100))}% "
+                f"so TB ngách ({avg:.2f}/s) — hook dễ chậm so pattern đang chạy."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"transitions_per_second={tps:.3f} niche_avg={avg:.3f}",
+                    location="user_analysis.transitions_per_second+niche_meta.avg_transitions_per_second",
+                )
+            ],
+            suggested_fix=(
+                "Thêm 1–2 jump-cut hoặc zoom trong 0–3s đầu để khớp nhịp cắt ngách."
+            ),
+        )
+    ]
+
+
+def extract_hook_vague_specificity_signal(ctx: dict) -> list[Signal]:
+    """P1 — hook_phrase thiếu số liệu / câu hỏi / pain cụ thể."""
+    ha = _hook_analysis_dict(ctx)
+    if not ha:
+        return []
+    phrase = str(ha.get("hook_phrase") or "").strip()
+    if len(phrase) < 4:
+        return []
+    if _HOOK_SPECIFICITY_MARKERS.search(phrase):
+        return []
+    if len(phrase) >= 30:
+        return []
+    return [
+        Signal(
+            id="hook_vague_specificity",
+            section_id="hook_analysis",
+            taxonomy_ref="§4.8.3",
+            salience=0.73,
+            claim=(
+                f"Hook mở `{phrase[:48]}` thiếu chi tiết cụ thể (số, câu hỏi, pain) — "
+                "dễ bị lướt qua trước khi payoff."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"hook_phrase={phrase[:120]}",
+                    location="user_analysis.hook_analysis.hook_phrase",
+                )
+            ],
+            suggested_fix=(
+                "Thêm 1 con số, câu hỏi mở, hoặc pain cụ thể trong 0–2s (VD: "
+                "“3 lỗi khiến video 0 view”)."
+            ),
+        )
+    ]
+
+
 def extract_niche_hook_percentile_gap_signal(ctx: dict) -> list[Signal]:
     nm = ctx.get("niche_meta") or {}
     if not isinstance(nm, dict):
@@ -285,4 +444,7 @@ def extract_hook_signals(ctx: dict) -> list[Signal]:
     out.extend(extract_dialect_consistency_signal(ctx))
     out.extend(extract_gia_soc_compliance_signal(ctx))
     out.extend(extract_niche_hook_percentile_gap_signal(ctx))
+    out.extend(extract_hook_timeline_pacing_signal(ctx))
+    out.extend(extract_hook_pacing_cut_frequency_signal(ctx))
+    out.extend(extract_hook_vague_specificity_signal(ctx))
     return out

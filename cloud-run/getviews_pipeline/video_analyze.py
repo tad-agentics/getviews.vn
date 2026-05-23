@@ -447,7 +447,7 @@ def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
         "video_id,creator_handle,views,likes,comments,shares,saves,save_rate,"
         "engagement_rate,thumbnail_url,created_at,niche_id:ingest_loop_niche_id,content_class_id,"
         "content_format,analysis_json,breakout_multiplier,tiktok_url,"
-        "creator_median_views,caption"
+        "creator_median_views,caption,stats_history,distribution_shape"
     )
     try:
         vres = user_sb.table("video_corpus").select(cols).eq("video_id", vid).maybe_single().execute()
@@ -603,6 +603,8 @@ def _response_from_diagnostics_row(
             # from the corpus row's raw counts / classifiers.
             "saves": int(video.get("saves") or 0) if video.get("saves") is not None else None,
             "is_breakout": float(video.get("breakout_multiplier") or 0.0) >= 1.5,
+            "stats_history": video.get("stats_history"),
+            "distribution_shape": video.get("distribution_shape"),
         },
         "enrichment": enrichment,
         "kpis": build_kpis(
@@ -1358,6 +1360,12 @@ def finalize_video_narrative_layer(
             user_stats["shop_order_count"] = int(meta["shop_order_count"])
         except (TypeError, ValueError):
             pass
+    sh_raw = meta.get("stats_history")
+    if isinstance(sh_raw, list) and sh_raw:
+        user_stats["stats_history"] = sh_raw
+    ds_raw = meta.get("distribution_shape")
+    if ds_raw:
+        user_stats["distribution_shape"] = str(ds_raw)
     ch_ratio_hint = meta.get("target_vs_creator_median")
     try:
         ch_ratio_f = float(ch_ratio_hint) if ch_ratio_hint is not None else None

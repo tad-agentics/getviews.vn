@@ -1,0 +1,12 @@
+{
+  "task_id": "phase2a-g6-ablation",
+  "recorded_at": "2026-05-23",
+  "baseline": "W5-3 key_messages trim @ 65e4145",
+  "metrics": {
+    "key_messages_max_items": 5,
+    "extraction_schema_trimmed": true,
+    "memo_token_estimate_reduction_pct": "pending_live_sample",
+    "note": "G6 ablation artifact — full A/B token study deferred; schema cap shipped W5-3"
+  },
+  "acceptance": "key_messages[] capped in extraction; channel memo inject unchanged"
+}

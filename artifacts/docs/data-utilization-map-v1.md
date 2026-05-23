@@ -80,7 +80,7 @@
 | `hook_phrase` | show | show | — | history | show | anchor | anchor | — | F6 kho; STU breakouts; F7 opening line |
 | `hook_analysis.hook_layering` | teaser | audit | — | — | — | — | spec | — | Signal `hook_layering_single` |
 | `hook_analysis.hook_body_contract` | teaser | audit | — | — | — | — | spec | — | Signal `hook_body_contract_violated` |
-| `hook_analysis.hook_timeline[]` | timing | timing | — | — | — | — | timing | — | JSON → v6 prompt; **🔨** P1 pacing signals |
+| `hook_analysis.hook_timeline[]` | timing | timing | — | — | — | — | timing | — | **✅** P1 `hook_timeline_pacing_sparse`, `hook_pacing_cut_frequency` @ launch |
 | `hook_analysis.first_frame_type` | audit | audit | — | — | — | — | spec | — | Signal `hook_first_frame_non_product` |
 | `hook_analysis.face_appears_at` | timing | timing | — | — | — | — | timing | MV | Promoted col; hook stats aggregate |
 | `hook_analysis.first_speech_at` | timing | timing | — | — | — | — | timing | MV | Guards + cohort hook norms |
@@ -89,7 +89,7 @@
 | `hook_analysis.hook_notes` | — | audit | — | — | — | — | — | — | Prompt + synthesis context only |
 | `scenes[]` (type, start, end) | teaser | audit | — | pattern | — | — | spec | MV | `scene_count`, `video_duration`; `scene_intelligence` refresh |
 | `scenes[].framing/pace/overlay_style/subject/motion/description` | — | audit | — | — | — | — | spec | MV | `video_shots/` + script matcher (F7) |
-| `transitions_per_second` | teaser | audit | — | pattern | feed | — | spec | MV | `signals/editing.py`; **🔨** full P1 backlog |
+| `transitions_per_second` | teaser | audit | — | pattern | feed | — | spec | MV | **✅** P1 `editing_cut_pace_outlier`, `hook_pacing_cut_frequency` |
 | `text_overlays[]` | teaser | audit | — | — | — | — | spec | — | `text_overlay_count`; `pattern_fingerprint`; editing signals |
 | `text_overlay_font_size_tier` | teaser | audit | — | — | — | — | spec | — | `signals/editing.py` |
 | `text_overlay_color_emphasis` | teaser | audit | — | — | — | — | spec | — | `signals/editing.py` |
@@ -110,7 +110,7 @@
 | `commerce_intent.creator_type` | teaser | audit | — | rollup | — | — | spec | — | `commerce_creator_type_inconsistent` |
 | `commerce_intent.verbal_cta_present` | gate | audit | — | rollup | — | — | spec | — | `commerce_verbal_cta_missing` |
 | `commerce_intent.verbal_cta_quote` | — | audit | — | — | — | — | anchor | — | Synthesis evidence |
-| `commerce_intent.disclosure_present` | gate | audit | rollup | rollup | — | — | spec | — | **🔨** channel `channel_ad_law_*` aggregate |
+| `commerce_intent.disclosure_present` | gate | audit | rollup | rollup | — | — | spec | — | **✅** `channel_ad_law_disclosure_gap` + `channel_compliance_aggregate` |
 | `commerce_intent.disclosure_form` | gate | audit | rollup | rollup | — | — | spec | — | Compliance signals |
 | `cta` (raw) | gate | audit | — | — | — | anchor | spec | — | → `cta_type` promoted |
 | `promotion_type` | gate | audit | — | rollup | — | — | spec | — | Promoted; `commerce_promotion_detected` |
@@ -125,10 +125,10 @@
 | FIELD | F2 | F1 | F5 | F4 | F6 | STU | F7 | BAT | Ghi chú |
 |-------|----|----|----|----|----|-----|----|-----|---------|
 | `creator_persona` | gate | audit | pattern | rollup | — | — | spec | — | `persona_*` signals; channel persona block |
-| `persona_consistency_signals.*` | — | teaser | — | rollup | — | — | — | — | **Orphan** — **🔨** F4 P2 `channel_persona_drift` |
+| `persona_consistency_signals.*` | — | teaser | — | rollup | — | — | — | — | **✅** `channel_persona_drift` @ launch Phase 2 |
 | `tone` | bench | audit | pattern | pattern | feed | — | spec | MV | Promoted; F6 sort |
 | `slang_terms_used` | — | audit | — | rollup | — | — | — | — | `persona_slang_dated` |
-| `slang_freshness_score` | — | audit | — | rollup | — | — | — | — | **🔨** P2 `channel_slang_staleness` |
+| `slang_freshness_score` | — | audit | — | rollup | — | — | — | — | **✅** `channel_slang_staleness` @ launch Phase 2 |
 | `target_audience` | show | show | — | — | — | — | spec | — | Promoted; `ContextStrip` |
 | `pain_points` | show | show | — | — | — | — | spec | — | Promoted; `ContextStrip` |
 | `style_tags` | show | show | — | — | — | — | spec | — | Promoted; `ContextStrip` |
@@ -200,8 +200,8 @@
 | `boost_attribution` | — | audit | flag | rollup | filter | — | — | MV | Batch ✅ ingest; live M3 user video ✅ |
 | `reference_eligible` | ref | ref | — | ref | filter | — | — | MV | M2 ref pool + channel peers ✅ |
 | `ingest_relaxation_tier` | — | — | — | — | — | — | — | BAT | Ingest policy telemetry |
-| `stats_history` | — | audit | — | rollup | — | — | — | M4 | **🔨** §4.7 P1 cron re-fetch |
-| `distribution_shape` | — | audit | — | — | — | — | — | M4 | Derived from `stats_history` |
+| `stats_history` | — | audit | — | rollup | — | — | — | M4 | **✅** M4 cron re-fetch + `distribution_spike_then_flat` |
+| `distribution_shape` | — | audit | — | — | — | — | — | M4 | **✅** Derived from `stats_history` @ launch M4 |
 | `distribution_*` (hashtag cluster annotations) | teaser | audit | — | — | feed | — | — | MV | `annotate_distribution` at ingest |
 | `peer_percentile` (derived at diagnosis) | show | show | — | — | — | — | — | MV | **✅** `finalize_niche_meta_peer_tier` when axis `content_class_tier` |
 
@@ -289,7 +289,7 @@
 | Field / nhóm | Verdict | Action |
 |--------------|---------|--------|
 | `key_messages[]` | **Trimmed W5-3** | Removed from Gemini extraction schema (2026-05-23) |
-| `persona_consistency_signals` | **Orphan** | **🔨** wire F4 P2 or defer |
+| `persona_consistency_signals` | **Strong** | **✅** `channel_persona_drift` @ launch Phase 2 |
 | `peer_percentile` / `peer_percentile_label` | **Strong** | Wired W1-3 when tier MV + `creator_tier` on corpus row |
 | `win_er_above_niche_p75` / `win_hook_aligns_niche_top` | **Strong** | **✅** `signals/win.py`; `tier_gate=hit`; W1-6 |
 | `win_breakout_vs_channel` / `win_format_in_growth` / `win_replicable_cta` | **Strong** | **✅** `signals/win.py` W4-3 |

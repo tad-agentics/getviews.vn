@@ -213,6 +213,91 @@ def extract_sound_layering_signal(ctx: dict) -> list[Signal]:
     ]
 
 
+def extract_sound_trending_mismatch_signal(ctx: dict) -> list[Signal]:
+    """P1 — sound_id không nằm radar trending ngách."""
+    sid = str(_us(ctx).get("sound_id") or "").strip()
+    if not sid:
+        return []
+    nm = ctx.get("niche_meta") or {}
+    radar = nm.get("sound_radar") if isinstance(nm, dict) else None
+    if not isinstance(radar, dict):
+        return []
+    trending_ids: set[str] = set()
+    for bucket in ("accelerating", "peaking", "cooling"):
+        for entry in radar.get(bucket) or []:
+            if isinstance(entry, dict):
+                eid = str(entry.get("sound_id") or "").strip()
+                if eid:
+                    trending_ids.add(eid)
+    if len(trending_ids) < 2:
+        return []
+    if sid in trending_ids:
+        return []
+    return [
+        Signal(
+            id="sound_trending_mismatch",
+            section_id="sound",
+            taxonomy_ref="§6",
+            salience=0.57,
+            claim=(
+                f"Sound `{sid[:12]}…` không khớp {len(trending_ids)} sound đang "
+                "tích lũy trong radar ngách — có thể bỏ lỡ sóng FYP."
+            ),
+            evidence=[
+                Evidence(
+                    type="niche_norms_pct",
+                    quote=f"sound_id={sid} radar_ids={len(trending_ids)}",
+                    location="user_stats.sound_id+niche_meta.sound_radar",
+                )
+            ],
+            suggested_fix="Thử 1 trong sound accelerating/peaking của ngách hoặc biến thể hook riêng.",
+        )
+    ]
+
+
+def extract_sound_no_audio_hook_window_signal(ctx: dict) -> list[Signal]:
+    """P1 — không có thoại / first_word trong cửa sổ hook 0–3s."""
+    ua = _ua(ctx)
+    ha = ua.get("hook_analysis") if isinstance(ua.get("hook_analysis"), dict) else {}
+    timeline = ha.get("hook_timeline") if isinstance(ha.get("hook_timeline"), list) else []
+    has_first_word = False
+    for ev in timeline:
+        if not isinstance(ev, dict):
+            continue
+        if str(ev.get("event") or "").lower().replace("-", "_") != "first_word":
+            continue
+        try:
+            t = float(ev.get("t") or 99)
+        except (TypeError, ValueError):
+            continue
+        if 0.0 <= t <= 3.0:
+            has_first_word = True
+            break
+    if has_first_word:
+        return []
+    tr = str(ua.get("audio_transcript") or "").strip()
+    return [
+        Signal(
+            id="sound_no_audio_hook_window",
+            section_id="sound",
+            taxonomy_ref="§6",
+            salience=0.66,
+            claim=(
+                "Cửa sổ hook 0–3s không có thoại rõ (first_word) — "
+                "viewer tắt tiếng khó bắt promise."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"hook_timeline_first_word=false transcript_len={len(tr)}",
+                    location="user_analysis.hook_analysis+audio_transcript",
+                )
+            ],
+            suggested_fix="Mở bằng 1 câu thoại ngắn ≤8 từ hoặc text overlay promise rõ trước giây 3.",
+        )
+    ]
+
+
 def extract_sound_signals(ctx: dict) -> list[Signal]:
     out: list[Signal] = []
     for fn in (
@@ -220,6 +305,8 @@ def extract_sound_signals(ctx: dict) -> list[Signal]:
         extract_cml_eligibility_signal,
         extract_dialect_audio_consistency_signal,
         extract_sound_layering_signal,
+        extract_sound_trending_mismatch_signal,
+        extract_sound_no_audio_hook_window_signal,
     ):
         out.extend(fn(ctx))
     return out

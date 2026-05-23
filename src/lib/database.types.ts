@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       acqe_run_state: {
@@ -2490,6 +2515,7 @@ export type Database = {
           creator_tier: string | null
           cta_type: string | null
           dialect: string | null
+          distribution_shape: string | null
           engagement_rate: number
           face_appears_at: number | null
           first_frame_type: string | null
@@ -2533,6 +2559,7 @@ export type Database = {
           shares: number
           sound_id: string | null
           sound_name: string | null
+          stats_history: Json
           style_tags: Json | null
           target_audience: string | null
           text_overlay_count: number | null
@@ -2570,6 +2597,7 @@ export type Database = {
           creator_tier?: string | null
           cta_type?: string | null
           dialect?: string | null
+          distribution_shape?: string | null
           engagement_rate?: number
           face_appears_at?: number | null
           first_frame_type?: string | null
@@ -2613,6 +2641,7 @@ export type Database = {
           shares?: number
           sound_id?: string | null
           sound_name?: string | null
+          stats_history?: Json
           style_tags?: Json | null
           target_audience?: string | null
           text_overlay_count?: number | null
@@ -2650,6 +2679,7 @@ export type Database = {
           creator_tier?: string | null
           cta_type?: string | null
           dialect?: string | null
+          distribution_shape?: string | null
           engagement_rate?: number
           face_appears_at?: number | null
           first_frame_type?: string | null
@@ -2693,6 +2723,7 @@ export type Database = {
           shares?: number
           sound_id?: string | null
           sound_name?: string | null
+          stats_history?: Json
           style_tags?: Json | null
           target_audience?: string | null
           text_overlay_count?: number | null
@@ -2765,6 +2796,7 @@ export type Database = {
       }
       video_diagnostics: {
         Row: {
+          analysis_depth: string
           analysis_headline: string | null
           analysis_subtext: string | null
           bright_spot_signal: Json | null
@@ -2789,6 +2821,7 @@ export type Database = {
           view_scenarios: Json | null
         }
         Insert: {
+          analysis_depth?: string
           analysis_headline?: string | null
           analysis_subtext?: string | null
           bright_spot_signal?: Json | null
@@ -2813,6 +2846,7 @@ export type Database = {
           view_scenarios?: Json | null
         }
         Update: {
+          analysis_depth?: string
           analysis_headline?: string | null
           analysis_subtext?: string | null
           bright_spot_signal?: Json | null
@@ -3010,13 +3044,17 @@ export type Database = {
           avg_text_overlays: number | null
           avg_transitions_per_second: number | null
           avg_views: number | null
+          avg_views_7d: number | null
+          avg_views_prior_7d: number | null
           claim_tier: string | null
           commerce_avg_views: number | null
           commerce_pct: number | null
           computed_at: string | null
           content_class_id: number | null
+          format_momentum: number | null
           has_cta_pct: number | null
           hook_distribution: Json | null
+          lifecycle_stage: string | null
           max_duration: number | null
           median_duration: number | null
           median_er: number | null
@@ -3033,6 +3071,9 @@ export type Database = {
           sample_size: number | null
           southern_count: number | null
           tone_distribution: Json | null
+          video_count_7d: number | null
+          video_count_prior_7d: number | null
+          view_velocity: number | null
         }
         Relationships: [
           {
@@ -3062,6 +3103,34 @@ export type Database = {
             columns: ["content_class_id"]
             isOneToOne: false
             referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_niche_content_class_stats: {
+        Row: {
+          avg_views: number | null
+          claim_tier: string | null
+          computed_at: string | null
+          content_class_id: number | null
+          creator_niche_id: number | null
+          is_primary: boolean | null
+          median_er: number | null
+          sample_size: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_niche_content_classes_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_niche_content_classes_creator_niche_id_fkey"
+            columns: ["creator_niche_id"]
+            isOneToOne: false
+            referencedRelation: "creator_niches"
             referencedColumns: ["id"]
           },
         ]
@@ -3149,7 +3218,10 @@ export type Database = {
         }
         Returns: Json
       }
-      decrement_credit: { Args: { p_user_id: string }; Returns: number }
+      decrement_credit: {
+        Args: { p_amount?: number; p_user_id: string }
+        Returns: number
+      }
       end_processing: { Args: { p_user_id: string }; Returns: boolean }
       get_weekly_trend_summaries: {
         Args: { p_week_of: string }
@@ -3207,6 +3279,10 @@ export type Database = {
       }
       refresh_content_class_intelligence: { Args: never; Returns: undefined }
       refresh_content_class_tier_intelligence: {
+        Args: never
+        Returns: undefined
+      }
+      refresh_creator_niche_content_class_stats: {
         Args: never
         Returns: undefined
       }
@@ -3404,6 +3480,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

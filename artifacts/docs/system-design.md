@@ -538,6 +538,8 @@ Nightly `/batch/ingest` ranks EnsembleData pool candidates with **`instructivene
 
 **Columns:** `boost_attribution`, `reference_eligible`, `ingest_relaxation_tier` (migration `20260520000000_corpus_ingest_criteria_columns.sql`).
 
+**§4.7 M4 — `stats_history` time-series (Launch Phase 2b):** `video_corpus.stats_history` (JSONB, `[{at, phase, views, likes, comments, shares}]`) + `distribution_shape` (`null` | `spike_then_flat`). Batch ingest writes `t0` via `corpus_ingest.make_stats_snapshot`; **`POST /batch/stats-history-refetch`** (batch pod, hourly pg_cron `cron-batch-stats-history-refetch`) appends `t6h`/`t24h` via EnsembleData metadata-only refetch. `engagement_rate` on refetch uses **0–100%** scale (matches `_safe_engagement_rate`). `compute_distribution_shape()` sets `spike_then_flat` when views ≥2× t0→t6h and ER or comments/view drop ≥30% t6h→t24h. Live diagnosis reads history via `video_analyze.py` → `distribution_spike_then_flat` signal (`signals/distribution.py`). Migration `20260827000000_video_corpus_stats_history_m4.sql`; cron `20260827000001_cron_batch_stats_history_refetch.sql`.
+
 **Consumers (Phase 4):** `morning_ritual` grounding pool sorts `breakout_multiplier`; ref pool (`corpus_context`) sorts breakout + optional `reference_eligible` filter; `hook_effectiveness_compute` weights by breakout; Trends virals rail min `breakout_multiplier ≥ 2`.
 
 **Phase 5b (optional):** top-niche ED comment fetch → `comment_radar` when `ED_BATCH_COMMENT_FETCH_ENABLED=true` (gated by shadow overlap metrics in v1 spec §13).

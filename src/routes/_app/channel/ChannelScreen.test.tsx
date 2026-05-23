@@ -39,6 +39,11 @@ vi.mock("@/hooks/useChannelDiagnose", () => ({
   useChannelDiagnose: () => mockUseChannelDiagnose(),
 }));
 
+const mockUseChannelQuickPeek = vi.fn();
+vi.mock("@/hooks/useChannelQuickPeek", () => ({
+  useChannelQuickPeek: (...args: unknown[]) => mockUseChannelQuickPeek(...args),
+}));
+
 vi.mock("@/hooks/useProfile", () => ({
   useProfile: () => ({
     data: { creator_niche_id: 1, credits_remaining: 10 },
@@ -118,14 +123,40 @@ describe("ChannelScreen", () => {
   beforeEach(() => {
     mockUseHomePulse.mockReset();
     mockUseChannelDiagnose.mockReset();
+    mockUseChannelQuickPeek.mockReset();
     mockUseHomePulse.mockReturnValue({ data: null, isPending: false });
     mockUseChannelDiagnose.mockReturnValue(mockDiagnoseIdle);
+    mockUseChannelQuickPeek.mockReturnValue({
+      data: {
+        finding_id: "channel_view_ceiling_300",
+        teaser: "Có dấu hiệu trần view.",
+        median_views: 1200,
+        dominant_hook: "bold_claim",
+        breakout_video: { video_id: "123", views: 5000 },
+        findings: [{ finding_id: "channel_view_ceiling_300", teaser: "Có dấu hiệu trần view.", strength: "high" }],
+        corpus_video_count: 12,
+      },
+      isLoading: false,
+      isError: false,
+    });
   });
   afterEach(cleanup);
 
   it("renders empty state when no handle is provided", () => {
     renderScreen();
     expect(screen.getByText(/Khám bất kỳ kênh TikTok nào/)).toBeTruthy();
+  });
+
+  it("renders Nhanh/Sâu depth pills on empty state", () => {
+    renderScreen();
+    expect(screen.getByRole("button", { name: /Nhanh · 0 credit/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Sâu · 3 credit/ })).toBeTruthy();
+  });
+
+  it("renders Nhanh panel by default when handle is set", () => {
+    renderScreen("?handle=sammie.tech");
+    expect(screen.getByText(/Soi kênh/)).toBeTruthy();
+    expect(screen.getByText(/trần view/)).toBeTruthy();
   });
 
   it("renders streaming state while diagnosis is in progress", () => {
@@ -138,7 +169,7 @@ describe("ChannelScreen", () => {
       sections: [],
       activeSectionId: null,
     });
-    const { container } = renderScreen("?handle=sammie.tech");
+    const { container } = renderScreen("?handle=sammie.tech&depth=sau");
     expect(container).toBeTruthy();
   });
 
@@ -149,7 +180,7 @@ describe("ChannelScreen", () => {
       sections: [],
       activeSectionId: null,
     });
-    renderScreen("?handle=sammie.tech");
+    renderScreen("?handle=sammie.tech&depth=sau");
     // Handle appears in ChannelDiagnosisBody heading area.
     expect(screen.getAllByText(/@?sammie\.tech/i).length).toBeGreaterThan(0);
   });
@@ -178,7 +209,7 @@ describe("ChannelScreen", () => {
         cache_hit: false,
       },
     });
-    renderScreen("?handle=sammie.tech");
+    renderScreen("?handle=sammie.tech&depth=sau");
     expect(screen.getByText(/Kết luận/)).toBeTruthy();
     // Two elements share this substring — the trajectory chip header
     // ("Kênh đang trì trệ", no dot) and the section body text
@@ -193,7 +224,7 @@ describe("ChannelScreen", () => {
       status: "error" as const,
       error: "insufficient_credits",
     });
-    renderScreen("?handle=sammie.tech");
+    renderScreen("?handle=sammie.tech&depth=sau");
     expect(screen.getByText(/Không đủ credit/)).toBeTruthy();
   });
 
@@ -208,13 +239,13 @@ describe("ChannelScreen", () => {
     });
 
     // First render: nicheId=2 from query → start called with 2.
-    const first = renderScreen("?handle=sammie.tech&creator_niche_id=2");
+    const first = renderScreen("?handle=sammie.tech&creator_niche_id=2&depth=sau");
     expect(startSpy).toHaveBeenCalledTimes(1);
     expect(startSpy.mock.calls[0][1]).toBe(2);
     first.unmount();
 
     // Second render with a different niche → start called again with 4.
-    renderScreen("?handle=sammie.tech&creator_niche_id=4");
+    renderScreen("?handle=sammie.tech&creator_niche_id=4&depth=sau");
     expect(startSpy).toHaveBeenCalledTimes(2);
     expect(startSpy.mock.calls[1][1]).toBe(4);
   });

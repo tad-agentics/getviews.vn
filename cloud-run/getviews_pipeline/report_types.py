@@ -694,7 +694,10 @@ def _attach_narrative_vi_headline(report: dict[str, Any], kind: str) -> None:
     existing = report.get("narrative_vi")
     if isinstance(existing, dict) and str(existing.get("headline_vi") or "").strip():
         return
-    report["narrative_vi"] = {"headline_vi": headline}
+    if isinstance(existing, dict):
+        existing["headline_vi"] = headline
+    else:
+        report["narrative_vi"] = {"headline_vi": headline}
 
 
 def validate_pattern_payload(payload: dict[str, Any]) -> PatternPayload:

@@ -15,6 +15,7 @@ _NEGATIVE_EXPERIENCE_RE = re.compile(
 
 _REGIONALDialect_HOOK = frozenset({"hue", "quang_nam", "southern", "northern"})
 _EXPERT_LIKE_PERSONAS = frozenset({"chuyen_gia", "anh_chi_mentor"})
+_MIN_NICHE_SAMPLE_TONE = 30
 
 
 def _ua(ctx: dict) -> dict[str, Any]:
@@ -140,10 +141,59 @@ def extract_dialect_persona_consistency_signal(ctx: dict) -> list[Signal]:
     ]
 
 
+def extract_tone_distribution_gap_signal(ctx: dict) -> list[Signal]:
+    """P1 — tone lệch tone_distribution ngách."""
+    nm = ctx.get("niche_meta") or {}
+    if not isinstance(nm, dict):
+        return []
+    dist = nm.get("tone_distribution")
+    if not isinstance(dist, dict) or not dist:
+        return []
+    sample = int(nm.get("sample_size") or 0)
+    if sample < _MIN_NICHE_SAMPLE_TONE:
+        return []
+
+    total = sum(int(v or 0) for v in dist.values())
+    if total <= 0:
+        return []
+
+    ua = _ua(ctx)
+    tone = str(ua.get("tone") or "").strip().lower().replace("-", "_")
+    if not tone or tone in ("none", "unknown", "other"):
+        return []
+
+    tone_count = int(dist.get(tone) or dist.get(tone.replace("_", "-")) or 0)
+    percentile = round(100 * tone_count / total)
+    if percentile >= 12:
+        return []
+
+    return [
+        Signal(
+            id="persona_tone_distribution_gap",
+            section_id="persona",
+            taxonomy_ref="§11",
+            salience=0.62,
+            claim=(
+                f"Tone `{tone}` chỉ ~{percentile}% corpus ngách — "
+                "có dấu hiệu lệch mood đang tích lũy view."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"tone={tone} niche_tone_share={percentile}%",
+                    location="user_analysis.tone+niche_meta.tone_distribution",
+                )
+            ],
+            suggested_fix="Thử tone thuộc top 2 distribution hoặc tách biệt rõ chủ đích.",
+        )
+    ]
+
+
 def extract_persona_signals(ctx: dict) -> list[Signal]:
     out: list[Signal] = []
     out.extend(extract_persona_mismatch_signal(ctx))
     out.extend(extract_persona_authenticity_signal(ctx))
     out.extend(extract_slang_freshness_signal(ctx))
     out.extend(extract_dialect_persona_consistency_signal(ctx))
+    out.extend(extract_tone_distribution_gap_signal(ctx))
     return out

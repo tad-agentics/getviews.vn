@@ -12,17 +12,23 @@
 --
 -- If you change these thresholds, update claim_tiers.py too — this query is a
 -- human mirror of the endpoint, not the source of truth.
+--
+-- Axis note: `corpus` CTE counts by `ingest_loop_niche_id` (class-first ingest loop).
+-- `patterns` CTE still joins `video_patterns.niche_spread` (legacy hero-niche axis) —
+-- intentional for hook_effectiveness / pattern freshness gate until class-scoped
+-- `video_patterns` rows ship; do not expect 1:1 row match between the two CTEs.
 
 WITH corpus AS (
   SELECT
-    niche_id,
+    ingest_loop_niche_id AS niche_id,
     COUNT(*) FILTER (WHERE created_at >= now() - interval  '7 days') AS videos_7d,
     COUNT(*) FILTER (WHERE created_at >= now() - interval '30 days') AS videos_30d,
     COUNT(*) FILTER (WHERE created_at >= now() - interval '90 days') AS videos_90d,
     MAX(created_at) AS last_ingest_at
   FROM video_corpus
   WHERE created_at >= now() - interval '90 days'
-  GROUP BY niche_id
+    AND ingest_loop_niche_id IS NOT NULL
+  GROUP BY ingest_loop_niche_id
 ),
 patterns AS (
   SELECT

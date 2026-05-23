@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from getviews_pipeline.signals.base import Evidence, Signal
 
+_CTA_OVERLAY_RE = re.compile(
+    r"mua|inbox|link|shop|giá|order|đặt|cart|giỏ|shopee|tiktok\s*shop",
+    re.IGNORECASE,
+)
+_PRICE_STRUCTURE_RE = re.compile(
+    r"\d+\s*(k|tr|triệu|đ|%|vnd)|giá\s*\d|chỉ\s+\d",
+    re.IGNORECASE,
+)
 _AUTHORITY_HOOK_TYPES = frozenset(
     {
         "bold_claim",
@@ -40,6 +49,87 @@ def _verbal_cta_satisfied(ua: dict, ci: dict[str, Any]) -> bool:
     if ci:
         return bool(ci.get("verbal_cta_present"))
     return bool(str(ua.get("cta") or "").strip())
+
+
+def _overlay_text(ua: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for o in ua.get("text_overlays") or []:
+        if isinstance(o, dict):
+            parts.append(str(o.get("text") or ""))
+        else:
+            parts.append(str(o))
+    return " ".join(parts)
+
+
+def extract_commerce_silent_cta_signal(ctx: dict) -> list[Signal]:
+    """P1 — CTA trên chữ nhưng không có lời nói."""
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return []
+    ci = _as_commerce_dict(ua)
+    if not _is_commercial(ua, ci):
+        return []
+    if _verbal_cta_satisfied(ua, ci):
+        return []
+    overlay = _overlay_text(ua)
+    if not _CTA_OVERLAY_RE.search(overlay):
+        return []
+    return [
+        Signal(
+            id="commerce_silent_cta",
+            section_id="commerce",
+            taxonomy_ref="§4.8.3",
+            salience=0.76,
+            claim=(
+                "Có CTA trên chữ overlay nhưng thiếu lời kêu gọi — "
+                "khán xem tắt tiếng dễ bỏ lỡ bước chuyển đổi."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote="verbal_cta_present=false overlay_has_cta=true",
+                    location="user_analysis.commerce_intent+text_overlays",
+                )
+            ],
+            suggested_fix="Lồng 1 câu CTA voice trùng overlay (mua, inbox Shop, mã giảm).",
+        )
+    ]
+
+
+def extract_commerce_price_tier_structure_signal(ctx: dict) -> list[Signal]:
+    """P1 — có price tier nhưng thiếu cấu trúc giá trên clip."""
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return []
+    ci = _as_commerce_dict(ua)
+    tier = str(ci.get("product_price_tier") or "").strip().lower()
+    if not tier or tier in ("not_commerce", "none", "unknown"):
+        return []
+    if ci.get("price_structure_present") is True:
+        return []
+    blob = f"{ua.get('audio_transcript') or ''} {_overlay_text(ua)}"
+    if _PRICE_STRUCTURE_RE.search(blob):
+        return []
+    return [
+        Signal(
+            id="commerce_price_tier_structure",
+            section_id="commerce",
+            taxonomy_ref="§4.8.3",
+            salience=0.71,
+            claim=(
+                f"Tier giá `{tier}` nhưng clip thiếu neo giá rõ (số/%) trên overlay hoặc VO — "
+                "khó kích FOMO mua."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"product_price_tier={tier} price_structure_present=false",
+                    location="user_analysis.commerce_intent+transcript",
+                )
+            ],
+            suggested_fix="Thêm 1 neo giá cụ thể (VD: 99K, -30%) trên chữ + lời nói trong 5s đầu.",
+        )
+    ]
 
 
 def extract_conversion_objective_signal(ctx: dict) -> list[Signal]:
@@ -279,6 +369,8 @@ def extract_commerce_signals(ctx: dict) -> list[Signal]:
     merged: list[Signal] = []
     merged.extend(extract_conversion_objective_signal(ctx))
     merged.extend(extract_verbal_cta_signal(ctx))
+    merged.extend(extract_commerce_silent_cta_signal(ctx))
+    merged.extend(extract_commerce_price_tier_structure_signal(ctx))
     merged.extend(extract_price_tier_hook_mismatch_signal(ctx))
     merged.extend(extract_disclosure_signal(ctx))
     merged.extend(extract_creator_type_consistency_signal(ctx))

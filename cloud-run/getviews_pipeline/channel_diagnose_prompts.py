@@ -111,6 +111,16 @@ KỲ VỌNG: <impact 30 ngày, conservative>
 - <Mục 2> — <bằng chứng>
   Thay vào: <cách thay thể>
 
+=== account_health ===    [CHỈ emit khi <<<OPTIONAL MEMO SECTIONS>>> liệt kê account_health]
+TITLE: SỨC KHỎE TÀI KHOẢN
+1–2 đoạn: dùng finding account_health (view ceiling, boost share) — chỉ “có dấu hiệu”, \
+không khẳng định shadowban/FYP %. Gợi ý kiểm tra Account Status trong app TikTok.
+
+=== policy_risk ===    [CHỈ emit khi <<<OPTIONAL MEMO SECTIONS>>> liệt kê policy_risk]
+TITLE: RỦI RO CHÍNH SÁCH & COMPLIANCE
+1–2 đoạn: roll-up compliance (restricted phrase, disclosure, copyright/CML) từ findings — \
+nêu số video flag + hành động sửa caption/VO trước khi đăng tiếp.
+
 === QUY TẮC TRAJECTORY ===
 
 Đọc <<SCENARIO>> để xác định trajectory. Áp dụng đúng framing:
@@ -207,6 +217,19 @@ DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("recommendations", "breakout"): "KẾ HOẠCH HÀNH ĐỘNG",
     ("recommendations", "bursty"): "KẾ HOẠCH HÀNH ĐỘNG",
     ("recommendations", "new_account"): "KẾ HOẠCH HÀNH ĐỘNG",
+    # optional Layer B (§5.3.2)
+    ("account_health", "decline_from_peak"): "SỨC KHỎE TÀI KHOẢN",
+    ("account_health", "stagnant"): "SỨC KHỎE TÀI KHOẢN",
+    ("account_health", "steady_growth"): "SỨC KHỎE TÀI KHOẢN",
+    ("account_health", "breakout"): "SỨC KHỎE TÀI KHOẢN",
+    ("account_health", "bursty"): "SỨC KHỎE TÀI KHOẢN",
+    ("account_health", "new_account"): "SỨC KHỎE TÀI KHOẢN",
+    ("policy_risk", "decline_from_peak"): "RỦI RO CHÍNH SÁCH & COMPLIANCE",
+    ("policy_risk", "stagnant"): "RỦI RO CHÍNH SÁCH & COMPLIANCE",
+    ("policy_risk", "steady_growth"): "RỦI RO CHÍNH SÁCH & COMPLIANCE",
+    ("policy_risk", "breakout"): "RỦI RO CHÍNH SÁCH & COMPLIANCE",
+    ("policy_risk", "bursty"): "RỦI RO CHÍNH SÁCH & COMPLIANCE",
+    ("policy_risk", "new_account"): "RỦI RO CHÍNH SÁCH & COMPLIANCE",
 }
 
 
@@ -250,6 +273,7 @@ def build_channel_diagnosis_context(
     peer_source: str | None = None,
     next_video_concept: dict[str, Any] | None = None,
     channel_findings: list[Any] | None = None,
+    optional_memo_sections: list[str] | None = None,
 ) -> str:
     """Build the user-facing context string with ``<<<BLOCK>>>`` delimiters.
 
@@ -457,5 +481,12 @@ def build_channel_diagnosis_context(
         block = format_findings_for_prompt(channel_findings)
         if block:
             blocks.append(block)
+
+    if optional_memo_sections:
+        blocks.append(
+            "<<<OPTIONAL MEMO SECTIONS>>>\n"
+            + "\n".join(f"- {sid}" for sid in optional_memo_sections)
+            + "\n(Bắt buộc emit đúng các section trên sau recommendations, trước kết thúc.)"
+        )
 
     return "\n\n".join(blocks)
