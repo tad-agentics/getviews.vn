@@ -193,7 +193,7 @@ Khi item wire extract → user value, PR phải có:
 | 2 | Drafts | **Cả hai:** `answer_turns.payload` = source of truth session; `draft_scripts` + `source_session_id` (đã có FK) cho export/shoot/edit lưu lại |
 | 3 | Schema | **Reuse `narrative_vi`** — `_schema_version: "script_v1"`; sections `hook_analysis`, `script_structure`, `next_video`; `shots[]` = structured appendix (không fork type riêng) |
 | 4 | Credits | **OK:** primary script turn **3×**; regenerate/edit shot = follow-up turn **1×** (same as other answer follow-ups) |
-| 5 | Composer + intent-router | **Giữ nguyên** — mọi entry (Studio pill, handoff, deeplink, text tự do) **prefill `?q=`** → `planAnswerEntry()` / `detectIntent()`; không thay bằng hardcoded script-only nav. Feature mới = thêm row `INTENT_DESTINATIONS` + `AnswerSessionFormat`, không fork route riêng |
+| 5 | Composer + intent-router | **Giữ nguyên** — entry turn 1: Studio pill · handoff/deeplink **prefill `?q=`** (URL, @handle, script brief) → `planAnswerEntry()` / `detectIntent()` — **không** text tự do trên Studio. Feature mới = thêm row `INTENT_DESTINATIONS` + CTA matrix §4.10.2 |
 | 6 | Intent scope | **Giữ toàn bộ intent** trong router — **không** cắt row |
 | 7 | Follow-up UX | **CTA intent pill** — không composer chat tự do; mỗi `AnswerSessionFormat` gợi ý 2–4 CTA khác nhau (§4.10.2); `intent_type` explicit trên tap |
 
@@ -407,7 +407,7 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | **G3** Hero niche list (5–8 IDs) | Which niches get deep ingest | W2-3, §8.7 | Human picks from `creator_niches` with thin corpus report |
 | **G4** Channel billing | 3× vs 1× | W0-1 | **3×** both sides per vision §10 — Completeness 10/10 |
 | **G5** Depth billing | 1× basic / 2× deep | W3-3 | Sign-off before migration |
-| **G6** `key_messages` trim | Post-ablation only | W5-2 | Wait for fire-rate metrics |
+| **G6** `key_messages` trim | Post-ablation only | W5-3 | Wait for fire-rate metrics |
 
 Format per project AskUserQuestion: Tech Lead presents options A/B/C with Completeness scores before Wave 3+ execution.
 

@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-21 — roadmap ↔ feature-map-v1 consistency pass
+
+- Align Wave 2 decision #5 (no Studio free text); G6 → W5-3; feature-map-v1 header @ `9b97207`; §9/§12/§13A stale 🔨 → ✅; `source_entry=intent_cta`.
+
 ## 2026-05-21 — follow-up = Intent CTA pill (§4.10.2)
 
 - **`feature-map-v1.md`:** Turn 2+ qua **CTA intent pill** (matrix per format) — không `FollowUpComposer` chat tự do; ví dụ video → Tạo kịch bản / Compare / Chuyên sâu. W5-1 = CTA rail; W5-2 = format output.

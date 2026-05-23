@@ -1,9 +1,9 @@
 # Product Vision V1 — GetViews.vn
 
 **Version:** 2.0 — **FINAL (GTM scope)**  
-**Last updated:** 2026-05-22  
-**Codebase ref:** `8969f3e`  
-**Status:** Product vision **đã chốt** cho launch — lược giản so với as-built; **freeze UI** hai surface browse (Studio gợi ý + Xu hướng công thức/kho); phần còn lại = build/align (video depth, billing, handoff)
+**Last updated:** 2026-05-21  
+**Codebase ref:** `9b97207` (W4 ship; W3 @ `9cd0957`)  
+**Status:** W0–W4 ✅ shipped — W5 open (CTA follow-up W5-1, format W5-2); freeze UI Studio + Xu hướng
 
 > **Pivot SSOT (2026-05-21+, prod defaults ON):** Class-first ingest/browse/benchmark — [`system-design.md`](system-design.md) §9. **`content_class_intelligence`** + tier/stats MVs canonical; legacy `niche_intelligence` refresh **skipped** in prod (bridge only for unmigrated percentile paths).
 
@@ -11,7 +11,7 @@
 
 | Doc | Role |
 |-----|------|
-| [`feature-map.md`](feature-map.md) | Inventory as-built + **Post-V1 backlog** — synced `8969f3e` |
+| [`feature-map.md`](feature-map.md) | Inventory as-built + **Post-V1 backlog** — synced `9b97207` |
 | [`two-axis-niche-model.md`](two-axis-niche-model.md) | Taxonomy SSOT (16 niches × 82 classes, junction, MV chain) |
 | [`product-value-audit.md`](product-value-audit.md) | Value → data audit, gaps, PVA backlog |
 | [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) | Extract field tiers, trim rules |
@@ -330,7 +330,7 @@ flowchart TD
 |-------------------|--------|------------|
 | `build_signal_manifest` (full) | ✓ tính; prompt cap 3/section | ✓ tính + emit full; cap 5/section (§4.8) |
 | `analysis_depth` | `basic` | `deep` |
-| `source_entry` | `trends` \| `trends_douyin` \| `composer` \| `evidence` | echo trong `answer_turns.payload` |
+| `source_entry` | `trends` \| `trends_douyin` \| `composer` \| `evidence` \| `intent_cta` | echo trong `answer_turns.payload` |
 | `hook_effectiveness`, refs, `performance_tier` | ✓ trong whitelist sections | ✓ |
 | `embedded_tiles` | ✓ trong `niche_pattern` khi có refs | ✓ + section khác |
 | Sections: sound, editing, commerce, douyin, … | manifest có, **không synthesize** | synthesize khi `applies` |
@@ -645,7 +645,7 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 |-------|--------|------------------|---------|
 | `depth` | `basic` \| `deep` | `basic` | Invalid → `basic` |
 | `mode` | `win` \| `flop` | BE: `detect_mode_from_query` → `is_flop_mode` | Explicit `mode` ưu tiên heuristic |
-| `from` | `trends` \| `trends_douyin` \| `composer` \| `evidence` | `composer` | Analytics; không đổi pipeline |
+| `from` | `trends` \| `trends_douyin` \| `composer` \| `evidence` \| `intent_cta` | `composer` | Analytics; không đổi pipeline |
 | `studio_pill` | `video_flop` \| `video_win` \| `channel` \| `script` | theo pill §3.1 | FE routing / analytics |
 | `q` | URL hoặc aweme_id | — | Existing |
 
@@ -1009,7 +1009,7 @@ Surface: **Tab Xu hướng** (§3.2) — **freeze** hai khối **Công thức** 
 |------|-----|------|
 | **Công thức viral** | “Công thức nào video hit trong ngách đang dùng?” | ✅ **Giữ nguyên** UI + `PatternModal` |
 | **Kho video** | Tìm/lọc corpus, xem tile, mở modal | ✅ **Giữ nguyên** filter/search |
-| **Handoff phân tích** | 1 tap → video Win Cơ bản | 🔨 Query `depth`/`mode`/`from` §4.10 |
+| **Handoff phân tích** | 1 tap → video Win Cơ bản | ✅ W1-1 query `depth`/`mode`/`from` §4.10 |
 | Segment TikTok/Douyin, ritual Trends, reshape layout | — | ❌ Post-V1 |
 
 ### 6.2 Feature ID
@@ -1247,11 +1247,11 @@ Giảm cost **ngoài** cắt V1 feature: chủ yếu **ít video ingest hơn** h
 | ID | Feature | Trụ | Basic/Deep | Ship | Route / entry |
 |----|---------|-----|------------|------|----------------|
 | **STU** | Studio — Gợi ý hôm nay (3 tầng) | — | — | ✅ UI · ◐ data | `/app` — Morning Signal + ritual + breakouts (§3.1.1) |
-| F1 | Phân tích video Chuyên sâu | 1 | Deep | ◐ | `/app/answer` + `analysis_depth=deep` (🔨 not in code) |
-| F2 | Phân tích video Cơ bản (Win doomscroll) | 1 | Basic | 🔨 | `/app/answer?depth=basic`; Trends: `mode=win&from=trends` (§4.10) |
+| F1 | Phân tích video Chuyên sâu | 1 | Deep | ✅ W3 | `/app/answer` + `analysis_depth=deep` @ `9cd0957` |
+| F2 | Phân tích video Cơ bản (Win doomscroll) | 1 | Basic | ✅ W1+W3 | `/app/answer?depth=basic`; Trends: `mode=win&from=trends` (§4.10) |
 | F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel` — `POST /channel/diagnose` |
 | F5 | Soi kênh Nhanh | 2 | Basic | 🔨 | Xu hướng card / channel |
-| F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · 🔨 handoff | `/app/trends` §3.2.1 + `CrossNicheBreakoutLane` |
+| F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · ✅ handoff W1-1 | `/app/trends` §3.2.1 + `CrossNicheBreakoutLane` |
 | F7 | Script (Answer sessions) | 4 | — | ✅ | `/app/answer` script turns; legacy `/app/script` redirect |
 | F8 | Data plane | 5 | — | ◐ | batch + claim tiers; HI-11 route ✅ prod |
 
@@ -1297,8 +1297,8 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 | V1 surface | Giữ | Đổi / thêm |
 |------------|-----|------------|
 | Video | `build_video_report`, `VideoBody` | §4.2–§4.12 |
-| Kênh | `/channel/diagnose` | F5 peek; fix 3 vs 1 credit (D2) |
-| Xu hướng | `TrendsPatternGrid` + Kho video §3.2.1 + `CrossNicheBreakoutLane` | **Giữ UI**; CTA → `from=trends` §4.10 (🔨 wiring) |
+| Xu hướng | `TrendsPatternGrid` + Kho video §3.2.1 + `CrossNicheBreakoutLane` | **Giữ UI**; CTA → `from=trends` §4.10 ✅ W1-1 |
+| Kênh | `/channel/diagnose` | F5 peek W5-4; credit ✅ W0-1 (3×) |
 | Studio home | `HomeSuggestionsToday` 3 tầng §3.1.1 | **Giữ UI** — Morning Signal + within-niche breakouts shipped |
 | Studio shell | App layout, composer | 4 pill §3.1.2; Cơ bản/Chuyên sâu |
 | Script | `script.py`, scene intel | Golden path từ F6 / `goWinScript` |
@@ -1314,7 +1314,7 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 
 ## 13. Acceptance criteria V1 (launch gate)
 
-### 13A — Shipped (verified as-built `8969f3e`)
+### 13A — Shipped (W0–W2 baseline `8969f3e`; W3 @ `9cd0957`; W4 @ `9b97207`)
 
 - [x] Mở app → **Tab Studio** mặc định; **Gợi ý hôm nay** 3 tầng render (§3.1.1)  
 - [x] Tab Xu hướng → **Công thức viral** + **Kho video** (§3.2.1) không regress layout  
