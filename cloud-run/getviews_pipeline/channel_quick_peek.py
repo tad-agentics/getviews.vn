@@ -140,6 +140,48 @@ def _fetch_peer_corpus_rows(
         return []
 
 
+def _channel_summary_stats(videos: list[dict[str, Any]]) -> dict[str, float]:
+    """Per-handle rollup for HomeMyChannelSection benchmark bars (§6)."""
+    if not videos:
+        return {"avg_views": 0.0, "engagement_rate_pct": 0.0, "posts_per_week": 0.0}
+    views = [int(v.get("views") or 0) for v in videos]
+    avg_views = sum(views) / len(views) if views else 0.0
+    er_vals: list[float] = []
+    for row in videos:
+        v = int(row.get("views") or 0)
+        if v <= 0:
+            continue
+        likes = int(row.get("likes") or 0)
+        comments = int(row.get("comments") or 0)
+        er_vals.append((likes + comments) / v * 100.0)
+    engagement_rate_pct = float(statistics.mean(er_vals)) if er_vals else 0.0
+    dated = [row.get("posted_at") for row in videos if row.get("posted_at") is not None]
+    if len(dated) >= 2:
+        span_days = (max(dated) - min(dated)).total_seconds() / 86400.0
+        posts_per_week = len(videos) / max(span_days / 7.0, 1.0)
+    else:
+        posts_per_week = float(len(videos))
+    return {
+        "avg_views": avg_views,
+        "engagement_rate_pct": engagement_rate_pct,
+        "posts_per_week": posts_per_week,
+    }
+
+
+def _serialize_niche_benchmarks(raw: dict[str, Any] | None) -> dict[str, float | int] | None:
+    if not raw or int(raw.get("channel_count") or 0) < 1:
+        return None
+    return {
+        "channel_count": int(raw.get("channel_count") or 0),
+        "avg_views_p50": int(raw.get("avg_views_p50") or 0),
+        "avg_views_p75": int(raw.get("avg_views_p75") or 0),
+        "engagement_p50": float(raw.get("engagement_p50") or 0),
+        "engagement_p75": float(raw.get("engagement_p75") or 0),
+        "posts_per_week_p50": float(raw.get("posts_per_week_p50") or 0),
+        "posts_per_week_p75": float(raw.get("posts_per_week_p75") or 0),
+    }
+
+
 def _findings_teasers(findings: list[ChannelFinding], limit: int = 2) -> list[dict[str, str]]:
     out: list[dict[str, str]] = []
     for finding in findings:
@@ -166,6 +208,8 @@ def channel_quick_peek_for_handle(handle: str) -> dict[str, Any]:
         "breakout_video": None,
         "findings": [],
         "corpus_video_count": 0,
+        "channel_summary": None,
+        "niche_benchmarks": None,
     }
     if not h:
         return empty
@@ -240,6 +284,7 @@ def channel_quick_peek_for_handle(handle: str) -> dict[str, Any]:
     finding_id = peek["finding_id"] if peek else None
     teaser = peek["teaser"] if peek else None
 
+    er_pct = _channel_summary_stats(videos)
     return {
         "finding_id": finding_id,
         "teaser": teaser,
@@ -248,4 +293,10 @@ def channel_quick_peek_for_handle(handle: str) -> dict[str, Any]:
         "breakout_video": _breakout_video(videos),
         "findings": _findings_teasers(findings),
         "corpus_video_count": len(videos),
+        "channel_summary": {
+            "avg_views": int(round(er_pct["avg_views"])),
+            "engagement_rate_pct": round(er_pct["engagement_rate_pct"], 2),
+            "posts_per_week": round(er_pct["posts_per_week"], 2),
+        },
+        "niche_benchmarks": _serialize_niche_benchmarks(niche_benchmarks),
     }

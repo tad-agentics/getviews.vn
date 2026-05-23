@@ -22,6 +22,7 @@ import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession"
 import { TickerMarquee } from "./components/TickerMarquee";
 import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
 import { HomeSuggestionsToday } from "./components/HomeSuggestionsToday";
+import { HomeMyChannelSection } from "./components/HomeMyChannelSection";
 import { NichePicker } from "./components/NichePicker";
 import { DateChip } from "./components/DateChip";
 import { useIsFirstRun } from "./components/useIsFirstRun";
@@ -34,7 +35,7 @@ import { scrollToSuggestionsTier, type SuggestionsTier } from "./components/scro
  * Getviews Studio — Home screen (Phase A · A3.4).
  *
  * Order: ticker → greeting → composer → suggested chips + shortcut pills → <hr>
- * → GỢI Ý HÔM NAY (tier 01: 3 kịch bản; tier 02–03). Khám kênh lives under /app/channel.
+ * → SOI KÊNH (F4/F5 embedded) → GỢI Ý HÔM NAY (tier 01–03).
  */
 
 /** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */
@@ -45,7 +46,7 @@ export default function HomeScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  // Deep-link from /app/channel diagnostics → scroll to Gợi ý hôm nay tier.
+  // Deep-link from channel diagnostics → scroll to Gợi ý hôm nay tier.
   useEffect(() => {
     const raw = searchParams.get("scrollTier");
     if (raw !== "01" && raw !== "02" && raw !== "03") return;
@@ -386,6 +387,12 @@ export default function HomeScreen() {
                 </TooltipRoot>
               ))}
             </div>
+          </div>
+
+          <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
+
+          <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
+            <HomeMyChannelSection />
           </div>
 
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />

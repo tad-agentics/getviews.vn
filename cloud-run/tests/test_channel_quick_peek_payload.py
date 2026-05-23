@@ -49,6 +49,9 @@ def test_channel_quick_peek_full_f5_payload(mock_client: MagicMock) -> None:
     assert payload["breakout_video"] is not None
     assert payload["breakout_video"]["video_id"] == "vid4"
     assert isinstance(payload["findings"], list)
+    assert payload["channel_summary"] is not None
+    assert payload["channel_summary"]["avg_views"] > 0
+    assert payload["channel_summary"]["posts_per_week"] > 0
 
 
 @patch("getviews_pipeline.channel_quick_peek.fetch_niche_benchmarks", return_value={})

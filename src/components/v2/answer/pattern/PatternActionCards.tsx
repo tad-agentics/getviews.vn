@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 
 import type { ActionCardPayloadData } from "@/lib/api-types";
 import { buildAnswerHandoffPath } from "@/lib/answerHandoff";
+import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { renderForecastLine } from "@/components/v2/answer/forecastLine";
 
 function defaultRoute(a: ActionCardPayloadData): string {
@@ -11,7 +12,7 @@ function defaultRoute(a: ActionCardPayloadData): string {
   if (t.includes("xưởng") || t.includes("viết")) {
     return buildAnswerHandoffPath({ q: "Viết kịch bản TikTok cho video tiếp theo." });
   }
-  if (t.includes("kênh") || t.includes("đối thủ")) return "/app/channel";
+  if (t.includes("kênh") || t.includes("đối thủ")) return buildChannelStudioPath({});
   if (t.includes("trend")) return "/app/trends";
   return "/app";
 }

@@ -1,5 +1,14 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — §6 channel diagnosis on Studio Home (F4/F5)
+
+- **FE:** `HomeMyChannelSection` embeds `ChannelStudioPanel` on `/app` — Nhanh quick-peek + Sâu SSE memo; `/app/channel` redirects with query preserved; bottom/sidebar **Khám kênh** tab removed.
+- **FE:** `ChannelBenchmarkStrip` + `channelBenchmarkRank` — views / ER / cadence vs niche; shared quick-peek fetch into `ChannelNhanhPanel`; deep-link `?depth=sau` credits upsell; `force_refresh` client dedupe bypass.
+- **BE:** `channel/quick-peek` returns `channel_summary` + `niche_benchmarks` for benchmark strip.
+- **Handoff:** `buildChannelStudioPath()` / intent router / action cards route to `/app?handle=…`.
+- **Tests:** Channel studio panel, benchmark strip, handoff, intent-router, Playwright quick-actions; Python quick-peek payload.
+- **Docs:** `incremental-v1-roadmap.md` §6, `feature-map-v1.md` §5.1 F4/F5 on Studio Home.
+
 ## 2026-05-23 — §5.1 tone enrichment in ContextStrip
 
 - **BE:** `VideoEnrichmentPayload.tone` + `_normalize_video_tone()` on analyze response.

@@ -386,14 +386,22 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
     }
   });
 
-  it("own_channel → /app/channel (same destination as tab Khám kênh)", () => {
+  it("own_channel → /app with handle when @ present", () => {
+    const p = planAnswerEntry("Soi kênh @myhandle — tổng quan hook.", false);
+    expect(p.kind).toBe("redirect");
+    if (p.kind === "redirect") {
+      expect(p.to).toBe("/app?handle=myhandle");
+    }
+  });
+
+  it("own_channel without handle → /app studio", () => {
     const p = planAnswerEntry(
       "Soi kênh của mình — tổng quan hook, format và gợi ý cải thiện.",
       false,
     );
     expect(p.kind).toBe("redirect");
     if (p.kind === "redirect") {
-      expect(p.to).toBe("/app/channel");
+      expect(p.to).toBe("/app");
     }
   });
 

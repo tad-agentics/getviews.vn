@@ -15,7 +15,23 @@ export type ChannelQuickPeekFinding = {
   strength: string;
 };
 
-/** F5 — corpus-only channel summary (Trends teaser + ChannelScreen Nhanh). */
+export type ChannelQuickPeekSummary = {
+  avg_views: number;
+  engagement_rate_pct: number;
+  posts_per_week: number;
+};
+
+export type ChannelQuickPeekBenchmarks = {
+  channel_count: number;
+  avg_views_p50: number;
+  avg_views_p75: number;
+  engagement_p50: number;
+  engagement_p75: number;
+  posts_per_week_p50: number;
+  posts_per_week_p75: number;
+};
+
+/** F5 — corpus-only channel summary (Trends teaser + Studio Home). */
 export type ChannelQuickPeek = {
   finding_id: string | null;
   teaser: string | null;
@@ -24,6 +40,8 @@ export type ChannelQuickPeek = {
   breakout_video: ChannelQuickPeekBreakout | null;
   findings: ChannelQuickPeekFinding[];
   corpus_video_count: number;
+  channel_summary: ChannelQuickPeekSummary | null;
+  niche_benchmarks: ChannelQuickPeekBenchmarks | null;
 };
 
 async function fetchChannelQuickPeek(handle: string): Promise<ChannelQuickPeek> {
@@ -37,6 +55,8 @@ async function fetchChannelQuickPeek(handle: string): Promise<ChannelQuickPeek> 
       breakout_video: null,
       findings: [],
       corpus_video_count: 0,
+      channel_summary: null,
+      niche_benchmarks: null,
     };
   }
   const qs = new URLSearchParams({ handle: clean });

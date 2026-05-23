@@ -394,9 +394,10 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | Corpus by handle | `channel_pattern`, competitive_landscape | Pattern section, peers |
 | `niche_channel_benchmarks` | percentiles in score card | KPI grid |
 | **`channel_findings.py`** (W4-1) | P0×4 findings → `<<<CHANNEL FINDINGS>>>` prompt inject | Evidence-backed memo sections |
+| Quick-peek `channel_summary` + `niche_benchmarks` | Percentile bars on Studio | `ChannelBenchmarkStrip` @ §6 |
 | Gemini memo | `verdict`, `what_falling`, `what_worked`, `recommendations` | `SectionRenderer` |
 
-### 6.2 Missing (§5.3 P0–P2)
+### 6.2 Findings backlog (§5.3 P0–P2)
 
 | Finding id | V5 | Data | Wave |
 |------------|-----|------|------|
@@ -404,9 +405,11 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | `channel_format_entropy_high` | §2.2 | format distribution | ✅ W4-1 |
 | `channel_recent_vs_peak_er_drop` | §2.2 | recent vs peak windows | ✅ W4-1 |
 | `channel_peer_format_saturation` | §2.3 | top 20 corpus 7d | ✅ W4-1 |
-| `channel_compliance_aggregate` | §2.4 | roll-up video compliance signals | W4+ |
-| `channel_boost_outlier_share` | §1.8 | `% suspect_medium` on handle | W4 |
-| `channel_slang_staleness` | §2.5 | aggregate `persona_slang_dated` | W5+ | **Not** W5-4 (quick peek only) — still open |
+| `channel_compliance_aggregate` | §2.4 | roll-up video compliance signals | ✅ Launch 2a |
+| `channel_boost_outlier_share` | §1.8 | `% suspect_medium` on handle | ✅ Launch 2a |
+| `channel_slang_staleness` | §2.5 | aggregate `persona_slang_dated` | ✅ Launch 2c |
+
+**Studio UX (§6 ship):** Channel analysis embedded on `/app` via `HomeMyChannelSection` + `ChannelStudioPanel`. Tab **Khám kênh** removed; `/app/channel` redirects to `/app?handle=…`.
 
 ### 6.3 Credit & F8
 

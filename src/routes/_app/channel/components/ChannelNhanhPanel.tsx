@@ -2,18 +2,31 @@ import { Link } from "react-router";
 import { Loader2 } from "lucide-react";
 
 import { Btn } from "@/components/v2/Btn";
-import { useChannelQuickPeek } from "@/hooks/useChannelQuickPeek";
+import { useChannelQuickPeek, type ChannelQuickPeek } from "@/hooks/useChannelQuickPeek";
 import { hookNameVI } from "@/lib/constants/hook-names-vi";
 import { formatVN } from "@/lib/formatters";
 
 type ChannelNhanhPanelProps = {
   handle: string;
   onUpgradeToSau: () => void;
+  /** When provided, skip a second quick-peek fetch (parent already loaded). */
+  peekData?: ChannelQuickPeek | null;
+  peekLoading?: boolean;
+  peekError?: boolean;
 };
 
-export function ChannelNhanhPanel({ handle, onUpgradeToSau }: ChannelNhanhPanelProps) {
+export function ChannelNhanhPanel({
+  handle,
+  onUpgradeToSau,
+  peekData,
+  peekLoading,
+  peekError,
+}: ChannelNhanhPanelProps) {
   const at = handle.startsWith("@") ? handle : `@${handle}`;
-  const { data, isLoading, isError } = useChannelQuickPeek(handle);
+  const internalPeek = useChannelQuickPeek(handle, peekData === undefined);
+  const data = peekData !== undefined ? peekData : internalPeek.data;
+  const isLoading = peekLoading ?? internalPeek.isLoading;
+  const isError = peekError ?? internalPeek.isError;
 
   if (isLoading) {
     return (

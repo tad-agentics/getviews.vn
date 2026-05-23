@@ -16,7 +16,6 @@ import {
   BookOpen,
   Shield,
   Archive,
-  Search,
   AlignLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
@@ -715,15 +714,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               onClose?.();
             }}
           />
-          <NavItem
-            icon={Search}
-            label="Khám kênh"
-            active={active === "channel"}
-            onClick={() => {
-              navigate("/app/channel");
-              onClose?.();
-            }}
-          />
           {/* D7 — Kho Douyin (design pack ``shell.jsx``). Badge = CN flag. */}
           <NavItem
             icon={Archive}
@@ -812,7 +802,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                     onNavigate={() => {
                       if (session.source === "channel") {
                         const handle = session.first_message ?? "";
-                        navigate(`/app/channel?handle=${encodeURIComponent(handle)}`);
+                        navigate(`/app?handle=${encodeURIComponent(handle)}`);
                       } else if (session.source === "answer") {
                         navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
                       } else {

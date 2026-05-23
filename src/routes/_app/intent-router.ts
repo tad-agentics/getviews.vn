@@ -1,3 +1,5 @@
+import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
+
 /** Wave 1 — §3.1 URL handoff contract (`?q=&depth=&mode=&from=`). */
 export {
   buildAnswerHandoffPath,
@@ -410,8 +412,8 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
   if (dest === "channel") {
     const handleMatch = trimmed.match(/@([\w.]+)/);
     const to = handleMatch
-      ? `/app/channel?handle=${encodeURIComponent(handleMatch[1])}`
-      : "/app/channel";
+      ? buildChannelStudioPath({ handle: handleMatch[1] })
+      : "/app";
     return { kind: "redirect", to };
   }
   const format: AnswerSessionFormat =

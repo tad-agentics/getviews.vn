@@ -821,16 +821,16 @@ On-demand upsert: always set `analysis_depth` from request. Corpus path: write *
 | **Output** | Median views, 1 breakout gần nhất, hook dominant, link 1 video corpus | Score card v2, peers, narrative SSE, trajectory + **channel findings** V5 §2 (§5.3) |
 | **Cache** | Corpus rollup only (no full SSE) | `channel_diagnoses` **7 ngày** |
 | **Billing (§10)** | Free hoặc 1 credit (product — **Launch phase**) | **3×** `decrement_credit` — ✅ FE/BE aligned @ W0-1 |
-| **Trạng thái code** | ✅ **Shipped** @ Launch Phase 1 — `GET /channel/quick-peek` + `ChannelNhanhPanel` on `/app/channel` | **Shipped** — `POST /channel/diagnose` |
+| **Trạng thái code** | ✅ **Shipped** — `GET /channel/quick-peek` + `ChannelNhanhPanel` on **Studio Home** (`HomeMyChannelSection`) | **Shipped** — `POST /channel/diagnose` on Studio (`ChannelStudioPanel`, depth=Sâu) |
 
-**Resolved @ W0-1:** `ChannelScreen.tsx` + BE both use `CHANNEL_DIAGNOSE_CREDIT_COST=3` (3× RPC loop in [`channel_diagnose.py`](../../cloud-run/getviews_pipeline/channel_diagnose.py)).
+**Resolved @ W0-1:** `ChannelStudioPanel` + BE both use `CHANNEL_DIAGNOSE_CREDIT_COST=3` (3× RPC loop in [`channel_diagnose.py`](../../cloud-run/getviews_pipeline/channel_diagnose.py)). Legacy `/app/channel` redirects to `/app?handle=…`.
 
 ### 5.2 Feature IDs
 
 | ID | Tên | Tier | Trạng thái | Evidence |
 |----|-----|------|------------|----------|
 | **F4** | Soi kênh Sâu | Deep | Shipped | `video.py` `/channel/diagnose`, `channel_diagnose.py` |
-| **F5** | Soi kênh Nhanh | Basic | ✅ **Shipped** | Trends peek W5-4 + full `/app/channel` Nhanh @ Launch Phase 1 (`launch-phase1-baseline.json`) |
+| **F5** | Soi kênh Nhanh | Basic | ✅ **Shipped** | Trends peek W5-4 + Studio Home `HomeMyChannelSection` @ §6 |
 
 ### 5.3 V5 Phần 2 (Channel) → Soi kênh Chuyên sâu (F4)
 

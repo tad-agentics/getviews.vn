@@ -5,7 +5,7 @@
  *   "Câu hỏi này ngoài taxonomy — gợi ý: dùng Soi Kênh / Viết kịch bản
  *    thay vì đào sâu ở đây."
  *
- * Chip buttons route to `/app/channel`, Answer composer prefill, etc. —
+ * Chip buttons route to Studio channel block (`/app?handle=…`), Answer composer prefill, etc. —
  * driven by the server's `off_taxonomy.suggestions` payload. Legacy
  * `/app/script` paths are rewritten to Answer (Wave 2).
  *

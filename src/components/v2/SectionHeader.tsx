@@ -14,6 +14,7 @@ export function SectionHeader({
   kickerTone,
   kickerSparkles,
   className,
+  titleId,
 }: {
   kicker: string;
   title: ReactNode;
@@ -23,6 +24,8 @@ export function SectionHeader({
   /** Kicker dạng spark + chữ accent (ref GỢI Ý HÔM NAY). */
   kickerSparkles?: boolean;
   className?: string;
+  /** Optional id for aria-labelledby on parent sections. */
+  titleId?: string;
 }) {
   const kickerColor =
     kickerTone === "pos"
@@ -63,7 +66,10 @@ export function SectionHeader({
           )}
         </span>
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3 sm:gap-y-1">
-          <h2 className="gv-type-h3 gv-tight m-0 w-full sm:w-auto sm:max-w-[min(100%,36rem)]">
+          <h2
+            id={titleId}
+            className="gv-type-h3 gv-tight m-0 w-full sm:w-auto sm:max-w-[min(100%,36rem)]"
+          >
             {title}
           </h2>
           {caption ? (

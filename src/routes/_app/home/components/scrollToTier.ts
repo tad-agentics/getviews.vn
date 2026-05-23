@@ -27,7 +27,7 @@ export function scrollToSuggestionsTier(
   return true;
 }
 
-/** From `/app/channel`: jump to Studio suggestions tier (scroll if already on `/app`). */
+/** From Studio channel block: jump to suggestions tier (scroll if already on `/app`). */
 export function goToStudioSuggestionsTier(tier: SuggestionsTier, navigate: NavigateFunction): void {
   if (typeof window !== "undefined" && window.location.pathname === "/app") {
     if (scrollToSuggestionsTier(tier)) return;

@@ -2,13 +2,12 @@ import { lazy, Suspense } from "react";
 import type { MetaFunction } from "react-router";
 import { pageMeta } from "@/lib/pageTitle";
 
-export const meta: MetaFunction = () => pageMeta("Phân tích kênh");
+export const meta: MetaFunction = () => pageMeta("Soi kênh");
 
 const ChannelScreen = lazy(() => import("./ChannelScreen"));
 
 /**
- * `/app/channel` — Phase B · B.3.3 phân tích kênh TikTok (bản thân hoặc bất kỳ handle).
- * Query: `?handle=` (TikTok, có hoặc không @), optional `force_refresh=true`.
+ * `/app/channel` — legacy redirect to Studio Home (`/app?handle=…`).
  */
 export default function AppChannelRoute() {
   return (

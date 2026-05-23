@@ -9,6 +9,7 @@ import { Calendar, Search, Users } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import type { ActionCardPayloadData } from "@/lib/api-types";
+import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { renderForecastLine } from "@/components/v2/answer/forecastLine";
 
 function defaultRoute(a: ActionCardPayloadData): string {
@@ -19,7 +20,7 @@ function defaultRoute(a: ActionCardPayloadData): string {
   }
   // Creator-only pivot: /app/kol retired. "kol"/"đối thủ" titles route to
   // the channel screen (the closest remaining creator-research surface).
-  if (t.includes("kol") || t.includes("đối thủ") || t.includes("kênh")) return "/app/channel";
+  if (t.includes("kol") || t.includes("đối thủ") || t.includes("kênh")) return buildChannelStudioPath({});
   return "/app";
 }
 

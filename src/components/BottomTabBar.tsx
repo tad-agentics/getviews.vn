@@ -3,24 +3,20 @@ import {
   Home as HomeIcon,
   Sparkles,
   TrendingUp,
-  Search,
   Settings as SettingsIcon,
 } from "lucide-react";
 
-/** Keys rendered as bottom tabs (five slots). */
-type Tab = "home" | "answer" | "trends" | "channel" | "settings";
+/** Keys rendered as bottom tabs (four slots). */
+type Tab = "home" | "answer" | "trends" | "settings";
 
 /** Shell-wide active section; values not in the bottom bar show no tab as selected. */
-export type AppShellActive = Tab | "script" | "admin" | "douyin";
+export type AppShellActive = Tab | "script" | "admin" | "douyin" | "channel";
 
 /**
  * Mobile bottom tab bar (Phase A · A3.3).
  *
- * Five items below `lg`: Trang chủ, Nghiên cứu, Xu hướng, Khám kênh, Cài đặt.
- * Active tab ink-filled; tapping navigates.
- *
- * Sits above the browser safe area via `pb-[env(safe-area-inset-bottom)]`
- * so iOS home-indicator devices don't clip the labels.
+ * Four items below `lg`: Trang chủ, Nghiên cứu, Xu hướng, Cài đặt.
+ * Channel analysis lives on Studio Home (§6) — no separate tab.
  */
 export function BottomTabBar({ active }: { active?: AppShellActive }) {
   const navigate = useNavigate();
@@ -34,7 +30,6 @@ export function BottomTabBar({ active }: { active?: AppShellActive }) {
     { key: "home", label: "Trang chủ", icon: HomeIcon, to: "/app" },
     { key: "answer", label: "Nghiên cứu", icon: Sparkles, to: "/app/answer" },
     { key: "trends", label: "Xu hướng", icon: TrendingUp, to: "/app/trends" },
-    { key: "channel", label: "Khám kênh", icon: Search, to: "/app/channel" },
     { key: "settings", label: "Cài đặt", icon: SettingsIcon, to: "/app/settings" },
   ];
 
@@ -43,9 +38,9 @@ export function BottomTabBar({ active }: { active?: AppShellActive }) {
       aria-label="Điều hướng dưới"
       className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pb-[env(safe-area-inset-bottom)]"
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-4">
         {items.map(({ key, label, icon: Icon, to }) => {
-          const isActive = active === key;
+          const isActive = active === key || (key === "home" && active === "channel");
           return (
             <li key={key}>
               <button
