@@ -500,19 +500,18 @@ Incremental V1 **launch-ready** when:
 
 ## 13. Post-W5 next steps (remaining §13B / post-V1)
 
-Wave 5 tasks complete — items below are **not** Wave 5 scope; trace to `feature-map-v1.md` §13B or post-V1 backlog:
+Wave 5 tasks complete — **Launch phase (full pre-launch):** Phases 0 → 1 → 2a → 2b → 2c must complete before Phase 3 ship gates. Human decision: do all utilization + §13B before GTM (see plan `post-w5_v1_launch`).
 
-1. **Hero niche depth** — §8.7 batch priority + corpus-health copy when thin.
-2. **Corpus-health humility copy** — admin + user-facing claim tiers on hero niches.
-3. **Channel depth picker** — basic/deep parity for channel diagnosis (vision §5.3).
-4. **`channel_slang_staleness`** — §6.2 P2 finding; W5-4 was quick peek only.
-5. **`channel_compliance_aggregate`** — §6.2 roll-up (W4+).
-6. **Stats history M4 / hook timeline / cut pace** — §5.2 W5+ signal backlog.
-7. **`persona_consistency_signals`** — channel rollup or defer (§5.2 orphan).
+1. **Phase 0** — Hero niche depth (G3), corpus-health, BAT crons, humility copy, demo URL
+2. **Phase 1** — Channel depth picker (F5 full + F4 Sâu billing D2)
+3. **Phase 2a** — Core channel findings (3) + video P1 signals (`hook_pacing_cut_frequency`, `editing_cut_pace_outlier`, hook_timeline) + `channel_persona_drift` + G6 ablation
+4. **Phase 2b** — `stats_history` M4 cron + `distribution_spike_then_flat`
+5. **Phase 2c** — Remaining §5.3.3 + §4.8.3 P1/P2 backlog (incl. `distribution_posted_at_ritual_hint`, `channel_video_vs_eligible_peers`) + §4.8.6 signal QA + SSE Layer B
+6. **Phase 3** — Ship gates (qa-agent, visual-audit, dogfood, deploy)
 
 ~~**W3-5** — §4.11.3 post–Cơ bản upsell UI.~~ ✅ Done (teasers in body; deep CTA in rail @ W5-1)
 
-*W0–W5 complete @ `680c803`; **Launch phase** (§13B + F5 channel depth) — see §13 below.*
+*W0–W5 complete @ `680c803`; **Launch phase (full)** — Phases 0–2c before Phase 3 ship.*
 
 ---
 
