@@ -635,6 +635,7 @@ class ReportV1(BaseModel):
 
 def validate_and_store_report(kind: str, report: dict[str, Any]) -> dict[str, Any]:
     """Validate inner report dict and return full §J envelope for JSONB storage."""
+    _attach_narrative_vi_headline(report, kind)
     k: ReportKind = kind if kind in _REPORT_KINDS else "generic"  # type: ignore[assignment]
     if k == "pattern":
         PatternPayload.model_validate(report)
@@ -653,6 +654,47 @@ def validate_and_store_report(kind: str, report: dict[str, Any]) -> dict[str, An
     else:
         GenericPayload.model_validate(report)
     return {"kind": k, "report": report}
+
+
+def _headline_vi_for_report(kind: str, report: dict[str, Any]) -> str | None:
+    """Map legacy headline fields → unified ``narrative_vi.headline_vi`` (W5-2)."""
+    if kind == "pattern":
+        thesis = str((report.get("tldr") or {}).get("thesis") or "").strip()
+        return thesis[:240] if thesis else None
+    if kind == "ideas":
+        lead = str(report.get("lead") or "").strip()
+        return lead[:240] if lead else None
+    if kind == "timing":
+        tw = report.get("top_window") if isinstance(report.get("top_window"), dict) else {}
+        insight = str(tw.get("insight") or "").strip()
+        if insight:
+            return insight[:240]
+        day = str(tw.get("day") or "").strip()
+        hours = str(tw.get("hours") or "").strip()
+        if day and hours:
+            return f"{day}, {hours}"[:240]
+        return None
+    if kind == "lifecycle":
+        subject = str(report.get("subject_line") or "").strip()
+        return subject[:240] if subject else None
+    if kind == "generic":
+        narrative = report.get("narrative") if isinstance(report.get("narrative"), dict) else {}
+        paras = narrative.get("paragraphs") if isinstance(narrative.get("paragraphs"), list) else []
+        if paras:
+            first = str(paras[0] or "").strip()
+            return first[:240] if first else None
+        return None
+    return None
+
+
+def _attach_narrative_vi_headline(report: dict[str, Any], kind: str) -> None:
+    headline = _headline_vi_for_report(kind, report)
+    if not headline:
+        return
+    existing = report.get("narrative_vi")
+    if isinstance(existing, dict) and str(existing.get("headline_vi") or "").strip():
+        return
+    report["narrative_vi"] = {"headline_vi": headline}
 
 
 def validate_pattern_payload(payload: dict[str, Any]) -> PatternPayload:

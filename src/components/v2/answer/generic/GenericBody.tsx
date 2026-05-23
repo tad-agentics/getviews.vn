@@ -22,6 +22,7 @@ import { HumilityBanner } from "../pattern/HumilityBanner";
 import { GenericEvidenceGrid } from "./GenericEvidenceGrid";
 import { NarrativeAnswer } from "./NarrativeAnswer";
 import { OffTaxonomyBanner } from "./OffTaxonomyBanner";
+import { ReportNarrativeHeadline } from "../ReportNarrativeHeadline";
 
 export function GenericBody({ report }: { report: GenericReportPayload }) {
   const thin = report.confidence.sample_size < 30;
@@ -43,6 +44,8 @@ export function GenericBody({ report }: { report: GenericReportPayload }) {
       {thin && humilityOpen ? <HumilityBanner /> : null}
 
       <OffTaxonomyBanner data={report.off_taxonomy} />
+
+      <ReportNarrativeHeadline source={{ kind: "generic", report }} kicker="Kết luận" />
 
       <NarrativeAnswer data={report.narrative} />
 

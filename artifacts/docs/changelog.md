@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — W5-2 narrative_vi headline parity
+
+- **BE:** `_attach_narrative_vi_headline()` on `validate_and_store_report` — pattern/timing/ideas/lifecycle/generic.
+- **FE:** `ReportNarrativeHeadline` + `reportHeadlineVi()`; GenericBody shows serif headline.
+
 ## 2026-05-23 — W5-1 Intent CTA rail + audit fixes
 
 - **W5-1:** `IntentCtaRail` + `intentCtaSuggestions.ts` replace free-text follow-up; BE `intent_type` + `source_entry=intent_cta` on append.

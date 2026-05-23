@@ -693,6 +693,7 @@ export interface PatternReportPayload {
   confidence: ConfidenceStripData;
   wow_diff: WoWDiffData | null;
   tldr: { thesis: string; callouts?: SumStatData[] };
+  narrative_vi?: { headline_vi?: string } | null;
   findings: HookFindingData[];
   what_stalled: HookFindingData[];
   evidence_videos: EvidenceCardPayloadData[];
@@ -748,6 +749,7 @@ export interface NicheInsightData {
 export interface IdeasReportPayload {
   confidence: ConfidenceStripData;
   lead: string;
+  narrative_vi?: { headline_vi?: string } | null;
   ideas: IdeaBlockPayloadData[];
   style_cards: Array<Record<string, unknown>>;
   stop_doing: Array<Record<string, string>>;
@@ -779,6 +781,7 @@ export interface CalendarSlotData {
 
 export interface TimingReportPayload {
   confidence: ConfidenceStripData;
+  narrative_vi?: { headline_vi?: string } | null;
   top_window: Record<string, unknown>;
   top_3_windows: Array<Record<string, unknown>>;
   lowest_window: Record<string, string>;
@@ -798,6 +801,7 @@ export interface TimingReportPayload {
 
 export interface GenericReportPayload {
   confidence: ConfidenceStripData;
+  narrative_vi?: { headline_vi?: string } | null;
   off_taxonomy: Record<string, unknown>;
   narrative: Record<string, unknown>;
   evidence_videos: EvidenceCardPayloadData[];
@@ -836,6 +840,7 @@ export interface RefreshMoveData {
 
 export interface LifecycleReportPayload {
   confidence: ConfidenceStripData;
+  narrative_vi?: { headline_vi?: string } | null;
   mode: LifecycleModeData;
   /** 1-sentence subject line, ≤240 chars. */
   subject_line: string;
