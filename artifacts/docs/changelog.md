@@ -1,5 +1,18 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — Launch gate B-01/B-02 (Option A pre-handoff)
+
+- **B-01 CLOSED:** `emotional-design-system.md` §5 synced to Getviews Magenta `#F72585` + sky/ink/canvas tokens (matches `src/app.css` + Branding Guideline v1.1).
+- **B-02 CLOSED:** `api/landing-stats.ts` returns `corpus_indexed_count`; landing FAQ/infra/demo sections use `formatCorpusMarketingCount()` — no hardcoded "1.500+" in UI.
+- **`artifacts/qa-reports/dogfood-report.md`** — template created; human session required before `/pre-handoff`.
+
+## 2026-05-23 — UIUX brand docs + improvement plan
+
+- **`artifacts/docs/branding-guideline.html`** — Brand Guidelines v1.1 (magenta/sky palette, logo lockups, voice) imported from design pack.
+- **`artifacts/docs/design-system.html`** — Product Design System v1.0 (19 sections, tokens, components, motion, a11y) imported from design pack.
+- **`artifacts/plans/uiux-improvement-plan.md`** — Phased backlog synthesizing launch visual audit (B-01/B-02, NB-01–NB-08, D1–D4) with new brand/DS docs; recommends EDS §5 update (not purple revert).
+- **`uiux-improvement-plan.md` §2.6** — Full-coverage audit: 364 files, 20 routes scored (0 PASS / 13 CONCERNS / 7 FAIL), V-01–V-20 registry.
+
 ## 2026-05-23 — Launch Phase 0–2c (pre-ship implementation)
 
 - **Phase 0:** G3 hero confirmation; corpus-health all heroes @ trend_delta; BAT crons green; admin `/corpus-health` ingest_loop_niche_id fix; `corpus-health.sql` class-first column; humility copy in `api/chat.ts`; demo URL in `launch-gate-demo.json`.
@@ -28,6 +41,15 @@
 - **Vault:** `cloud_run_api_url` → batch hostname; `cloud_run_batch_secret` matches batch pod `BATCH_SECRET`.
 - **pg_cron:** `cron-batch-stats-history-refetch` active (`15 * * * *`); `batch_job_runs` records `status=ok`.
 - **pg_net:** `admin_pg_net_batch_http_4xx_events(24)` → 0.
+
+## 2026-05-23 — Launch doc sync @ `b479f64`
+
+- **`feature-map-v1.md`:** F5 ✅ shipped; §13B infra gates closed; §4.8.6 + Launch Phase 2a/2b/2c checkboxes; codebase ref `b479f64`.
+- **`feature-map.md`:** Channel Nhanh/Sâu + `/channel/quick-peek`; Launch verify note.
+- **`incremental-v1-roadmap.md`:** §13 Phase 2b deploy + Phase 3 infra complete; GTM gates itemized.
+- **`data-utilization-map-v1.md`:** §9 Launch row + GTM human gates pointer.
+- **`system-design.md`:** M4 migration IDs `20260827000002`/`000003` + deploy evidence.
+- **QA:** `launch-phase2b-baseline.json` PASS; `launch-phase3-baseline.json` infra complete; `post-w5-uncommitted-audit.md` → INFRA_COMPLETE.
 
 ## 2026-05-23 — docs: as-built resync @ 680c803
 

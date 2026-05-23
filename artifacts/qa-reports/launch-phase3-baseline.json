@@ -2,27 +2,44 @@
   "task_id": "phase3-ship",
   "verdict": "PASS_WITH_CONCERNS",
   "checked_at": "2026-05-23",
+  "commits": ["d25f94e", "4632b75", "b479f64"],
   "automated_gates": {
     "typecheck": "pass",
     "vitest": "925/925 pass",
-    "pytest_launch_scope": "58/58 pass (channel findings, phase2a/2c signals, stats_history_m4, admin dropped-column guard, quick-peek)",
-    "pytest_full_suite": "2286 pass, 9 fail pre-existing on main (select_sections default depth=basic; sprint3/6/7/8/9 + video_analyze cache tests)"
+    "pytest_launch_scope": "pass (findings, quick-peek, phase2a/2c, M4, narrative_vi, §4.8.6 sample)",
+    "pytest_full_suite": "2286+ pass; 9 fail pre-existing on main (unrelated sprint/cache tests)"
+  },
+  "infra_gates_completed": {
+    "supabase_db_push": "20260827000002 + 20260827000003 applied",
+    "database_types_regen": "b479f64",
+    "cloud_run_deploy": {
+      "user_revision": "getviews-pipeline-user-00165-t6s",
+      "batch_revision": "getviews-pipeline-batch-00132-4sg",
+      "batch_url": "https://getviews-pipeline-batch-720640652377.asia-southeast1.run.app"
+    },
+    "cron_vault_verify": {
+      "cron_batch_stats_history_refetch": "active jobid 27 schedule 15 * * * *",
+      "vault_cloud_run_api_url": "batch hostname",
+      "vault_secret_matches_batch_pod": true,
+      "batch_ping_http": 200,
+      "batch_stats_history_refetch_http": 200,
+      "pg_net_batch_4xx_24h": 0
+    }
   },
   "qa_baselines": [
     "launch-phase0-baseline.json",
     "launch-phase1-baseline.json",
     "launch-phase2a-baseline.json",
     "launch-phase2b-baseline.json",
-    "launch-phase2c-baseline.json"
+    "launch-phase2c-baseline.json",
+    "launch-phase2-signal-density-486.json"
   ],
   "demo": "launch-gate-demo.json",
   "human_gates_remaining": [
-    "Apply supabase migrations 20260827000000 + 20260827000001",
-    "Redeploy Cloud Run batch + user pods",
     "/visual-audit on staging",
     "/dogfood 8 hero niches + demo URL",
     "/pre-handoff security audit",
-    "/deploy — human ship-it"
+    "/deploy — human ship-it (Vercel SPA)"
   ],
-  "traceability": "feature-map-v1.md §13B + §16 G3/D2; incremental-v1-roadmap.md §13"
+  "traceability": "feature-map-v1.md §13B + §16 G3/D2; incremental-v1-roadmap.md §13; post-w5-uncommitted-audit.md"
 }

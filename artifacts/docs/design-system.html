@@ -1,0 +1,2980 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Getviews · Design System</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="styles.css" />
+<script src="mark-path.js"></script>
+
+<style>
+  body { background: var(--canvas); color: var(--ink); }
+
+  /* ========== Page scaffold (mirrors Brand Guideline so they read as a pair) ========== */
+  .ds-shell { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+  .ds-top {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(251,252,253,0.92);
+    backdrop-filter: saturate(140%) blur(10px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .ds-top-inner {
+    max-width: 1280px; margin: 0 auto; padding: 14px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .ds-top .crumbs { font-family: var(--mono); font-size: 11px; color: var(--ink-4); text-transform: uppercase; letter-spacing: 0.12em; }
+
+  /* ========== Hero ========== */
+  .ds-hero {
+    padding: 96px 0 80px;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 64px;
+    align-items: end;
+  }
+  .ds-hero h1 {
+    font-family: var(--sans); font-weight: 600;
+    font-size: 88px; line-height: 0.92; letter-spacing: -0.045em;
+    margin: 0 0 28px;
+  }
+  .ds-hero h1 em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic; font-weight: 400;
+    color: var(--accent);
+  }
+  .ds-hero .lede {
+    font-size: 17px; line-height: 1.55; color: var(--ink-3);
+    max-width: 520px;
+  }
+  .ds-hero .meta {
+    display: flex; gap: 24px; margin-top: 36px;
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--ink-4); flex-wrap: wrap;
+  }
+  .ds-hero .meta b { color: var(--ink); font-weight: 500; }
+
+  .toc {
+    border-left: 1px solid var(--rule);
+    padding: 8px 0 8px 28px;
+    font-family: var(--mono); font-size: 11px;
+    line-height: 2;
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    columns: 1;
+  }
+  .toc a { color: var(--ink-3); display: block; }
+  .toc a:hover { color: var(--ink); }
+  .toc a b { color: var(--ink-4); font-weight: 400; margin-right: 10px; }
+
+  /* ========== Section ========== */
+  .ds-section { padding: 96px 0; border-bottom: 1px solid var(--rule); scroll-margin-top: 80px; }
+  .ds-section.dark { background: var(--ink); color: var(--canvas); border-color: rgba(255,255,255,0.08); }
+  .ds-section-head {
+    display: grid; grid-template-columns: 220px 1fr; gap: 48px;
+    margin-bottom: 56px; align-items: end;
+  }
+  .ds-section .num {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-4);
+  }
+  .ds-section.dark .num { color: rgba(255,255,255,0.5); }
+  .ds-section h2 {
+    font-family: var(--sans); font-weight: 500;
+    font-size: 56px; line-height: 0.98; letter-spacing: -0.035em;
+    margin: 8px 0 0;
+    max-width: 780px;
+  }
+  .ds-section h2 em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic; font-weight: 400;
+    color: var(--accent);
+  }
+  .ds-section .intro {
+    font-size: 16px; line-height: 1.6; color: var(--ink-3); max-width: 520px;
+  }
+  .ds-section.dark .intro { color: rgba(255,255,255,0.7); }
+
+  /* ========== Generic helpers ========== */
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; }
+
+  .demo-card {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    background: var(--paper);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .demo-card .stage {
+    padding: 36px 28px;
+    background:
+      linear-gradient(var(--canvas), var(--canvas)),
+      repeating-linear-gradient(45deg, transparent 0 14px, var(--canvas-2) 14px 15px);
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px;
+    min-height: 140px;
+  }
+  .demo-card .stage.left { justify-content: flex-start; }
+  .demo-card .stage.start { align-items: flex-start; }
+  .demo-card .stage.col { flex-direction: column; align-items: stretch; }
+  .demo-card .legend {
+    padding: 14px 18px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 11px; line-height: 1.6;
+    display: flex; align-items: flex-start; gap: 16px; justify-content: space-between;
+    color: var(--ink-3);
+  }
+  .demo-card .legend b { color: var(--ink); font-weight: 500; }
+  .demo-card .legend .code {
+    color: var(--ink-2); white-space: pre-wrap;
+    background: var(--canvas-2);
+    padding: 2px 6px; border-radius: 4px;
+    font-size: 10.5px;
+  }
+
+  .label-kicker {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-4); margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .label-kicker .name { color: var(--ink); font-weight: 500; }
+
+  /* ========== Token tables ========== */
+  .tok {
+    width: 100%; border-collapse: collapse;
+    font-family: var(--mono); font-size: 12px;
+  }
+  .tok thead th {
+    text-align: left; padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-4);
+    font-weight: 500;
+  }
+  .tok tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--rule-2);
+    vertical-align: middle;
+    color: var(--ink-2);
+  }
+  .tok tbody tr:last-child td { border-bottom: 0; }
+  .tok .swatch {
+    width: 28px; height: 28px; border-radius: 6px;
+    border: 1px solid rgba(10,13,18,0.08);
+    display: inline-block; vertical-align: middle;
+  }
+  .tok .var { color: var(--ink); font-weight: 500; }
+  .tok .role { color: var(--ink-3); font-family: var(--sans); font-size: 13px; }
+  .tok-wrap {
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    background: var(--paper); overflow: hidden;
+  }
+
+  /* ========== Color palette specific ========== */
+  .swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .sw {
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    overflow: hidden; background: var(--paper);
+  }
+  .sw .area {
+    aspect-ratio: 1.4 / 1; padding: 14px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+  }
+  .sw .area .role {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .sw .area .hex {
+    font-family: var(--mono); font-size: 10px; opacity: 0.85;
+  }
+  .sw .meta {
+    padding: 12px 14px; border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 10.5px; line-height: 1.6;
+    display: grid; grid-template-columns: auto 1fr; gap: 2px 14px;
+  }
+  .sw .meta b { color: var(--ink-4); font-weight: 400; }
+  .sw .meta span { color: var(--ink); }
+
+  .scale-strip {
+    display: grid; grid-template-columns: repeat(9, 1fr);
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .scale-strip > div {
+    aspect-ratio: 1 / 1.3; padding: 12px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    border-right: 1px solid rgba(10,13,18,0.06);
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .scale-strip > div:last-child { border-right: 0; }
+  .scale-strip .num-top { opacity: 0.7; }
+
+  /* ========== Type scale specific ========== */
+  .type-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 220px;
+    gap: 24px;
+    padding: 28px 0;
+    border-bottom: 1px solid var(--rule-2);
+    align-items: baseline;
+  }
+  .type-row:last-child { border-bottom: 0; }
+  .type-row .role {
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-4);
+  }
+  .type-row .spec {
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-3); line-height: 1.6;
+    text-align: right;
+  }
+  .type-wrap {
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    background: var(--paper); padding: 8px 32px;
+  }
+
+  /* ========== Spacing scale visual ========== */
+  .space-row {
+    display: grid; grid-template-columns: 120px 1fr 200px;
+    align-items: center; gap: 24px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .space-row:last-child { border-bottom: 0; }
+  .space-row .role {
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink);
+  }
+  .space-row .role b { color: var(--ink-4); font-weight: 400; margin-left: 8px; }
+  .space-row .bar {
+    height: 14px; background: var(--ink); border-radius: 3px;
+  }
+  .space-row .usage {
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-3); text-align: right; line-height: 1.5;
+  }
+
+  /* ========== Radii ========== */
+  .radii { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .radii .box {
+    height: 110px; background: var(--ink); position: relative;
+  }
+  .radii .cap {
+    padding: 12px 14px; font-family: var(--mono); font-size: 10.5px;
+    background: var(--paper); display: flex; justify-content: space-between;
+    border-top: 1px solid var(--rule);
+  }
+  .radii .frame {
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  /* ========== Shadows / elevation ========== */
+  .elev { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; padding: 36px; background: var(--canvas-2); border-radius: var(--radius-md); border: 1px solid var(--rule); }
+  .elev .level {
+    height: 110px; background: var(--paper); border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .elev-0 { box-shadow: none; border: 1px solid var(--rule); }
+  .elev-1 { box-shadow: 0 1px 0 rgba(10,13,18,0.04); border: 1px solid var(--rule); }
+  .elev-2 { box-shadow: 0 4px 14px -8px rgba(10,13,18,0.22); border: 1px solid rgba(10,13,18,0.06); }
+  .elev-3 { box-shadow: 0 20px 60px -20px rgba(10,13,18,0.35); }
+
+  /* ========== Motion ========== */
+  .motion-row {
+    display: grid; grid-template-columns: 180px 1fr 160px;
+    gap: 24px; align-items: center; padding: 18px 24px;
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .motion-row:last-child { border-bottom: 0; }
+  .motion-row .role { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink); }
+  .motion-row .ease-track { position: relative; height: 56px; background: var(--canvas-2); border-radius: var(--radius-sm); overflow: hidden; }
+  .motion-row .ease-dot { position: absolute; top: 50%; left: 8px; transform: translateY(-50%); width: 18px; height: 18px; background: var(--accent); border-radius: 50%; animation-duration: 2.2s; animation-iteration-count: infinite; animation-direction: alternate; }
+  .motion-row .spec { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); text-align: right; }
+  @keyframes motion-travel { from { left: 8px; } to { left: calc(100% - 26px); } }
+
+  /* ========== Breakpoints ========== */
+  .bp-track {
+    display: flex; align-items: flex-end; gap: 16px;
+    padding: 32px; background: var(--paper);
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+  }
+  .bp-col { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 1; }
+  .bp-col .frame {
+    width: 100%; background: var(--ink); border-radius: 6px;
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px;
+    color: var(--canvas); font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .bp-col .label { font-family: var(--mono); font-size: 10px; color: var(--ink-3); text-align: center; line-height: 1.5; }
+  .bp-col .label b { color: var(--ink); font-weight: 500; }
+
+  /* ========== Code block ========== */
+  pre.code {
+    background: var(--ink); color: var(--canvas);
+    border-radius: var(--radius-md);
+    padding: 24px 28px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    overflow-x: auto;
+    margin: 0;
+  }
+  pre.code .c { color: rgba(255,255,255,0.4); }
+  pre.code .k { color: #4CC9F0; }
+  pre.code .s { color: #D7F542; }
+  pre.code .n { color: #F72585; }
+
+  /* ========== Nav demo wrappers ========== */
+  .nav-demo {
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    background: var(--canvas); overflow: hidden;
+  }
+  .nav-demo .frame-top {
+    background: var(--canvas-2); padding: 9px 14px;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink-4);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* ========== Voice ========== */
+  .voice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .voice-card {
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    background: var(--paper); padding: 28px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .voice-card.yes { border-left: 4px solid oklch(0.7 0.16 145); }
+  .voice-card.no { border-left: 4px solid var(--accent); }
+  .voice-card .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-4);
+    display: flex; gap: 8px; align-items: center;
+  }
+  .voice-card .tag b { font-weight: 500; color: var(--ink); }
+  .voice-card .quote {
+    font-size: 19px; line-height: 1.4; letter-spacing: -0.012em;
+    font-weight: 500;
+  }
+  .voice-card .note { font-size: 13px; color: var(--ink-3); line-height: 1.55; }
+
+  /* ========== Skeleton loader ========== */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .skel {
+    background: linear-gradient(90deg, var(--canvas-2) 0%, var(--rule-2) 50%, var(--canvas-2) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+    border-radius: 4px;
+  }
+
+  /* ========== Footer ========== */
+  .ds-foot {
+    padding: 72px 0 48px;
+    background: var(--ink); color: var(--canvas);
+  }
+  .ds-foot .ft-grid {
+    display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 40px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .ds-foot h4 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; font-weight: 400;
+    color: rgba(255,255,255,0.5);
+    margin: 0 0 16px;
+  }
+  .ds-foot p, .ds-foot li { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.7; margin: 0 0 6px; }
+  .ds-foot .copy {
+    margin-top: 32px; display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.5);
+    text-transform: uppercase; letter-spacing: 0.12em;
+  }
+
+  /* ========== Interactive playground (sticky · below topbar) ========== */
+  .ds-playground {
+    position: sticky;
+    top: 56px;
+    z-index: 40;
+    margin: 24px 0 0;
+    padding: 16px 24px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px -16px rgba(10,13,18,0.25);
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  .pg-row { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+  .pg-row + .pg-row { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule-2); }
+  .pg-label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+  .pg-label .mono { font-size: 10px; color: var(--ink); letter-spacing: 0.14em; font-weight: 500; white-space: nowrap; }
+  .pg-label .hint { color: var(--ink-3); font-size: 12px; line-height: 1.4; }
+  .pg-control { display: flex; align-items: center; gap: 10px; }
+  .pg-control > .mono { font-size: 10px; color: var(--ink-4); letter-spacing: 0.12em; white-space: nowrap; }
+  .pg-seg {
+    display: flex; background: var(--canvas-2);
+    border-radius: 6px; padding: 3px;
+    border: 1px solid var(--rule);
+  }
+  .pg-seg button {
+    padding: 5px 14px; font-size: 12px;
+    color: var(--ink-3); font-weight: 500;
+    border-radius: 4px; cursor: pointer;
+    font-family: var(--sans);
+    transition: background 0.15s, color 0.15s;
+  }
+  .pg-seg button.active {
+    background: var(--paper); color: var(--ink);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(10,13,18,0.08);
+  }
+  .pg-search { flex: 1; min-width: 280px; }
+  .pg-search input {
+    flex: 1; padding: 7px 12px;
+    border: 1px solid var(--rule); border-radius: 6px;
+    font-size: 12px; font-family: var(--mono);
+    background: var(--canvas); color: var(--ink);
+    outline: none; transition: border-color 0.15s;
+  }
+  .pg-search input:focus { border-color: var(--accent); }
+  .pg-count {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-4); letter-spacing: 0.1em;
+    text-transform: uppercase; white-space: nowrap;
+    min-width: 90px; text-align: right;
+  }
+  .pg-count.has-hits { color: var(--accent); }
+
+  /* Token search highlight */
+  .tok-hit {
+    background: var(--accent-soft) !important;
+    box-shadow: inset 0 0 0 2px var(--accent);
+    border-radius: 4px;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+
+  /* Local dark wrapper — for embedded dark demos without flipping the page */
+  .local-dark {
+    --canvas: #0B0B0E;
+    --canvas-2: #131318;
+    --paper: #1A1A20;
+    --rule: #25252D;
+    --rule-2: #1F1F26;
+    --ink: #F4F4F6;
+    --ink-2: #D8D8DC;
+    --ink-3: #9E9EA8;
+    --ink-4: #6A6A74;
+    background: var(--canvas);
+    color: var(--ink);
+  }
+  .local-dark .card,
+  .local-dark .demo-card { background: var(--paper); border-color: var(--rule); }
+
+  /* ========== Don't cards (anti-patterns) ========== */
+  .dont-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .dont-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .dont-cell {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    background: var(--paper);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .dont-cell .demo {
+    flex: 1; min-height: 160px;
+    padding: 28px 22px;
+    display: flex; align-items: center; justify-content: center;
+    background: repeating-linear-gradient(45deg, var(--paper) 0 14px, var(--canvas-2) 14px 15px);
+    position: relative;
+  }
+  .dont-cell .stamp {
+    position: absolute; top: 14px; left: 14px;
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; font-weight: 600;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--accent); color: white;
+    z-index: 2;
+  }
+  .dont-cell .stamp.do { background: oklch(0.7 0.16 145); color: white; }
+  .dont-cell .caption {
+    padding: 16px 18px;
+    border-top: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  .dont-cell .caption .title {
+    font-size: 14px; font-weight: 600;
+    letter-spacing: -0.012em; color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .dont-cell .caption .why {
+    font-size: 12px; color: var(--ink-3); line-height: 1.5;
+  }
+  .dont-section-head {
+    display: grid; grid-template-columns: 180px 1fr; gap: 32px;
+    margin: 48px 0 18px; align-items: baseline;
+  }
+  .dont-section-head .num {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-4);
+  }
+  .dont-section-head h3 {
+    font-family: var(--sans); font-size: 22px; font-weight: 600;
+    letter-spacing: -0.022em; margin: 0;
+  }
+  .dont-section-head h3 em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic; font-weight: 400; color: var(--accent);
+  }
+  .dont-list {
+    border-radius: var(--radius-md);
+    background: var(--ink); color: var(--canvas);
+    padding: 36px 40px;
+    margin-top: 36px;
+  }
+  .dont-list .head {
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: rgba(255,255,255,0.5); margin-bottom: 20px;
+  }
+  .dont-list ul {
+    list-style: none; padding: 0; margin: 0;
+    columns: 2; column-gap: 48px; column-rule: 1px solid rgba(255,255,255,0.1);
+    font-size: 14px; line-height: 1.7;
+  }
+  .dont-list li {
+    display: flex; gap: 12px; padding: 8px 0;
+    break-inside: avoid;
+    color: rgba(255,255,255,0.88);
+  }
+  .dont-list li::before {
+    content: '✗';
+    color: var(--accent); font-family: var(--mono);
+    font-weight: 700; flex-shrink: 0;
+    width: 16px; text-align: center;
+  }
+  .dont-list li b { color: #fff; font-weight: 600; }
+
+  /* ========== Responsive ========== */
+  @media (max-width: 980px) {
+    .ds-hero { grid-template-columns: 1fr; gap: 48px; padding: 56px 0; align-items: start; }
+    .ds-hero h1 { font-size: 52px; }
+    .ds-section { padding: 64px 0; }
+    .ds-section h2 { font-size: 36px; }
+    .ds-section-head { grid-template-columns: 1fr; gap: 16px; margin-bottom: 36px; }
+    .grid-3, .grid-4, .grid-6, .swatch-grid, .radii { grid-template-columns: repeat(2, 1fr); }
+    .scale-strip { grid-template-columns: repeat(5, 1fr); }
+    .grid-2, .voice-grid { grid-template-columns: 1fr; }
+    .elev { grid-template-columns: repeat(2, 1fr); }
+    .ds-foot .ft-grid { grid-template-columns: 1fr 1fr; }
+    .ds-shell, .ds-top-inner { padding-left: 20px; padding-right: 20px; }
+    .type-row { grid-template-columns: 1fr; gap: 8px; }
+    .type-row .spec { text-align: left; }
+    .space-row { grid-template-columns: 1fr; gap: 8px; }
+    .motion-row { grid-template-columns: 1fr; gap: 12px; }
+    .dont-grid, .dont-grid.cols-2 { grid-template-columns: 1fr; }
+    .dont-section-head { grid-template-columns: 1fr; gap: 8px; margin-top: 32px; }
+    .dont-list { padding: 28px 24px; }
+    .dont-list ul { columns: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<div class="ds-top">
+  <div class="ds-top-inner">
+    <a href="Getviews Studio.html" class="row gap-2" style="text-decoration:none">
+      <svg width="22" height="22" viewBox="196.4 196.5 319.0 319.0"><path d="" id="__nav_mark" fill="currentColor"/></svg>
+      <span class="serif" style="font-size:15px;font-weight:600;letter-spacing:-0.02em">Getviews</span>
+    </a>
+    <span class="crumbs">/ Design System · v1.0</span>
+    <div class="grow"></div>
+    <a href="Branding Guideline.html" class="chip">↳ Brand guidelines</a>
+    <a href="Getviews Studio.html" class="chip">← Studio</a>
+    <button class="btn btn-ghost">Download tokens</button>
+  </div>
+</div>
+
+<!-- ============ HERO ============ -->
+<section class="ds-shell">
+  <div class="ds-hero">
+    <div>
+      <div class="row gap-2" style="margin-bottom:24px">
+        <span class="chip chip-accent">v1.0 · April 2026</span>
+        <span class="chip">Product · Creator app</span>
+      </div>
+      <h1>The <em>system</em> behind every Getviews surface.</h1>
+      <p class="lede">Brand tells you what Getviews <em>looks like</em>. This tells you how it <em>works</em>. Tokens, components, motion, navigation, copy — the load-bearing layer underneath every screen of the creator product. Pair this with <a href="Branding Guideline.html" style="text-decoration:underline;color:var(--ink)">Branding Guideline v1.1</a> for the full picture.</p>
+      <div class="meta">
+        <div><b>19</b> sections</div>
+        <div><b>32</b> rules to avoid</div>
+        <div><b>v1.0</b> April 2026</div>
+        <div><b>VI</b> · creator-only</div>
+      </div>
+    </div>
+    <nav class="toc">
+      <a href="#foundations"><b>01</b> Foundations</a>
+      <a href="#color"><b>02</b> Color tokens</a>
+      <a href="#type"><b>03</b> Type scale</a>
+      <a href="#spacing"><b>04</b> Spacing</a>
+      <a href="#shape"><b>05</b> Radii · Shadow</a>
+      <a href="#motion"><b>06</b> Motion</a>
+      <a href="#layout"><b>07</b> Layout · Grid</a>
+      <a href="#nav"><b>08</b> Navigation</a>
+      <a href="#controls"><b>09</b> Controls</a>
+      <a href="#inputs"><b>10</b> Inputs · Forms</a>
+      <a href="#surfaces"><b>11</b> Surfaces · Cards</a>
+      <a href="#data"><b>12</b> Data display</a>
+      <a href="#feedback"><b>13</b> Status · Feedback</a>
+      <a href="#overlay"><b>14</b> Overlays</a>
+      <a href="#patterns"><b>15</b> Patterns</a>
+      <a href="#voice"><b>16</b> Voice in UI</a>
+      <a href="#avoid"><b>17</b> Rules to avoid</a>
+      <a href="#a11y"><b>18</b> Accessibility</a>
+      <a href="#tokens-ref"><b>19</b> Token reference</a>
+    </nav>
+  </div>
+</section>
+
+<!-- ============ INTERACTIVE PLAYGROUND ============ -->
+<section class="ds-shell">
+  <div class="ds-playground" id="playground">
+    <div class="pg-row">
+      <div class="pg-label">
+        <span class="mono uc">Live · try the system</span>
+        <span class="hint">Flip the doc to dark or compact. Search any token to find every appearance.</span>
+      </div>
+    </div>
+    <div class="pg-row">
+      <div class="pg-control">
+        <span class="mono uc">Theme</span>
+        <div class="pg-seg" data-control="theme">
+          <button class="active" data-val="light">Light</button>
+          <button data-val="dark">Dark</button>
+        </div>
+      </div>
+      <div class="pg-control">
+        <span class="mono uc">Density</span>
+        <div class="pg-seg" data-control="density">
+          <button class="active" data-val="default">Default</button>
+          <button data-val="compact">Compact</button>
+        </div>
+      </div>
+      <div class="pg-control pg-search">
+        <span class="mono uc">Token</span>
+        <input id="pg-search-input" placeholder="e.g. --accent, --space-4, #F72585, 1.6px" autocomplete="off" />
+        <span id="pg-search-count" class="pg-count">0 matches</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 01 FOUNDATIONS ============ -->
+<section class="ds-section" id="foundations">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">01 · Foundations</div></div>
+      <div>
+        <h2>Five layers, <em>one</em> opinion per layer.</h2>
+        <p class="intro" style="margin-top:24px">Every Getviews surface is built from the same five foundational layers — color, type, spacing, shape, motion. Each one carries a single opinion. When in doubt, choose the smaller move: a tighter spacing step, a quieter weight, a calmer easing. The brand earns its boldness by being quiet everywhere else.</p>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="demo-card">
+        <div class="stage col" style="padding:32px 28px">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px">Layer 01 · Color</div>
+          <div style="display:flex;gap:6px;margin-bottom:14px">
+            <span style="width:32px;height:32px;border-radius:6px;background:#F72585"></span>
+            <span style="width:32px;height:32px;border-radius:6px;background:#4CC9F0"></span>
+            <span style="width:32px;height:32px;border-radius:6px;background:#0A0D12"></span>
+            <span style="width:32px;height:32px;border-radius:6px;background:#FBFCFD;border:1px solid var(--rule)"></span>
+          </div>
+          <div style="font-size:13px;color:var(--ink-3);line-height:1.55">Two accents, one anchor, a quiet room.</div>
+        </div>
+        <div class="legend"><b>Color</b><span>§02</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:32px 28px">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px">Layer 02 · Type</div>
+          <div style="font-family:var(--sans);font-weight:600;font-size:42px;letter-spacing:-0.035em;line-height:0.95">Aa<em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--accent)">aa</em></div>
+          <div style="margin-top:14px;font-size:13px;color:var(--ink-3);line-height:1.55">Space Grotesk does the day job. Serif italic is the one emotional word.</div>
+        </div>
+        <div class="legend"><b>Type</b><span>§03</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:32px 28px">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px">Layer 03 · Spacing</div>
+          <div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:14px">
+            <span style="width:4px;height:14px;background:var(--ink)"></span>
+            <span style="width:8px;height:18px;background:var(--ink)"></span>
+            <span style="width:12px;height:24px;background:var(--ink)"></span>
+            <span style="width:16px;height:32px;background:var(--ink)"></span>
+            <span style="width:24px;height:42px;background:var(--ink)"></span>
+            <span style="width:32px;height:54px;background:var(--ink)"></span>
+          </div>
+          <div style="font-size:13px;color:var(--ink-3);line-height:1.55">A 4-pixel base, eight steps, no improvisation.</div>
+        </div>
+        <div class="legend"><b>Spacing</b><span>§04</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:32px 28px">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px">Layer 04 · Shape</div>
+          <div style="display:flex;gap:8px;margin-bottom:14px">
+            <span style="width:42px;height:42px;background:var(--ink);border-radius:0"></span>
+            <span style="width:42px;height:42px;background:var(--ink);border-radius:6px"></span>
+            <span style="width:42px;height:42px;background:var(--ink);border-radius:12px"></span>
+            <span style="width:42px;height:42px;background:var(--ink);border-radius:18px"></span>
+            <span style="width:42px;height:42px;background:var(--ink);border-radius:999px"></span>
+          </div>
+          <div style="font-size:13px;color:var(--ink-3);line-height:1.55">Three radii for surfaces, a full pill for actions.</div>
+        </div>
+        <div class="legend"><b>Shape</b><span>§05</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:32px 28px">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px">Layer 05 · Motion</div>
+          <div style="position:relative;height:42px;width:100%;background:var(--canvas-2);border-radius:6px;margin-bottom:14px;overflow:hidden">
+            <span style="position:absolute;top:50%;left:8px;transform:translateY(-50%);width:14px;height:14px;background:var(--accent);border-radius:50%;animation:motion-travel 2.4s cubic-bezier(0.2,0.8,0.2,1) infinite alternate"></span>
+          </div>
+          <div style="font-size:13px;color:var(--ink-3);line-height:1.55">Fast, decisive, never bouncy. Motion is feedback, not decoration.</div>
+        </div>
+        <div class="legend"><b>Motion</b><span>§06</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:32px 28px;background:var(--ink);color:var(--canvas);justify-content:space-between;align-items:flex-start">
+          <div class="mono uc" style="font-size:9px;color:rgba(255,255,255,0.55);margin-bottom:8px">First principle</div>
+          <div style="font-family:'Instrument Serif',serif;font-style:italic;font-size:34px;line-height:1.1;letter-spacing:-0.02em;color:#fff">Quiet system, loud signal.</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.55;margin-top:14px">The system disappears so the data can speak — the 4.2M, the +312%, the moment publish happens.</div>
+        </div>
+        <div class="legend" style="background:var(--ink);color:rgba(255,255,255,0.7);border-top-color:rgba(255,255,255,0.08)"><b style="color:#fff">Voice</b><span>§16</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 COLOR TOKENS ============ -->
+<section class="ds-section" id="color">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">02 · Color tokens</div></div>
+      <div>
+        <h2>Tokens, <em>not</em> hexes.</h2>
+        <p class="intro" style="margin-top:24px">Every surface, border, and label pulls from a CSS custom property. Designers don't ship hex codes; engineers don't hard-code them. The brand layer (magenta, sky, ink, canvas) is documented in <a href="Branding Guideline.html" style="text-decoration:underline;color:var(--ink)">Branding §04</a>. This page covers the <i>functional</i> tokens: surface roles, semantic feedback, ink levels, and the dark theme.</p>
+      </div>
+    </div>
+
+    <!-- Surface + ink scale -->
+    <div class="label-kicker"><span>Surface · ink · rule</span><span class="name">9 tokens · used on every screen</span></div>
+    <div class="tok-wrap" style="margin-bottom:32px">
+      <table class="tok">
+        <thead><tr>
+          <th style="width:60px"></th>
+          <th>Token</th>
+          <th>Hex</th>
+          <th>Role</th>
+          <th>Where it lives</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="swatch" style="background:#FFFFFF"></span></td><td class="var">--paper</td><td>#FFFFFF</td><td class="role">Card surface</td><td>Cards, popovers, modals, composer</td></tr>
+          <tr><td><span class="swatch" style="background:#FBFCFD"></span></td><td class="var">--canvas</td><td>#FBFCFD</td><td class="role">Page background</td><td>Body, main content area</td></tr>
+          <tr><td><span class="swatch" style="background:#F2F4F6"></span></td><td class="var">--canvas-2</td><td>#F2F4F6</td><td class="role">Sunken / sidebar</td><td>Sidebar, code blocks, hover wells</td></tr>
+          <tr><td><span class="swatch" style="background:#F0F3F6"></span></td><td class="var">--rule-2</td><td>#F0F3F6</td><td class="role">Soft divider</td><td>Inside cards, between list rows</td></tr>
+          <tr><td><span class="swatch" style="background:#E6EAEF"></span></td><td class="var">--rule</td><td>#E6EAEF</td><td class="role">Standard 1px line</td><td>Section dividers, input borders</td></tr>
+          <tr><td><span class="swatch" style="background:#8A94A3"></span></td><td class="var">--ink-4</td><td>#8A94A3</td><td class="role">Muted text</td><td>Kickers, meta, disabled labels</td></tr>
+          <tr><td><span class="swatch" style="background:#4A5260"></span></td><td class="var">--ink-3</td><td>#4A5260</td><td class="role">Tertiary text</td><td>Body copy, captions</td></tr>
+          <tr><td><span class="swatch" style="background:#1A1E26"></span></td><td class="var">--ink-2</td><td>#1A1E26</td><td class="role">Secondary text</td><td>Sub-headings, nav labels</td></tr>
+          <tr><td><span class="swatch" style="background:#0A0D12"></span></td><td class="var">--ink</td><td>#0A0D12</td><td class="role">Primary ink</td><td>Headlines, primary buttons, the mark</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Brand accents recap -->
+    <div class="label-kicker"><span>Brand accents</span><span class="name">→ Brand Guideline §04 for the full origin story</span></div>
+    <div class="swatch-grid" style="margin-bottom:32px">
+      <div class="sw">
+        <div class="area" style="background:#F72585;color:#fff"><span class="role">Primary</span><span class="hex">F72585</span></div>
+        <div class="meta">
+          <b>Token</b><span>--accent</span>
+          <b>Soft</b><span>--accent-soft #FDD9EA</span>
+          <b>Deep</b><span>--accent-deep #B8175F</span>
+          <b>Use</b><span>One per surface</span>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="area" style="background:#4CC9F0;color:#0A0D12"><span class="role">Secondary</span><span class="hex">4CC9F0</span></div>
+        <div class="meta">
+          <b>Token</b><span>--accent-2</span>
+          <b>Soft</b><span>--accent-2-soft #DAF1FB</span>
+          <b>Deep</b><span>--accent-2-deep #1A8FB8</span>
+          <b>Use</b><span>System voice · AI</span>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="area" style="background:oklch(0.92 0.18 122);color:#0A0D12"><span class="role">Tertiary</span><span class="hex">D7F542</span></div>
+        <div class="meta">
+          <b>Token</b><span>--lime</span>
+          <b>Deep</b><span>--lime-deep</span>
+          <b>Use</b><span>Live · flag · accent on ink</span>
+          <b>Rule</b><span>Flag, not a fill</span>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="area" style="background:#0A0D12;color:#fff"><span class="role">Anchor</span><span class="hex">0A0D12</span></div>
+        <div class="meta">
+          <b>Token</b><span>--ink</span>
+          <b>Use</b><span>Primary buttons</span>
+          <b>Use</b><span>Sidebar nav active</span>
+          <b>Use</b><span>The mark itself</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Semantic -->
+    <div class="label-kicker"><span>Semantic · feedback &amp; data</span><span class="name">Trend direction, system state</span></div>
+    <div class="tok-wrap" style="margin-bottom:32px">
+      <table class="tok">
+        <thead><tr>
+          <th style="width:60px"></th>
+          <th>Token</th>
+          <th>Hex</th>
+          <th>Meaning</th>
+          <th>Examples</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="swatch" style="background:#009FFA"></span></td><td class="var">--pos</td><td>#009FFA</td><td class="role">Trend up · gain</td><td>↑ views, growth %, breakout dot</td></tr>
+          <tr><td><span class="swatch" style="background:#DBF0FF"></span></td><td class="var">--pos-soft</td><td>#DBF0FF</td><td class="role">Up · soft fill</td><td>Chip background for "+312%"</td></tr>
+          <tr><td><span class="swatch" style="background:#F72585"></span></td><td class="var">--neg</td><td>#F72585</td><td class="role">Trend down · loss</td><td>↓ views, drop-off, alert</td></tr>
+          <tr><td><span class="swatch" style="background:#FDD9EA"></span></td><td class="var">--neg-soft</td><td>#FDD9EA</td><td class="role">Down · soft fill</td><td>"Cảnh báo" chip</td></tr>
+          <tr><td><span class="swatch" style="background:oklch(0.78 0.16 75)"></span></td><td class="var">--signal-amber</td><td>#E6A93F</td><td class="role">Caution · attention</td><td>"Sắp hết hạn", quota warning</td></tr>
+          <tr><td><span class="swatch" style="background:oklch(0.7 0.16 145)"></span></td><td class="var">--signal-green</td><td>#3DAF6E</td><td class="role">Live · OK · saved</td><td>"Đã lưu", connection healthy</td></tr>
+          <tr><td><span class="swatch" style="background:oklch(0.65 0.15 240)"></span></td><td class="var">--signal-blue</td><td>#3F89C8</td><td class="role">Info · neutral note</td><td>Tooltip badges, "đang xử lý"</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tints scale -->
+    <div class="label-kicker"><span>Neutrals · 9-step canvas → ink ramp</span><span class="name">Always pair adjacent steps for contrast (e.g. canvas + ink-3)</span></div>
+    <div class="scale-strip" style="margin-bottom:32px">
+      <div style="background:#FFFFFF"><span class="num-top" style="color:#8A94A3">00</span><span style="color:#0A0D12">Paper<br/>FFFFFF</span></div>
+      <div style="background:#FBFCFD"><span class="num-top" style="color:#8A94A3">10</span><span style="color:#0A0D12">Canvas<br/>FBFCFD</span></div>
+      <div style="background:#F2F4F6"><span class="num-top" style="color:#8A94A3">20</span><span style="color:#0A0D12">Canvas-2<br/>F2F4F6</span></div>
+      <div style="background:#E6EAEF"><span class="num-top" style="color:#4A5260">30</span><span style="color:#0A0D12">Rule<br/>E6EAEF</span></div>
+      <div style="background:#C7CFDA"><span class="num-top" style="color:#4A5260">40</span><span style="color:#0A0D12">Ink-5<br/>C7CFDA</span></div>
+      <div style="background:#8A94A3"><span class="num-top" style="color:#FBFCFD">50</span><span style="color:#FBFCFD">Ink-4<br/>8A94A3</span></div>
+      <div style="background:#4A5260"><span class="num-top" style="color:#FBFCFD">60</span><span style="color:#FBFCFD">Ink-3<br/>4A5260</span></div>
+      <div style="background:#1A1E26"><span class="num-top" style="color:#FBFCFD">70</span><span style="color:#FBFCFD">Ink-2<br/>1A1E26</span></div>
+      <div style="background:#0A0D12"><span class="num-top" style="color:#8A94A3">80</span><span style="color:#FBFCFD">Ink<br/>0A0D12</span></div>
+    </div>
+
+    <!-- Contrast rules -->
+    <div class="grid-2">
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;align-items:flex-start">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:14px">Body contrast ladder</div>
+          <div style="display:flex;flex-direction:column;gap:6px;width:100%">
+            <div style="display:flex;justify-content:space-between"><span style="color:#0A0D12;font-weight:500">Primary text on canvas</span><span class="mono" style="font-size:11px;color:var(--ink-4)">19.2:1 · AAA</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#1A1E26">Secondary on canvas</span><span class="mono" style="font-size:11px;color:var(--ink-4)">15.4:1 · AAA</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#4A5260">Tertiary on canvas</span><span class="mono" style="font-size:11px;color:var(--ink-4)">7.9:1 · AAA</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#8A94A3">Muted on canvas</span><span class="mono" style="font-size:11px;color:var(--ink-4)">3.4:1 · AA-LG</span></div>
+          </div>
+        </div>
+        <div class="legend"><b>Minimum</b><span>Body ≥ 4.5 · Large ≥ 3.0</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;background:var(--ink);color:#fff;align-items:flex-start">
+          <div class="mono uc" style="font-size:9px;color:rgba(255,255,255,0.5);margin-bottom:14px">Dark theme overrides</div>
+          <div style="display:flex;flex-direction:column;gap:6px;width:100%;font-family:var(--mono);font-size:11.5px">
+            <div><span style="color:rgba(255,255,255,0.5)">--canvas</span> <span style="float:right">#0B0B0E</span></div>
+            <div><span style="color:rgba(255,255,255,0.5)">--paper</span> <span style="float:right">#1A1A20</span></div>
+            <div><span style="color:rgba(255,255,255,0.5)">--ink</span> <span style="float:right">#F4F4F6</span></div>
+            <div><span style="color:rgba(255,255,255,0.5)">--rule</span> <span style="float:right">#25252D</span></div>
+            <div><span style="color:rgba(255,255,255,0.5)">--accent</span> <span style="float:right">#F72585 (unchanged)</span></div>
+          </div>
+        </div>
+        <div class="legend"><b>Dark</b><span>Brand accents do not shift hue</span></div>
+      </div>
+    </div>
+
+    <!-- Side-by-side dark / light card to make the override tangible -->
+    <div class="label-kicker" style="margin-top:32px"><span>Side-by-side · same component, two themes</span><span class="name">Tokens flip, layout doesn't move</span></div>
+    <div class="grid-2">
+      <div class="demo-card">
+        <div class="stage" style="padding:24px;background:var(--canvas);align-items:stretch;justify-content:flex-start">
+          <div class="card" style="padding:0;width:100%;overflow:hidden;background:var(--paper);border-color:var(--rule)">
+            <header style="padding:16px 20px;border-bottom:1px solid var(--rule-2);display:flex;justify-content:space-between;align-items:center">
+              <div class="mono uc" style="font-size:9px;color:var(--ink-4);letter-spacing:0.14em">TÓM TẮT KÊNH</div>
+              <span class="chip mono" style="font-size:10px;color:var(--ink-3)">7D</span>
+            </header>
+            <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:18px">
+              <div>
+                <div style="font-size:30px;font-weight:600;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:var(--ink)">128K</div>
+                <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:4px">FOLLOWERS</div>
+              </div>
+              <div>
+                <div style="font-size:30px;font-weight:600;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:var(--accent)">+312%</div>
+                <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:4px">GROWTH 7D</div>
+              </div>
+            </div>
+            <footer style="padding:12px 20px;border-top:1px solid var(--rule-2);background:var(--canvas);display:flex;justify-content:space-between;align-items:center">
+              <span class="mono uc" style="font-size:9px;color:var(--ink-4)">● LIVE</span>
+              <span style="font-size:12px;color:var(--ink-3)">Cập nhật 2 phút trước</span>
+            </footer>
+          </div>
+        </div>
+        <div class="legend"><b>Light · default</b><span class="code">--canvas #FBFCFD · --ink #0A0D12</span></div>
+      </div>
+
+      <div class="demo-card local-dark">
+        <div class="stage" style="padding:24px;background:var(--canvas);align-items:stretch;justify-content:flex-start;background-image:none">
+          <div class="card" style="padding:0;width:100%;overflow:hidden;background:var(--paper);border-color:var(--rule)">
+            <header style="padding:16px 20px;border-bottom:1px solid var(--rule-2);display:flex;justify-content:space-between;align-items:center">
+              <div class="mono uc" style="font-size:9px;color:var(--ink-4);letter-spacing:0.14em">TÓM TẮT KÊNH</div>
+              <span class="chip mono" style="font-size:10px;background:var(--canvas-2);border-color:var(--rule);color:var(--ink-3)">7D</span>
+            </header>
+            <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:18px">
+              <div>
+                <div style="font-size:30px;font-weight:600;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:var(--ink)">128K</div>
+                <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:4px">FOLLOWERS</div>
+              </div>
+              <div>
+                <div style="font-size:30px;font-weight:600;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:#F72585">+312%</div>
+                <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:4px">GROWTH 7D</div>
+              </div>
+            </div>
+            <footer style="padding:12px 20px;border-top:1px solid var(--rule-2);background:var(--canvas-2);display:flex;justify-content:space-between;align-items:center">
+              <span class="mono uc" style="font-size:9px;color:#F72585">● LIVE</span>
+              <span style="font-size:12px;color:var(--ink-3)">Cập nhật 2 phút trước</span>
+            </footer>
+          </div>
+        </div>
+        <div class="legend" style="background:#1A1A20;color:#9E9EA8;border-top-color:#25252D"><b style="color:#F4F4F6">Dark · override</b><span class="code" style="background:#0B0B0E;color:#D8D8DC">--canvas #0B0B0E · --ink #F4F4F6</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 TYPE SCALE ============ -->
+<section class="ds-section" id="type">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">03 · Type scale</div></div>
+      <div>
+        <h2>Eight steps, <em>three</em> weights, one italic.</h2>
+        <p class="intro" style="margin-top:24px">Brand owns the families and the moods (<a href="Branding Guideline.html" style="text-decoration:underline;color:var(--ink)">§05</a>). The system owns the <i>scale</i> — exact sizes, line-heights, and tracking values we use in product. Never invent a new step. If you need something between two steps, the design is asking the wrong question.</p>
+      </div>
+    </div>
+
+    <div class="type-wrap" style="margin-bottom:24px">
+      <div class="type-row">
+        <span class="role">Display</span>
+        <div style="font-family:var(--sans);font-weight:600;font-size:72px;line-height:0.92;letter-spacing:-0.04em">Sảnh sáng <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--accent)">tạo</em></div>
+        <div class="spec">72 / 66 · -0.04em<br/>SG 600 · landing hero</div>
+      </div>
+      <div class="type-row">
+        <span class="role">H1</span>
+        <div style="font-family:var(--sans);font-weight:500;font-size:48px;line-height:1.02;letter-spacing:-0.035em">Trends, channels, scripts — together</div>
+        <div class="spec">48 / 49 · -0.035em<br/>SG 500 · top-of-screen titles</div>
+      </div>
+      <div class="type-row">
+        <span class="role">H2</span>
+        <div style="font-family:var(--sans);font-weight:500;font-size:32px;line-height:1.1;letter-spacing:-0.025em">Track every video that mattered today</div>
+        <div class="spec">32 / 35 · -0.025em<br/>SG 500 · section heads</div>
+      </div>
+      <div class="type-row">
+        <span class="role">H3</span>
+        <div style="font-family:var(--sans);font-weight:600;font-size:22px;line-height:1.2;letter-spacing:-0.018em">Top performing channel</div>
+        <div class="spec">22 / 26 · -0.018em<br/>SG 600 · card titles</div>
+      </div>
+      <div class="type-row">
+        <span class="role">H4 / Lede</span>
+        <div style="font-family:var(--sans);font-weight:500;font-size:17px;line-height:1.45;letter-spacing:-0.012em;color:var(--ink-2)">A short, scannable description sitting under a major heading.</div>
+        <div class="spec">17 / 25 · -0.012em<br/>SG 500 · intro paragraphs</div>
+      </div>
+      <div class="type-row">
+        <span class="role">Body</span>
+        <div style="font-size:14px;line-height:1.55;color:var(--ink-2)">Getviews helps Vietnamese creators turn observation into action. We track what's spiking on TikTok and YouTube, decode why, and hand you a script you can shoot tonight.</div>
+        <div class="spec">14 / 22 · 0em<br/>SG 400 · default body</div>
+      </div>
+      <div class="type-row">
+        <span class="role">Caption</span>
+        <div style="font-size:12px;line-height:1.5;color:var(--ink-3)">Đã cập nhật 2 phút trước · phân tích lại sau 5 phút</div>
+        <div class="spec">12 / 18 · 0em<br/>SG 400 · meta under elements</div>
+      </div>
+      <div class="type-row">
+        <span class="role">Kicker / mono</span>
+        <div class="mono uc" style="font-size:11px;color:var(--ink-3);letter-spacing:0.12em">VID-08291 · 4.2M VIEWS · 24h · TRENDING</div>
+        <div class="spec">11 / 18 · +0.12em UC<br/>JBM 400 · metadata, IDs, tags</div>
+      </div>
+    </div>
+
+    <!-- Numbers -->
+    <div class="label-kicker"><span>Big numbers · tabular nums always</span><span class="name">Used for KPIs, hero stats, chart axis labels</span></div>
+    <div class="grid-4">
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px">
+          <div style="font-family:var(--sans);font-weight:600;font-size:56px;line-height:0.95;letter-spacing:-0.04em;font-variant-numeric:tabular-nums">4.2M</div>
+          <div class="mono uc" style="font-size:10px;color:var(--ink-4);margin-top:8px;letter-spacing:0.12em">views · 24h</div>
+        </div>
+        <div class="legend"><b>Metric L</b><span>56 / SG 600</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px">
+          <div style="font-family:var(--sans);font-weight:600;font-size:42px;line-height:0.95;letter-spacing:-0.035em;font-variant-numeric:tabular-nums;color:var(--accent)">+312<span style="font-size:24px">%</span></div>
+          <div class="mono uc" style="font-size:10px;color:var(--ink-4);margin-top:8px;letter-spacing:0.12em">growth · 7d</div>
+        </div>
+        <div class="legend"><b>Metric M</b><span>42 · accent fill</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px">
+          <div style="font-family:var(--sans);font-weight:600;font-size:32px;line-height:0.95;letter-spacing:-0.03em;font-variant-numeric:tabular-nums">128K</div>
+          <div class="mono uc" style="font-size:10px;color:var(--ink-4);margin-top:8px;letter-spacing:0.12em">followers</div>
+        </div>
+        <div class="legend"><b>Metric S</b><span>32 · inline KPIs</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px">
+          <div style="font-family:var(--sans);font-weight:600;font-size:24px;line-height:1;letter-spacing:-0.025em;font-variant-numeric:tabular-nums">9.4<span style="font-size:14px;color:var(--ink-4)">/10</span></div>
+          <div class="mono uc" style="font-size:10px;color:var(--ink-4);margin-top:8px;letter-spacing:0.12em">trend score</div>
+        </div>
+        <div class="legend"><b>Metric XS</b><span>24 · table cells</span></div>
+      </div>
+    </div>
+
+    <!-- Italic emphasis rule -->
+    <div class="demo-card" style="margin-top:24px">
+      <div class="stage" style="padding:48px 32px;align-items:flex-start;justify-content:flex-start">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:36px;width:100%">
+          <div>
+            <div class="mono uc" style="font-size:9px;color:oklch(0.7 0.16 145);margin-bottom:10px;letter-spacing:0.14em">DO · one word, one moment</div>
+            <div style="font-family:var(--sans);font-weight:500;font-size:38px;line-height:1.05;letter-spacing:-0.03em">Trends, channels, scripts — <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--accent)">together</em>.</div>
+          </div>
+          <div>
+            <div class="mono uc" style="font-size:9px;color:var(--accent);margin-bottom:10px;letter-spacing:0.14em">DON'T · italic across the whole sentence</div>
+            <div style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;font-size:38px;line-height:1.05;letter-spacing:-0.02em;color:var(--ink-3)">Trends, channels, scripts — together.</div>
+          </div>
+        </div>
+      </div>
+      <div class="legend"><b>Italic rule</b><span class="code">.tight em, h1 em, h2 em → Instrument Serif italic · once per surface</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 SPACING ============ -->
+<section class="ds-section" id="spacing">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">04 · Spacing</div></div>
+      <div>
+        <h2>Four-pixel base, <em>eight</em> steps.</h2>
+        <p class="intro" style="margin-top:24px">Spacing is a vocabulary, not a freestyle. Eight values cover every gap, padding, and margin in the product. If you find yourself reaching for 10px or 18px, you're improvising — back up and pick the nearest step.</p>
+      </div>
+    </div>
+
+    <div class="tok-wrap" style="margin-bottom:24px">
+      <div class="space-row">
+        <div class="role">--space-1<b>4px</b></div>
+        <div class="bar" style="width:4px"></div>
+        <div class="usage">Icon ↔ icon · hairline insets</div>
+      </div>
+      <div class="space-row">
+        <div class="role">--space-2<b>8px</b></div>
+        <div class="bar" style="width:8px"></div>
+        <div class="usage">Inline chip gaps · button icon ↔ label</div>
+      </div>
+      <div class="space-row">
+        <div class="role">--space-3<b>12px</b></div>
+        <div class="bar" style="width:12px"></div>
+        <div class="usage">List item internal pad · small card pad</div>
+      </div>
+      <div class="space-row">
+        <div class="role">--space-4<b>16px</b></div>
+        <div class="bar" style="width:16px"></div>
+        <div class="usage">Card pad standard · grid gap</div>
+      </div>
+      <div class="space-row">
+        <div class="role">--space-5<b>24px</b></div>
+        <div class="bar" style="width:24px"></div>
+        <div class="usage">Card pad large · between related cards</div>
+      </div>
+      <div class="space-row">
+        <div class="role">--space-6<b>32px</b></div>
+        <div class="bar" style="width:32px"></div>
+        <div class="usage">Page gutter · between sections inside a card</div>
+      </div>
+      <div class="space-row">
+        <div class="role">--space-7<b>48px</b></div>
+        <div class="bar" style="width:48px"></div>
+        <div class="usage">Between top-level sections</div>
+      </div>
+      <div class="space-row">
+        <div class="role">--space-8<b>64px</b></div>
+        <div class="bar" style="width:64px"></div>
+        <div class="usage">Hero pad · landing rhythm</div>
+      </div>
+    </div>
+
+    <!-- Density modes -->
+    <div class="grid-2">
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;align-items:stretch;gap:0">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:14px">Default density</div>
+          <div style="display:flex;flex-direction:column;border:1px solid var(--rule);border-radius:8px;overflow:hidden">
+            <div style="padding:16px 18px;border-bottom:1px solid var(--rule-2);display:flex;justify-content:space-between"><span>Tóm tắt kênh</span><span class="mono" style="color:var(--ink-4);font-size:11px">7d</span></div>
+            <div style="padding:16px 18px;border-bottom:1px solid var(--rule-2);display:flex;justify-content:space-between"><span>4 video đang lên</span><span class="mono" style="color:var(--accent-deep);font-size:11px">+312%</span></div>
+            <div style="padding:16px 18px;display:flex;justify-content:space-between"><span>3 việc tuần này</span><span class="mono" style="color:var(--ink-4);font-size:11px">Sun</span></div>
+          </div>
+        </div>
+        <div class="legend"><b>Default</b><span class="code">padding 16/18</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;align-items:stretch;gap:0">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:14px">Compact mode · <span class="mono" style="color:var(--ink)">[data-density="compact"]</span></div>
+          <div style="display:flex;flex-direction:column;border:1px solid var(--rule);border-radius:8px;overflow:hidden">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--rule-2);display:flex;justify-content:space-between;font-size:13px"><span>Tóm tắt kênh</span><span class="mono" style="color:var(--ink-4);font-size:10px">7d</span></div>
+            <div style="padding:10px 14px;border-bottom:1px solid var(--rule-2);display:flex;justify-content:space-between;font-size:13px"><span>4 video đang lên</span><span class="mono" style="color:var(--accent-deep);font-size:10px">+312%</span></div>
+            <div style="padding:10px 14px;display:flex;justify-content:space-between;font-size:13px"><span>3 việc tuần này</span><span class="mono" style="color:var(--ink-4);font-size:10px">Sun</span></div>
+          </div>
+        </div>
+        <div class="legend"><b>Compact</b><span class="code">padding 10/14 · for power users</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 05 RADII / ELEVATION ============ -->
+<section class="ds-section" id="shape">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">05 · Shape · Elevation</div></div>
+      <div>
+        <h2>Pill for actions, <em>card</em> for surfaces.</h2>
+        <p class="intro" style="margin-top:24px">Radii signal hierarchy. Pills are interactive. Cards are content. Sharp corners are reserved for editorial moments — section dividers, dense data, the hero stage. Shadows are quiet: a 1px line does most of our elevation work.</p>
+      </div>
+    </div>
+
+    <div class="label-kicker"><span>Radii</span><span class="name">4 steps · sharp → pill</span></div>
+    <div class="radii" style="margin-bottom:36px">
+      <div class="frame">
+        <div class="box" style="border-radius:0"></div>
+        <div class="cap"><b>0</b><span>sharp</span></div>
+      </div>
+      <div class="frame">
+        <div class="box" style="border-radius:6px"></div>
+        <div class="cap"><b>--radius-sm · 6</b><span>chip, input</span></div>
+      </div>
+      <div class="frame">
+        <div class="box" style="border-radius:12px"></div>
+        <div class="cap"><b>--radius-md · 12</b><span>swatch, mini-card</span></div>
+      </div>
+      <div class="frame">
+        <div class="box" style="border-radius:18px"></div>
+        <div class="cap"><b>--radius-lg · 18</b><span>card surface</span></div>
+      </div>
+      <div class="frame">
+        <div class="box" style="border-radius:999px"></div>
+        <div class="cap"><b>pill · 999</b><span>buttons, chips</span></div>
+      </div>
+      <div class="frame">
+        <div class="box" style="border-radius:22%"></div>
+        <div class="cap"><b>22% · app icon</b><span>ios squircle</span></div>
+      </div>
+      <div class="frame">
+        <div class="box" style="border-radius:50%"></div>
+        <div class="cap"><b>50% · circle</b><span>avatar, live dot</span></div>
+      </div>
+      <div class="frame">
+        <div class="box" style="border-radius:8px 8px 0 0"></div>
+        <div class="cap"><b>top-only</b><span>tab, modal sheet</span></div>
+      </div>
+    </div>
+
+    <div class="label-kicker"><span>Elevation</span><span class="name">4 levels · prefer 1px lines over shadows</span></div>
+    <div class="elev">
+      <div class="level elev-0">0 · Flat</div>
+      <div class="level elev-1">1 · Sit</div>
+      <div class="level elev-2">2 · Lift</div>
+      <div class="level elev-3">3 · Float</div>
+    </div>
+    <div class="tok-wrap" style="margin-top:16px">
+      <table class="tok">
+        <thead><tr><th>Level</th><th>Use</th><th>CSS</th></tr></thead>
+        <tbody>
+          <tr><td class="var">0 · Flat</td><td class="role">Inline elements, dividers, page chrome</td><td>1px var(--rule) border</td></tr>
+          <tr><td class="var">1 · Sit</td><td class="role">Cards on canvas — default surface</td><td>border + box-shadow 0 1px 0 rgba(0,0,0,0.04)</td></tr>
+          <tr><td class="var">2 · Lift</td><td class="role">Hover state, focused tile, sticky topbar</td><td>0 4px 14px -8px rgba(10,13,18,0.22)</td></tr>
+          <tr><td class="var">3 · Float</td><td class="role">Popovers, modals, drawers, Tweaks panel</td><td>0 20px 60px -20px rgba(10,13,18,0.35)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 06 MOTION ============ -->
+<section class="ds-section" id="motion">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">06 · Motion</div></div>
+      <div>
+        <h2>Fast, decisive, <em>never</em> bouncy.</h2>
+        <p class="intro" style="margin-top:24px">Motion is feedback — never decoration. Three durations, two easings, one named animation per concept. Anything over 400ms is making the user wait; anything under 100ms is invisible. Bouncy springs and elastic curves are off-limits — Getviews is a tool, not a toy.</p>
+      </div>
+    </div>
+
+    <div class="tok-wrap" style="margin-bottom:24px">
+      <div class="motion-row">
+        <div class="role">--ease-out<br/><span style="color:var(--ink-4)">cubic-bezier(0.2, 0.8, 0.2, 1)</span></div>
+        <div class="ease-track"><span class="ease-dot" style="animation-name:motion-travel;animation-timing-function:cubic-bezier(0.2,0.8,0.2,1)"></span></div>
+        <div class="spec">Default · enter, expand, reveal</div>
+      </div>
+      <div class="motion-row">
+        <div class="role">--ease-linear<br/><span style="color:var(--ink-4)">linear</span></div>
+        <div class="ease-track"><span class="ease-dot" style="animation-name:motion-travel;animation-timing-function:linear"></span></div>
+        <div class="spec">Loops · marquee, shimmer, spinner</div>
+      </div>
+      <div class="motion-row">
+        <div class="role">--ease-in-out<br/><span style="color:var(--ink-4)">ease-in-out</span></div>
+        <div class="ease-track"><span class="ease-dot" style="animation-name:motion-travel;animation-timing-function:ease-in-out"></span></div>
+        <div class="spec">Pulses · live dot, breathing dot</div>
+      </div>
+    </div>
+
+    <div class="tok-wrap">
+      <table class="tok">
+        <thead><tr><th>Token</th><th>Duration</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td class="var">--dur-instant</td><td>100ms</td><td class="role">Hover lifts, color hovers, focus rings</td></tr>
+          <tr><td class="var">--dur-fast</td><td>180ms</td><td class="role">Tooltip, dropdown, chip select</td></tr>
+          <tr><td class="var">--dur-base</td><td>240ms</td><td class="role">Tab switch, accordion, panel slide</td></tr>
+          <tr><td class="var">--dur-slow</td><td>320ms</td><td class="role">Modal enter, drawer slide, route change</td></tr>
+          <tr><td class="var">--dur-loop</td><td>1.6s</td><td class="role">live-dot pulse · skeleton shimmer</td></tr>
+          <tr><td class="var">--dur-marquee</td><td>40s</td><td class="role">Marquee track full cycle</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="demo-card" style="margin-top:24px">
+      <div class="stage" style="padding:36px;gap:48px">
+        <div style="text-align:center">
+          <span class="live-dot" style="width:14px;height:14px"></span>
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:14px;letter-spacing:0.12em">live-dot · 1.6s · ease-in-out</div>
+        </div>
+        <div style="text-align:center;width:180px">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="skel" style="height:8px;width:80%"></div>
+            <div class="skel" style="height:8px;width:60%"></div>
+            <div class="skel" style="height:8px;width:90%"></div>
+          </div>
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:14px;letter-spacing:0.12em">skel shimmer · 1.6s · linear</div>
+        </div>
+        <div style="text-align:center">
+          <div style="width:48px;height:48px;border-radius:50%;border:3px solid var(--rule);border-top-color:var(--accent);animation:spin 1.2s linear infinite"></div>
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:14px;letter-spacing:0.12em">spinner · 1.2s · linear</div>
+        </div>
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+      </div>
+      <div class="legend"><b>Named loops</b><span>Honour <span class="code">prefers-reduced-motion</span> — disable all loops, replace with static states</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 07 LAYOUT / GRID ============ -->
+<section class="ds-section" id="layout">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">07 · Layout · Grid</div></div>
+      <div>
+        <h2>1280 max, <em>240</em> sidebar, four breakpoints.</h2>
+        <p class="intro" style="margin-top:24px">The product is built around a 240px persistent sidebar and a 1040px content well. Above 1100px we show every chrome element. Below that, sidebar collapses to a hamburger and bottom tabs take over. Below 560px, big numbers drop a size.</p>
+      </div>
+    </div>
+
+    <!-- Breakpoints -->
+    <div class="label-kicker"><span>Breakpoints</span><span class="name">3 inflection points · sidebar collapses at 900</span></div>
+    <div class="bp-track" style="margin-bottom:32px">
+      <div class="bp-col">
+        <div class="frame" style="height:60px">XS</div>
+        <div class="label"><b>≤ 560</b><br/>Phone portrait · bignum drops</div>
+      </div>
+      <div class="bp-col">
+        <div class="frame" style="height:88px">SM</div>
+        <div class="label"><b>561 – 900</b><br/>Hamburger · bottom tabs</div>
+      </div>
+      <div class="bp-col">
+        <div class="frame" style="height:128px">MD</div>
+        <div class="label"><b>901 – 1100</b><br/>Sidebar visible · live-chip hidden</div>
+      </div>
+      <div class="bp-col">
+        <div class="frame" style="height:168px">LG</div>
+        <div class="label"><b>1101 – 1440</b><br/>Default · all chrome visible</div>
+      </div>
+      <div class="bp-col">
+        <div class="frame" style="height:200px">XL</div>
+        <div class="label"><b>≥ 1441</b><br/>1280 max-width content · letterboxed</div>
+      </div>
+    </div>
+
+    <!-- Layout demo -->
+    <div class="grid-2">
+      <div class="demo-card">
+        <div class="stage" style="padding:0;background:var(--canvas-2);min-height:240px">
+          <div style="display:flex;width:100%;height:240px">
+            <div style="width:60px;background:var(--ink);display:flex;flex-direction:column;align-items:center;padding-top:14px;gap:14px">
+              <div style="width:24px;height:24px;background:#F72585;border-radius:5px"></div>
+              <div style="width:18px;height:2px;background:rgba(255,255,255,0.3);margin-top:10px"></div>
+              <div style="width:18px;height:2px;background:rgba(255,255,255,0.3)"></div>
+              <div style="width:18px;height:2px;background:rgba(255,255,255,0.3)"></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column">
+              <div style="height:42px;background:var(--canvas);border-bottom:1px solid var(--rule);padding:0 16px;display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;flex-direction:column;gap:3px">
+                  <div class="mono uc" style="font-size:8px;color:var(--ink-4)">STUDIO</div>
+                  <div style="font-size:13px;font-weight:600">Sảnh sáng tạo</div>
+                </div>
+                <div style="display:flex;gap:6px"><div style="width:42px;height:18px;background:var(--canvas-2);border-radius:999px"></div></div>
+              </div>
+              <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:8px">
+                <div style="height:34px;background:var(--paper);border:1px solid var(--rule);border-radius:8px"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:1">
+                  <div style="background:var(--paper);border:1px solid var(--rule);border-radius:8px"></div>
+                  <div style="background:var(--paper);border:1px solid var(--rule);border-radius:8px"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Desktop · LG/XL</b><span class="code">240 sidebar · 64 topbar · 24 gutter</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="padding:0;background:var(--canvas-2);min-height:240px;justify-content:center">
+          <div style="width:160px;height:240px;background:var(--canvas);border:1px solid var(--rule);border-radius:12px;display:flex;flex-direction:column;overflow:hidden">
+            <div style="height:42px;background:var(--canvas);border-bottom:1px solid var(--rule);padding:0 14px;display:flex;align-items:center;justify-content:space-between">
+              <div style="width:18px;height:14px;display:flex;flex-direction:column;justify-content:space-between"><span style="background:var(--ink);height:2px"></span><span style="background:var(--ink);height:2px"></span><span style="background:var(--ink);height:2px"></span></div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <div class="mono" style="font-size:7px;color:var(--ink-4)">STUDIO</div>
+                <div style="font-size:10px;font-weight:600">Sảnh</div>
+              </div>
+            </div>
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:6px">
+              <div style="height:28px;background:var(--paper);border:1px solid var(--rule);border-radius:6px"></div>
+              <div style="flex:1;background:var(--paper);border:1px solid var(--rule);border-radius:6px"></div>
+            </div>
+            <div style="height:46px;background:var(--paper);border-top:1px solid var(--rule);display:flex;justify-content:space-around;align-items:center;padding:6px 8px">
+              <div style="width:6px;height:6px;background:var(--ink);border-radius:1px"></div>
+              <div style="width:6px;height:6px;background:var(--ink-4);border-radius:1px"></div>
+              <div style="width:6px;height:6px;background:var(--ink-4);border-radius:1px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Mobile · SM/XS</b><span class="code">hamburger · bottom tab nav</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 08 NAVIGATION ============ -->
+<section class="ds-section" id="nav">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">08 · Navigation</div></div>
+      <div>
+        <h2>Always-on sidebar, <em>quiet</em> topbar.</h2>
+        <p class="intro" style="margin-top:24px">A creator opens Getviews to work, not to wayfind. The sidebar is persistent and small. The topbar shows what page you're on and one primary action. Bottom tabs handle phones. Breadcrumbs and tabs appear only where the data demands them.</p>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="label-kicker"><span>Sidebar · 240px · sticky · canvas-2</span><span class="name">4 primary routes · pinned niches · recent</span></div>
+    <div class="nav-demo" style="margin-bottom:24px">
+      <div class="frame-top"><span>Sidebar specimen</span><span>240 × 100%</span></div>
+      <div style="display:flex;height:520px">
+        <aside style="width:240px;background:var(--canvas-2);border-right:1px solid var(--rule);display:flex;flex-direction:column">
+          <div style="padding:20px 20px 18px;display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;background:var(--ink);border-radius:8px;display:flex;align-items:center;justify-content:center">
+              <svg width="22" height="22" viewBox="196.4 196.5 319.0 319.0"><path d="" id="__sb_mark" fill="#F72585"/></svg>
+            </div>
+            <div>
+              <div style="font-size:18px;letter-spacing:-0.025em;font-weight:600">Getviews</div>
+              <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:3px;letter-spacing:0.12em">Studio · Creator</div>
+            </div>
+          </div>
+          <hr class="rule"/>
+          <nav style="padding:12px;display:flex;flex-direction:column;gap:2px">
+            <div style="padding:9px 12px;border-radius:6px;background:var(--ink);color:var(--canvas);font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><line x1="3" y1="6" x2="9" y2="6"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/><polyline points="13 8 17 12 13 16"/><line x1="11" y1="12" x2="21" y2="12"/></svg>
+              Studio
+            </div>
+            <div style="padding:9px 12px;border-radius:6px;color:var(--ink-2);font-size:13px;display:flex;align-items:center;gap:10px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="4 16 9 13 13 15 19 7"/><circle cx="19" cy="7" r="1.6" fill="currentColor" stroke="none"/></svg>
+              Xu Hướng
+            </div>
+            <div style="padding:9px 12px;border-radius:6px;color:var(--ink-2);font-size:13px;display:flex;align-items:center;gap:10px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="3" y="4" width="18" height="4"/><polyline points="5 8 5 20 19 20 19 8"/><line x1="10" y1="13" x2="14" y2="13"/></svg>
+              <span style="flex:1">Kho Douyin</span>
+              <span class="mono uc" style="font-size:9px;background:var(--accent);color:#fff;padding:3px 7px;border-radius:3px;font-weight:600;letter-spacing:0.02em;white-space:nowrap">16 MỚI</span>
+            </div>
+            <div style="padding:9px 12px;border-radius:6px;color:var(--ink-2);font-size:13px;display:flex;align-items:center;gap:10px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M5 3H15L19 7V21H5V3Z"/><polyline points="15 3 15 7 19 7"/><line x1="8" y1="12" x2="14" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
+              Kịch Bản
+            </div>
+          </nav>
+          <hr class="rule"/>
+          <div style="padding:14px 16px 10px">
+            <div class="mono uc" style="font-size:9px;color:var(--ink-4);letter-spacing:0.12em;margin-bottom:10px">Ngách của bạn</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;justify-content:space-between;padding:7px 10px;border-radius:6px;font-size:12px;color:var(--ink-2)"><span>Tech</span><span class="mono" style="font-size:10px;color:var(--pos-deep)">↑42</span></div>
+              <div style="display:flex;justify-content:space-between;padding:7px 10px;border-radius:6px;font-size:12px;color:var(--ink-2)"><span>Beauty</span><span class="mono" style="font-size:10px;color:var(--pos-deep)">↑31</span></div>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:10px 12px;border-top:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;color:var(--ink-3)">Cài đặt</span>
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600">AD</div>
+          </div>
+        </aside>
+        <div style="flex:1;background:var(--canvas);padding:20px;display:flex;align-items:flex-start;gap:14px">
+          <ul style="font-family:var(--mono);font-size:11px;line-height:2;color:var(--ink-3);list-style:none;padding:0;margin:0">
+            <li><span style="color:var(--accent)">●</span> brand mark · 36×36 on ink square</li>
+            <li><span style="color:var(--accent)">●</span> wordmark · SG 600 / 20px / -0.025em</li>
+            <li><span style="color:var(--accent)">●</span> nav row · 9 / 12 pad · 6px radius</li>
+            <li><span style="color:var(--accent)">●</span> active row · ink fill / canvas text / 600</li>
+            <li><span style="color:var(--accent)">●</span> badge · mono uc · 9px · accent fill</li>
+            <li><span style="color:var(--accent)">●</span> section divider · hr.rule</li>
+            <li><span style="color:var(--accent)">●</span> niche row · 7 / 10 pad · live count in mono</li>
+            <li><span style="color:var(--accent)">●</span> avatar · 28 circle · accent fill / 600</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Topbar -->
+    <div class="label-kicker"><span>Top bar · 64px · sticky · canvas</span><span class="name">kicker + title (left) · status pill + 1 primary action (right)</span></div>
+    <div class="nav-demo" style="margin-bottom:24px">
+      <div class="frame-top"><span>Topbar specimen</span><span>100% × 64</span></div>
+      <header style="display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--rule);background:var(--canvas);min-height:64px">
+        <div>
+          <div class="mono uc" style="font-size:9.5px;color:var(--ink-4);margin-bottom:3px;letter-spacing:0.12em">BÁO CÁO</div>
+          <div style="font-size:24px;line-height:1;letter-spacing:-0.03em;font-weight:600">Phân Tích Video</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--rule);font-size:11px;color:var(--ink-3);white-space:nowrap">
+            <span class="live-dot"></span><span class="mono">CẬP NHẬT 2 PHÚT TRƯỚC</span>
+          </div>
+          <button class="btn"><span>＋</span><span>Phân tích mới</span></button>
+        </div>
+      </header>
+      <div style="padding:18px 28px;color:var(--ink-3);font-family:var(--mono);font-size:11px;line-height:1.7">
+        <span style="color:var(--accent)">●</span> kicker → screen category, never the brand name<br/>
+        <span style="color:var(--accent)">●</span> title → screen-specific h1, sentence case, ~24px<br/>
+        <span style="color:var(--accent)">●</span> status pill → hidden below 1100px (use <span style="color:var(--ink)">.hide-narrow</span>)<br/>
+        <span style="color:var(--accent)">●</span> primary action → exactly one .btn (ink fill) — never two
+      </div>
+    </div>
+
+    <!-- Bottom nav -->
+    <div class="label-kicker"><span>Bottom nav · mobile only · 56px + safe-area</span><span class="name">3 items only — sidebar nav collapses, this is the survival set</span></div>
+    <div class="nav-demo" style="margin-bottom:24px;max-width:380px;margin-left:0">
+      <div class="frame-top"><span>Mobile nav</span><span>56 + safe-area</span></div>
+      <nav style="display:flex;background:var(--paper);border-top:1px solid var(--rule);box-shadow:0 -8px 24px -12px rgba(0,0,0,0.15)">
+        <button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;color:var(--ink);font-size:10px;font-weight:600;position:relative">
+          <span style="position:absolute;top:0;left:30%;right:30%;height:2px;background:var(--accent);border-radius:0 0 2px 2px"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><line x1="3" y1="6" x2="9" y2="6"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/><polyline points="13 8 17 12 13 16"/><line x1="11" y1="12" x2="21" y2="12"/></svg>
+          Studio
+        </button>
+        <button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;color:var(--ink-4);font-size:10px;font-weight:500">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="4 16 9 13 13 15 19 7"/><circle cx="19" cy="7" r="1.6" fill="currentColor" stroke="none"/></svg>
+          Trends
+        </button>
+        <button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;color:var(--ink-4);font-size:10px;font-weight:500">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M5 3H15L19 7V21H5V3Z"/><polyline points="15 3 15 7 19 7"/><line x1="8" y1="12" x2="14" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
+          Script
+        </button>
+      </nav>
+    </div>
+
+    <!-- Tabs -->
+    <div class="label-kicker"><span>Tabs · in-page navigation</span><span class="name">Underline + ink fill · never pills · max 5 tabs</span></div>
+    <div class="demo-card">
+      <div class="stage" style="padding:0;align-items:stretch;justify-content:flex-start;flex-direction:column">
+        <div style="display:flex;border-bottom:1px solid var(--rule);padding:0 28px">
+          <button style="padding:14px 0;margin-right:28px;font-size:13px;font-weight:600;color:var(--ink);position:relative">
+            Hook
+            <span style="position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--ink)"></span>
+          </button>
+          <button style="padding:14px 0;margin-right:28px;font-size:13px;color:var(--ink-3)">Retention</button>
+          <button style="padding:14px 0;margin-right:28px;font-size:13px;color:var(--ink-3)">Comments</button>
+          <button style="padding:14px 0;font-size:13px;color:var(--ink-3)">Reshare</button>
+        </div>
+        <div style="padding:24px 28px;color:var(--ink-3);font-size:13px;font-style:italic">Tab panel content…</div>
+      </div>
+      <div class="legend"><b>Tabs</b><span class="code">border-bottom 1px var(--rule) · active: 2px ink underline</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 09 CONTROLS — Buttons, Chips, Pills ============ -->
+<section class="ds-section" id="controls">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">09 · Controls</div></div>
+      <div>
+        <h2>One primary, <em>one</em> magenta — per screen.</h2>
+        <p class="intro" style="margin-top:24px">Buttons are pills. The primary button is ink. The magenta button is for the one moment of action — the publish, the analyse, the connect-channel. If a screen has two magenta buttons, one of them is wrong.</p>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="label-kicker"><span>Buttons</span><span class="name">4 variants · 1 size · pill radius</span></div>
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage">
+          <button class="btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Phân tích mới</button>
+        </div>
+        <div class="legend"><b>.btn · primary</b><span class="code">ink fill · canvas text · 9/16 pad · 999 radius</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage">
+          <button class="btn btn-accent">Kết nối kênh ngay</button>
+        </div>
+        <div class="legend"><b>.btn-accent · the moment</b><span class="code">accent fill · 1 per screen max</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage">
+          <button class="btn btn-ghost"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="19 12 12 19 5 12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>Tải xuống</button>
+        </div>
+        <div class="legend"><b>.btn-ghost · secondary</b><span class="code">paper fill · rule border · 500 weight</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage">
+          <button class="btn btn-lime">Xem trend mới</button>
+        </div>
+        <div class="legend"><b>.btn-lime · flag</b><span class="code">lime fill · ink text · sparingly</span></div>
+      </div>
+    </div>
+
+    <!-- Button sizes / states -->
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage" style="gap:10px;flex-wrap:wrap">
+          <button class="btn" style="padding:5px 10px;font-size:11px">XS · 24h</button>
+          <button class="btn" style="padding:7px 13px;font-size:12px">S · 28h</button>
+          <button class="btn">M · default</button>
+          <button class="btn" style="padding:12px 22px;font-size:14px">L · CTA</button>
+        </div>
+        <div class="legend"><b>Sizes</b><span class="code">XS 24h · S 28h · M 36h · L 44h</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:10px;flex-wrap:wrap">
+          <button class="btn">Default</button>
+          <button class="btn" style="transform:translateY(-1px);box-shadow:0 8px 20px -8px rgba(0,0,0,0.3)">Hover</button>
+          <button class="btn" style="outline:2px solid var(--accent);outline-offset:2px">Focus</button>
+          <button class="btn" disabled style="opacity:0.4;cursor:not-allowed">Disabled</button>
+        </div>
+        <div class="legend"><b>States</b><span class="code">hover: -1px lift · focus: 2px accent ring · disabled: 0.4 opacity</span></div>
+      </div>
+    </div>
+
+    <!-- Chips -->
+    <div class="label-kicker"><span>Chips · selection · filter · meta</span><span class="name">6 variants · 28h · pill radius</span></div>
+    <div class="grid-3" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage" style="gap:8px;flex-wrap:wrap">
+          <span class="chip">Default</span>
+          <span class="chip">Tech</span>
+          <span class="chip">Beauty</span>
+        </div>
+        <div class="legend"><b>.chip</b><span class="code">paper · 1px rule</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:8px;flex-wrap:wrap">
+          <span class="chip chip-accent">v1.0 · April</span>
+          <span class="chip chip-accent">Beta</span>
+        </div>
+        <div class="legend"><b>.chip-accent</b><span class="code">accent-soft · accent-deep text</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:8px;flex-wrap:wrap">
+          <span class="chip chip-lime"><span class="live-dot" style="background:var(--ink)"></span>LIVE</span>
+        </div>
+        <div class="legend"><b>.chip-lime</b><span class="code">lime fill · ink text · live signal</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:8px;flex-wrap:wrap">
+          <span class="chip mono" style="font-size:11px">VID-08291</span>
+          <span class="chip mono" style="font-size:11px">+312%</span>
+        </div>
+        <div class="legend"><b>.chip.mono</b><span class="code">IDs, percentages, codes</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:8px;flex-wrap:wrap">
+          <span class="chip" style="background:var(--pos-soft);border-color:transparent;color:var(--pos-deep);font-weight:600">↑ 4.2M</span>
+          <span class="chip" style="background:var(--neg-soft);border-color:transparent;color:var(--neg-deep);font-weight:600">↓ 38%</span>
+        </div>
+        <div class="legend"><b>Semantic chip</b><span class="code">pos-soft / neg-soft fill</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:8px;flex-wrap:wrap">
+          <span class="chip" style="background:var(--ink);border-color:var(--ink);color:var(--canvas);font-weight:600">Active</span>
+          <span class="chip" style="background:transparent;border-style:dashed;color:var(--ink-4)">+ Add niche</span>
+        </div>
+        <div class="legend"><b>Active · dashed</b><span class="code">ink fill · or 1px dashed for add</span></div>
+      </div>
+    </div>
+
+    <!-- Toggles -->
+    <div class="label-kicker"><span>Toggle · switch</span><span class="name">Settings only · never a primary action</span></div>
+    <div class="grid-3">
+      <div class="demo-card">
+        <div class="stage" style="gap:16px">
+          <div style="width:38px;height:22px;background:var(--ink);border-radius:999px;padding:2px;display:flex;align-items:center;justify-content:flex-end"><span style="width:18px;height:18px;background:var(--canvas);border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></span></div>
+          <div style="width:38px;height:22px;background:var(--rule);border-radius:999px;padding:2px;display:flex;align-items:center;justify-content:flex-start"><span style="width:18px;height:18px;background:var(--paper);border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.15)"></span></div>
+        </div>
+        <div class="legend"><b>Switch</b><span class="code">38×22 · ink/rule fill</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:16px">
+          <div style="display:flex;background:var(--canvas-2);border-radius:8px;padding:3px;border:1px solid var(--rule)">
+            <button style="padding:7px 14px;font-size:12px;background:var(--paper);border-radius:6px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.06)">Hook</button>
+            <button style="padding:7px 14px;font-size:12px;color:var(--ink-3)">Retention</button>
+            <button style="padding:7px 14px;font-size:12px;color:var(--ink-3)">CTR</button>
+          </div>
+        </div>
+        <div class="legend"><b>Segmented</b><span class="code">2–4 options · 1 line each</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:14px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:16px;height:16px;border:1.5px solid var(--ink);background:var(--ink);border-radius:3px;display:flex;align-items:center;justify-content:center;color:var(--canvas);font-size:11px;font-weight:600">✓</span><span style="font-size:13px">Đã chọn</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:16px;height:16px;border:1.5px solid var(--ink-4);border-radius:3px;display:block"></span><span style="font-size:13px;color:var(--ink-3)">Chưa</span></div>
+        </div>
+        <div class="legend"><b>Checkbox</b><span class="code">16 square · ink fill on check</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10 INPUTS / FORMS ============ -->
+<section class="ds-section" id="inputs">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">10 · Inputs · Forms</div></div>
+      <div>
+        <h2>The cursor is the <em>compass</em>.</h2>
+        <p class="intro" style="margin-top:24px">Inputs are the busiest surface in the product — paste a link, type a prompt, edit a script. Borders stay 1px, focus draws an accent ring, helper text sits in tertiary ink. Mono fonts inside fields signal "this is a URL or an ID" so the eye knows immediately.</p>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage col" style="align-items:stretch;padding:28px">
+          <label class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px;letter-spacing:0.14em">EMAIL</label>
+          <input type="text" placeholder="ban@getviews.vn" style="padding:11px 14px;border:1px solid var(--rule);border-radius:8px;font-size:14px;background:var(--paper);outline:none" />
+        </div>
+        <div class="legend"><b>Text · default</b><span class="code">11/14 pad · 1px rule · 8 radius</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="align-items:stretch;padding:28px">
+          <label class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px;letter-spacing:0.14em">LINK KÊNH TIKTOK</label>
+          <input type="text" value="https://tiktok.com/@kenh.cua.ban" style="padding:11px 14px;border:2px solid var(--accent);border-radius:8px;font-size:13px;font-family:var(--mono);background:var(--paper);outline:none" />
+        </div>
+        <div class="legend"><b>Text · focused</b><span class="code">2px accent border · mono inside</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="align-items:stretch;padding:28px">
+          <label class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px;letter-spacing:0.14em">Ý TƯỞNG VIDEO</label>
+          <textarea placeholder="Mô tả ý tưởng — chúng tôi sẽ chuyển thành kịch bản…" style="padding:12px 14px;border:1px solid var(--rule);border-radius:8px;font-size:14px;background:var(--paper);outline:none;min-height:84px;resize:vertical;font-family:var(--sans)"></textarea>
+        </div>
+        <div class="legend"><b>Textarea</b><span class="code">min 84h · resize vertical only</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="align-items:stretch;padding:28px">
+          <label class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px;letter-spacing:0.14em">TÌM KIẾM</label>
+          <div style="position:relative">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-4)"><circle cx="11" cy="11" r="6"/><line x1="15.5" y1="15.5" x2="20" y2="20"/></svg>
+            <input type="text" placeholder="Tìm trend, video, kênh…" style="padding:11px 14px 11px 38px;border:1px solid var(--rule);border-radius:999px;font-size:13px;background:var(--paper);outline:none;width:100%;box-sizing:border-box" />
+          </div>
+        </div>
+        <div class="legend"><b>Search · with icon</b><span class="code">999 radius · 38px left pad</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="align-items:stretch;padding:28px">
+          <label class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px;letter-spacing:0.14em">NGÁCH</label>
+          <select style="padding:11px 14px;border:1px solid var(--rule);border-radius:8px;font-size:14px;background:var(--paper);outline:none;font-family:var(--sans);appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat">
+              <option>Tech</option><option>Beauty</option><option>F&amp;B</option>
+          </select>
+        </div>
+        <div class="legend"><b>Select</b><span class="code">custom caret · same border as text</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="align-items:stretch;padding:28px">
+          <label class="mono uc" style="font-size:9px;color:var(--accent);margin-bottom:8px;letter-spacing:0.14em">URL · LỖI</label>
+          <input type="text" value="@kenh-saigon" style="padding:11px 14px;border:1px solid var(--accent);border-radius:8px;font-size:14px;background:var(--paper);outline:none;font-family:var(--mono)" />
+          <span style="font-size:11px;color:var(--accent-deep);margin-top:6px">Link không hợp lệ — cần dạng <span class="mono">tiktok.com/@handle</span></span>
+        </div>
+        <div class="legend"><b>Error</b><span class="code">accent border + helper text</span></div>
+      </div>
+    </div>
+
+    <!-- Settings layout pattern -->
+    <div class="label-kicker"><span>Form layout · settings pattern</span><span class="name">220px label rail · field column · save row at bottom</span></div>
+    <div class="demo-card">
+      <div class="stage col" style="align-items:stretch;padding:36px">
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:32px;align-items:start;padding-bottom:24px;border-bottom:1px solid var(--rule-2)">
+          <div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px">Tên hiển thị</div>
+            <div style="font-size:12px;color:var(--ink-3);line-height:1.5">Cách bạn xuất hiện trong app — không phải tên kênh TikTok.</div>
+          </div>
+          <input value="An Đỗ" style="padding:11px 14px;border:1px solid var(--rule);border-radius:8px;font-size:14px;background:var(--paper);outline:none" />
+        </div>
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:32px;align-items:start;padding-top:24px">
+          <div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px">Múi giờ</div>
+            <div style="font-size:12px;color:var(--ink-3);line-height:1.5">Quyết định "hôm nay" trên báo cáo và lịch đăng đề xuất.</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <input value="(GMT+7) Việt Nam" style="padding:11px 14px;border:1px solid var(--rule);border-radius:8px;font-size:14px;background:var(--paper);outline:none" />
+            <div style="display:flex;gap:8px">
+              <button class="btn">Lưu thay đổi</button>
+              <button class="btn btn-ghost">Huỷ</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="legend"><b>Settings form</b><span class="code">220 rail · 32 gap · helper text under label</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11 SURFACES ============ -->
+<section class="ds-section" id="surfaces">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">11 · Surfaces · Cards</div></div>
+      <div>
+        <h2>One <em>shape</em> for content, all the way down.</h2>
+        <p class="intro" style="margin-top:24px">Every piece of content sits on a <span class="mono" style="font-size:12px">.card</span> — 18px radius, 1px rule, paper fill. Nested cards drop to 12px. Three densities cover every layout: 16, 24, or 32px padding. If a thing isn't a card, it's a line.</p>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage" style="padding:20px;background:var(--canvas-2);min-height:200px;align-items:stretch;justify-content:stretch;flex-direction:column">
+          <div class="card" style="padding:16px;height:100%;display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:8px;letter-spacing:0.12em">DENSE</div>
+              <div style="font-size:14px;font-weight:600">List row · 16 pad</div>
+            </div>
+            <div style="font-size:12px;color:var(--ink-3)">Inline data, table rows.</div>
+          </div>
+        </div>
+        <div class="legend"><b>Card · S</b><span class="code">padding 16 · radius 12</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="padding:20px;background:var(--canvas-2);min-height:200px;align-items:stretch;justify-content:stretch;flex-direction:column">
+          <div class="card" style="padding:24px;height:100%;display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:10px;letter-spacing:0.12em">STANDARD</div>
+              <div style="font-size:18px;font-weight:600;letter-spacing:-0.02em">Content card · 24 pad</div>
+            </div>
+            <div style="font-size:13px;color:var(--ink-3)">Default for everything.</div>
+          </div>
+        </div>
+        <div class="legend"><b>Card · M</b><span class="code">padding 24 · radius 18 · default</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="padding:20px;background:var(--canvas-2);min-height:200px;align-items:stretch;justify-content:stretch;flex-direction:column">
+          <div class="card" style="padding:32px;height:100%;display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:10px;letter-spacing:0.12em">HERO</div>
+              <div style="font-size:22px;font-weight:600;letter-spacing:-0.022em">Editorial · 32 pad</div>
+            </div>
+            <div style="font-size:13px;color:var(--ink-3)">For the one big card.</div>
+          </div>
+        </div>
+        <div class="legend"><b>Card · L</b><span class="code">padding 32 · radius 18 · hero only</span></div>
+      </div>
+    </div>
+
+    <!-- Composite card -->
+    <div class="label-kicker"><span>Composite · header + body + actions</span><span class="name">The shape used by 80% of feature cards</span></div>
+    <div class="demo-card" style="margin-bottom:24px">
+      <div class="stage" style="padding:28px;background:var(--canvas-2);align-items:stretch;justify-content:flex-start">
+        <div class="card" style="padding:0;width:100%;overflow:hidden">
+          <header style="padding:20px 24px;border-bottom:1px solid var(--rule-2);display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:6px;letter-spacing:0.14em">TÓM TẮT KÊNH · 7 NGÀY</div>
+              <div style="font-size:20px;font-weight:600;letter-spacing:-0.022em">@kenh.cua.ban</div>
+            </div>
+            <span class="chip mono" style="font-size:11px">↑ 4.2K mới</span>
+          </header>
+          <div style="padding:20px 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+            <div><div style="font-size:28px;font-weight:600;letter-spacing:-0.03em;font-variant-numeric:tabular-nums">128K</div><div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:4px">FOLLOWERS</div></div>
+            <div><div style="font-size:28px;font-weight:600;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:var(--accent)">+312%</div><div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:4px">GROWTH 7D</div></div>
+            <div><div style="font-size:28px;font-weight:600;letter-spacing:-0.03em;font-variant-numeric:tabular-nums">9.4<span style="font-size:16px;color:var(--ink-4)">/10</span></div><div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:4px">TREND SCORE</div></div>
+          </div>
+          <footer style="padding:14px 24px;border-top:1px solid var(--rule-2);background:var(--canvas);display:flex;justify-content:space-between;align-items:center">
+            <span class="mono uc" style="font-size:10px;color:var(--ink-4)">CẬP NHẬT 2 PHÚT TRƯỚC</span>
+            <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px">Xem chi tiết →</button>
+          </footer>
+        </div>
+      </div>
+      <div class="legend"><b>Composite card</b><span class="code">header 20/24 · body 20/24 · footer 14/24 · soft rule-2 dividers</span></div>
+    </div>
+
+    <!-- Section header (editorial) -->
+    <div class="label-kicker"><span>Section header · editorial</span><span class="name">kicker (mono uc) + title (h2) + caption + optional action</span></div>
+    <div class="demo-card">
+      <div class="stage col" style="padding:36px 28px;align-items:stretch">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:18px">
+          <div>
+            <div class="mono uc" style="font-size:10px;color:var(--ink-4);letter-spacing:0.14em;margin-bottom:8px">SUGGEST · TUẦN NÀY</div>
+            <div style="font-size:28px;font-weight:600;letter-spacing:-0.028em;line-height:1.05">5 video tiếp theo bạn nên <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--accent)">làm</em></div>
+            <div style="font-size:13px;color:var(--ink-3);line-height:1.55;margin-top:8px;max-width:520px">Tổng hợp từ pattern thắng 7 ngày qua. 3/5 ý tưởng đã có script viết sẵn — click để mở thẳng.</div>
+          </div>
+          <button class="btn btn-ghost">Mở tất cả →</button>
+        </div>
+        <hr class="rule"/>
+      </div>
+      <div class="legend"><b>SectionHeader</b><span class="code">kicker + title + caption + action (right)</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12 DATA DISPLAY ============ -->
+<section class="ds-section" id="data">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">12 · Data display</div></div>
+      <div>
+        <h2>The number is the <em>headline</em>.</h2>
+        <p class="intro" style="margin-bottom:24px;margin-top:24px">Getviews is a data product, but it's not a dashboard. We show one number bigger than the rest, then quiet supporting evidence underneath. Sparklines and bars are monochrome unless they're signalling direction (then they pick up <span class="mono">--pos</span> or <span class="mono">--neg</span>).</p>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-bottom:24px">
+      <!-- KPI -->
+      <div class="demo-card">
+        <div class="stage col" style="padding:32px 28px;align-items:flex-start">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:10px;letter-spacing:0.12em">VIEWS · 24H</div>
+          <div style="font-size:48px;font-weight:600;letter-spacing:-0.035em;line-height:0.95;font-variant-numeric:tabular-nums">4.2M</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+            <span style="font-size:13px;color:var(--pos-deep);font-weight:600">↑ +312%</span>
+            <span class="mono" style="font-size:11px;color:var(--ink-4)">vs 7d ago</span>
+          </div>
+        </div>
+        <div class="legend"><b>KPI · featured</b><span class="code">kicker + bignum + delta</span></div>
+      </div>
+      <!-- Sparkline -->
+      <div class="demo-card">
+        <div class="stage col" style="padding:32px 28px;align-items:flex-start">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:10px;letter-spacing:0.12em">7-DAY TREND</div>
+          <svg width="100%" height="60" viewBox="0 0 280 60" preserveAspectRatio="none" style="display:block;max-width:240px">
+            <polyline points="0,46 23,38 47,42 70,30 93,22 117,28 140,18 163,24 187,14 210,20 233,10 257,6 280,4" fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="280" cy="4" r="3" fill="var(--accent)"/>
+          </svg>
+          <div style="font-size:12px;color:var(--ink-3);margin-top:10px">Đỉnh hôm nay · 1.2M views</div>
+        </div>
+        <div class="legend"><b>Sparkline</b><span class="code">1.6px ink line · accent dot on tip</span></div>
+      </div>
+      <!-- Mini bars -->
+      <div class="demo-card">
+        <div class="stage col" style="padding:32px 28px;align-items:flex-start">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:14px;letter-spacing:0.12em">VIEWS PER VIDEO · 14D</div>
+          <div style="display:flex;align-items:flex-end;gap:4px;height:60px">
+            <span style="width:14px;background:var(--ink);height:30%"></span>
+            <span style="width:14px;background:var(--ink);height:42%"></span>
+            <span style="width:14px;background:var(--ink);height:38%"></span>
+            <span style="width:14px;background:var(--ink);height:55%"></span>
+            <span style="width:14px;background:var(--ink);height:48%"></span>
+            <span style="width:14px;background:var(--ink);height:72%"></span>
+            <span style="width:14px;background:var(--ink);height:66%"></span>
+            <span style="width:14px;background:var(--ink);height:85%"></span>
+            <span style="width:14px;background:var(--ink);height:78%"></span>
+            <span style="width:14px;background:var(--ink);height:92%"></span>
+            <span style="width:14px;background:var(--ink);height:88%"></span>
+            <span style="width:14px;background:var(--ink);height:100%"></span>
+            <span style="width:14px;background:var(--accent);height:96%"></span>
+          </div>
+        </div>
+        <div class="legend"><b>Bars</b><span class="code">14w bars · 4 gap · accent on highlight</span></div>
+      </div>
+    </div>
+
+    <!-- KPI row -->
+    <div class="label-kicker"><span>KPI row · 4-up</span><span class="name">First KPI is "featured" (larger), the rest are equal weight</span></div>
+    <div class="demo-card" style="margin-bottom:24px">
+      <div class="stage" style="padding:32px;background:var(--canvas-2)">
+        <div class="card" style="padding:28px 24px;width:100%;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:32px">
+          <div>
+            <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:6px;letter-spacing:0.14em">TỔNG VIEWS · 30 NGÀY</div>
+            <div style="font-size:48px;font-weight:600;letter-spacing:-0.035em;font-variant-numeric:tabular-nums;line-height:0.95">12.8M</div>
+            <div style="font-size:13px;color:var(--pos-deep);margin-top:6px;font-weight:600">↑ +312% so với 30 ngày trước</div>
+          </div>
+          <div>
+            <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:6px;letter-spacing:0.14em">VIDEOS</div>
+            <div style="font-size:28px;font-weight:600;letter-spacing:-0.025em;font-variant-numeric:tabular-nums">42</div>
+            <div style="font-size:11px;color:var(--ink-4);margin-top:4px">đăng trong 30d</div>
+          </div>
+          <div>
+            <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:6px;letter-spacing:0.14em">ENG. RATE</div>
+            <div style="font-size:28px;font-weight:600;letter-spacing:-0.025em;font-variant-numeric:tabular-nums">8.4<span style="font-size:18px;color:var(--ink-4)">%</span></div>
+            <div style="font-size:11px;color:var(--ink-4);margin-top:4px">avg / video</div>
+          </div>
+          <div>
+            <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-bottom:6px;letter-spacing:0.14em">NGÁCH RANK</div>
+            <div style="font-size:28px;font-weight:600;letter-spacing:-0.025em;font-variant-numeric:tabular-nums">#7<span style="font-size:14px;color:var(--ink-4)"> / 280</span></div>
+            <div style="font-size:11px;color:var(--ink-4);margin-top:4px">Tech · VN</div>
+          </div>
+        </div>
+      </div>
+      <div class="legend"><b>KPI row</b><span class="code">featured 1.4fr · siblings 1fr · 32 gap</span></div>
+    </div>
+
+    <!-- Table -->
+    <div class="label-kicker"><span>Data table · video list</span><span class="name">Mono for numbers · 14 row height · hover background</span></div>
+    <div class="demo-card">
+      <div class="stage" style="padding:0;align-items:stretch;justify-content:stretch;flex-direction:column">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--paper)">
+          <thead>
+            <tr style="border-bottom:1px solid var(--rule)">
+              <th style="text-align:left;padding:14px 20px;font-family:var(--mono);font-size:10px;color:var(--ink-4);text-transform:uppercase;letter-spacing:0.12em;font-weight:500">Video</th>
+              <th style="text-align:right;padding:14px 20px;font-family:var(--mono);font-size:10px;color:var(--ink-4);text-transform:uppercase;letter-spacing:0.12em;font-weight:500;width:120px">Views</th>
+              <th style="text-align:right;padding:14px 20px;font-family:var(--mono);font-size:10px;color:var(--ink-4);text-transform:uppercase;letter-spacing:0.12em;font-weight:500;width:100px">Eng.</th>
+              <th style="text-align:right;padding:14px 20px;font-family:var(--mono);font-size:10px;color:var(--ink-4);text-transform:uppercase;letter-spacing:0.12em;font-weight:500;width:120px">Δ 24h</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--rule-2)"><td style="padding:14px 20px">Mở Macbook M4 chính hãng VN — review thật</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums">4,234,182</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums">9.4%</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--pos-deep);font-weight:600">↑ +812%</td></tr>
+            <tr style="border-bottom:1px solid var(--rule-2);background:var(--canvas)"><td style="padding:14px 20px">3 thứ tôi đã mua hối tiếc — Tech edition</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums">2,128,640</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums">11.2%</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--pos-deep);font-weight:600">↑ +204%</td></tr>
+            <tr style="border-bottom:1px solid var(--rule-2)"><td style="padding:14px 20px">Setup phòng làm việc dưới 5 triệu</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums">1,402,008</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums">7.8%</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-4)">– 12%</td></tr>
+            <tr><td style="padding:14px 20px">iPhone 16e — có đáng nâng cấp?</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums">986,114</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums">5.9%</td><td style="text-align:right;padding:14px 20px;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--neg-deep);font-weight:600">↓ -38%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="legend"><b>Table</b><span class="code">14/20 cell · 1px rule-2 row · hover canvas · numbers right-align mono</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13 STATUS / FEEDBACK ============ -->
+<section class="ds-section" id="feedback">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">13 · Status · Feedback</div></div>
+      <div>
+        <h2>The product breathes — <em>lightly</em>.</h2>
+        <p class="intro" style="margin-top:24px">Live dots, spinners, and skeletons tell the user the system is alive without shouting. One pulse per surface, always the same speed (1.6s). Spinners only when work exceeds 1 second. Skeletons match the shape of what's loading — never a generic grey block.</p>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage" style="gap:18px;flex-wrap:wrap">
+          <span class="live-dot"></span>
+          <span class="live-dot" style="background:oklch(0.7 0.16 145);width:8px;height:8px"></span>
+          <span class="live-dot" style="background:oklch(0.78 0.16 75);width:10px;height:10px"></span>
+        </div>
+        <div class="legend"><b>Live dot</b><span class="code">6/8/10 size · accent/green/amber</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:18px">
+          <div style="width:28px;height:28px;border-radius:50%;border:3px solid var(--rule);border-top-color:var(--accent);animation:spin 1.2s linear infinite"></div>
+          <div style="width:18px;height:18px;border-radius:50%;border:2px solid var(--rule);border-top-color:var(--ink);animation:spin 1s linear infinite"></div>
+        </div>
+        <div class="legend"><b>Spinner</b><span class="code">28 / 18 · 3 / 2 stroke · linear 1.2s</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;align-items:stretch;gap:8px">
+          <div class="skel" style="height:14px;width:60%"></div>
+          <div class="skel" style="height:10px;width:90%"></div>
+          <div class="skel" style="height:10px;width:80%"></div>
+          <div class="skel" style="height:36px;width:100%;margin-top:6px;border-radius:8px"></div>
+        </div>
+        <div class="legend"><b>Skeleton</b><span class="code">shape matches target · shimmer 1.6s linear</span></div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;align-items:stretch;gap:14px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3)">
+            <span>Phân tích kênh</span><span class="mono">62%</span>
+          </div>
+          <div style="height:6px;background:var(--canvas-2);border-radius:999px;overflow:hidden"><div style="height:100%;width:62%;background:var(--ink);border-radius:999px;transition:width 0.3s"></div></div>
+          <div style="font-size:11px;color:var(--ink-4)">Đang quét 240 video gần nhất…</div>
+        </div>
+        <div class="legend"><b>Progress · linear</b><span class="code">6h · 999 radius · ink fill</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="gap:22px;align-items:center;justify-content:center">
+          <div style="position:relative;width:64px;height:64px">
+            <svg width="64" height="64" viewBox="0 0 64 64">
+              <circle cx="32" cy="32" r="28" fill="none" stroke="var(--rule)" stroke-width="6"/>
+              <circle cx="32" cy="32" r="28" fill="none" stroke="var(--accent)" stroke-width="6" stroke-dasharray="176" stroke-dashoffset="60" transform="rotate(-90 32 32)" stroke-linecap="round"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums">66%</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font-size:13px;font-weight:600">Lưu trữ video</div>
+            <div style="font-size:11px;color:var(--ink-4)">3.3 / 5 GB · Studio plan</div>
+          </div>
+        </div>
+        <div class="legend"><b>Progress · ring</b><span class="code">64 · 6 stroke · 28 radius</span></div>
+      </div>
+    </div>
+
+    <!-- Empty / Error / Success states -->
+    <div class="label-kicker"><span>State surfaces</span><span class="name">Empty · success · error · alert</span></div>
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage col" style="padding:36px;text-align:center;gap:14px">
+          <div style="width:48px;height:48px;border:1.5px dashed var(--rule);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--ink-4)">∅</div>
+          <div style="font-size:15px;font-weight:600">Chưa có nháp nào</div>
+          <div style="font-size:12px;color:var(--ink-3);max-width:280px;line-height:1.55">Dán link video hoặc gõ ý tưởng vào composer để bắt đầu kịch bản đầu tiên.</div>
+          <button class="btn btn-ghost" style="margin-top:6px">Mở composer →</button>
+        </div>
+        <div class="legend"><b>Empty</b><span class="code">dashed circle · ink → action</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:36px;background:var(--accent-soft);text-align:center;gap:14px">
+          <div style="width:48px;height:48px;background:var(--accent);border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600">!</div>
+          <div style="font-size:15px;font-weight:600;color:var(--accent-deep)">Không kết nối được kênh</div>
+          <div style="font-size:12px;color:var(--accent-deep);max-width:300px;line-height:1.55;opacity:0.85">Link không hợp lệ hoặc kênh đặt chế độ riêng tư. Kiểm tra lại link rồi thử lại.</div>
+          <button class="btn btn-accent" style="margin-top:6px">Thử lại</button>
+        </div>
+        <div class="legend"><b>Error</b><span class="code">accent-soft bg · accent-deep text</span></div>
+      </div>
+    </div>
+
+    <!-- Toast / Inline notice -->
+    <div class="grid-2">
+      <div class="demo-card">
+        <div class="stage">
+          <div style="background:var(--ink);color:var(--canvas);padding:12px 18px;border-radius:999px;display:flex;align-items:center;gap:10px;box-shadow:0 20px 60px -20px rgba(10,13,18,0.4);font-size:13px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="oklch(0.7 0.16 145)" stroke-width="2.5"><polyline points="4 12 9 17 20 6"/></svg>
+            Đã lưu nháp · <span class="mono" style="color:rgba(255,255,255,0.6);font-size:11px">2 giây trước</span>
+          </div>
+        </div>
+        <div class="legend"><b>Toast</b><span class="code">ink pill · float elevation · 4s auto-dismiss</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="align-items:stretch;padding:28px">
+          <div style="border:1px solid var(--rule);border-left:4px solid oklch(0.78 0.16 75);background:var(--paper);padding:14px 18px;border-radius:6px;display:flex;gap:12px">
+            <span style="color:oklch(0.78 0.16 75);font-size:16px;line-height:1;margin-top:2px">⚠</span>
+            <div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px">Gói Free đã dùng 80% quota tháng này</div>
+              <div style="font-size:12px;color:var(--ink-3)">Còn 12 phân tích miễn phí. <a href="#" style="color:var(--ink);text-decoration:underline">Nâng cấp</a> để dùng không giới hạn.</div>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Inline alert</b><span class="code">4px left border · semantic colour</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14 OVERLAYS ============ -->
+<section class="ds-section" id="overlay">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">14 · Overlays</div></div>
+      <div>
+        <h2>Modal is the <em>nuclear</em> option.</h2>
+        <p class="intro" style="margin-top:24px">Prefer inline. Prefer a drawer. Prefer a popover. Reach for a modal only when the user must decide before continuing — discard unsaved changes, confirm a destructive action, complete onboarding. Tooltips explain, never decide. Toasts announce, never block.</p>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage" style="background:rgba(10,13,18,0.5);padding:32px;min-height:280px">
+          <div class="card" style="max-width:380px;width:100%;padding:28px;box-shadow:0 30px 80px -20px rgba(0,0,0,0.4)">
+            <div style="font-family:'Instrument Serif',serif;font-style:italic;font-size:24px;letter-spacing:-0.015em;margin-bottom:8px">Bạn có nháp chưa lưu</div>
+            <p style="font-size:13px;color:var(--ink-3);line-height:1.55;margin:0 0 20px">Rời khỏi đây sẽ mất các thay đổi gần nhất. Lưu trước khi thoát?</p>
+            <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+              <button class="btn btn-ghost" style="font-size:12px">Hủy</button>
+              <button class="btn btn-ghost" style="font-size:12px;color:var(--ink-3)">Thoát không lưu</button>
+              <button class="btn" style="font-size:12px">Lưu &amp; thoát</button>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Modal · confirm</b><span class="code">scrim 0.5 · max 380w · 3-button row</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage" style="background:rgba(10,13,18,0.4);padding:0;min-height:280px;align-items:stretch;justify-content:flex-end">
+          <div style="width:320px;background:var(--paper);height:100%;display:flex;flex-direction:column;border-left:1px solid var(--rule);box-shadow:-20px 0 60px -20px rgba(0,0,0,0.3)">
+            <header style="padding:20px 24px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:18px;font-weight:600;letter-spacing:-0.02em">Các phiên gần đây</div>
+              <button class="chip">Đóng ✕</button>
+            </header>
+            <div style="padding:16px 24px;flex:1;display:flex;flex-direction:column;gap:10px">
+              <div style="padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:13px">Hook · video sữa rửa mặt</div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:13px">Phân tích kênh @beauty.linh</div>
+              <div style="padding:10px 0;font-size:13px">Script · Mở Macbook M4</div>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Drawer · right</b><span class="code">320 width · slide 320ms ease-out</span></div>
+      </div>
+    </div>
+
+    <!-- Tooltip + Popover -->
+    <div class="grid-3">
+      <div class="demo-card">
+        <div class="stage">
+          <div style="position:relative;padding-top:32px">
+            <button class="chip mono" style="font-size:11px">+312%</button>
+            <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--canvas);padding:6px 10px;border-radius:6px;font-size:11px;white-space:nowrap;box-shadow:0 8px 20px -8px rgba(0,0,0,0.3)">
+              So với 7 ngày trước
+              <span style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%) rotate(45deg);width:8px;height:8px;background:var(--ink)"></span>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Tooltip</b><span class="code">ink pill · 11px · 4px arrow</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage">
+          <div style="position:relative">
+            <button class="btn btn-ghost">Bộ lọc</button>
+            <div style="position:absolute;top:42px;left:0;background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:8px;box-shadow:0 20px 60px -20px rgba(0,0,0,0.25);min-width:180px;z-index:5">
+              <div style="padding:8px 10px;font-size:13px;border-radius:6px">Tech</div>
+              <div style="padding:8px 10px;font-size:13px;background:var(--canvas-2);border-radius:6px;display:flex;justify-content:space-between"><span>Beauty</span><span style="color:var(--accent)">✓</span></div>
+              <div style="padding:8px 10px;font-size:13px;border-radius:6px">F&amp;B</div>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Popover</b><span class="code">paper · float elevation · 8px pad</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage">
+          <div style="background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:6px;display:flex;gap:2px;box-shadow:0 4px 14px -8px rgba(0,0,0,0.2)">
+            <button class="chip" style="border:0;background:transparent;padding:6px 10px;font-size:12px">B</button>
+            <button class="chip" style="border:0;background:transparent;padding:6px 10px;font-size:12px;font-style:italic">I</button>
+            <button class="chip" style="border:0;background:var(--ink);color:var(--canvas);padding:6px 10px;font-size:12px;border-radius:4px">≡</button>
+            <button class="chip" style="border:0;background:transparent;padding:6px 10px;font-size:12px">"</button>
+            <button class="chip" style="border:0;background:transparent;padding:6px 10px;font-size:12px">⟨/⟩</button>
+          </div>
+        </div>
+        <div class="legend"><b>Floating toolbar</b><span class="code">lift elevation · 6px pad · 32h items</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 15 PATTERNS ============ -->
+<section class="ds-section" id="patterns">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">15 · Patterns</div></div>
+      <div>
+        <h2>The <em>five</em> shapes you'll meet everywhere.</h2>
+        <p class="intro" style="margin-top:24px">Components combine into a small number of repeating patterns. Each pattern is opinionated about copy, density, and what the user does next. Use them. Don't fork them.</p>
+      </div>
+    </div>
+
+    <!-- Composer -->
+    <div class="label-kicker"><span>Pattern · Composer</span><span class="name">The primary input · sits above the fold on every workflow screen</span></div>
+    <div class="demo-card" style="margin-bottom:24px">
+      <div class="stage" style="padding:36px;background:var(--canvas-2);align-items:stretch;justify-content:flex-start">
+        <div style="width:100%;background:var(--paper);border:1px solid var(--rule);border-radius:18px;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,0.02)">
+          <div style="padding:24px 28px 14px">
+            <textarea placeholder="Bạn muốn làm video về điều gì?" style="width:100%;border:0;outline:none;background:transparent;font-family:var(--sans);font-size:17px;line-height:1.4;resize:none;color:var(--ink);min-height:48px" rows="2">Mở Macbook M4 chính hãng tại VN — review thật, không sugarcoat</textarea>
+          </div>
+          <div style="padding:12px 18px 12px 22px;border-top:1px solid var(--rule-2);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="display:flex;gap:6px">
+              <button class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/></svg> Dán link video</button>
+              <button class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12C5 7 8 5 12 5C16 5 19 7 22 12C19 17 16 19 12 19C8 19 5 17 2 12Z"/></svg> Dán @handle</button>
+              <span class="chip" style="color:var(--ink-4)"><span class="mono">1,247+ video</span></span>
+            </div>
+            <button class="btn btn-accent" style="padding:9px 16px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="2"/><path d="M12 5V7"/><path d="M12 17V19"/><path d="M5 12H7"/><path d="M17 12H19"/><path d="M7 7L8.5 8.5"/><path d="M15.5 15.5L17 17"/><path d="M7 17L8.5 15.5"/><path d="M15.5 8.5L17 7"/></svg>
+              Phân tích
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="legend"><b>Composer</b><span class="code">borderless textarea · attach chips left · accent submit right</span></div>
+    </div>
+
+    <!-- Connect / empty CTA -->
+    <div class="label-kicker"><span>Pattern · Connect channel CTA</span><span class="name">Used when the user is unauthenticated to a data source</span></div>
+    <div class="demo-card" style="margin-bottom:24px">
+      <div class="stage col" style="padding:36px;align-items:stretch;background:var(--canvas-2)">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:36px 36px 28px;background:linear-gradient(135deg,var(--paper) 0%,var(--accent-soft) 100%)">
+            <div class="mono uc" style="font-size:9px;color:var(--accent-deep);letter-spacing:0.14em;margin-bottom:12px">BƯỚC 1 / 3</div>
+            <div style="font-family:var(--sans);font-weight:500;font-size:36px;line-height:1.05;letter-spacing:-0.028em;margin-bottom:14px;max-width:560px">Kết nối kênh để Getviews <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--accent)">soi gương</em> bạn.</div>
+            <p style="font-size:14px;color:var(--ink-2);line-height:1.55;max-width:520px;margin:0">Dán link kênh TikTok — phân tích chạy trong &lt; 10 giây, không cần đăng nhập, không lưu mật khẩu.</p>
+          </div>
+          <div style="padding:24px 36px;display:flex;gap:8px;align-items:center;border-top:1px solid var(--rule-2)">
+            <input value="https://tiktok.com/@" style="flex:1;padding:13px 16px;border:1px solid var(--rule);border-radius:999px;font-size:14px;font-family:var(--mono);background:var(--paper);outline:none" />
+            <button class="btn btn-accent" style="padding:13px 22px;font-size:14px">Kết nối</button>
+          </div>
+        </div>
+      </div>
+      <div class="legend"><b>Connect card</b><span class="code">gradient header (paper → accent-soft) · inline input + CTA</span></div>
+    </div>
+
+    <!-- Video tile -->
+    <div class="label-kicker"><span>Pattern · Video tile · trend feed</span><span class="name">Used in Trends, Studio "5 video bạn nên làm", Breakout grid</span></div>
+    <div class="grid-3" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage" style="padding:20px;background:var(--canvas-2);align-items:stretch;justify-content:stretch">
+          <div class="card tile" style="padding:0;overflow:hidden;width:100%;cursor:pointer">
+            <div class="ph" style="aspect-ratio:9/12;background:linear-gradient(135deg,#1A1E26 0%,#0A0D12 100%);position:relative">
+              <span style="position:absolute;top:10px;left:10px;background:rgba(255,255,255,0.95);color:var(--ink);font-size:10px;padding:3px 7px;border-radius:4px;font-family:var(--mono);font-weight:600">↑ 8.4M</span>
+              <span style="position:absolute;top:10px;right:10px;background:var(--accent);color:#fff;font-size:9px;padding:3px 6px;border-radius:3px;font-family:var(--mono);font-weight:600;letter-spacing:0.04em;text-transform:uppercase">BREAKOUT</span>
+              <span style="position:absolute;bottom:10px;right:10px;background:rgba(10,13,18,0.7);color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;font-family:var(--mono)">0:42</span>
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="rgba(255,255,255,0.85)" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            </div>
+            <div style="padding:14px 16px">
+              <div style="font-size:13px;font-weight:600;line-height:1.35;letter-spacing:-0.015em;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">3 thứ tôi đã mua hối tiếc — Tech edition</div>
+              <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--ink-4);text-transform:uppercase;letter-spacing:0.08em">
+                <span>@minh.tech · 18.04</span><span style="color:var(--pos-deep)">↑ 312%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Video tile · breakout</b><span class="code">9:12 thumb · views chip TL · stamp TR · meta foot</span></div>
+      </div>
+
+      <!-- Channel row -->
+      <div class="demo-card">
+        <div class="stage" style="padding:20px;background:var(--canvas-2);align-items:stretch;justify-content:stretch">
+          <div class="card" style="padding:18px;width:100%">
+            <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px">
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent) 0%,var(--accent-deep) 100%);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px">MT</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:600;letter-spacing:-0.015em">@minh.tech</div>
+                <div class="mono uc" style="font-size:9px;color:var(--ink-4);margin-top:2px;letter-spacing:0.1em">Tech · VN</div>
+              </div>
+              <button class="chip mono" style="font-size:10px;background:var(--ink);color:var(--canvas);border:0">FOLLOW</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding-top:12px;border-top:1px solid var(--rule-2)">
+              <div><div style="font-size:18px;font-weight:600;font-variant-numeric:tabular-nums">128K</div><div class="mono uc" style="font-size:8px;color:var(--ink-4);margin-top:2px">FANS</div></div>
+              <div><div style="font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--accent)">+8%</div><div class="mono uc" style="font-size:8px;color:var(--ink-4);margin-top:2px">7D</div></div>
+              <div><div style="font-size:18px;font-weight:600;font-variant-numeric:tabular-nums">9.4</div><div class="mono uc" style="font-size:8px;color:var(--ink-4);margin-top:2px">SCORE</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Channel card</b><span class="code">avatar + handle · 3 KPIs below rule</span></div>
+      </div>
+
+      <!-- Idea card -->
+      <div class="demo-card">
+        <div class="stage" style="padding:20px;background:var(--canvas-2);align-items:stretch;justify-content:stretch">
+          <div class="card" style="padding:18px;width:100%">
+            <div class="mono uc" style="font-size:9px;color:var(--accent-deep);margin-bottom:8px;letter-spacing:0.14em">SUGGESTION · 02</div>
+            <div style="font-size:15px;font-weight:600;line-height:1.3;letter-spacing:-0.018em;margin-bottom:10px">"3 thứ tôi không bao giờ mua nữa" — Tech edit</div>
+            <p style="font-size:12px;color:var(--ink-3);line-height:1.5;margin:0 0 14px">Format thắng 4/5 video gần nhất trong ngách. Avg view 2.1M · hook giữ chân 76%.</p>
+            <div style="display:flex;gap:6px">
+              <button class="chip mono" style="font-size:10px">SCRIPT SẴN</button>
+              <button class="chip mono" style="font-size:10px;background:var(--lime);border:0">~5 phút</button>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><b>Idea card</b><span class="code">numbered kicker · title · rationale · chips</span></div>
+      </div>
+    </div>
+
+    <!-- Suggested prompts -->
+    <div class="label-kicker"><span>Pattern · Suggested prompts</span><span class="name">Wrap below composer · click to fill</span></div>
+    <div class="demo-card">
+      <div class="stage" style="gap:8px;flex-wrap:wrap;justify-content:flex-start;padding:28px">
+        <button class="chip" style="cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M12 5V7"/><path d="M12 17V19"/><path d="M5 12H7"/><path d="M17 12H19"/></svg> Trend Tech tuần này có gì?</button>
+        <button class="chip" style="cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M12 5V7"/></svg> So sánh kênh @a vs @b</button>
+        <button class="chip" style="cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="2"/></svg> Vì sao video Macbook M4 lên 4M view?</button>
+        <button class="chip" style="cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="2"/></svg> 3 hook đang work cho ngách Beauty</button>
+      </div>
+      <div class="legend"><b>Prompt chips</b><span class="code">accent sparkle icon · click sets composer text</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16 VOICE IN UI ============ -->
+<section class="ds-section" id="voice">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">16 · Voice in UI</div></div>
+      <div>
+        <h2>Direct, <em>specific</em>, in your corner.</h2>
+        <p class="intro" style="margin-top:24px">The product talks like a sharp editor who's already watched your last ten videos. Vietnamese, second-person <span class="mono">bạn</span>, no exclamation points, no emoji. Numbers before adjectives. The system says <i>what</i> happened, <i>why</i> it matters, and <i>what to do next</i> — in that order.</p>
+      </div>
+    </div>
+
+    <div class="voice-grid" style="margin-bottom:24px">
+      <div class="voice-card yes">
+        <div class="tag"><b>DO</b> · button copy</div>
+        <div class="quote">Phân tích video này</div>
+        <div class="note">Verb + object. Tells the user exactly what happens. No "Submit" or "Go" or "Start now!".</div>
+      </div>
+      <div class="voice-card no">
+        <div class="tag"><b>DON'T</b> · vague verb</div>
+        <div class="quote">Bắt đầu →</div>
+        <div class="note">Begin what? Tomorrow's lottery? Always name the action.</div>
+      </div>
+      <div class="voice-card yes">
+        <div class="tag"><b>DO</b> · empty state</div>
+        <div class="quote">Chưa có nháp nào. Dán link để bắt đầu.</div>
+        <div class="note">Honest + actionable. One next step, not a sales pitch.</div>
+      </div>
+      <div class="voice-card no">
+        <div class="tag"><b>DON'T</b> · marketing in product</div>
+        <div class="quote">🚀 Sẵn sàng tạo nội dung viral của bạn?</div>
+        <div class="note">No emoji in product. No "viral". No exclamation. No "your content" hyperbole.</div>
+      </div>
+      <div class="voice-card yes">
+        <div class="tag"><b>DO</b> · error message</div>
+        <div class="quote">Link không hợp lệ — cần dạng tiktok.com/@handle</div>
+        <div class="note">What's wrong + the exact shape we need. The user can fix it in 4 seconds.</div>
+      </div>
+      <div class="voice-card no">
+        <div class="tag"><b>DON'T</b> · system-speak</div>
+        <div class="quote">Error 422: validation failed.</div>
+        <div class="note">Codes are for logs. The user gets a sentence they can act on.</div>
+      </div>
+    </div>
+
+    <div class="demo-card">
+      <div class="stage col" style="padding:36px;align-items:stretch;gap:18px">
+        <div class="mono uc" style="font-size:10px;color:var(--ink-4);letter-spacing:0.14em">House style · the 9 rules</div>
+        <ul style="font-size:14px;line-height:1.75;color:var(--ink-2);padding-left:22px;margin:0;column-count:2;column-gap:36px;column-rule:1px solid var(--rule-2)">
+          <li>Always Vietnamese. Always <span class="mono">bạn</span>, never <span class="mono">quý khách</span>.</li>
+          <li>Numbers before adjectives. <i>"4.2M views"</i> not <i>"a lot of views"</i>.</li>
+          <li>No exclamation points. The product is calm.</li>
+          <li>No emoji in product surfaces. Marketing only.</li>
+          <li>Buttons start with a verb. "Phân tích", "Lưu", "Kết nối".</li>
+          <li>Titles are sentence case. Only proper nouns capitalised.</li>
+          <li>Errors name the fix, not the failure.</li>
+          <li>Empty states give one action, not a list.</li>
+          <li>Time is human: "2 phút trước", not "120s ago".</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 17 RULES TO AVOID ============ -->
+<section class="ds-section" id="avoid">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">17 · Rules to avoid</div></div>
+      <div>
+        <h2>Things we will <em>not</em> do — ever.</h2>
+        <p class="intro" style="margin-top:24px">A design system isn't just a list of approved moves — it's also a list of bad habits we've named so we can stop ourselves. Every rule below traces back to a real screen where the wrong choice almost shipped. Treat these as load-bearing; the brand falls apart in the small decisions, not the big ones.</p>
+      </div>
+    </div>
+
+    <!-- ─────────── Visual identity ─────────── -->
+    <div class="dont-section-head">
+      <div class="num">A · Identity</div>
+      <h3>Don't <em>borrow</em> from the platforms we sit next to.</h3>
+    </div>
+    <div class="dont-grid">
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="width:38px;height:38px;border-radius:8px;background:#FE2C55"></span>
+            <span style="width:38px;height:38px;border-radius:8px;background:#25F4EE"></span>
+            <span class="mono uc" style="font-size:9px;color:var(--ink-4);letter-spacing:0.12em">tiktok pink + cyan</span>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">Never use TikTok or Douyin brand colors</div>
+          <div class="why">We work <i>for</i> creators on TikTok, but we don't dress like TikTok. Our magenta is hotter; our sky is cleaner. Stock platform hues read as fan-art.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="width:96px;height:96px;border-radius:22%;background:linear-gradient(135deg,#F72585 0%,#4CC9F0 50%,#D7F542 100%);display:flex;align-items:center;justify-content:center">
+            <div style="width:48px;height:48px;background:rgba(255,255,255,0.6);border-radius:50%"></div>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">No gradients on the mark, the wordmark, or any brand asset</div>
+          <div class="why">The mark is a single solid fill. Gradients turn it into a sticker. Magenta + sky belong on different elements, never blended.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:220px">
+            <button class="btn btn-accent" style="font-size:11px;padding:7px 12px">Kết nối kênh</button>
+            <button class="btn btn-accent" style="font-size:11px;padding:7px 12px">Phân tích ngay</button>
+            <button class="btn btn-accent" style="font-size:11px;padding:7px 12px">Xem trend</button>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">No more than one magenta button per screen</div>
+          <div class="why">Magenta is the <i>moment</i> of action. Three magenta buttons = three primary actions = no primary action. Ink fill for the rest.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── Type ─────────── -->
+    <div class="dont-section-head">
+      <div class="num">B · Type</div>
+      <h3>Three weights, <em>one</em> italic, sentence case.</h3>
+    </div>
+    <div class="dont-grid">
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;font-size:30px;line-height:1.1;letter-spacing:-0.02em;color:var(--ink-3);text-align:center">Track every video that mattered today</div>
+        </div>
+        <div class="caption">
+          <div class="title">Never italic across a whole headline or sentence</div>
+          <div class="why">Instrument Serif italic is for <i>one</i> emotional word. Whole-sentence italic stops being a beat and starts being a wedding invitation.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="font-family:Inter,system-ui,sans-serif;font-weight:400;font-size:24px;letter-spacing:-0.02em;text-align:center;color:var(--ink-2)">Inter · Roboto · SF Pro<br/><span style="font-size:13px;color:var(--ink-4);font-family:var(--mono)">none of these belong here</span></div>
+        </div>
+        <div class="caption">
+          <div class="title">Only three families exist</div>
+          <div class="why">Space Grotesk, Instrument Serif, JetBrains Mono. Substituting Inter or system-ui breaks the metrics our scale is tuned to.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+            <button class="btn" style="font-size:13px">Phan Tich Video Nay</button>
+            <span class="mono uc" style="font-size:9px;color:var(--ink-4);letter-spacing:0.1em">Title Case Everywhere</span>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">Never Title Case buttons or headings</div>
+          <div class="why">Sentence case. "Phân tích video này" — not "Phân Tích Video Này". Title case is American agency speak; we don't.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── Components ─────────── -->
+    <div class="dont-section-head">
+      <div class="num">C · Components</div>
+      <h3>Cards, not <em>chrome</em>.</h3>
+    </div>
+    <div class="dont-grid">
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:12px;padding:16px 18px;width:240px">
+            <div class="mono uc" style="font-size:9px;color:var(--accent-deep);letter-spacing:0.12em;margin-bottom:6px">NEW FEATURE</div>
+            <div style="font-size:13px;font-weight:600">Card with accent left-border</div>
+            <div style="font-size:11px;color:var(--ink-3);margin-top:4px">The most overused SaaS cliché of 2024.</div>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">No accent left-border + rounded card pattern</div>
+          <div class="why">It's the generic AI-SaaS slop trope. If a card needs emphasis, use header weight or a chip — not a coloured edge.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="position:relative;width:220px;height:130px;background:rgba(10,13,18,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center">
+            <div style="background:var(--paper);border-radius:8px;padding:14px 18px;font-size:11px;text-align:center;max-width:160px">
+              <div style="font-weight:600;margin-bottom:4px">Bạn có chắc không?</div>
+              <div style="font-size:10px;color:var(--ink-3)">Click to dismiss</div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">No modal for a non-blocking decision</div>
+          <div class="why">If the user can keep working without answering, it's not a modal. Use an inline notice, a toast, or a drawer.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+            <div class="card" style="padding:14px;width:200px;background:var(--paper)">
+              <div class="card" style="padding:12px;background:var(--canvas-2);margin-bottom:8px">
+                <div class="card" style="padding:8px;background:var(--paper);font-size:10px;color:var(--ink-3)">Triple-nested</div>
+              </div>
+              <div style="font-size:10px;color:var(--ink-4)">Russian dolls</div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">Never nest cards more than one level deep</div>
+          <div class="why">Card-in-card-in-card is the death of hierarchy. One nested level max (radius drops from 18 → 12). After that, switch to a divider line.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── Motion ─────────── -->
+    <div class="dont-section-head">
+      <div class="num">D · Motion</div>
+      <h3>Feedback, not <em>theatre</em>.</h3>
+    </div>
+    <div class="dont-grid">
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="position:relative;width:200px;height:50px;background:var(--canvas-2);border-radius:6px;overflow:hidden">
+            <span style="position:absolute;top:50%;left:8px;transform:translateY(-50%);width:18px;height:18px;background:var(--accent);border-radius:50%;animation:motion-travel 1.4s cubic-bezier(0.68,-0.55,0.27,1.55) infinite alternate"></span>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">No bouncy or elastic easing</div>
+          <div class="why">Springs, overshoot, wobble — not us. We use <span class="mono" style="font-size:11px">cubic-bezier(0.2, 0.8, 0.2, 1)</span> for everything that needs to feel decisive.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
+            <div style="width:100px;height:60px;background:linear-gradient(45deg,var(--accent) 0%,var(--accent-2) 50%,var(--lime) 100%);border-radius:8px;animation:motion-travel 3s linear infinite alternate"></div>
+            <span class="mono uc" style="font-size:9px;color:var(--ink-4);letter-spacing:0.1em">decorative bg motion</span>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">No ambient or decorative animation</div>
+          <div class="why">Motion explains what just happened or what's loading. Anything else is noise that competes with the data.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);text-align:center;line-height:1.7">
+            <span style="color:var(--accent)">@keyframes</span> hero-pulse {<br/>
+              0% { transform: scale(1); }<br/>
+              50% { transform: scale(1.08); }<br/>
+              100% { transform: scale(1); }<br/>
+            }<br/>
+            <span style="color:var(--ink-4)">duration: <b style="color:var(--accent)">3s</b></span>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">Never animate for longer than 400ms</div>
+          <div class="why">Above 400ms, the user is waiting for your animation. Loops (live-dot, shimmer) are the only exception — they're ambient feedback, not transitions.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── Data display ─────────── -->
+    <div class="dont-section-head">
+      <div class="num">E · Data &amp; copy</div>
+      <h3>Numbers, <em>not</em> adjectives.</h3>
+    </div>
+    <div class="dont-grid">
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="font-family:var(--sans);font-weight:600;font-size:30px;letter-spacing:-0.025em;font-variant-numeric:tabular-nums">4,237,182</div>
+        </div>
+        <div class="caption">
+          <div class="title">Never show raw view counts above 10K</div>
+          <div class="why">"4.2M" reads in 0.4 seconds. "4,237,182" reads in 1.5 and means the same thing. Format always: 1.2K, 4.2M, 312K.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="display:flex;align-items:center;gap:14px">
+            <span style="width:14px;height:14px;border-radius:50%;background:#22C55E"></span>
+            <span style="font-size:14px;font-weight:600">Up 312%</span>
+            <span style="width:14px;height:14px;border-radius:50%;background:#EF4444;margin-left:18px"></span>
+            <span style="font-size:14px;font-weight:600">Down 38%</span>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">Never signal trend with color alone</div>
+          <div class="why">↑12%/glyph + color. Color-blind readers must still parse direction. Also: green isn't "up", magenta is. We're not a stock app.</div>
+        </div>
+      </div>
+
+      <div class="dont-cell">
+        <div class="demo">
+          <span class="stamp">Don't</span>
+          <div style="text-align:center">
+            <div style="font-family:var(--sans);font-weight:600;font-size:24px;letter-spacing:-0.02em">🚀 Viều tưởng viễn!</div>
+            <div style="font-size:12px;color:var(--ink-3);margin-top:6px">“Tạo nội dung viral của bạn!!! ✨”</div>
+          </div>
+        </div>
+        <div class="caption">
+          <div class="title">No emoji, no exclamation, no "viral"</div>
+          <div class="why">The product is calm. Marketing words (viral, 10x, rocket, game-changer) stay in marketing copy. In product surfaces: never.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── Full "no" list ─────────── -->
+    <div class="dont-list">
+      <div class="head">The full "never" list · 32 rules</div>
+      <ul>
+        <li><b>Never</b> apply gradients, knockouts, or rainbows to the brand mark.</li>
+        <li><b>Never</b> rotate, skew, stretch, or distort the mark beyond its drawn proportions.</li>
+        <li><b>Never</b> use TikTok pink (#FE2C55) or Douyin red (#FF0050).</li>
+        <li><b>Never</b> use cyan as a fill larger than a chip — sky is for system voice.</li>
+        <li><b>Never</b> use lime as a body or surface fill — it's a flag, not a colour.</li>
+        <li><b>Never</b> place two magenta CTAs on the same screen.</li>
+        <li><b>Never</b> use Inter, Roboto, Arial, or system-ui in product surfaces.</li>
+        <li><b>Never</b> use Title Case on buttons or headings.</li>
+        <li><b>Never</b> use Instrument Serif italic for body, captions, or UI labels.</li>
+        <li><b>Never</b> exceed three font weights on one page.</li>
+        <li><b>Never</b> use lowercase mono for kicker labels (always uppercase, 0.12em tracking).</li>
+        <li><b>Never</b> set body text in <span class="mono" style="color:#fff">--ink-4</span> — too low contrast.</li>
+        <li><b>Never</b> invent a spacing value between scale steps. Pick the nearest <span class="mono" style="color:#fff">--space-*</span>.</li>
+        <li><b>Never</b> use a rounded card with an accent-coloured left border.</li>
+        <li><b>Never</b> nest cards more than one level deep.</li>
+        <li><b>Never</b> use a modal when a drawer, popover, or inline notice would do.</li>
+        <li><b>Never</b> use a tooltip to deliver a decision — only explanation.</li>
+        <li><b>Never</b> use icon-above-label nav on desktop (mobile bottom-nav only).</li>
+        <li><b>Never</b> use bouncy, elastic, or overshoot easing.</li>
+        <li><b>Never</b> animate any transition for longer than 400ms.</li>
+        <li><b>Never</b> loop motion without honouring <span class="mono" style="color:#fff">prefers-reduced-motion</span>.</li>
+        <li><b>Never</b> show raw view counts above 10K — format to K / M.</li>
+        <li><b>Never</b> signal trend direction with colour alone (always pair with ↑/↓ or +/−).</li>
+        <li><b>Never</b> use traffic-light green/red for trend — we use <span class="mono" style="color:#fff">--pos</span> (blue) and <span class="mono" style="color:#fff">--neg</span> (magenta).</li>
+        <li><b>Never</b> remove the focus ring — always 2px <span class="mono" style="color:#fff">var(--accent)</span> with 2px offset.</li>
+        <li><b>Never</b> use emoji in product copy (marketing surfaces only).</li>
+        <li><b>Never</b> use exclamation points in any surface.</li>
+        <li><b>Never</b> address the user as <span class="mono" style="color:#fff">quý khách</span> — always <span class="mono" style="color:#fff">bạn</span>.</li>
+        <li><b>Never</b> use marketing words in product surfaces (“viral”, “10x”, “game-changer”, “rocket”).</li>
+        <li><b>Never</b> ship a button with a vague verb ("Start", "Go", "Submit"). Name the action.</li>
+        <li><b>Never</b> show <span class="mono" style="color:#fff">Lorem ipsum</span> in any reviewable artefact — use real-feeling Vietnamese.</li>
+        <li><b>Never</b> draw photographic imagery in SVG — use a placeholder and request real assets.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 18 ACCESSIBILITY ============ -->
+<section class="ds-section" id="a11y">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">18 · Accessibility</div></div>
+      <div>
+        <h2>The system <em>has to</em> work for everyone.</h2>
+        <p class="intro" style="margin-top:24px">Every component ships with focus states, keyboard navigation, ARIA labels, and reduced-motion fallbacks. Contrast meets WCAG AA at minimum, AAA wherever the type size allows. Animation is feedback, not theatre — disable all loops when the user asks.</p>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="demo-card">
+        <div class="stage" style="gap:14px">
+          <button class="btn" style="outline:2px solid var(--accent);outline-offset:2px">Focused button</button>
+          <input value="Focused input" style="padding:11px 14px;border:2px solid var(--accent);border-radius:8px;font-size:13px;outline:none" />
+          <span class="chip" style="outline:2px solid var(--accent);outline-offset:2px">Focused chip</span>
+        </div>
+        <div class="legend"><b>Focus ring</b><span class="code">2px var(--accent) outline · 2px offset · everywhere</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;align-items:stretch;gap:12px">
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span>Black on canvas</span><span class="mono" style="color:oklch(0.7 0.16 145)">19.2 · AAA</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span>Ink-3 on canvas</span><span class="mono" style="color:oklch(0.7 0.16 145)">7.9 · AAA</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span>Magenta on canvas</span><span class="mono" style="color:oklch(0.7 0.16 145)">4.8 · AA</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span>White on magenta</span><span class="mono" style="color:oklch(0.7 0.16 145)">4.4 · AA</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span>Sky on canvas</span><span class="mono" style="color:oklch(0.78 0.16 75)">3.1 · LG only</span></div>
+        </div>
+        <div class="legend"><b>Contrast targets</b><span class="code">body ≥ 4.5 · large ≥ 3.0</span></div>
+      </div>
+    </div>
+
+    <div class="tok-wrap">
+      <table class="tok">
+        <thead><tr><th>Concern</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td class="var">Keyboard nav</td><td class="role">Every interactive element must be reachable via Tab. Order follows visual flow.</td></tr>
+          <tr><td class="var">Focus visible</td><td class="role">2px <span class="mono">var(--accent)</span> outline + 2px offset. Set in <span class="mono">:focus-visible</span>, never remove.</td></tr>
+          <tr><td class="var">Hit target</td><td class="role">Minimum 32×32 on desktop, 44×44 on touch. Tile components include invisible padding to meet this.</td></tr>
+          <tr><td class="var">Color blindness</td><td class="role">Trend direction never relies on hue alone — always pair with ↑/↓ arrow or +/- sign.</td></tr>
+          <tr><td class="var">Motion</td><td class="role">All loops (pulse, shimmer, spinner, marquee) opt out under <span class="mono">prefers-reduced-motion: reduce</span>.</td></tr>
+          <tr><td class="var">Screen reader</td><td class="role">Icons get <span class="mono">aria-label</span> when standalone. Decorative icons get <span class="mono">aria-hidden="true"</span>.</td></tr>
+          <tr><td class="var">Form errors</td><td class="role">Field with error has <span class="mono">aria-invalid="true"</span> + <span class="mono">aria-describedby</span> pointing at the helper text.</td></tr>
+          <tr><td class="var">Live regions</td><td class="role">Toasts use <span class="mono">role="status"</span>. Destructive confirmations use <span class="mono">role="alertdialog"</span>.</td></tr>
+          <tr><td class="var">Language</td><td class="role">Page sets <span class="mono">lang="vi"</span>. Mixed-language strings get inline <span class="mono">&lt;span lang="en"&gt;</span>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 19 TOKEN REFERENCE ============ -->
+<section class="ds-section" id="tokens-ref">
+  <div class="ds-shell">
+    <div class="ds-section-head">
+      <div><div class="num">19 · Token reference</div></div>
+      <div>
+        <h2>The whole <em>contract</em>, in one place.</h2>
+        <p class="intro" style="margin-top:24px">Every CSS custom property defined on <span class="mono">:root</span> in <span class="mono">styles.css</span>. Engineers can copy this block straight into a new project to get the full Getviews token system. Pair with the brand mark from <span class="mono">mark-path.js</span> and the icon set in <span class="mono">icons.jsx</span>.</p>
+      </div>
+    </div>
+
+    <pre class="code"><span class="c">/* ─── Getviews Design System · v1.0 · April 2026 ─── */</span>
+
+<span class="k">:root</span> {
+  <span class="c">/* Surface · ink · rule */</span>
+  --paper:        <span class="s">#FFFFFF</span>;
+  --canvas:       <span class="s">#FBFCFD</span>;
+  --canvas-2:     <span class="s">#F2F4F6</span>;
+  --rule-2:       <span class="s">#F0F3F6</span>;
+  --rule:         <span class="s">#E6EAEF</span>;
+  --ink-4:        <span class="s">#8A94A3</span>;
+  --ink-3:        <span class="s">#4A5260</span>;
+  --ink-2:        <span class="s">#1A1E26</span>;
+  --ink:          <span class="s">#0A0D12</span>;
+
+  <span class="c">/* Brand accents */</span>
+  --accent:       <span class="n">#F72585</span>;  <span class="c">/* magenta · one per surface */</span>
+  --accent-soft:  <span class="n">#FDD9EA</span>;
+  --accent-deep:  <span class="n">#B8175F</span>;
+  --accent-2:     <span class="n">#4CC9F0</span>;  <span class="c">/* sky · system voice + AI */</span>
+  --accent-2-soft:<span class="n">#DAF1FB</span>;
+  --accent-2-deep:<span class="n">#1A8FB8</span>;
+  --lime:         <span class="n">oklch(0.92 0.18 122)</span>;  <span class="c">/* live flag */</span>
+  --lime-deep:    <span class="n">oklch(0.70 0.20 130)</span>;
+  --azure:        <span class="n">oklch(0.70 0.18 235)</span>;
+
+  <span class="c">/* Semantic · trend direction · status */</span>
+  --pos:          <span class="s">#009FFA</span>;
+  --pos-soft:     <span class="s">#DBF0FF</span>;
+  --pos-deep:     <span class="s">#0070B8</span>;
+  --neg:          <span class="s">#F72585</span>;
+  --neg-soft:     <span class="s">#FDD9EA</span>;
+  --neg-deep:     <span class="s">#B8175F</span>;
+  --signal-green: <span class="n">oklch(0.70 0.16 145)</span>;
+  --signal-blue:  <span class="n">oklch(0.65 0.15 240)</span>;
+  --signal-amber: <span class="n">oklch(0.78 0.16 75)</span>;
+
+  <span class="c">/* Type families */</span>
+  --sans:  <span class="s">'Space Grotesk'</span>, <span class="s">'Inter'</span>, -apple-system, sans-serif;
+  --serif: <span class="s">'Instrument Serif'</span>, Georgia, serif;
+  --mono:  <span class="s">'JetBrains Mono'</span>, <span class="s">'IBM Plex Mono'</span>, ui-monospace, monospace;
+
+  <span class="c">/* Spacing · 4px base · 8 steps */</span>
+  --space-1: <span class="n">4px</span>;
+  --space-2: <span class="n">8px</span>;
+  --space-3: <span class="n">12px</span>;
+  --space-4: <span class="n">16px</span>;
+  --space-5: <span class="n">24px</span>;
+  --space-6: <span class="n">32px</span>;
+  --space-7: <span class="n">48px</span>;
+  --space-8: <span class="n">64px</span>;
+
+  <span class="c">/* Radii · 4 steps + pill */</span>
+  --radius-sm: <span class="n">6px</span>;
+  --radius-md: <span class="n">12px</span>;
+  --radius-lg: <span class="n">18px</span>;
+}
+
+<span class="c">/* Dark theme overrides — accents do NOT shift hue */</span>
+<span class="k">[data-theme="dark"]</span> {
+  --canvas:    <span class="s">#0B0B0E</span>;
+  --canvas-2:  <span class="s">#131318</span>;
+  --paper:     <span class="s">#1A1A20</span>;
+  --ink:       <span class="s">#F4F4F6</span>;
+  --ink-2:     <span class="s">#D8D8DC</span>;
+  --ink-3:     <span class="s">#9E9EA8</span>;
+  --ink-4:     <span class="s">#6A6A74</span>;
+  --rule:      <span class="s">#25252D</span>;
+  --rule-2:    <span class="s">#1F1F26</span>;
+}
+
+<span class="c">/* Compact density — for power users */</span>
+<span class="k">[data-density="compact"]</span> {
+  --space-3: <span class="n">8px</span>;
+  --space-4: <span class="n">12px</span>;
+  --space-5: <span class="n">16px</span>;
+  --space-6: <span class="n">22px</span>;
+  --space-7: <span class="n">32px</span>;
+}</pre>
+
+    <div class="grid-3" style="margin-top:32px">
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;align-items:flex-start;gap:8px">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);letter-spacing:0.14em">FILE</div>
+          <div style="font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:600">styles.css</div>
+          <div style="font-size:12px;color:var(--ink-3);line-height:1.55">Token source of truth. Import into any new HTML file with <span class="mono" style="background:var(--canvas-2);padding:1px 6px;border-radius:3px;font-size:11px">&lt;link rel="stylesheet"&gt;</span>.</div>
+        </div>
+        <div class="legend"><b>Tokens</b><span>327 lines</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;align-items:flex-start;gap:8px">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);letter-spacing:0.14em">FILE</div>
+          <div style="font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:600">icons.jsx</div>
+          <div style="font-size:12px;color:var(--ink-3);line-height:1.55">28 icons + 4 branded glyphs. <span class="mono" style="background:var(--canvas-2);padding:1px 6px;border-radius:3px;font-size:11px">&lt;Icon name="spike" size={16} /&gt;</span> renders one.</div>
+        </div>
+        <div class="legend"><b>Icons</b><span>32 glyphs</span></div>
+      </div>
+      <div class="demo-card">
+        <div class="stage col" style="padding:28px;align-items:flex-start;gap:8px">
+          <div class="mono uc" style="font-size:9px;color:var(--ink-4);letter-spacing:0.14em">FILE</div>
+          <div style="font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:600">mark-path.js</div>
+          <div style="font-size:12px;color:var(--ink-3);line-height:1.55">Canonical brand mark path. Render via <span class="mono" style="background:var(--canvas-2);padding:1px 6px;border-radius:3px;font-size:11px">&lt;Icon name="logo" /&gt;</span>. Never inline.</div>
+        </div>
+        <div class="legend"><b>Mark</b><span>1 path · currentColor</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="ds-foot">
+  <div class="ds-shell">
+    <div class="ft-grid">
+      <div>
+        <div class="row gap-3" style="margin-bottom:18px">
+          <div style="width:42px;height:42px;background:#F72585;border-radius:8px;display:flex;align-items:center;justify-content:center">
+            <svg width="28" height="28" viewBox="196.4 196.5 319.0 319.0"><path d="" id="__ft_mark" fill="#0A0D12"/></svg>
+          </div>
+          <div style="font-family:var(--sans);font-weight:600;font-size:22px;letter-spacing:-0.025em;color:#fff">Getviews</div>
+        </div>
+        <p style="max-width:380px">Design system v1.0 — the load-bearing layer underneath the creator product. Brand layer is in <a href="Branding Guideline.html" style="text-decoration:underline;color:#fff">Brand Guidelines</a>. Live product in <a href="Getviews Studio.html" style="text-decoration:underline;color:#fff">Studio</a>.</p>
+      </div>
+      <div>
+        <h4>Documents</h4>
+        <ul style="list-style:none;padding:0;margin:0">
+          <li><a href="Branding Guideline.html" style="color:rgba(255,255,255,0.85)">Brand Guidelines v1.1</a></li>
+          <li><a href="Getviews Studio.html" style="color:rgba(255,255,255,0.85)">Studio (product)</a></li>
+          <li><a href="Landing Page.html" style="color:rgba(255,255,255,0.85)">Landing page</a></li>
+          <li><a href="README.md" style="color:rgba(255,255,255,0.85)">Engineering handoff</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Tokens · code</h4>
+        <ul style="list-style:none;padding:0;margin:0">
+          <li>styles.css · 327 lines</li>
+          <li>icons.jsx · 32 glyphs</li>
+          <li>mark-path.js · canonical</li>
+          <li>shell.jsx · sidebar + topbar</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Versioning</h4>
+        <ul style="list-style:none;padding:0;margin:0">
+          <li>v1.0 · April 2026 · current</li>
+          <li>v0.4 · March 2026 · pre-launch</li>
+          <li>v0.1 · Feb 2026 · seed</li>
+        </ul>
+      </div>
+    </div>
+    <div class="copy">
+      <span>© 2026 Getviews.vn · For internal &amp; partner use</span>
+      <span>Maintained by Design &amp; Eng · Last sync: April 2026</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ────────────────────────────────────────────────────────
+  // Interactive playground · theme + density + token search
+  // ────────────────────────────────────────────────────────
+  (function () {
+    const root = document.documentElement;
+
+    // Segmented control wiring
+    function wireSegment(name, attr) {
+      const buttons = document.querySelectorAll('[data-control="' + name + '"] button');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = btn.dataset.val;
+          if (val === 'light' || val === 'default') root.removeAttribute(attr);
+          else root.setAttribute(attr, val);
+          buttons.forEach(b => b.classList.toggle('active', b === btn));
+          try { localStorage.setItem('ds-' + name, val); } catch (e) {}
+        });
+      });
+      // Restore
+      try {
+        const saved = localStorage.getItem('ds-' + name);
+        if (saved) {
+          const btn = document.querySelector('[data-control="' + name + '"] button[data-val="' + saved + '"]');
+          if (btn) btn.click();
+        }
+      } catch (e) {}
+    }
+    wireSegment('theme', 'data-theme');
+    wireSegment('density', 'data-density');
+
+    // Token search · scans token tables, code blocks, swatch metadata, legends
+    const input = document.getElementById('pg-search-input');
+    const countEl = document.getElementById('pg-search-count');
+    let lastHits = [];
+
+    function clearHits() {
+      lastHits.forEach(el => el.classList.remove('tok-hit'));
+      lastHits = [];
+    }
+
+    function updateCount(n) {
+      countEl.textContent = n + ' match' + (n === 1 ? '' : 'es');
+      countEl.classList.toggle('has-hits', n > 0);
+    }
+
+    function search(q) {
+      clearHits();
+      if (!q || q.length < 2) { updateCount(0); return; }
+      const ql = q.toLowerCase();
+      // Cells in token tables, swatch meta spans, code legends, pre blocks
+      const cells = document.querySelectorAll('.tok tbody td, .sw .meta span, .demo-card .legend .code, pre.code, .type-row .spec');
+      cells.forEach(el => {
+        if (el.textContent.toLowerCase().includes(ql)) {
+          el.classList.add('tok-hit');
+          lastHits.push(el);
+        }
+      });
+      updateCount(lastHits.length);
+      // Scroll first hit into view (but only if user isn't actively typing — skip if input has selection)
+      if (lastHits.length > 0) {
+        const first = lastHits[0];
+        const rect = first.getBoundingClientRect();
+        if (rect.top < 100 || rect.top > window.innerHeight - 100) {
+          first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
+
+    let timer;
+    input.addEventListener('input', e => {
+      clearTimeout(timer);
+      timer = setTimeout(() => search(e.target.value.trim()), 200);
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { input.value = ''; clearHits(); updateCount(0); }
+    });
+  })();
+
+  // Patch in the real brand mark path everywhere we used a placeholder id.
+  (function () {
+    var d = window.GETVIEWS_MARK_D;
+    if (!d) return;
+    ['__nav_mark', '__sb_mark', '__ft_mark'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.setAttribute('d', d);
+    });
+  })();
+</script>
+
+</body>
+</html>

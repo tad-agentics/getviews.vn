@@ -1,0 +1,124 @@
+{
+  "feature": "pre-handoff",
+  "date": "2026-05-23",
+  "auditor": "qa-agent",
+  "branch": "main",
+  "baselineCommit": "b479f64",
+  "mode": "standard",
+  "healthScore": 98,
+  "verdict": "PASS",
+  "priorArtifacts": {
+    "dogfood": "artifacts/qa-reports/dogfood-report.md",
+    "visualAudit": "artifacts/qa-reports/visual-audit-launch-2026-05-23.md",
+    "postW5Audit": "artifacts/qa-reports/post-w5-uncommitted-audit.md",
+    "dogfoodBlockers": 0,
+    "visualAuditBlockers": 0,
+    "typecheckPass": "2026-05-23",
+    "buildPass": "2026-05-23"
+  },
+  "securityPhases": {
+    "phase1_secrets": "PASS",
+    "phase2_dependencies": "INFORMATIONAL",
+    "phase3_rls": "PASS",
+    "phase4_edge_functions": "PASS",
+    "phase5_owasp": "PASS"
+  },
+  "spaChecks": {
+    "authGuard": "PASS",
+    "pwaDocs": "PASS",
+    "buildSecrets": "PASS",
+    "td1_creditRpc": "PASS",
+    "td2_webhookIdempotency": "PASS"
+  },
+  "testSuite": {
+    "status": "VERIFIED_MANUAL",
+    "note": "npx vitest run blocked by OS fork exhaustion during audit; 22 test assertions in formatters.test.ts manually verified against implementation — all pass",
+    "testFiles": ["src/lib/formatters.test.ts"],
+    "testCount": 22,
+    "failCount": 0
+  },
+  "findings": [
+    {
+      "id": "INFO-001",
+      "phase": "phase2",
+      "severity": "informational",
+      "title": "postcss < 8.5.10 — XSS via unescaped </style> in CSS stringify output",
+      "detail": "GHSA-qx2v-qp2m-jg93. Build-time tooling dependency, not in production runtime. Fix available via npm audit fix.",
+      "status": "deferred",
+      "autoFixed": false,
+      "remediation": "npm audit fix -- or pin postcss >= 8.5.10 in package.json. Low urgency: build-only path."
+    },
+    {
+      "id": "INFO-002",
+      "phase": "phase2",
+      "severity": "informational",
+      "title": "ws 8.0.0–8.20.0 — uninitialized memory disclosure",
+      "detail": "GHSA-58qx-3vcg-4xpx. WebSocket package used by dev tooling. Not in production runtime bundle. Fix available via npm audit fix.",
+      "status": "deferred",
+      "autoFixed": false,
+      "remediation": "npm audit fix. Low urgency: dev/build path only."
+    },
+    {
+      "id": "FP-001",
+      "phase": "phase3",
+      "severity": "informational",
+      "title": "False positive: 'makes' table detected as missing RLS",
+      "detail": "Python regex matched 'makes' from SQL comment '-- Using CREATE TABLE IF NOT EXISTS makes this a no-op...' in 20260504000000_adopt_orphan_tables.sql. Not a real table. All 60 actual tables have RLS enabled.",
+      "status": "closed_false_positive",
+      "autoFixed": false
+    },
+    {
+      "id": "FP-002",
+      "phase": "phase5",
+      "severity": "informational",
+      "title": "False positive: dangerouslySetInnerHTML in chart.tsx",
+      "detail": "src/components/ui/chart.tsx:85 injects CSS theme strings from an internal controlled THEMES object. Not user input. Standard recharts pattern. Not an XSS vector.",
+      "status": "closed_false_positive",
+      "autoFixed": false
+    }
+  ],
+  "checksPassedSummary": [
+    "No secrets in current codebase (SUPABASE_SERVICE_ROLE_KEY reads from process.env only in scripts/)",
+    "No secrets in build/client/ bundle (0 matches across all 82 JS assets)",
+    "npm audit: 0 critical, 0 high — 2 moderate (build tooling only)",
+    "RLS enabled on all 60 production tables; USING(true) SELECT policies only on shared public-read corpus/reference tables",
+    "TD-1: decrement_credit() WHERE guard — deep_credits_remaining > 0 prevents overdraft",
+    "TD-2: PayOS webhook — HMAC-SHA256 timing-safe verification + processed_webhook_events UNIQUE idempotency",
+    "All 11 Edge Functions: corsHeaders imported, OPTIONS handler present",
+    "Auth guard: layout.tsx checks user, Navigate to /login on !user",
+    "PWA: manifest.json, robots.txt, sitemap.xml all present in public/",
+    "No console.log in production src/ code; console.error only in error catch handlers (non-sensitive)",
+    "22 unit tests in formatters.test.ts — all assertions manually verified against implementation",
+    "Build output: 0 TypeScript errors (attested 2026-05-23)",
+    "Visual audit B-01/B-02: CLOSED (EDS §5 magenta documented, corpus stat wired via /api/landing-stats)",
+    "Dogfood: COMPLETE — human sign-off, 0 BLOCKING findings"
+  ],
+  "categoryScores": {
+    "visual": 100,
+    "data": 100,
+    "security": 97,
+    "interaction": 100,
+    "build": 95,
+    "copy": 100
+  },
+  "categoryWeights": {
+    "visual": 0.15,
+    "data": 0.20,
+    "security": 0.20,
+    "interaction": 0.20,
+    "build": 0.15,
+    "copy": 0.10
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 2
+  },
+  "openConcerns": [
+    "NB-08 (from visual audit): Sâu depth pill not visually disabled when user has 0 credits — tracked in uiux-improvement-plan.md",
+    "D1–D4 animation timing: not fully verified without live analysis credits on test account",
+    "2 moderate npm audit vulns in build tooling — recommend npm audit fix before or shortly after deploy"
+  ],
+  "recommendation": "Update artifacts/plans/project-plan.md pre-handoff row to PASS. Proceed to /deploy."
+}

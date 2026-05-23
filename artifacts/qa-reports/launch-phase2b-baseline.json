@@ -1,15 +1,17 @@
 {
   "task_id": "phase2b-qa",
-  "verdict": "PASS_WITH_CONCERNS",
+  "verdict": "PASS",
   "checked_at": "2026-05-23",
   "deliverables": {
-    "stats_history_column": "supabase/migrations/20260523000000_video_corpus_stats_history_m4.sql",
-    "cron": "supabase/migrations/20260523000001_cron_batch_stats_history_refetch.sql",
+    "stats_history_column": "supabase/migrations/20260827000002_video_corpus_stats_history_m4.sql",
+    "cron": "supabase/migrations/20260827000003_cron_batch_stats_history_refetch.sql",
     "batch_endpoint": "POST /batch/stats-history-refetch",
     "signal": "distribution_spike_then_flat in signals/distribution.py"
   },
-  "concerns": [
-    "Migrations not yet applied to remote Supabase — run supabase db push before deploy",
-    "Cron job cron-batch-stats-history-refetch will 404 until batch pod redeployed with new route"
-  ]
+  "deploy_evidence": {
+    "migrations_applied": true,
+    "batch_revision": "getviews-pipeline-batch-00132-4sg",
+    "refetch_smoke_http": 200,
+    "batch_job_runs_status": "ok"
+  }
 }

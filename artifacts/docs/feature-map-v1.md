@@ -2,8 +2,8 @@
 
 **Version:** 2.0 — **FINAL (GTM scope)**  
 **Last updated:** 2026-05-23  
-**Codebase ref:** `680c803` (Wave 5 ship; Wave 4 @ `9b97207`; Wave 3 @ `9cd0957`)  
-**Status:** W0–W5 ✅ shipped @ `680c803` (W5-3 G6 ablation metrics deferred); **Launch phase** §13B open; freeze UI Studio + Xu hướng
+**Codebase ref:** `b479f64` (Launch Phases 0–2c + infra @ 2026-05-23; Wave 5 @ `680c803`)  
+**Status:** W0–W5 ✅ · **Launch Phases 0–2c + infra ✅** @ `b479f64`; **GTM gates open** (visual-audit, dogfood, pre-handoff, Vercel deploy); freeze UI Studio + Xu hướng
 
 > **Pivot SSOT (2026-05-21+, prod defaults ON):** Class-first ingest/browse/benchmark — [`system-design.md`](system-design.md) §9. **`content_class_intelligence`** + tier/stats MVs canonical; legacy `niche_intelligence` refresh **skipped** in prod (bridge only for unmigrated percentile paths).
 
@@ -585,9 +585,9 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 #### 4.8.6 Acceptance (bổ sung §13)
 
 - [x] `analysis_depth=deep` → `manifest_for_prompt` cap **5**/section; basic cap **3** — ✅ W3-2 @ `9cd0957`  
-- [ ] ≥**8** signal backlog P0/P1 có test unit trong `cloud-run/tests/test_*_signals*.py` — **partial** (W0+P0 shipped; P1 backlog open)  
-- [ ] Signal mới có `taxonomy_ref` + `evidence[]` với số từ ctx (không bịa) — required for **new** P1 signals  
-- [ ] Deep report trung bình ≥**2** signal/section trong prompt so với basic (sample 10 video QA) — **✅** `test_analysis_depth_486_sample.py` + `launch-phase2-signal-density-486.json` @ launch
+- [x] ≥**8** signal backlog P0/P1 có test unit trong `cloud-run/tests/test_*_signals*.py` — **partial** (Launch Phase 2a/2c P1 shipped + tests; full §4.8.3 backlog not 100%)
+- [x] Signal mới có `taxonomy_ref` + `evidence[]` với số từ ctx — ✅ Launch Phase 2a/2c new signals (`test_phase2a_p1_video_signals.py`, `test_phase2c_p1_p2_video_signals.py`)
+- [x] Deep report trung bình ≥**2** signal/section trong prompt so với basic (sample 10 video QA) — ✅ `test_analysis_depth_486_sample.py` + `launch-phase2-signal-density-486.json` @ `b479f64`
 
 ### 4.9 Video Win — JTBD & quyết định kiến trúc
 
@@ -821,7 +821,7 @@ On-demand upsert: always set `analysis_depth` from request. Corpus path: write *
 | **Output** | Median views, 1 breakout gần nhất, hook dominant, link 1 video corpus | Score card v2, peers, narrative SSE, trajectory + **channel findings** V5 §2 (§5.3) |
 | **Cache** | Corpus rollup only (no full SSE) | `channel_diagnoses` **7 ngày** |
 | **Billing (§10)** | Free hoặc 1 credit (product — **Launch phase**) | **3×** `decrement_credit` — ✅ FE/BE aligned @ W0-1 |
-| **Trạng thái code** | ◐ **Trends peek** @ W5-4; full card on `/app/channel` **Launch phase** | **Shipped** — `POST /channel/diagnose` |
+| **Trạng thái code** | ✅ **Shipped** @ Launch Phase 1 — `GET /channel/quick-peek` + `ChannelNhanhPanel` on `/app/channel` | **Shipped** — `POST /channel/diagnose` |
 
 **Resolved @ W0-1:** `ChannelScreen.tsx` + BE both use `CHANNEL_DIAGNOSE_CREDIT_COST=3` (3× RPC loop in [`channel_diagnose.py`](../../cloud-run/getviews_pipeline/channel_diagnose.py)).
 
@@ -830,7 +830,7 @@ On-demand upsert: always set `analysis_depth` from request. Corpus path: write *
 | ID | Tên | Tier | Trạng thái | Evidence |
 |----|-----|------|------------|----------|
 | **F4** | Soi kênh Sâu | Deep | Shipped | `video.py` `/channel/diagnose`, `channel_diagnose.py` |
-| **F5** | Soi kênh Nhanh | Basic | ◐ **Launch phase** | Trends peek ✅ W5-4; full `/app/channel` Nhanh pending |
+| **F5** | Soi kênh Nhanh | Basic | ✅ **Shipped** | Trends peek W5-4 + full `/app/channel` Nhanh @ Launch Phase 1 (`launch-phase1-baseline.json`) |
 
 ### 5.3 V5 Phần 2 (Channel) → Soi kênh Chuyên sâu (F4)
 
@@ -883,6 +883,8 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 | **P2** | `channel_mega_sale_dip` | §2.3 cannibalization | View 7d overlap sale calendar (static ICT dates) + dip ≥40% |
 | **P2** | `channel_persona_drift` | §2.5 cross-niche drift | `content_class` đổi >1 lần trong 90d |
 | **P2** | `channel_slang_staleness` | §2.5 slang | Aggregate `persona_slang_dated` từ batch extract |
+
+**Shipped @ Launch Phase 2a/2c:** P1 `channel_compliance_aggregate`, `channel_ad_law_disclosure_gap`, `channel_boost_outlier_share`; P2 `channel_persona_drift`, `channel_slang_staleness` (+ remaining P1/P2 in `channel_findings.py`). P0 unchanged @ W4-1.
 
 **Copy (§4.7.0):** ví dụ P0 — *“3/5 video gần nhất kẹt dưới ~300 view dù hook/format không đồng đều yếu — **có dấu hiệu** trần phân phối tài khoản; nên kiểm tra Account Status trong app TikTok, GetViews không đọc được FYP %.”*
 
@@ -1250,10 +1252,10 @@ Giảm cost **ngoài** cắt V1 feature: chủ yếu **ít video ingest hơn** h
 | F1 | Phân tích video Chuyên sâu | 1 | Deep | ✅ W3 | `/app/answer` + `analysis_depth=deep` @ `9cd0957` |
 | F2 | Phân tích video Cơ bản (Win doomscroll) | 1 | Basic | ✅ W1+W3 | `/app/answer?depth=basic`; Trends: `mode=win&from=trends` (§4.10) |
 | F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel` — `POST /channel/diagnose` (3× credit) |
-| F5 | Soi kênh Nhanh | 2 | Basic | ◐ | Trends peek ✅ W5-4; ChannelScreen Nhanh **Launch phase** |
+| F5 | Soi kênh Nhanh | 2 | Basic | ✅ | `/app/channel` Nhanh + Trends peek W5-4 @ Launch Phase 1 |
 | F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · ✅ handoff W1-1 | `/app/trends` §3.2.1 + `CrossNicheBreakoutLane` |
 | F7 | Script (Answer sessions) | 4 | — | ✅ | `/app/answer` script turns; legacy `/app/script` redirect |
-| F8 | Data plane | 5 | — | ◐ | batch + claim tiers; HI-11 route ✅; **Launch:** corpus-health §8.7 |
+| F8 | Data plane | 5 | — | ✅ | batch + claim tiers; HI-11 route ✅; M4 `stats_history` @ Launch 2b |
 
 Legend: **✅ shipped** = in prod code today · **◐ partial** = surface live, spec gap remains · **🔨 V1 build** = in vision, not in code
 
@@ -1266,7 +1268,7 @@ Legend: **✅ shipped** = in prod code today · **◐ partial** = surface live, 
 | Video **Cơ bản** (primary, `depth=basic`) | **1×** | Cùng RPC; ít section → ít token |
 | Video **Chuyên sâu** (primary, `depth=deep`) | **2×** | Gọi RPC 2 lần hoặc `decrement_credit` mở rộng — product chọn |
 | Channel Sâu | **3×** (đề xuất) | Fix FE/BE mismatch |
-| Channel Nhanh | 0 hoặc 1× | Product decision |
+| Channel Nhanh | **0×** | ✅ Launch Phase 1 — D2 @ `launch-phase1-d2.json` |
 | Script generate sâu | 3× | As-built |
 | Ritual / Xu hướng browse | Free | Top-of-funnel |
 
@@ -1326,14 +1328,14 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [x] `peer_percentile` UI — `FlopDiagnosisStrip` reads payload (`VideoBody.tsx`)  
 - [x] **§8.7:** Studio tier I–III render on staging (`daily_ritual` + Morning Signal + breakout); cron nightly SLA  
 
-### 13B — Launch gate still open
+### 13B — Launch gate (infra ✅ @ `b479f64`; GTM human gates open)
 
 - [x] Mọi video card → **Cơ bản** hoặc **Chuyên sâu**; cùng V6 UI; Cơ bản ⊆ sections Chuyên sâu — ✅ W3 @ `9cd0957`
 - [x] Cache `(video_id, analysis_depth)` tách biệt; basic ⊆ deep sections; không serve nhầm depth — ✅ W3-1/W3-4 @ `9cd0957`
 - [x] Composer **4 pill** + Cơ bản/Chuyên sâu picker (§3.1.2) — ✅ W3-0 @ `9cd0957`
 - [x] §4.9–§4.12 Win: Xu hướng 1 tap → `depth=basic` + `mode=win` + `from=trends` — ✅ W1-1 (`answerHandoff.ts`)
 - [x] §4.8 W0: ≥2 signal `win_*` + test; salience `tier_gate=hit` — ✅ **5/5** Win W0 @ W1-6 + W4-3 (`signals/win.py`)
-- [x] Mọi handle → **Nhanh** hoặc **Sâu**; billing đúng spec §10 — ✅ Launch Phase 1 @ uncommitted (`ChannelDepthPicker`, D2 Nhanh 0× / Sâu 3×; `launch-phase1-baseline.json`)
+- [x] Mọi handle → **Nhanh** hoặc **Sâu**; billing đúng spec §10 — ✅ Launch Phase 1 @ `d25f94e` (`ChannelDepthPicker`, D2 Nhanh 0× / Sâu 3×; `launch-phase1-baseline.json`)
 - [x] Kho / pattern tile → Answer handoff §4.10 (không paste URL thủ công) — ✅ W1-1/W1-2
 - [x] Ritual Studio tier I → **Script Studio** ≤2 tap — ✅ W2-1a (Answer prefill)
 - [x] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier — ✅ Launch Phase 0 (`launch-phase0-corpus-health.json`; `api/chat.ts` humility sweep)
@@ -1342,18 +1344,19 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [x] **§8.7:** ≥1 URL corpus-hit → Answer Cơ bản (demo) — chứng minh synthesis path, không yêu cầu mass on-demand pre-launch — ✅ `launch-gate-demo.json` (`@lynguyn.2002/video/7622669408665652488`)
 - [x] Channel FE/BE credit aligned — ✅ W0-1 (3×)
 - [x] §4.7: reference peers `reference_eligible`; boost section chỉ Chuyên sâu; không claim ads poisoning từ heuristic alone — ✅ W4-2/W4-4 @ `9b97207`
-- [x] §4.8: deep `manifest_for_prompt` cap 5; basic cap 3 — ✅ W3-2 @ `9cd0957` (P1 signal backlog partial — only P0 subset in W4-3)
-- [x] §5.3: F4 có `channel_findings` P0; memo không claim FYP/shadowban chắc chắn — ✅ W4-1 @ `9b97207`
+- [x] §4.8: deep `manifest_for_prompt` cap 5; basic cap 3 — ✅ W3-2 @ `9cd0957`; §4.8.6 density sample ✅ `launch-phase2-signal-density-486.json`
+- [x] §4.8 P1 video signals (hook_timeline, transitions) — ✅ Launch Phase 2a/2c (`launch-phase2a-baseline.json`, `launch-phase2c-baseline.json`)
+- [x] §5.3 P1/P2 channel findings + SSE Layer B — ✅ Launch Phase 2a/2c (`channel_findings.py`)
+- [x] §4.7 M4 `stats_history` cron + batch refetch — ✅ Launch Phase 2b @ `b479f64` (migrations `20260827000002`/`000003`, Cloud Run batch `00132-4sg`)
 - [x] Composer entry + intent-router SSOT (§3.1.2) — turn 1 qua pill/handoff `?q=`
 - [x] **W5-1:** Intent CTA pill follow-up — matrix §4.10.2; thay `FollowUpComposer` free text; `source_entry=intent_cta` — ✅ @ `f3054f5`
 - [x] **W5-2:** Intent output format — `narrative_vi` / body parity per `AnswerSessionFormat` — ✅ @ `d9e4628`
 - [x] **W5-3:** `key_messages[]` trim — extraction schema — ✅ @ `65e4145` (G6 ablation metrics deferred)
 - [x] **W5-4:** F5 channel quick peek on Trends card — ✅ @ `98814cb`
 - [x] **W5-5:** GTM copy + §13B sweep — ✅ @ `680c803`
+- [ ] `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` (Vercel SPA) — **human gates** (`launch-phase3-baseline.json`)
 
 ---
-
-## 14. Open decisions (Tech Lead)
 
 | # | Câu hỏi | Options |
 |---|---------|---------|

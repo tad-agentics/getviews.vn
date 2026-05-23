@@ -28,7 +28,9 @@
 ## Post-Build
 
 - [x] Visual fidelity audit (Product Designer — staging URL vs Make code) commit: 82c4c12
-- [x] Pre-handoff code review (QA Agent — /review skill) commit: 2caeb1f
+- [x] Launch visual audit (2026-05-23 production) — B-01/B-02 closed; NB deferred → [`uiux-improvement-plan.md`](uiux-improvement-plan.md)
+- [x] Pre-handoff review (QA Agent) — PASS 98/100 @ `pre-handoff-baseline.json` (2026-05-23)
+- [ ] Production deploy (`/deploy`) — pending human ship-it promote
 
 ## Wave 3 — Output Quality
 

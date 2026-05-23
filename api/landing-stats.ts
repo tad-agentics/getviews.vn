@@ -11,7 +11,7 @@ const supabase = createClient(
 
 export default async function handler(req: Request): Promise<Response> {
   const corsHeaders = buildCorsHeaders(req);
-  const [hooksRes, thumbsRes] = await Promise.all([
+  const [hooksRes, thumbsRes, corpusRes] = await Promise.all([
     // Top 6 hook types by avg_views across all niches, no niche filter
     supabase
       .from("hook_effectiveness")
@@ -26,6 +26,12 @@ export default async function handler(req: Request): Promise<Response> {
       .select("video_id, niche_id, views")
       .order("views", { ascending: false })
       .limit(60),
+
+    // Indexed corpus rows — marketing stat + B-02 verification (never hardcode in UI)
+    supabase
+      .from("video_corpus")
+      .select("*", { count: "exact", head: true })
+      .not("content_class_id", "is", null),
   ]);
 
   // Deduplicate to one video_id per niche (max 12 niches)
@@ -45,6 +51,7 @@ export default async function handler(req: Request): Promise<Response> {
       sample_size: h.sample_size as number,
     })),
     thumb_ids: thumbs.map((t) => t.video_id),
+    corpus_indexed_count: corpusRes.count ?? null,
   };
 
   return new Response(JSON.stringify(stats), {

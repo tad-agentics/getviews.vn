@@ -1,6 +1,7 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router";
 import { r2FrameUrl } from "@/lib/r2";
+import { formatCorpusMarketingCount } from "@/lib/formatters";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown, Database, Play, Globe, Zap, Search, MessageCircle, ExternalLink, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/Input";
@@ -47,10 +48,11 @@ function MotionDivStub({
 const motion = { div: MotionDivStub };
 const AnimatePresence = ({ children }: { children: ReactNode }) => <>{children}</>;
 
-const faqs = [
+function buildFaqs(corpusLabel: string) {
+  return [
   {
     q: "Cái này khác gì ChatGPT?",
-    a: "ChatGPT không có data TikTok thực và không xem được video. Hỏi \"hook nào đang hot trong skincare\" — ChatGPT sẽ bịa một câu trả lời nghe hợp lý nhưng không dựa trên video nào thật. GetViews trả lời từ 1.500+ video thật, view thật — bạn có thể bấm vào xem để kiểm chứng ngay.",
+    a: `ChatGPT không có data TikTok thực và không xem được video. Hỏi "hook nào đang hot trong skincare" — ChatGPT sẽ bịa một câu trả lời nghe hợp lý nhưng không dựa trên video nào thật. GetViews trả lời từ ${corpusLabel} video thật, view thật — bạn có thể bấm vào xem để kiểm chứng ngay.`,
   },
   {
     q: "Tôi không rành AI, dùng có khó không?",
@@ -73,6 +75,7 @@ const faqs = [
     a: "Không. MoMo, VNPay, chuyển khoản ngân hàng hoặc thẻ Visa/Mastercard. Thanh toán xong là dùng được ngay — không cần chờ duyệt, không cần xác minh thêm.",
   },
 ];
+}
 
 const testimonials = [
   {
@@ -446,7 +449,13 @@ const HOOK_TYPE_LABELS: Record<string, string> = {
   tutorial: "Hướng dẫn nhanh",
 };
 
-function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_views: number; sample_size: number }[]; thumb_ids: string[] } }) {
+function LiveDemoSection({
+  stats,
+  corpusLabel,
+}: {
+  stats: { hooks: { hook_type: string; avg_views: number; sample_size: number }[]; thumb_ids: string[] };
+  corpusLabel: string;
+}) {
 
   return (
     <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
@@ -496,7 +505,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
               </div>
             ))}
 
-            <p className="text-xs text-[color:var(--gv-ink-3)] mt-2">Cập nhật mỗi tuần từ 1.500+ video thực</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)] mt-2">Cập nhật mỗi tuần từ {corpusLabel} video thực</p>
           </motion.div>
 
           <motion.div
@@ -529,7 +538,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
           className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[color:var(--gv-ink)]">Database 1.500+ Video Creator Việt</h3>
+            <h3 className="font-bold text-[color:var(--gv-ink)]">Database {corpusLabel} Video Creator Việt</h3>
             <Link to="/app/trends" className="text-xs text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors duration-200">Tìm đối thủ →</Link>
           </div>
 
@@ -559,18 +568,39 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
   );
 }
 
-const INFRA_FEATURES = [
-  { icon: Database,      label: "1.500+ Video Thực",      sub: "Kho dữ liệu TikTok Việt Nam, kiểm chứng được" },
-  { icon: Play,          label: "Phân Tích Video Thật",    sub: "AI xem frame thực, không đoán mò" },
-  { icon: Globe,         label: "20 Niche Việt Nam",       sub: "Làm đẹp, ẩm thực, tài chính, công nghệ..." },
-  { icon: Zap,           label: "Hook Pattern Thực Tế",    sub: "Từ video đã viral, không phải lý thuyết" },
-  { icon: Search,        label: "Tìm Đối Thủ Ngay",       sub: "Tra @handle, ra ngay chiến lược của họ" },
-  { icon: MessageCircle, label: "AI Hiểu Tiếng Việt",     sub: "Hỏi tiếng Việt, trả lời tiếng Việt" },
-  { icon: ExternalLink,  label: "Cite Có Thể Kiểm Chứng", sub: "Mọi gợi ý đều kèm video thật, bấm xem được" },
-  { icon: RefreshCw,     label: "Cập Nhật Hàng Tuần",     sub: "Data mới mỗi tuần, không dùng data cũ" },
+const INFRA_FEATURE_TEMPLATES = [
+  { icon: Database,      labelKey: "corpus" as const,      sub: "Kho dữ liệu TikTok Việt Nam, kiểm chứng được" },
+  { icon: Play,          labelKey: "analyze" as const,    sub: "AI xem frame thực, không đoán mò" },
+  { icon: Globe,         labelKey: "niche" as const,      sub: "Làm đẹp, ẩm thực, tài chính, công nghệ..." },
+  { icon: Zap,           labelKey: "hook" as const,       sub: "Từ video đã viral, không phải lý thuyết" },
+  { icon: Search,        labelKey: "rival" as const,      sub: "Tra @handle, ra ngay chiến lược của họ" },
+  { icon: MessageCircle, labelKey: "vi" as const,         sub: "Hỏi tiếng Việt, trả lời tiếng Việt" },
+  { icon: ExternalLink,  labelKey: "cite" as const,       sub: "Mọi gợi ý đều kèm video thật, bấm xem được" },
+  { icon: RefreshCw,     labelKey: "refresh" as const,    sub: "Data mới mỗi tuần, không dùng data cũ" },
 ] as const;
 
-function InfraGrid() {
+function infraFeatureLabel(key: (typeof INFRA_FEATURE_TEMPLATES)[number]["labelKey"], corpusLabel: string): string {
+  switch (key) {
+    case "corpus":
+      return `${corpusLabel} Video Thực`;
+    case "analyze":
+      return "Phân Tích Video Thật";
+    case "niche":
+      return "20 Niche Việt Nam";
+    case "hook":
+      return "Hook Pattern Thực Tế";
+    case "rival":
+      return "Tìm Đối Thủ Ngay";
+    case "vi":
+      return "AI Hiểu Tiếng Việt";
+    case "cite":
+      return "Cite Có Thể Kiểm Chứng";
+    case "refresh":
+      return "Cập Nhật Hàng Tuần";
+  }
+}
+
+function InfraGrid({ corpusLabel }: { corpusLabel: string }) {
   return (
     <section className="px-4 py-16 bg-[color:var(--gv-canvas)]">
       <div className="max-w-5xl mx-auto">
@@ -589,9 +619,11 @@ function InfraGrid() {
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {INFRA_FEATURES.map(({ icon: Icon, label, sub }) => (
+          {INFRA_FEATURE_TEMPLATES.map(({ icon: Icon, labelKey, sub }) => {
+            const label = infraFeatureLabel(labelKey, corpusLabel);
+            return (
             <motion.div
-              key={label}
+              key={labelKey}
               initial={false}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -604,7 +636,8 @@ function InfraGrid() {
                 <p className="text-xs text-[color:var(--gv-ink-3)] leading-snug">{sub}</p>
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
@@ -618,7 +651,7 @@ const SAMPLE_QUERIES = [
   "Viết brief KOL cho chiến dịch skincare",
 ];
 
-function CredibilitySection() {
+function CredibilitySection({ corpusLabel }: { corpusLabel: string }) {
   return (
     <section className="px-4 py-16 bg-[color:var(--gv-paper)]">
       <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
@@ -673,7 +706,7 @@ function CredibilitySection() {
               </div>
             </div>
             <p className="text-[10px] text-[color:var(--gv-ink-3)] text-center mt-2">
-              1.500+ video · 21 niche · Cập nhật hàng tuần
+              {corpusLabel} video · 21 niche · Cập nhật hàng tuần
             </p>
           </div>
         </div>
@@ -743,11 +776,14 @@ function HowItWorksSection() {
 interface LandingStats {
   hooks: { hook_type: string; avg_views: number; sample_size: number }[];
   thumb_ids: string[];
+  corpus_indexed_count: number | null;
 }
 
 export default function LandingPage({ stats }: { stats: LandingStats }) {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "biannual" | "annual">("annual");
   const [stickyVisible, setStickyVisible] = useState(false);
+  const corpusLabel = formatCorpusMarketingCount(stats.corpus_indexed_count);
+  const faqs = buildFaqs(corpusLabel);
 
   useEffect(() => {
     const handleScroll = () => setStickyVisible(window.scrollY > 480);
@@ -1028,11 +1064,11 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       <SolutionCardsSection />
 
       {/* ── Live Demo ───────────────────────────────────────────── */}
-      <LiveDemoSection stats={stats} />
+      <LiveDemoSection stats={stats} corpusLabel={corpusLabel} />
 
       {/* ── Infrastructure + Credibility ─────────────────────────── */}
-      <InfraGrid />
-      <CredibilitySection />
+      <InfraGrid corpusLabel={corpusLabel} />
+      <CredibilitySection corpusLabel={corpusLabel} />
 
       {/* ── Results ─────────────────────────────────────────────── */}
       <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">

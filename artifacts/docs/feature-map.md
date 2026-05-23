@@ -1,11 +1,11 @@
-# Feature Map (main @ 680c803)
+# Feature Map (main @ b479f64)
 
 *Comprehensive full-stack inventory of user-facing surfaces, backend endpoints, synthesis paths, and database tables. **Source of truth** for what ships where — update this file in the same commit as any route, endpoint, or orchestration change.*
 
 *User value / JTBD / gap analysis:* [`product-value-audit.md`](product-value-audit.md) (value → data, doc-only).  
 *V1 product vision (chỉ phạm vi ship GTM V1):* [`feature-map-v1.md`](feature-map-v1.md) — **không** liệt kê tính năng ngoài V1; xem **§ Post-V1 backlog** bên dưới.
 
-*Verified against codebase **2026-05-23** (Wave 5 @ `680c803`; Wave 4 @ `9b97207`; Wave 3 @ `9cd0957`). Spot-checked: two-axis browse; Home tier I–III; Trends Explore; `analysis_depth` whitelist + cache partition; W3-5 upsell + W5-1 IntentCtaRail; `channel_findings.py`; live `boost_attribution` (F1 deep); Win W0 signals (5 total); channel peer `reference_eligible_only` filter; W5-4 channel quick peek.*
+*Verified against codebase **2026-05-23** @ `b479f64` (Launch Phases 0–2c + infra; Wave 5 @ `680c803`). Spot-checked: Channel Nhanh/Sâu depth; `GET /channel/quick-peek`; M4 `stats_history` refetch; `channel_findings` P1/P2; video P1 signals; Cloud Run batch `00132-4sg`; cron/vault parity.*
 
 *Pivot SSOT:* Production ingest/browse defaults — [`system-design.md`](system-design.md) §9 · taxonomy tables — [`two-axis-niche-model.md`](two-axis-niche-model.md).*
 
@@ -190,16 +190,18 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
 
 ---
 
-## 5. /app/channel — Channel Deep-Dive Analysis
+## 5. /app/channel — Channel Analysis (Nhanh + Sâu)
 
-- **FE:** `src/routes/_app/channel/ChannelScreen.tsx` (`routes.ts:27`)
+- **FE:** `src/routes/_app/channel/ChannelScreen.tsx` — `ChannelDepthPicker`, `ChannelNhanhPanel` (Launch Phase 1)
 - **Entry:** `/app/channel?handle=<@handle>` (+ optional `creator_niche_id`, `force_refresh=true`, `video_url`)
+- **Depth:** **Nhanh** (0 credit, corpus-only) · **Sâu** (3× credit, live SSE)
 - **BE endpoints:**
   - GET `/channel/user-search` (`video.py:100`) — handle autocomplete
+  - GET `/channel/quick-peek` (`video.py`) — F5 Nhanh payload (corpus-only, no credits) @ Launch Phase 1
   - POST `/channel/diagnose` (`video.py:736`) — SSE narrative channel diagnosis (Lightreel-style v2)
   - POST `/channel/refresh-mine` (`video.py:143`) — refresh signed-in user's channel
 - **Cache:** `channel_diagnoses` row, **`max_age_days=7`** default (`_fetch_channel_diagnoses_cache`, `video.py:291`); `force_refresh=true` bypasses
-- **Synthesis:** `channel_diagnose.py` + `channel_diagnose_prompts.py` + **`channel_findings.py`** (Wave 4 — P0×4 deterministic findings → `<<<CHANNEL FINDINGS>>>` prompt inject); corpus-first peers + live EnsembleData hybrid
+- **Synthesis:** `channel_diagnose.py` + `channel_diagnose_prompts.py` + **`channel_findings.py`** (Wave 4 P0 + Launch P1/P2 findings → `<<<CHANNEL FINDINGS>>>` + SSE Layer B); corpus-first peers + live EnsembleData hybrid
 - **Peer filter (Wave 4):** `_run_peer_corpus_query(..., reference_eligible_only=True)` with &lt;4-handle unfiltered fallback — peers not ads-skew
 - **Credit cost:** **3** `credits_remaining` per cache-miss diagnosis — FE `ChannelScreen.tsx` `CREDIT_COST=3`; BE `channel_diagnose.CHANNEL_DIAGNOSE_CREDIT_COST=3` (pre-check balance ≥3, then 3× `decrement_credit` RPC). Cache hit free. No credit rollback on `stream_failed` (as-built).
 - **DB tables:** `channel_diagnoses`, `video_patterns`, `hook_effectiveness`, `creator_velocity`, `niche_insights`
@@ -349,7 +351,8 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 | Classification backfill | `/batch/backfill-classification` (445) | two-axis backfill | `content_classifications`, `signal_grades` | live |
 | Sound aggregate | `/batch/sound-aggregate` (481) | sounds rollup | `trending_sounds` | live |
 | Trend velocity | `/batch/trend-velocity` (518) | weekly velocity | `trend_velocity` | live |
-| R2 janitor | `/batch/r2-janitor` (568) | orphan cleanup | R2 only | live |
+| Stats history refetch (M4) | `/batch/stats-history-refetch` (568) | `stats_history_m4.py` — T+6h/T+24h ED snapshots | `video_corpus.stats_history`, `distribution_shape` | live @ Launch 2b |
+| R2 janitor | `/batch/r2-janitor` | orphan cleanup | R2 only | live |
 | Thumbnail backfill | `/batch/backfill-thumbnails` (633) | frame0 repair | `video_shots` | live |
 | Analytics | `/batch/analytics` (896) | niche rollup | `niche_insights` | live |
 | Layer0 reprocess | `/batch/layer0` (979) | failed extractions | `video_corpus` | live |

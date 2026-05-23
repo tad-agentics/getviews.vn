@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Getviews · Brand Guidelines</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="styles.css" />
+
+<style>
+  body { background: var(--canvas); color: var(--ink); }
+
+  /* ========== Page scaffold ========== */
+  .bg-shell { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+  .bg-top {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(251,252,253,0.92);
+    backdrop-filter: saturate(140%) blur(10px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .bg-top-inner {
+    max-width: 1280px; margin: 0 auto; padding: 14px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .bg-top .crumbs { font-family: var(--mono); font-size: 11px; color: var(--ink-4); text-transform: uppercase; letter-spacing: 0.12em; }
+
+  /* ========== Hero ========== */
+  .bg-hero {
+    padding: 96px 0 80px;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .bg-hero h1 {
+    font-family: var(--sans); font-weight: 600;
+    font-size: 88px; line-height: 0.92; letter-spacing: -0.045em;
+    margin: 0 0 28px;
+  }
+  .bg-hero h1 em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic; font-weight: 400;
+    color: var(--accent);
+  }
+  .bg-hero .lede {
+    font-size: 17px; line-height: 1.55; color: var(--ink-3);
+    max-width: 460px;
+  }
+  .bg-hero .meta {
+    display: flex; gap: 24px; margin-top: 36px;
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--ink-4);
+  }
+  .bg-hero .meta b { color: var(--ink); font-weight: 500; }
+
+  .hero-stage {
+    aspect-ratio: 1 / 1;
+    background: var(--ink);
+    border-radius: var(--radius-lg);
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .hero-stage::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(254,44,85,0.35), transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(37,244,238,0.25), transparent 50%);
+  }
+
+  /* ========== Section ========== */
+  .bg-section { padding: 96px 0; border-bottom: 1px solid var(--rule); }
+  .bg-section.dark { background: var(--ink); color: var(--canvas); border-color: rgba(255,255,255,0.08); }
+  .bg-section-head {
+    display: grid; grid-template-columns: 220px 1fr; gap: 48px;
+    margin-bottom: 56px; align-items: end;
+  }
+  .bg-section .num {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-4);
+  }
+  .bg-section.dark .num { color: rgba(255,255,255,0.5); }
+  .bg-section h2 {
+    font-family: var(--sans); font-weight: 500;
+    font-size: 56px; line-height: 0.98; letter-spacing: -0.035em;
+    margin: 8px 0 0;
+    max-width: 740px;
+  }
+  .bg-section h2 em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic; font-weight: 400;
+    color: var(--accent);
+  }
+  .bg-section .intro {
+    font-size: 16px; line-height: 1.6; color: var(--ink-3); max-width: 520px;
+  }
+  .bg-section.dark .intro { color: rgba(255,255,255,0.7); }
+
+  /* ========== Cards ========== */
+  .swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .swatch {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--paper);
+    display: flex; flex-direction: column;
+  }
+  .swatch .chip-area {
+    aspect-ratio: 1.1 / 1;
+    display: flex; align-items: flex-end; justify-content: flex-start;
+    padding: 16px; position: relative;
+  }
+  .swatch .chip-area .role {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .swatch .meta {
+    padding: 14px 16px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 11px; line-height: 1.6;
+    display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;
+  }
+  .swatch .meta b { color: var(--ink-4); font-weight: 400; }
+  .swatch .meta span { color: var(--ink); }
+
+  .neutrals-strip {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .neutrals-strip > div {
+    aspect-ratio: 1 / 1.2;
+    padding: 14px; display: flex; flex-direction: column; justify-content: space-between;
+    border-right: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .neutrals-strip > div:last-child { border-right: 0; }
+
+  /* ========== Logo lockups ========== */
+  .lockup-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+  .lockup {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    background: var(--paper);
+    aspect-ratio: 16/10;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .lockup.dark { background: var(--ink); border-color: var(--ink); }
+  .lockup.magenta { background: var(--accent); border-color: var(--accent); }
+  .lockup.sky { background: var(--accent-2); border-color: var(--accent-2); }
+  .lockup .tag {
+    position: absolute; top: 14px; left: 14px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-4);
+  }
+  .lockup.dark .tag, .lockup.magenta .tag, .lockup.sky .tag { color: rgba(255,255,255,0.6); }
+  .lockup.sky .tag { color: rgba(10,13,18,0.55); }
+
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  /* App icon tile */
+  .appicon {
+    aspect-ratio: 1/1; border-radius: 22%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px -10px rgba(10,13,18,0.4), inset 0 1px 0 rgba(255,255,255,0.18);
+    overflow: hidden; position: relative;
+  }
+
+  /* Type specimen */
+  .specimen {
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    padding: 32px; background: var(--paper);
+  }
+  .specimen .label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-4); margin-bottom: 18px;
+    display: flex; justify-content: space-between;
+  }
+
+  /* Do/Don't */
+  .dodont { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dodont .cell {
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    background: var(--paper); padding: 24px;
+    aspect-ratio: 16/10;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+  }
+  .dodont .cell.bad { background: repeating-linear-gradient(45deg, var(--paper) 0 16px, var(--canvas-2) 16px 17px); }
+  .dodont .cell .stamp {
+    align-self: flex-start;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .dodont .cell .stamp.do { background: var(--lime); color: var(--ink); }
+  .dodont .cell .stamp.dont { background: var(--accent); color: white; }
+  .dodont .cell .demo { flex: 1; display: flex; align-items: center; justify-content: center; }
+  .dodont .cell .label { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+
+  /* Voice samples */
+  .voice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .voice-card {
+    border: 1px solid var(--rule); border-radius: var(--radius-md);
+    background: var(--paper); padding: 28px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .voice-card.yes { border-left: 4px solid oklch(0.7 0.16 145); }
+  .voice-card.no { border-left: 4px solid var(--accent); }
+  .voice-card .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-4);
+    display: flex; gap: 8px; align-items: center;
+  }
+  .voice-card .tag b { font-weight: 500; color: var(--ink); }
+  .voice-card .quote {
+    font-size: 22px; line-height: 1.35; letter-spacing: -0.015em;
+    font-weight: 500;
+  }
+  .voice-card .note { font-size: 13px; color: var(--ink-3); line-height: 1.5; }
+
+  /* Word marks examples */
+  .wm-row {
+    display: flex; align-items: center; gap: 24px;
+    padding: 22px 28px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    background: var(--paper);
+    margin-bottom: 12px;
+  }
+  .wm-row .size-tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-4); width: 80px;
+  }
+  .wm-row .name { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-left: auto; }
+
+  /* Mark anatomy */
+  .anatomy {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    background: var(--paper);
+    padding: 56px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 56px;
+    align-items: center;
+  }
+  .anatomy .annotations {
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    color: var(--ink-3);
+  }
+  .anatomy .annotations li { list-style: none; padding-left: 0; margin-bottom: 14px; }
+  .anatomy .annotations b {
+    display: inline-block;
+    background: var(--ink); color: var(--canvas);
+    width: 22px; height: 22px; border-radius: 50%;
+    text-align: center; line-height: 22px;
+    font-family: var(--sans); font-weight: 600; font-size: 11px;
+    margin-right: 12px;
+    vertical-align: middle;
+  }
+  .anatomy .annotations span { color: var(--ink); font-weight: 500; vertical-align: middle; }
+
+  /* Footer */
+  .bg-foot {
+    padding: 72px 0 48px;
+    background: var(--ink); color: var(--canvas);
+  }
+  .bg-foot .ft-grid {
+    display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 40px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .bg-foot h4 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; font-weight: 400;
+    color: rgba(255,255,255,0.5);
+    margin: 0 0 16px;
+  }
+  .bg-foot p, .bg-foot li { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.7; margin: 0 0 6px; }
+  .bg-foot .copy {
+    margin-top: 32px; display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.5);
+    text-transform: uppercase; letter-spacing: 0.12em;
+  }
+
+  /* Responsive */
+  @media (max-width: 980px) {
+    .bg-hero { grid-template-columns: 1fr; gap: 48px; padding: 56px 0; }
+    .bg-hero h1 { font-size: 56px; }
+    .bg-section { padding: 64px 0; }
+    .bg-section h2 { font-size: 38px; }
+    .bg-section-head { grid-template-columns: 1fr; gap: 16px; margin-bottom: 36px; }
+    .swatch-grid, .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .neutrals-strip { grid-template-columns: repeat(4, 1fr); }
+    .lockup-grid, .grid-2, .dodont, .voice-grid, .anatomy { grid-template-columns: 1fr; }
+    .bg-foot .ft-grid { grid-template-columns: 1fr 1fr; }
+    .bg-shell, .bg-top-inner { padding-left: 20px; padding-right: 20px; }
+  }
+
+</style>
+</head>
+<body>
+
+
+<!-- ============ TOP BAR ============ -->
+<div class="bg-top">
+  <div class="bg-top-inner">
+    <a href="Getviews Studio.html" class="row gap-2" style="text-decoration:none">
+      <svg width="22" height="22" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+      <span class="serif" style="font-size:15px;font-weight:600;letter-spacing:-0.02em">Getviews</span>
+    </a>
+    <span class="crumbs">/ Brand Guidelines · v1.1</span>
+    <div class="grow"></div>
+    <a href="Getviews Studio.html" class="chip">← Back to Studio</a>
+    <button class="btn btn-ghost">Download assets</button>
+  </div>
+</div>
+
+<!-- ============ HERO ============ -->
+<section class="bg-shell">
+  <div class="bg-hero">
+    <div>
+      <div class="row gap-2" style="margin-bottom:24px">
+        <span class="chip chip-accent">v1.1 · April 2026</span>
+        <span class="chip">For creators, by creators</span>
+      </div>
+      <h1>Getviews <em>looks like</em> the platform creators wish existed.</h1>
+      <p class="lede">A bright, fast identity built around one obsession — turning observation into views. This guide is the source of truth for our logo, palette, type, voice, and how every surface adds up to one Getviews.</p>
+      <div class="meta">
+        <div><b>10</b> sections</div>
+        <div><b>26</b> pages</div>
+        <div><b>v1.1</b> April 2026</div>
+        <div><b>VN/EN</b> bilingual</div>
+      </div>
+    </div>
+    <div class="hero-stage">
+      <!-- Big logo mark — G + arrow + dot -->
+      <svg width="62%" viewBox="196.4 196.5 319.0 319.0"  style="position:relative;z-index:1"><path data-mark fill="currentColor"/></svg>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 01 LOGO / MARK ANATOMY ============ -->
+<section class="bg-section">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div>
+        <div class="num">01 · The Mark</div>
+      </div>
+      <div>
+        <h2>A <em>G</em> with something to say.</h2>
+        <p class="intro" style="margin-top:24px">The Getviews mark is a chunky filled G with a tail that doubles as a play arrow. The G is the platform — a window, an eye, a viewport. The tail is what comes out of it: a comment, a video posted, a view counted. Friendly geometry, single solid fill, no gradients, no outlines. The whole thing is one closed path.</p>
+      </div>
+    </div>
+
+    <div class="anatomy">
+      <div style="display:flex;align-items:center;justify-content:center;position:relative">
+        <svg width="100%" viewBox="-20 -20 240 240" style="max-width:380px">
+          <!-- Construction grid (mark drawn at 2x scale, viewBox 0 0 200 200) -->
+          <line x1="-10" y1="100" x2="210" y2="100" stroke="#E6EAEF" stroke-width="1" stroke-dasharray="2 4"/>
+          <line x1="100" y1="-10" x2="100" y2="210" stroke="#E6EAEF" stroke-width="1" stroke-dasharray="2 4"/>
+          <circle cx="100" cy="100" r="66" fill="none" stroke="#E6EAEF" stroke-width="1" stroke-dasharray="2 4"/>
+
+          <!-- The mark — G ring + L-arrow + dot, scaled 2x from viewBox 0 0 100 100 -->
+          <g transform="translate(-67.358 -67.430) scale(0.470219)"><path d="Layer_1" fill="#F72585"/></g>
+
+          <!-- Annotation pins -->
+          <!-- 1: the G ring -->
+          <circle cx="60" cy="64" r="11" fill="#0A0D12"/>
+          <text x="60" y="68" text-anchor="middle" font-family="Space Grotesk" font-size="13" font-weight="600" fill="#FBFCFD">1</text>
+
+          <!-- 2: counter (inner white space) -->
+          <circle cx="100" cy="92" r="11" fill="#0A0D12"/>
+          <text x="100" y="96" text-anchor="middle" font-family="Space Grotesk" font-size="13" font-weight="600" fill="#FBFCFD">2</text>
+
+          <!-- 3: the crossbar -->
+          <circle cx="118" cy="106" r="11" fill="#0A0D12"/>
+          <text x="118" y="110" text-anchor="middle" font-family="Space Grotesk" font-size="13" font-weight="600" fill="#FBFCFD">3</text>
+
+          <!-- 4: the bubble tail / play arrow -->
+          <circle cx="144" cy="148" r="11" fill="#0A0D12"/>
+          <text x="144" y="152" text-anchor="middle" font-family="Space Grotesk" font-size="13" font-weight="600" fill="#FBFCFD">4</text>
+        </svg>
+      </div>
+      <ul class="annotations" style="padding:0;margin:0">
+        <li><b>1</b><span>The G · solid ring</span> — a chunky filled G with rounded terminals, weighted slightly heavier on the lower-left curve so the glyph sits visually grounded. Friendly, not corporate.</li>
+        <li><b>2</b><span>The counter · the eye</span> — the inner white space is wider than a typeset G's would be; it reads as a viewport, a window into the feed. This is the room where views happen.</li>
+        <li><b>3</b><span>The crossbar · pulling inward</span> — the horizontal arm stops short of the ring's edge, leaving a gap. That tension turns a static G into something that wants to point.</li>
+        <li><b>4</b><span>The tail · play, posted</span> — the bottom-right notch reads two ways: a chat-bubble tail (the platform talks back) and a play triangle (the moment publish happens). Two reads, one shape.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 LOGO LOCKUPS ============ -->
+<section class="bg-section">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div>
+        <div class="num">02 · Lockups</div>
+      </div>
+      <div>
+        <h2>Four ways to <em>show up</em>.</h2>
+        <p class="intro" style="margin-top:24px">Use the wordmark for first introductions. Use the mark alone once context is set. Never invent a fifth lockup.</p>
+      </div>
+    </div>
+
+    <div class="lockup-grid" style="margin-bottom:16px">
+      <div class="lockup">
+        <span class="tag">Primary · Wordmark</span>
+        <div class="row gap-3">
+          <svg width="56" height="56" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          <span style="font-family:var(--sans);font-weight:600;font-size:54px;letter-spacing:-0.04em">Getviews</span>
+        </div>
+      </div>
+      <div class="lockup">
+        <span class="tag">Mark only</span>
+        <svg width="120" height="120" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+      </div>
+    </div>
+
+    <div class="lockup-grid">
+      <div class="lockup dark">
+        <span class="tag">Reverse · on Ink</span>
+        <div class="row gap-3">
+          <svg width="56" height="56" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          <span style="font-family:var(--sans);font-weight:600;font-size:54px;letter-spacing:-0.04em;color:#FBFCFD">Getviews</span>
+        </div>
+      </div>
+      <div class="lockup magenta">
+        <span class="tag">Magenta background · Ink mark</span>
+        <svg width="120" height="120" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+      </div>
+    </div>
+
+    <!-- Sizes -->
+    <div style="margin-top:48px">
+      <div class="num" style="margin-bottom:18px">Wordmark sizes — minimum 16px tall on screen, 12mm in print</div>
+      <div class="wm-row">
+        <span class="size-tag">XL · 64px</span>
+        <div class="row gap-3">
+          <svg width="56" height="56" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          <span style="font-family:var(--sans);font-weight:600;font-size:54px;letter-spacing:-0.04em">Getviews</span>
+        </div>
+        <span class="name">Hero & landing pages</span>
+      </div>
+      <div class="wm-row">
+        <span class="size-tag">L · 36px</span>
+        <div class="row gap-2">
+          <svg width="32" height="32" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          <span style="font-family:var(--sans);font-weight:600;font-size:32px;letter-spacing:-0.035em">Getviews</span>
+        </div>
+        <span class="name">Section dividers, pricing</span>
+      </div>
+      <div class="wm-row">
+        <span class="size-tag">M · 22px</span>
+        <div class="row gap-2">
+          <svg width="22" height="22" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          <span style="font-family:var(--sans);font-weight:600;font-size:20px;letter-spacing:-0.025em">Getviews</span>
+        </div>
+        <span class="name">Top nav, app bar</span>
+      </div>
+      <div class="wm-row">
+        <span class="size-tag">S · 14px</span>
+        <div class="row gap-1">
+          <svg width="16" height="16" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          <span style="font-family:var(--sans);font-weight:600;font-size:14px;letter-spacing:-0.02em;margin-left:4px">Getviews</span>
+        </div>
+        <span class="name">Footers, fine print</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 CLEARSPACE / DON'TS ============ -->
+<section class="bg-section">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div><div class="num">03 · Rules</div></div>
+      <div>
+        <h2>Don't <em>squeeze</em> the loop.</h2>
+        <p class="intro" style="margin-top:24px">The mark needs space to breathe. The G stays solid. The tail stays where it lands — bottom-right, at the play angle. Single fill, never split into two colors. We're playful, not chaotic.</p>
+      </div>
+    </div>
+
+    <!-- Clearspace explainer -->
+    <div class="card" style="padding:48px;margin-bottom:24px">
+      <div class="num" style="margin-bottom:24px">Clearspace = X, where X is the height of the tail notch</div>
+      <div style="display:flex;align-items:center;justify-content:center;padding:48px 0;position:relative">
+        <svg width="320" viewBox="-80 -80 260 260">
+          <!-- Clearspace box -->
+          <rect x="-50" y="-50" width="200" height="200" fill="none" stroke="#F72585" stroke-width="1" stroke-dasharray="4 4"/>
+          <!-- Mark -->
+          <g transform="translate(-106.201 -106.268) scale(0.438871)"><path d="Layer_1" fill="#F72585"/></g>
+          <!-- X labels -->
+          <text x="-25" y="-58" font-family="JetBrains Mono" font-size="11" fill="#F72585">X</text>
+          <text x="125" y="-58" font-family="JetBrains Mono" font-size="11" fill="#F72585">X</text>
+          <text x="-25" y="170" font-family="JetBrains Mono" font-size="11" fill="#F72585">X</text>
+          <text x="125" y="170" font-family="JetBrains Mono" font-size="11" fill="#F72585">X</text>
+          <!-- tail-notch indicator (bubble tail extends ~498→486 in 704 coords; scaled by 0.142 → bottom of mark sits around y=69; we drop a small bracket near it) -->
+          <line x1="65" y1="55" x2="50" y2="55" stroke="#F72585" stroke-width="1"/>
+          <line x1="65" y1="69" x2="50" y2="69" stroke="#F72585" stroke-width="1"/>
+          <line x1="50" y1="55" x2="50" y2="69" stroke="#F72585" stroke-width="1"/>
+          <text x="36" y="65" font-family="JetBrains Mono" font-size="11" fill="#F72585">X</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="dodont">
+      <div class="cell">
+        <span class="stamp do">Do</span>
+        <div class="demo">
+          <svg width="120" height="120" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+        </div>
+        <span class="label">Use the mark as drawn — magenta triangle, ink ring, white knockout.</span>
+      </div>
+      <div class="cell bad">
+        <span class="stamp dont">Don't</span>
+        <div class="demo">
+          <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
+            <defs>
+              <linearGradient id="bad1" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#F72585"/>
+                <stop offset="0.5" stop-color="#FFD600"/>
+                <stop offset="1" stop-color="#4CC9F0"/>
+              </linearGradient>
+            </defs>
+            <g transform="translate(-39.258 -39.296) scale(0.250784)"><path d="Layer_1" fill="url(#bad1)"/></g>
+          </svg>
+        </div>
+        <span class="label">Never apply gradients, rainbows, or "fun" color treatments to the mark.</span>
+      </div>
+
+      <div class="cell">
+        <span class="stamp do">Do</span>
+        <div class="demo">
+          <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
+            <rect width="100" height="100" rx="22" fill="#F72585"/>
+            <g transform="translate(-39.258 -39.296) scale(0.250784)"><path d="Layer_1" fill="#FBFCFD"/></g>
+          </svg>
+        </div>
+        <span class="label">On Magenta, switch the whole mark to canvas white. Same drawing, inverted ink.</span>
+      </div>
+      <div class="cell bad">
+        <span class="stamp dont">Don't</span>
+        <div class="demo">
+          <svg width="160" height="120" viewBox="0 0 100 75" fill="none" preserveAspectRatio="xMidYMid meet">
+            <g transform="translate(50,38) rotate(15) translate(-50,-38)">
+              <g transform="translate(-39.258 -39.296) scale(0.250784)"><path d="Layer_1" fill="#F72585"/></g>
+            </g>
+          </svg>
+        </div>
+        <span class="label">Never rotate, skew, stretch, or distort the proportions of the mark.</span>
+      </div>
+
+      <div class="cell">
+        <span class="stamp do">Do</span>
+        <div class="demo" style="background:#0A0D12;border-radius:12px;width:100%;align-self:stretch">
+          <svg width="100" height="100" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+        </div>
+        <span class="label">On dark surfaces, switch the ring + knockout to canvas white.</span>
+      </div>
+      <div class="cell bad">
+        <span class="stamp dont">Don't</span>
+        <div class="demo" style="background:repeating-linear-gradient(45deg,#888 0 8px,#bbb 8px 16px);border-radius:12px;width:100%;align-self:stretch">
+          <svg width="100" height="100" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+        </div>
+        <span class="label">Never place the mark on busy textures, photos, or low-contrast backgrounds.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 PALETTE ============ -->
+<section class="bg-section">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div><div class="num">04 · Palette</div></div>
+      <div>
+        <h2>Two accents <em>&</em> a quiet room.</h2>
+        <p class="intro" style="margin-top:24px">Magenta does the work. Sky answers. Everything else is air. The palette is deliberately our own — not borrowed from any platform we sit next to. We work <em>for</em> creators on TikTok, but we don't dress like TikTok.</p>
+      </div>
+    </div>
+
+    <!-- Brand colors -->
+    <div class="num" style="margin-bottom:14px">Brand colors</div>
+    <div class="swatch-grid" style="margin-bottom:32px">
+      <div class="swatch">
+        <div class="chip-area" style="background:#F72585"><span class="role" style="color:white">Primary</span></div>
+        <div class="meta">
+          <b>Name</b><span>Getviews Magenta</span>
+          <b>HEX</b><span>#F72585</span>
+          <b>RGB</b><span>247 · 37 · 133</span>
+          <b>Token</b><span>--accent</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="chip-area" style="background:#4CC9F0"><span class="role" style="color:#0A0D12">Secondary</span></div>
+        <div class="meta">
+          <b>Name</b><span>Getviews Sky</span>
+          <b>HEX</b><span>#4CC9F0</span>
+          <b>RGB</b><span>76 · 201 · 240</span>
+          <b>Token</b><span>--accent-2</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="chip-area" style="background:oklch(0.92 0.18 122)"><span class="role" style="color:#0A0D12">Tertiary</span></div>
+        <div class="meta">
+          <b>Name</b><span>Electric Lime</span>
+          <b>HEX</b><span>#D7F542</span>
+          <b>RGB</b><span>215 · 245 · 66</span>
+          <b>Token</b><span>--lime</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="chip-area" style="background:#0A0D12"><span class="role" style="color:#FBFCFD">Anchor</span></div>
+        <div class="meta">
+          <b>Name</b><span>Getviews Ink</span>
+          <b>HEX</b><span>#0A0D12</span>
+          <b>RGB</b><span>10 · 13 · 18</span>
+          <b>Token</b><span>--ink</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Origin — why these hues -->
+    <div class="card" style="margin-bottom:32px;padding:32px;background:#FBFCFD">
+      <div class="num" style="margin-bottom:18px">Origin · why these two hues</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+        <div>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">
+            <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#F72585"></span>
+            <h4 style="font-family:var(--sans);font-size:18px;font-weight:600;letter-spacing:-0.02em;margin:0">Magenta — the moment of action</h4>
+          </div>
+          <p style="font-size:13px;line-height:1.6;color:var(--ink-2);margin:0 0 10px 0">Hotter, deeper, more saturated than the platform pinks creators see all day. Magenta sits closer to fuchsia than coral — it reads as an editor's mark, not a feed's reaction emoji. We use it once per screen: the live dot, the call-to-action, the one number that matters.</p>
+          <p class="mono" style="font-size:11px;color:var(--ink-3);margin:0;line-height:1.6">HSL 327° · 93% · 56%. Tested at 60% scale on white, ink, and dark canvas — holds at every size.</p>
+        </div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">
+            <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#4CC9F0"></span>
+            <h4 style="font-family:var(--sans);font-size:18px;font-weight:600;letter-spacing:-0.02em;margin:0">Sky — the voice of the system</h4>
+          </div>
+          <p style="font-size:13px;line-height:1.6;color:var(--ink-2);margin:0 0 10px 0">A clean, daytime cyan. We use it for AI output, system feedback, and live data — places where the product itself is talking, not the user. Reading-friendly at small sizes, optimistic without being saccharine.</p>
+          <p class="mono" style="font-size:11px;color:var(--ink-3);margin:0;line-height:1.6">HSL 196° · 84% · 62%. Reserved for sky chips, AI badges, sparklines, and the "Beta" app icon.</p>
+        </div>
+      </div>
+      <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--rule);display:flex;gap:24px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="mono" style="font-size:10px;color:var(--ink-4);letter-spacing:0.12em;text-transform:uppercase">Not this</span>
+          <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:#FE2C55;border:1px solid var(--rule)"></span>
+          <span class="mono" style="font-size:11px;color:var(--ink-3)">#FE2C55 — TikTok pink-red</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="mono" style="font-size:10px;color:var(--ink-4);letter-spacing:0.12em;text-transform:uppercase">Not this</span>
+          <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:#25F4EE;border:1px solid var(--rule)"></span>
+          <span class="mono" style="font-size:11px;color:var(--ink-3)">#25F4EE — TikTok cyan</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="mono" style="font-size:10px;color:var(--ink-4);letter-spacing:0.12em;text-transform:uppercase">Not this</span>
+          <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:#FF0050;border:1px solid var(--rule)"></span>
+          <span class="mono" style="font-size:11px;color:var(--ink-3)">#FF0050 — Douyin red</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Neutrals scale -->
+    <div class="num" style="margin-bottom:14px">Neutrals — paper to ink</div>
+    <div class="neutrals-strip" style="margin-bottom:32px">
+      <div style="background:#FFFFFF"><span style="color:#8A94A3">Paper</span><span style="color:#0A0D12">#FFFFFF</span></div>
+      <div style="background:#FBFCFD"><span style="color:#8A94A3">Canvas</span><span style="color:#0A0D12">#FBFCFD</span></div>
+      <div style="background:#F2F4F6"><span style="color:#8A94A3">Canvas-2</span><span style="color:#0A0D12">#F2F4F6</span></div>
+      <div style="background:#E6EAEF"><span style="color:#4A5260">Rule</span><span style="color:#0A0D12">#E6EAEF</span></div>
+      <div style="background:#8A94A3"><span style="color:#FBFCFD">Ink-4</span><span style="color:#FBFCFD">#8A94A3</span></div>
+      <div style="background:#4A5260"><span style="color:#FBFCFD">Ink-3</span><span style="color:#FBFCFD">#4A5260</span></div>
+      <div style="background:#0A0D12"><span style="color:#8A94A3">Ink</span><span style="color:#FBFCFD">#0A0D12</span></div>
+    </div>
+
+    <!-- Semantic -->
+    <div class="num" style="margin-bottom:14px">Semantic & data</div>
+    <div class="swatch-grid">
+      <div class="swatch">
+        <div class="chip-area" style="background:#009FFA"><span class="role" style="color:white">Trend up</span></div>
+        <div class="meta">
+          <b>Token</b><span>--pos</span>
+          <b>HEX</b><span>#009FFA</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="chip-area" style="background:#F72585"><span class="role" style="color:white">Trend down</span></div>
+        <div class="meta">
+          <b>Token</b><span>--neg</span>
+          <b>HEX</b><span>#F72585</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="chip-area" style="background:oklch(0.78 0.16 75)"><span class="role" style="color:#0A0D12">Caution</span></div>
+        <div class="meta">
+          <b>Token</b><span>--signal-amber</span>
+          <b>HEX</b><span>#E6A93F</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="chip-area" style="background:oklch(0.7 0.16 145)"><span class="role" style="color:white">Live · OK</span></div>
+        <div class="meta">
+          <b>Token</b><span>--signal-green</span>
+          <b>HEX</b><span>#3DAF6E</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Usage ratio -->
+    <div class="card" style="margin-top:32px;padding:28px">
+      <div class="num" style="margin-bottom:18px">Color budget — keep it tight</div>
+      <div style="display:flex;height:48px;border-radius:8px;overflow:hidden;border:1px solid var(--rule)">
+        <div style="flex:60;background:#FBFCFD;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#4A5260">60% Canvas</div>
+        <div style="flex:25;background:#0A0D12;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#FBFCFD">25% Ink</div>
+        <div style="flex:10;background:#F72585;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:white">10% Magenta</div>
+        <div style="flex:5;background:#4CC9F0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#0A0D12">5% Sky</div>
+      </div>
+      <p class="mono" style="font-size:11px;color:var(--ink-3);margin-top:14px;line-height:1.6">Use Magenta for a single, deliberate moment per screen — a CTA, a live indicator, a key number. Sky is reserved for system feedback, AI, and live data. Lime is a flag, not a fill.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 05 TYPOGRAPHY ============ -->
+<section class="bg-section">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div><div class="num">05 · Typography</div></div>
+      <div>
+        <h2>Two voices, <em>spoken</em> at the right volume.</h2>
+        <p class="intro" style="margin-top:24px">Space Grotesk does the day job — UI, headlines, numbers, captions. Instrument Serif italic punches in for emotional moments and editorial breaks. JetBrains Mono handles metadata and tags.</p>
+      </div>
+    </div>
+
+    <!-- Display specimen -->
+    <div class="specimen" style="margin-bottom:16px">
+      <div class="label"><span>Display · Space Grotesk 600</span><span>72/68 · -0.045em</span></div>
+      <div style="font-family:var(--sans);font-weight:600;font-size:96px;line-height:0.92;letter-spacing:-0.045em">
+        Get views, <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--accent)">faster.</em>
+      </div>
+    </div>
+
+    <!-- H1 / H2 / H3 -->
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="specimen">
+        <div class="label"><span>H1 · 48</span><span>SG 500</span></div>
+        <div style="font-family:var(--sans);font-weight:500;font-size:48px;line-height:1.02;letter-spacing:-0.035em">Trends, channels, scripts — together.</div>
+      </div>
+      <div class="specimen">
+        <div class="label"><span>H2 · 32</span><span>SG 500</span></div>
+        <div style="font-family:var(--sans);font-weight:500;font-size:32px;line-height:1.1;letter-spacing:-0.025em">Track every video that mattered today.</div>
+      </div>
+      <div class="specimen">
+        <div class="label"><span>H3 · 22</span><span>SG 600</span></div>
+        <div style="font-family:var(--sans);font-weight:600;font-size:22px;line-height:1.2;letter-spacing:-0.018em">Top performing channel</div>
+      </div>
+    </div>
+
+    <!-- Body / Mono -->
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="specimen">
+        <div class="label"><span>Body · 14/22</span><span>SG 400</span></div>
+        <div style="font-size:14px;line-height:1.55;color:var(--ink-2)">Getviews helps Vietnamese creators turn observation into action. We track what's spiking on TikTok and YouTube, decode why, and hand you a script you can shoot tonight. No fluff, no bro-marketer hype — just signal.</div>
+      </div>
+      <div class="specimen">
+        <div class="label"><span>Mono · 11/16</span><span>JetBrains 400</span></div>
+        <div style="font-family:var(--mono);font-size:11px;line-height:1.7;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-3)">
+          VID-08291 · 4.2M views · 24h<br/>
+          GROWTH +312% · TRENDING · VN<br/>
+          #DUET · #BEAUTY · #GENZ
+        </div>
+      </div>
+    </div>
+
+    <!-- Numbers -->
+    <div class="specimen">
+      <div class="label"><span>Big numbers · Space Grotesk 600 tabular</span><span>Used for stats, KPIs, hero metrics</span></div>
+      <div class="row gap-6" style="flex-wrap:wrap">
+        <div>
+          <div style="font-family:var(--sans);font-weight:600;font-size:64px;line-height:0.95;letter-spacing:-0.04em;font-variant-numeric:tabular-nums">4.2M</div>
+          <div class="mono" style="font-size:10px;text-transform:uppercase;letter-spacing:0.14em;color:var(--ink-4);margin-top:6px">views · 24h</div>
+        </div>
+        <div>
+          <div style="font-family:var(--sans);font-weight:600;font-size:64px;line-height:0.95;letter-spacing:-0.04em;font-variant-numeric:tabular-nums;color:var(--accent)">+312<span style="font-size:36px">%</span></div>
+          <div class="mono" style="font-size:10px;text-transform:uppercase;letter-spacing:0.14em;color:var(--ink-4);margin-top:6px">growth · 7d</div>
+        </div>
+        <div>
+          <div style="font-family:var(--sans);font-weight:600;font-size:64px;line-height:0.95;letter-spacing:-0.04em;font-variant-numeric:tabular-nums">128K</div>
+          <div class="mono" style="font-size:10px;text-transform:uppercase;letter-spacing:0.14em;color:var(--ink-4);margin-top:6px">creators · all-time</div>
+        </div>
+        <div>
+          <div style="font-family:var(--sans);font-weight:600;font-size:64px;line-height:0.95;letter-spacing:-0.04em;font-variant-numeric:tabular-nums">9.4<span style="font-size:36px;color:var(--ink-4)">/10</span></div>
+          <div class="mono" style="font-size:10px;text-transform:uppercase;letter-spacing:0.14em;color:var(--ink-4);margin-top:6px">trend score</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Type pairing rules -->
+    <div class="card" style="padding:28px;margin-top:24px">
+      <div class="num" style="margin-bottom:16px">Pairing rules</div>
+      <ul style="font-size:14px;line-height:1.7;color:var(--ink-2);padding-left:20px;margin:0">
+        <li>Use Instrument Serif italic <b>once per surface</b> — for one emotional word inside a headline. Never for body. Never for UI.</li>
+        <li>Mono is for metadata, IDs, tags, kicker labels. Always uppercase. Always 0.12em tracking.</li>
+        <li>Never use more than 3 weights per page (e.g. 400 · 500 · 600).</li>
+        <li>Numbers always use <span class="mono" style="font-size:12px">font-variant-numeric: tabular-nums</span> in tables and big stats.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 06 ICONOGRAPHY ============ -->
+<section class="bg-section">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div><div class="num">06 · Iconography</div></div>
+      <div>
+        <h2>Drafted, <em>not stamped</em>.</h2>
+        <p class="intro" style="margin-top:24px">Every Getviews icon is a tiny diagram of motion — a spike, a window, a hook, a loop. 1.6px stroke, 24px viewport, square caps, miter joins, pure monochrome. Color is the design system's job, never the icon's.</p>
+      </div>
+    </div>
+
+    <!-- Branded glyphs row — Getviews-only icons that carry the product DNA -->
+    <div class="card" style="padding:32px;margin-bottom:16px;background:linear-gradient(180deg,var(--paper) 0%,var(--canvas) 100%)">
+      <div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:24px">
+        <div>
+          <div class="num">Branded glyphs</div>
+          <p style="font-size:13px;color:var(--ink-3);margin:6px 0 0;max-width:520px;line-height:1.55">Four icons unique to Getviews. Each is a small diagram of the core promise: <b style="color:var(--ink);font-weight:500">observe → decode → act</b>. Use these for nav, marketing, and product surfaces — never substitute a generic icon.</p>
+        </div>
+        <span class="mono" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-4)">Getviews-only · v1</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--rule);border-radius:var(--radius-md);overflow:hidden;background:var(--paper)">
+
+        <!-- Spike — the trend going vertical -->
+        <div class="col gap-3 center" style="padding:32px 16px;border-right:1px solid var(--rule);position:relative">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <line x1="3" y1="20" x2="21" y2="20"/>
+            <polyline points="5 17 9 14 12 16 16 8"/>
+            <circle cx="16" cy="8" r="2" fill="#0A0D12" stroke="none"/>
+            <line x1="16" y1="4" x2="16" y2="6"/>
+            <line x1="13" y1="5" x2="14.5" y2="6.5"/>
+            <line x1="19" y1="5" x2="17.5" y2="6.5"/>
+          </svg>
+          <div class="col gap-1 center">
+            <span style="font-family:var(--sans);font-weight:600;font-size:13px;letter-spacing:-0.015em">Spike</span>
+            <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">A trend going vertical</span>
+          </div>
+        </div>
+
+        <!-- Window — the timing bracket -->
+        <div class="col gap-3 center" style="padding:32px 16px;border-right:1px solid var(--rule)">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <polyline points="6 4 4 4 4 20 6 20"/>
+            <polyline points="18 4 20 4 20 20 18 20"/>
+            <circle cx="12" cy="12" r="4.5"/>
+            <polyline points="12 9.5 12 12 14 13.5"/>
+          </svg>
+          <div class="col gap-1 center">
+            <span style="font-family:var(--sans);font-weight:600;font-size:13px;letter-spacing:-0.015em">Window</span>
+            <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">The trend timer</span>
+          </div>
+        </div>
+
+        <!-- Hook — the opening line -->
+        <div class="col gap-3 center" style="padding:32px 16px;border-right:1px solid var(--rule)">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <line x1="12" y1="3" x2="12" y2="11"/>
+            <path d="M12 11C12 14 9 16 6 16C7 18 9 19 12 19"/>
+            <line x1="3" y1="12" x2="6" y2="12"/>
+            <line x1="9" y1="6" x2="15" y2="6"/>
+          </svg>
+          <div class="col gap-1 center">
+            <span style="font-family:var(--sans);font-weight:600;font-size:13px;letter-spacing:-0.015em">Hook</span>
+            <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">First three seconds</span>
+          </div>
+        </div>
+
+        <!-- Decode — many signals → one direction -->
+        <div class="col gap-3 center" style="padding:32px 16px">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <line x1="3" y1="6" x2="9" y2="6"/>
+            <line x1="3" y1="12" x2="9" y2="12"/>
+            <line x1="3" y1="18" x2="9" y2="18"/>
+            <polyline points="13 8 17 12 13 16"/>
+            <line x1="11" y1="12" x2="21" y2="12"/>
+          </svg>
+          <div class="col gap-1 center">
+            <span style="font-family:var(--sans);font-weight:600;font-size:13px;letter-spacing:-0.015em">Decode</span>
+            <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Signals into action</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Icon grid -->
+    <div class="card" style="padding:32px">
+      <div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:24px">
+        <div class="num">Core set · 16 icons</div>
+        <span class="mono" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-4)">currentColor · 1.6px · 24×24</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:24px">
+
+        <!-- Trends — spike with summit dot -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <line x1="3" y1="20" x2="21" y2="20"/>
+            <polyline points="4 16 9 13 13 15 19 7"/>
+            <circle cx="19" cy="7" r="1.6"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Trends</span>
+        </div>
+
+        <!-- Video — play in frame -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <rect x="4" y="4" width="16" height="16" rx="1"/>
+            <polygon points="10 8 16 12 10 16 10 8"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Video</span>
+        </div>
+
+        <!-- Channel — feed of cards -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <rect x="4" y="3" width="16" height="11" rx="1"/>
+            <line x1="4" y1="18" x2="20" y2="18"/>
+            <line x1="6" y1="21" x2="18" y2="21"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Channel</span>
+        </div>
+
+        <!-- Creator — silhouette + ring of authority -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <circle cx="12" cy="9" r="3.5"/>
+            <path d="M5 20C5 16 8 14 12 14C16 14 19 16 19 20"/>
+            <polyline points="9 4 12 2 15 4"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Creator</span>
+        </div>
+
+        <!-- Script — page with text + cursor -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <path d="M5 3H15L19 7V21H5V3Z"/>
+            <polyline points="15 3 15 7 19 7"/>
+            <line x1="8" y1="12" x2="14" y2="12"/>
+            <line x1="8" y1="16" x2="12" y2="16"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Script</span>
+        </div>
+
+        <!-- AI — concentric pulse, no diamond cliché -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <circle cx="12" cy="12" r="2"/>
+            <path d="M12 5V7"/>
+            <path d="M12 17V19"/>
+            <path d="M5 12H7"/>
+            <path d="M17 12H19"/>
+            <path d="M7 7L8.5 8.5"/>
+            <path d="M15.5 15.5L17 17"/>
+            <path d="M7 17L8.5 15.5"/>
+            <path d="M15.5 8.5L17 7"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">AI</span>
+        </div>
+
+        <!-- Live — broadcast brackets, monochrome -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <circle cx="12" cy="12" r="2"/>
+            <path d="M7.5 7.5C5 10 5 14 7.5 16.5"/>
+            <path d="M16.5 7.5C19 10 19 14 16.5 16.5"/>
+            <path d="M4 4C-0 8 -0 16 4 20"/>
+            <path d="M20 4C24 8 24 16 20 20"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Live</span>
+        </div>
+
+        <!-- Window — duration -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <polyline points="6 4 4 4 4 20 6 20"/>
+            <polyline points="18 4 20 4 20 20 18 20"/>
+            <circle cx="12" cy="12" r="3.5"/>
+            <polyline points="12 10 12 12 13.5 13"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Window</span>
+        </div>
+
+        <!-- Like / save — heart with checkmark interior -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <path d="M12 20C8 17 3 13 3 8.5C3 6 5 4 7.5 4C9 4 10.5 4.8 12 7C13.5 4.8 15 4 16.5 4C19 4 21 6 21 8.5C21 13 16 17 12 20Z"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Like</span>
+        </div>
+
+        <!-- Comment — speech with one line -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <path d="M3 5H21V17H8L3 21V5Z"/>
+            <line x1="7" y1="11" x2="17" y2="11"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Comment</span>
+        </div>
+
+        <!-- Share — node graph -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <circle cx="6" cy="12" r="2"/>
+            <circle cx="18" cy="6" r="2"/>
+            <circle cx="18" cy="18" r="2"/>
+            <line x1="8" y1="11" x2="16" y2="7"/>
+            <line x1="8" y1="13" x2="16" y2="17"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Share</span>
+        </div>
+
+        <!-- Hook — opening line -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <line x1="12" y1="3" x2="12" y2="11"/>
+            <path d="M12 11C12 14 9 16 6 16C7 18 9 19 12 19"/>
+            <line x1="3" y1="12" x2="6" y2="12"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Hook</span>
+        </div>
+
+        <!-- Filter — funnel with bar -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <polyline points="3 5 21 5 14 13 14 19 10 21 10 13 3 5"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Filter</span>
+        </div>
+
+        <!-- Search — magnifier -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <circle cx="11" cy="11" r="6"/>
+            <line x1="15.5" y1="15.5" x2="20" y2="20"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Search</span>
+        </div>
+
+        <!-- Alert — bell with notch -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <path d="M5 17V11C5 7 8 4 12 4C16 4 19 7 19 11V17H5Z"/>
+            <line x1="3" y1="17" x2="21" y2="17"/>
+            <path d="M10 20C10 21 11 22 12 22C13 22 14 21 14 20"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Alert</span>
+        </div>
+
+        <!-- Settings — clean gear (geometric, symmetric) -->
+        <div class="col gap-2 center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+            <circle cx="12" cy="12" r="3"/>
+            <line x1="12" y1="3" x2="12" y2="6"/>
+            <line x1="12" y1="18" x2="12" y2="21"/>
+            <line x1="3" y1="12" x2="6" y2="12"/>
+            <line x1="18" y1="12" x2="21" y2="12"/>
+            <line x1="5.6" y1="5.6" x2="7.7" y2="7.7"/>
+            <line x1="16.3" y1="16.3" x2="18.4" y2="18.4"/>
+            <line x1="5.6" y1="18.4" x2="7.7" y2="16.3"/>
+            <line x1="16.3" y1="7.7" x2="18.4" y2="5.6"/>
+          </svg>
+          <span class="mono" style="font-size:9px;text-transform:uppercase;color:var(--ink-4);letter-spacing:0.1em">Settings</span>
+        </div>
+      </div>
+      <p class="mono" style="font-size:11px;color:var(--ink-3);margin-top:24px;line-height:1.6;border-top:1px solid var(--rule);padding-top:16px">No filled shapes. No accent color inside icons. The only fill ever permitted is <span style="color:var(--ink)">currentColor</span> on a single dot used as a state indicator (live, alert, summit).</p>
+    </div>
+
+    <!-- Icon construction -->
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card" style="padding:32px">
+        <div class="num" style="margin-bottom:18px">Icon construction · Spike</div>
+        <div class="row gap-5" style="margin-bottom:20px">
+          <svg width="160" height="160" viewBox="0 0 80 80" fill="none">
+            <!-- Grid -->
+            <rect x="4" y="4" width="72" height="72" stroke="#E6EAEF" fill="none"/>
+            <line x1="4" y1="14" x2="76" y2="14" stroke="#E6EAEF" stroke-dasharray="2 2"/>
+            <line x1="4" y1="66" x2="76" y2="66" stroke="#E6EAEF" stroke-dasharray="2 2"/>
+            <line x1="14" y1="4" x2="14" y2="76" stroke="#E6EAEF" stroke-dasharray="2 2"/>
+            <line x1="66" y1="4" x2="66" y2="76" stroke="#E6EAEF" stroke-dasharray="2 2"/>
+            <!-- Spike icon at scale -->
+            <g transform="translate(14,14) scale(2.166)" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter" fill="none">
+              <line x1="3" y1="20" x2="21" y2="20"/>
+              <polyline points="4 16 9 13 13 15 19 7"/>
+              <circle cx="19" cy="7" r="1.6" fill="#0A0D12"/>
+            </g>
+          </svg>
+          <ul style="font-family:var(--mono);font-size:11px;line-height:1.9;color:var(--ink-3);list-style:none;padding:0">
+            <li>· Viewport <b style="color:var(--ink)">24×24</b></li>
+            <li>· Stroke <b style="color:var(--ink)">1.6px</b></li>
+            <li>· Padding <b style="color:var(--ink)">2px</b> all sides</li>
+            <li>· Corners <b style="color:var(--ink)">square</b></li>
+            <li>· Joins <b style="color:var(--ink)">miter</b></li>
+            <li>· Color <b style="color:var(--ink)">currentColor</b></li>
+          </ul>
+        </div>
+      </div>
+      <div class="card" style="padding:32px">
+        <div class="num" style="margin-bottom:18px">Sizes & states</div>
+        <div class="row gap-5" style="flex-wrap:wrap;margin-bottom:24px">
+          <div class="col gap-1 center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter">
+              <line x1="3" y1="20" x2="21" y2="20"/>
+              <polyline points="4 16 9 13 13 15 19 7"/>
+              <circle cx="19" cy="7" r="1.6" fill="#0A0D12"/>
+            </svg>
+            <span class="mono" style="font-size:10px;color:var(--ink-4)">14</span>
+          </div>
+          <div class="col gap-1 center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter">
+              <line x1="3" y1="20" x2="21" y2="20"/>
+              <polyline points="4 16 9 13 13 15 19 7"/>
+              <circle cx="19" cy="7" r="1.6" fill="#0A0D12"/>
+            </svg>
+            <span class="mono" style="font-size:10px;color:var(--ink-4)">18</span>
+          </div>
+          <div class="col gap-1 center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
+              <line x1="3" y1="20" x2="21" y2="20"/>
+              <polyline points="4 16 9 13 13 15 19 7"/>
+              <circle cx="19" cy="7" r="1.6" fill="#0A0D12"/>
+            </svg>
+            <span class="mono" style="font-size:10px;color:var(--ink-4)">24</span>
+          </div>
+          <div class="col gap-1 center">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.4" stroke-linecap="square" stroke-linejoin="miter">
+              <line x1="3" y1="20" x2="21" y2="20"/>
+              <polyline points="4 16 9 13 13 15 19 7"/>
+              <circle cx="19" cy="7" r="1.6" fill="#0A0D12"/>
+            </svg>
+            <span class="mono" style="font-size:10px;color:var(--ink-4)">32</span>
+          </div>
+          <div class="col gap-1 center">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.2" stroke-linecap="square" stroke-linejoin="miter">
+              <line x1="3" y1="20" x2="21" y2="20"/>
+              <polyline points="4 16 9 13 13 15 19 7"/>
+              <circle cx="19" cy="7" r="1.6" fill="#0A0D12"/>
+            </svg>
+            <span class="mono" style="font-size:10px;color:var(--ink-4)">48</span>
+          </div>
+        </div>
+        <div class="row gap-3">
+          <div class="col gap-1 center" style="padding:12px;border-radius:8px;background:var(--canvas-2);min-width:64px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="4 16 9 13 13 15 19 7"/><circle cx="19" cy="7" r="1.6" fill="#0A0D12"/></svg>
+            <span class="mono" style="font-size:9px;color:var(--ink-4);letter-spacing:0.1em">DEFAULT</span>
+          </div>
+          <div class="col gap-1 center" style="padding:12px;border-radius:8px;background:var(--ink);min-width:64px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FBFCFD" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="4 16 9 13 13 15 19 7"/><circle cx="19" cy="7" r="1.6" fill="#FBFCFD" stroke="none"/></svg>
+            <span class="mono" style="font-size:9px;color:rgba(255,255,255,0.6);letter-spacing:0.1em">REVERSE</span>
+          </div>
+          <div class="col gap-1 center" style="padding:12px;border-radius:8px;background:var(--accent-soft, #FFE8EE);min-width:64px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F72585" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="4 16 9 13 13 15 19 7"/><circle cx="19" cy="7" r="1.6" fill="#F72585" stroke="none"/></svg>
+            <span class="mono" style="font-size:9px;color:var(--accent-deep, #B8203F);letter-spacing:0.1em">ACTIVE</span>
+          </div>
+          <div class="col gap-1 center" style="padding:12px;border-radius:8px;background:var(--canvas-2);min-width:64px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A94A3" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="4 16 9 13 13 15 19 7"/><circle cx="19" cy="7" r="1.6" fill="#8A94A3" stroke="none"/></svg>
+            <span class="mono" style="font-size:9px;color:var(--ink-4);letter-spacing:0.1em">DISABLED</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 07 APP ICONS ============ -->
+<section class="bg-section dark">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div><div class="num" style="color:rgba(255,255,255,0.5)">07 · App icons</div></div>
+      <div>
+        <h2 style="color:var(--canvas)">On the <em>home screen</em>, we wear magenta.</h2>
+        <p class="intro">A bold magenta tile with the white-knockout mark. The triangle stays magenta against the white knockout to maintain the play button's identity. Works at every iOS and Android size.</p>
+      </div>
+    </div>
+
+    <div class="grid-4">
+      <!-- Primary tile -->
+      <div class="col gap-3">
+        <div class="appicon" style="background:#F72585">
+          <svg width="62%" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+        </div>
+        <div class="mono" style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.6)">Primary · Magenta</div>
+        <div class="mono" style="font-size:11px;color:var(--canvas);margin-top:-8px">App Store, Play Store</div>
+      </div>
+
+      <!-- Ink variant -->
+      <div class="col gap-3">
+        <div class="appicon" style="background:#0A0D12;border:1px solid rgba(255,255,255,0.08)">
+          <svg width="62%" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+        </div>
+        <div class="mono" style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.6)">Dark Mode · Ink</div>
+        <div class="mono" style="font-size:11px;color:var(--canvas);margin-top:-8px">macOS dark, iOS dark</div>
+      </div>
+
+      <!-- Sky variant -->
+      <div class="col gap-3">
+        <div class="appicon" style="background:#4CC9F0">
+          <svg width="62%" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+        </div>
+        <div class="mono" style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.6)">Beta · Sky</div>
+        <div class="mono" style="font-size:11px;color:var(--canvas);margin-top:-8px">Internal builds, TestFlight</div>
+      </div>
+
+      <!-- Lime variant -->
+      <div class="col gap-3">
+        <div class="appicon" style="background:#D7F542">
+          <svg width="62%" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+        </div>
+        <div class="mono" style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.6)">Promo · Lime</div>
+        <div class="mono" style="font-size:11px;color:var(--canvas);margin-top:-8px">Seasonal, campaigns</div>
+      </div>
+    </div>
+
+    <!-- Sizes line up -->
+    <div style="margin-top:48px;padding:32px;border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-md);background:rgba(255,255,255,0.03)">
+      <div class="num" style="color:rgba(255,255,255,0.5);margin-bottom:24px">Render sizes — iOS 1024 down to 29; Android adaptive 108dp</div>
+      <div class="row gap-5" style="flex-wrap:wrap;align-items:flex-end">
+        <div class="col gap-2 center">
+          <div class="appicon" style="background:#F72585;width:120px;height:120px">
+            <svg width="62%" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          </div>
+          <span class="mono" style="font-size:10px;color:rgba(255,255,255,0.5)">120 · iPad</span>
+        </div>
+        <div class="col gap-2 center">
+          <div class="appicon" style="background:#F72585;width:80px;height:80px">
+            <svg width="62%" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          </div>
+          <span class="mono" style="font-size:10px;color:rgba(255,255,255,0.5)">80 · iPhone</span>
+        </div>
+        <div class="col gap-2 center">
+          <div class="appicon" style="background:#F72585;width:60px;height:60px">
+            <svg width="62%" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          </div>
+          <span class="mono" style="font-size:10px;color:rgba(255,255,255,0.5)">60 · Spotlight</span>
+        </div>
+        <div class="col gap-2 center">
+          <div class="appicon" style="background:#F72585;width:40px;height:40px">
+            <svg width="62%" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          </div>
+          <span class="mono" style="font-size:10px;color:rgba(255,255,255,0.5)">40 · Settings</span>
+        </div>
+        <div class="col gap-2 center">
+          <div class="appicon" style="background:#F72585;width:29px;height:29px;border-radius:7px">
+            <svg width="62%" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          </div>
+          <span class="mono" style="font-size:10px;color:rgba(255,255,255,0.5)">29 · Notification</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 08 VOICE ============ -->
+<section class="bg-section">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div><div class="num">08 · Voice & Tone</div></div>
+      <div>
+        <h2>Talk like a creator <em>who's been there</em>.</h2>
+        <p class="intro" style="margin-top:24px">Direct. Concrete. Slightly dry. We don't yell, we don't use the word "amazing," and we never explain TikTok to TikTok creators. Vietnamese first, then English — same tone in both.</p>
+      </div>
+    </div>
+
+    <!-- Voice attributes -->
+    <div class="grid-4" style="margin-bottom:32px">
+      <div class="card" style="padding:24px">
+        <div class="mono" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-4);margin-bottom:14px">Attribute 01</div>
+        <h3 style="font-family:var(--sans);font-size:24px;font-weight:600;letter-spacing:-0.025em;margin:0 0 10px">Direct</h3>
+        <p style="font-size:13px;line-height:1.55;color:var(--ink-3);margin:0">Lead with the point. No "we're excited to announce." Just announce it.</p>
+      </div>
+      <div class="card" style="padding:24px">
+        <div class="mono" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-4);margin-bottom:14px">Attribute 02</div>
+        <h3 style="font-family:var(--sans);font-size:24px;font-weight:600;letter-spacing:-0.025em;margin:0 0 10px">Concrete</h3>
+        <p style="font-size:13px;line-height:1.55;color:var(--ink-3);margin:0">Numbers, names, examples. Not "many creators" — "<b>2,148 creators in HCMC</b>."</p>
+      </div>
+      <div class="card" style="padding:24px">
+        <div class="mono" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-4);margin-bottom:14px">Attribute 03</div>
+        <h3 style="font-family:var(--sans);font-size:24px;font-weight:600;letter-spacing:-0.025em;margin:0 0 10px">Dry-funny</h3>
+        <p style="font-size:13px;line-height:1.55;color:var(--ink-3);margin:0">A small wink. Never a punchline. We're a tool, not a comedian.</p>
+      </div>
+      <div class="card" style="padding:24px">
+        <div class="mono" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-4);margin-bottom:14px">Attribute 04</div>
+        <h3 style="font-family:var(--sans);font-size:24px;font-weight:600;letter-spacing:-0.025em;margin:0 0 10px">Insider</h3>
+        <p style="font-size:13px;line-height:1.55;color:var(--ink-3);margin:0">We say "duet," "lipsync," "POV," "hook." We don't explain them.</p>
+      </div>
+    </div>
+
+    <!-- Voice samples -->
+    <div class="voice-grid">
+      <div class="voice-card yes">
+        <div class="tag"><span style="color:oklch(0.55 0.18 145)">●</span> <b>Yes</b> · Empty state</div>
+        <div class="quote">Chưa có video nào. Hook đầu tiên đăng tối nay là được.</div>
+        <div class="note">Acknowledges the state, gives one concrete next step. No exclamation marks.</div>
+      </div>
+      <div class="voice-card no">
+        <div class="tag"><span style="color:var(--accent)">●</span> <b>No</b> · Empty state</div>
+        <div class="quote">🚀 Welcome aboard, creator! Your epic journey starts here! ✨</div>
+        <div class="note">Vague, hype-y, three emojis. Sounds like every other onboarding screen.</div>
+      </div>
+
+      <div class="voice-card yes">
+        <div class="tag"><span style="color:oklch(0.55 0.18 145)">●</span> <b>Yes</b> · Trend insight</div>
+        <div class="quote">"Đặt tay lên cằm" tăng 312% trong 7 ngày. Beauty + GenZ. Còn nóng ~5 ngày.</div>
+        <div class="note">Specific number, audience, expiration. The whole point of Getviews in one line.</div>
+      </div>
+      <div class="voice-card no">
+        <div class="tag"><span style="color:var(--accent)">●</span> <b>No</b> · Trend insight</div>
+        <div class="quote">A new trend is going viral! 🔥 Don't miss out — capitalize now before it's too late!</div>
+        <div class="note">Vague, urgent, no useful detail. Marketing slop, not insight.</div>
+      </div>
+
+      <div class="voice-card yes">
+        <div class="tag"><span style="color:oklch(0.55 0.18 145)">●</span> <b>Yes</b> · Error</div>
+        <div class="quote">Không kết nối được TikTok. Có thể app mới đổi token — thử login lại.</div>
+        <div class="note">Names the problem, gives a likely cause, gives the action.</div>
+      </div>
+      <div class="voice-card no">
+        <div class="tag"><span style="color:var(--accent)">●</span> <b>No</b> · Error</div>
+        <div class="quote">Oops! Something went wrong. Please try again later.</div>
+        <div class="note">Tells the user nothing they didn't already know. No path forward.</div>
+      </div>
+    </div>
+
+    <!-- Words we use / don't -->
+    <div class="grid-2" style="margin-top:32px">
+      <div class="card" style="padding:32px">
+        <div class="num" style="margin-bottom:16px;color:oklch(0.55 0.18 145)">Words we use</div>
+        <div class="row gap-2" style="flex-wrap:wrap">
+          <span class="chip">trend</span>
+          <span class="chip">hook</span>
+          <span class="chip">duet</span>
+          <span class="chip">script</span>
+          <span class="chip">channel</span>
+          <span class="chip">spike</span>
+          <span class="chip">window</span>
+          <span class="chip">shot tonight</span>
+          <span class="chip">decode</span>
+          <span class="chip">cohort</span>
+          <span class="chip">retention</span>
+          <span class="chip">creator</span>
+        </div>
+      </div>
+      <div class="card" style="padding:32px">
+        <div class="num" style="margin-bottom:16px;color:var(--accent)">Words we avoid</div>
+        <div class="row gap-2" style="flex-wrap:wrap">
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">influencer</span>
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">amazing</span>
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">epic</span>
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">unleash</span>
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">revolutionary</span>
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">crush it</span>
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">10x</span>
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">game-changing</span>
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">synergy</span>
+          <span class="chip" style="text-decoration:line-through;color:var(--ink-4)">rockstar</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 09 IN THE WILD ============ -->
+<section class="bg-section">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div><div class="num">09 · In the wild</div></div>
+      <div>
+        <h2>How it <em>shows up</em>, end to end.</h2>
+        <p class="intro" style="margin-top:24px">A few representative surfaces — the system stays consistent from app icon to merch.</p>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Mobile mock -->
+      <div class="card" style="padding:36px;background:var(--canvas-2);aspect-ratio:4/3;display:flex;align-items:center;justify-content:center">
+        <div style="width:240px;aspect-ratio:9/19;background:var(--ink);border-radius:32px;padding:18px 14px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 60px -20px rgba(0,0,0,0.4)">
+          <div class="row" style="justify-content:space-between;color:rgba(255,255,255,0.7);font-size:9px;font-family:var(--sans);font-weight:600">
+            <span>9:41</span>
+            <span>● ● ●</span>
+          </div>
+          <div class="row gap-2" style="margin-top:4px">
+            <svg width="20" height="20" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+            <span style="font-family:var(--sans);font-weight:600;color:#FBFCFD;font-size:14px;letter-spacing:-0.02em">Getviews</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;margin-top:8px">
+            <div class="mono" style="font-size:8px;color:rgba(255,255,255,0.5);letter-spacing:0.12em;text-transform:uppercase">Trending now</div>
+            <div style="color:#FBFCFD;font-size:13px;font-weight:600;letter-spacing:-0.015em;margin-top:4px;line-height:1.25">"Đặt tay lên cằm" beauty hook</div>
+            <div style="color:#4CC9F0;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:8px">+312<span style="font-size:11px;color:rgba(255,255,255,0.5)">% · 7d</span></div>
+          </div>
+          <div style="background:#F72585;border-radius:10px;padding:12px;margin-top:auto">
+            <div style="color:white;font-size:11px;font-weight:600">Generate script →</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tote bag -->
+      <div class="card" style="padding:36px;background:var(--canvas-2);aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;position:relative">
+        <div style="width:60%;aspect-ratio:1/1.15;background:#F72585;position:relative;border-radius:4px;box-shadow:0 24px 50px -16px rgba(254,44,85,0.5);display:flex;align-items:center;justify-content:center">
+          <div style="position:absolute;top:-18px;left:18%;width:8%;height:36px;border:3px solid #F72585;border-bottom:none;border-radius:50% 50% 0 0;background:transparent"></div>
+          <div style="position:absolute;top:-18px;right:18%;width:8%;height:36px;border:3px solid #F72585;border-bottom:none;border-radius:50% 50% 0 0;background:transparent"></div>
+          <div class="col gap-3 center">
+            <svg width="80" height="80" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+            <span style="font-family:var(--sans);font-weight:600;color:white;font-size:24px;letter-spacing:-0.04em">Get views.</span>
+            <span class="mono" style="font-size:9px;color:rgba(255,255,255,0.7);letter-spacing:0.14em;text-transform:uppercase">Saigon · 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Social card -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="aspect-ratio:1.91/1;background:linear-gradient(135deg,#FBFCFD 50%,#F72585 50%);position:relative;padding:32px;display:flex;flex-direction:column;justify-content:space-between">
+          <div class="row gap-2">
+            <svg width="22" height="22" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+            <span style="font-family:var(--sans);font-weight:600;color:#0A0D12;font-size:15px;letter-spacing:-0.02em">Getviews</span>
+          </div>
+          <div style="font-family:var(--sans);font-weight:500;font-size:30px;line-height:1;letter-spacing:-0.035em;color:#0A0D12;max-width:60%">
+            Track what's <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:#F72585">spiking</em> tonight.
+          </div>
+          <div class="mono" style="font-size:10px;color:#0A0D12;letter-spacing:0.14em;text-transform:uppercase">getviews.vn</div>
+        </div>
+      </div>
+
+      <!-- Sticker sheet -->
+      <div class="card" style="padding:36px;display:flex;align-items:center;justify-content:center;background:var(--canvas-2);gap:18px;flex-wrap:wrap">
+        <div style="width:80px;height:80px;border-radius:50%;background:#F72585;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 16px -4px rgba(0,0,0,0.2)">
+          <svg width="48" height="48" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+        </div>
+        <div style="padding:14px 22px;border-radius:999px;background:#0A0D12;color:white;font-family:var(--sans);font-weight:600;font-size:14px;letter-spacing:-0.02em;box-shadow:0 8px 16px -4px rgba(0,0,0,0.2)">
+          Get views.
+        </div>
+        <div style="padding:14px 22px;border-radius:999px;background:#D7F542;color:#0A0D12;font-family:var(--sans);font-weight:600;font-size:14px;letter-spacing:-0.02em;box-shadow:0 8px 16px -4px rgba(0,0,0,0.2)">
+          Đăng tối nay.
+        </div>
+        <div style="padding:14px 22px;border-radius:999px;background:white;color:#0A0D12;font-family:var(--mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;border:1px solid #0A0D12;box-shadow:0 8px 16px -4px rgba(0,0,0,0.2)">
+          Trend · 312%
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10 RESOURCES ============ -->
+<section class="bg-section">
+  <div class="bg-shell">
+    <div class="bg-section-head">
+      <div><div class="num">10 · Resources</div></div>
+      <div>
+        <h2>Take what you need.</h2>
+        <p class="intro" style="margin-top:24px">Everything is free for Getviews team and partners. For external press, request from <b style="color:var(--ink)"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="187a6a79767c587f7d6c6e717d6f6b366e76">[email&#160;protected]</a></b>.</p>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <a class="card" style="padding:28px;display:flex;flex-direction:column;gap:14px">
+        <div class="row gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6"><path d="M14 2L20 8V21H4V2H14Z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span class="mono" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-4)">SVG · PNG · PDF</span>
+        </div>
+        <h3 style="font-family:var(--sans);font-size:22px;font-weight:600;letter-spacing:-0.022em;margin:0">Logo pack</h3>
+        <p style="font-size:13px;line-height:1.55;color:var(--ink-3);margin:0">Mark, wordmark, all 4 lockups. Light and dark variants. App icon source.</p>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em">Download · 4.2 MB →</span>
+      </a>
+      <a class="card" style="padding:28px;display:flex;flex-direction:column;gap:14px">
+        <div class="row gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6"><path d="M4 4H20V20H4V4Z"/><path d="M4 12H20"/><path d="M12 4V20"/></svg>
+          <span class="mono" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-4);">Figma · ASE · CSS</span>
+        </div>
+        <h3 style="font-family:var(--sans);font-size:22px;font-weight:600;letter-spacing:-0.022em;margin:0">Color tokens</h3>
+        <p style="font-size:13px;line-height:1.55;color:var(--ink-3);margin:0">All palette values as Figma styles, Adobe ASE, and CSS custom properties.</p>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em">Download · 18 KB →</span>
+      </a>
+      <a class="card" style="padding:28px;display:flex;flex-direction:column;gap:14px">
+        <div class="row gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A0D12" stroke-width="1.6"><path d="M4 6H20"/><path d="M4 12H14"/><path d="M4 18H18"/></svg>
+          <span class="mono" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-4)">Google Fonts</span>
+        </div>
+        <h3 style="font-family:var(--sans);font-size:22px;font-weight:600;letter-spacing:-0.022em;margin:0">Type stack</h3>
+        <p style="font-size:13px;line-height:1.55;color:var(--ink-3);margin:0">Space Grotesk, Instrument Serif, JetBrains Mono — all hosted via Google Fonts.</p>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em">View on Fonts →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="bg-foot">
+  <div class="bg-shell">
+    <div class="ft-grid">
+      <div>
+        <div class="row gap-2" style="margin-bottom:14px">
+          <svg width="28" height="28" viewBox="196.4 196.5 319.0 319.0" ><path data-mark fill="currentColor"/></svg>
+          <span class="serif" style="font-size:22px;font-weight:600;letter-spacing:-0.025em;color:var(--canvas)">Getviews</span>
+        </div>
+        <p style="max-width:280px">Built in Saigon for Vietnamese creators. The fastest way to turn observation into views.</p>
+      </div>
+      <div>
+        <h4>Brand contact</h4>
+        <p><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="791b0b18171d391e1c0d0f101c0e0a570f17">[email&#160;protected]</a></p>
+        <p><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="53232136202013343627253a3624207d253d">[email&#160;protected]</a></p>
+      </div>
+      <div>
+        <h4>Asset library</h4>
+        <ul style="list-style:none;padding:0;margin:0">
+          <li>Logo pack</li>
+          <li>Color tokens</li>
+          <li>Type stack</li>
+          <li>Icon set</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Guideline version</h4>
+        <p>v1.1 · April 2026</p>
+        <p>v1.1 — palette repositioned as independent (Magenta + Sky); origin rationale added</p>
+        <p>Maintained by Brand · Reviewed quarterly</p>
+      </div>
+    </div>
+    <div class="copy">
+      <span>© Getviews.vn 2026</span>
+      <span>Get views, faster.</span>
+    </div>
+  </div>
+</footer>
+
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="mark-path.js"></script>
+<script>
+  // Hydrate every <path data-mark/> with the canonical Getviews mark.
+  document.querySelectorAll('path[data-mark]').forEach(p => {
+    p.setAttribute('d', window.GETVIEWS_MARK_D);
+    p.removeAttribute('data-mark');
+  });
+</script>
+</body>
+</html>

@@ -53,20 +53,23 @@ When two layers conflict in a design decision, higher priority wins.
 
 ## 5. Visual Direction
 
+> **Token sync (2026-05-23):** Production + Branding Guideline v1.1 use **Getviews Magenta** `#F72585` (`--gv-accent`), not legacy TikTok Purple. Implementation SSOT: `src/app.css` `--gv-*`. Prose below that says `--purple` maps to `--gv-accent`.
+
 ### Brand Colors
 | Role | Name | OKLCH | Hex | Usage |
 |---|---|---|---|---|
-| Primary/Accent | TikTok Purple | oklch(0.53 0.26 295) | #7C3AED | Send button, active states, gradient text, card hover |
-| Primary Dark | Purple Deep | oklch(0.45 0.28 295) | #6D28D9 | Hover on purple elements |
-| Primary Light | Purple Tint | oklch(0.95 0.03 295) | #F3F0FF | Active sidebar bg, card hover bg |
-| Background | Light Gray | oklch(0.93 0.00 0) | #EDEDEE | Page background |
-| Surface | White | oklch(1.00 0.00 0) | #FFFFFF | Cards, input fields, sidebar |
-| Surface Alt | Warm Gray | oklch(0.97 0.00 0) | #F7F7F8 | Mode badges, secondary surfaces |
-| Foreground | Ink | oklch(0.15 0.00 0) | #18181B | Primary text, headings |
-| Foreground 2 | Ink Soft | oklch(0.30 0.00 0) | #3F3F46 | Body text, card text |
-| Muted | Gray | oklch(0.55 0.00 0) | #71717A | Secondary text, icons |
+| Primary/Accent | Getviews Magenta | oklch(0.59 0.24 0) | #F72585 | Send button, active states, gradient text, card hover (`--gv-accent`) |
+| Primary Dark | Magenta Deep | oklch(0.48 0.22 0) | #B8175F | Hover on accent elements (`--gv-accent-deep`) |
+| Primary Light | Magenta Tint | oklch(0.94 0.04 0) | #FDD9EA | Active sidebar bg, card hover bg (`--gv-accent-soft`) |
+| Secondary Accent | Sky | oklch(0.78 0.12 230) | #4CC9F0 | Secondary highlights, trend-up (`--gv-accent-2`) |
+| Background | Canvas | oklch(0.99 0.00 0) | #FBFCFD | Page background (`--gv-canvas`) |
+| Surface | Paper | oklch(1.00 0.00 0) | #FFFFFF | Cards, input fields, sidebar (`--gv-paper`) |
+| Surface Alt | Canvas 2 | oklch(0.97 0.00 0) | #F4F6F8 | Mode badges, secondary surfaces (`--gv-canvas-2`) |
+| Foreground | Ink | oklch(0.14 0.02 260) | #0A0D12 | Primary text, headings (`--gv-ink`) |
+| Foreground 2 | Ink Soft | oklch(0.35 0.01 260) | #3F4654 | Body text, card text (`--gv-ink-2`) |
+| Muted | Gray | oklch(0.55 0.00 0) | #71717A | Secondary text, icons (`--gv-ink-3`) |
 | Faint | Light Muted | oklch(0.68 0.00 0) | #A1A1AA | Placeholder text, disabled |
-| Border | Light Border | oklch(0.90 0.00 0) | #E4E4E7 | Default borders, dividers |
+| Border | Rule | oklch(0.90 0.00 0) | #E4E4E7 | Default borders, dividers (`--gv-rule`) |
 | Border Active | Medium Border | oklch(0.85 0.00 0) | #D4D4D8 | Hover borders |
 
 ### Semantic Colors
@@ -75,10 +78,10 @@ When two layers conflict in a design decision, higher priority wins.
 | Brand Mark | oklch(0.60 0.28 15) | #FE2C55 | Logo mark only. TikTok Red identity. |
 | Success / Good | oklch(0.60 0.18 145) | #25F4EE | ✓ markers in diagnosis, positive signals |
 | Danger / Bad | oklch(0.55 0.22 25) | #D93B3B | ✕ markers in diagnosis, error states, low credit warning |
-| Data Highlight | oklch(0.53 0.26 295) | #7C3AED | Data numbers in JetBrains Mono |
+| Data Highlight | oklch(0.59 0.24 0) | #F72585 | Data numbers in JetBrains Mono (`--gv-accent`) |
 
 ### Visual Register
-- **Flat-minimal-professional** — no shadows, no gradients (except heading text), no decorative elements. Borders are 1px, colors are neutral except purple accent. The aesthetic says "tool that works" not "app that entertains."
+- **Flat-minimal-professional** — no shadows, no gradients (except heading text), no decorative elements. Borders are 1px, colors are neutral except magenta accent. The aesthetic says "tool that works" not "app that entertains."
 - **In a flat UI, every state change IS the design.** Transitions, micro-interactions, and feedback replace visual chrome as the primary UX mechanism. See §5a Interaction System below.
 
 ### Typography Direction

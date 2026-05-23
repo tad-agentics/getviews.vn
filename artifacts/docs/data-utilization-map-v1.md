@@ -6,7 +6,7 @@
 **Last updated:** 2026-05-23  
 **Code baseline:** `main` @ `680c803` (Wave 5 ship; Wave 4 @ `9b97207`; Wave 3 @ `9cd0957`)  
 **Status:** As-built FIELD × feature matrix  
-**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0–5 ✅ @ `680c803`; **Launch phase** (§13B) open  
+**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0–5 ✅ @ `680c803`; **Launch Phases 0–2c + infra ✅** @ `b479f64`  
 **As-built routes:** [`feature-map.md`](feature-map.md)  
 **Technical audit:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) (tier A–D, trim-safe)  
 **Schema source:** [`models.py`](../../cloud-run/getviews_pipeline/models.py) `VideoAnalysis` · [`corpus_ingest.py`](../../cloud-run/getviews_pipeline/corpus_ingest.py) `_build_corpus_row`
@@ -320,8 +320,9 @@
 | Wave 0 F8 verify | Done | ✅ ref pool + boost batch + channel 3× credit |
 | Wave 4 gate doc | Cross-check | ✅ §10 — W4-1…W4-4 shipped @ `9b97207` |
 | Wave 5 polish | Shipped | ✅ W5-1…W5-5 @ `680c803` — CTA rail, format parity, key_messages trim, Trends channel peek |
+| Launch Phases 0–2c + infra | Shipped | ✅ @ `b479f64` — channel Nhanh/Sâu, findings P1/P2, video P1 signals, M4 stats_history, types regen, Cloud Run deploy |
 
-**Open gates (Launch phase — post-W5):** §13B corpus-health + hero niches · F5 full on `/app/channel` · channel findings P1/P2 · video P1 signal backlog (see [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) §13).
+**GTM gates (human):** `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` — see [`launch-phase3-baseline.json`](../qa-reports/launch-phase3-baseline.json).
 
 ---
 

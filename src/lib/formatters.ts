@@ -32,6 +32,17 @@ export function formatVN(n: number): string {
 }
 
 /**
+ * Marketing corpus size for landing/login copy — floor to humility tier, never over-claim.
+ * Uses indexed rows (content_class_id set) when available.
+ */
+export function formatCorpusMarketingCount(indexedCount: number | null | undefined): string {
+  if (indexedCount == null || indexedCount < 100) return "1.500+";
+  const step = indexedCount >= 5_000 ? 1_000 : 100;
+  const floored = Math.floor(indexedCount / step) * step;
+  return `${formatVN(floored)}+`;
+}
+
+/**
  * Format a recency value (days ago) as natural Vietnamese.
  * "Hôm nay", "Hôm qua", "3 ngày trước", "Tuần trước", "2 tuần trước", "1 tháng trước"
  */

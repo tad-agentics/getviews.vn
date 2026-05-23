@@ -505,13 +505,12 @@ Wave 5 tasks complete — **Launch phase (full pre-launch):** Phases 0 → 1 →
 1. ~~**Phase 0**~~ ✅ — Hero niche depth (G3), corpus-health, BAT crons, humility copy, demo URL (`launch-phase0-baseline.json`)
 2. ~~**Phase 1**~~ ✅ — Channel depth picker (F5 full + F4 Sâu billing D2) (`launch-phase1-baseline.json`)
 3. ~~**Phase 2a**~~ ✅ — Core channel findings + video P1 signals + `channel_persona_drift` + G6 ablation (`launch-phase2a-baseline.json`)
-4. ~~**Phase 2b**~~ ✅ code — `stats_history` M4 cron + `distribution_spike_then_flat` (`launch-phase2b-baseline.json`; migrations pending apply + batch redeploy)
+4. ~~**Phase 2b**~~ ✅ — `stats_history` M4 cron + `distribution_spike_then_flat`; migrations `20260827000002`/`000003` applied; batch `00132-4sg` (`launch-phase2b-baseline.json`)
 5. ~~**Phase 2c**~~ ✅ — Remaining §5.3.3 + §4.8.3 P1/P2 backlog + SSE Layer B (`launch-phase2c-baseline.json`)
-6. **Phase 3** — Ship gates in progress: automated QA baselines + typecheck/tests; **human:** migrate, redeploy, visual-audit, dogfood, pre-handoff, deploy (`launch-phase3-baseline.json`)
+6. ~~**Phase 3 infra**~~ ✅ — `db push`, types regen `b479f64`, Cloud Run deploy, cron/vault verify (`launch-phase3-baseline.json`, `post-w5-uncommitted-audit.md`)
+7. **Phase 3 GTM** — `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` (Vercel SPA) — **human gates open**
 
-~~**W3-5** — §4.11.3 post–Cơ bản upsell UI.~~ ✅ Done (teasers in body; deep CTA in rail @ W5-1)
-
-*W0–W5 complete @ `680c803`; **Launch Phases 0–2c code complete** (uncommitted); Phase 3 human ship gates open.*
+*W0–W5 complete @ `680c803`; **Launch Phases 0–2c + infra complete** @ `b479f64`; GTM human gates open.*
 
 ---
 

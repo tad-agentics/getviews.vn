@@ -15,16 +15,19 @@ export const meta: MetaFunction = () => [
   { name: "twitter:card", content: "summary_large_image" },
 ];
 
+export type LandingStatsPayload = {
+  hooks: { hook_type: string; avg_views: number; sample_size: number }[];
+  thumb_ids: string[];
+  corpus_indexed_count: number | null;
+};
+
 export async function loader(_: Route.LoaderArgs) {
   try {
     const res = await fetch("/api/landing-stats");
     if (!res.ok) throw new Error("stats unavailable");
-    return (await res.json()) as {
-      hooks: { hook_type: string; avg_views: number; sample_size: number }[];
-      thumb_ids: string[];
-    };
+    return (await res.json()) as LandingStatsPayload;
   } catch {
-    return { hooks: [], thumb_ids: [] };
+    return { hooks: [], thumb_ids: [], corpus_indexed_count: null };
   }
 }
 

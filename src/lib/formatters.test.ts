@@ -4,6 +4,7 @@ import {
   formatVN,
   formatRecencyVI,
   formatBreakoutVI,
+  formatCorpusMarketingCount,
 } from "./formatters";
 
 describe("formatViews", () => {
@@ -36,6 +37,21 @@ describe("formatVN", () => {
 
   it("formats a 3-digit number with no separator", () => {
     expect(formatVN(999)).toBe("999");
+  });
+});
+
+describe("formatCorpusMarketingCount", () => {
+  it("falls back when count missing or thin", () => {
+    expect(formatCorpusMarketingCount(null)).toBe("1.500+");
+    expect(formatCorpusMarketingCount(50)).toBe("1.500+");
+  });
+
+  it("floors to hundreds below 5k", () => {
+    expect(formatCorpusMarketingCount(1_547)).toBe("1.500+");
+  });
+
+  it("floors to thousands at 5k+", () => {
+    expect(formatCorpusMarketingCount(12_847)).toBe("12.000+");
   });
 });
 
