@@ -1,11 +1,11 @@
-# Feature Map (main @ da76f96)
+# Feature Map (main @ 9b97207)
 
 *Comprehensive full-stack inventory of user-facing surfaces, backend endpoints, synthesis paths, and database tables. **Source of truth** for what ships where — update this file in the same commit as any route, endpoint, or orchestration change.*
 
 *User value / JTBD / gap analysis:* [`product-value-audit.md`](product-value-audit.md) (value → data, doc-only).  
 *V1 product vision (chỉ phạm vi ship GTM V1):* [`feature-map-v1.md`](feature-map-v1.md) — **không** liệt kê tính năng ngoài V1; xem **§ Post-V1 backlog** bên dưới.
 
-*Verified against codebase **2026-05-22** (Wave 0 incremental — channel 3× credit + F8 verify). Spot-checked: two-axis browse (`corpusNicheFilter.ts`, `useTopBreakouts`, `useCrossNicheBreakouts`); Home tier I–III (`MorningSignalStrip`, `HooksTable`, `BreakoutGrid`); Trends Explore (`CrossNicheBreakoutLane`, `TrendsRail`, class MV thin banner); taxonomy v2 (16 active niches, 82 classes); dual SSE + answer path unchanged from prior audit.*
+*Verified against codebase **2026-05-23** (Wave 4 — channel findings + deep utilization @ `9b97207`; Wave 3 depth @ `9cd0957`). Spot-checked: two-axis browse; Home tier I–III; Trends Explore; `analysis_depth` whitelist + cache partition; `channel_findings.py`; live `boost_attribution` (F1 deep); Win W0 signals (5 total); channel peer `reference_eligible_only` filter.*
 
 *Pivot SSOT:* Production ingest/browse defaults — [`system-design.md`](system-design.md) §9 · taxonomy tables — [`two-axis-niche-model.md`](two-axis-niche-model.md).*
 
@@ -24,9 +24,7 @@
 | **Douyin trend forecast** (lead-time productized) | — | Wave 2; V1 chỉ `TrendsDouyinCard` optional trên `/app/trends` |
 | **Passive FYP mirror / push feed** | — | Wave 2+ |
 | **Legacy `/channel/analyze`** | *(removed)* | Dropped migration `20260715000001`; V1+ uses **`POST /channel/diagnose`** only |
-| **Legacy chat sessions mới** | `chat_sessions`, `/api/chat` | V1: chỉ maintain `history_union` cho rows cũ |
-| **Answer follow-up (turn 2+)** | `POST /answer/sessions/{id}/turns`, `append_turn` | Sau `video_diagnosis`: pattern, timing, ideas, generic, creators, script…; TimelineRail |
-| **Composer — câu hỏi text** | `intent-router.ts`, `/api/chat` | Intents ⑤⑥⑦ + research Q&A; V1 composer = URL/@handle theo pill only |
+| **Legacy chat sessions mới** | `chat_sessions`, `/api/chat` | Không entry free composer; legacy `history_union` read-only |
 | **Script — thư viện câu searchable** | — | v1.1 |
 | **Auto-post / scheduler** | — | Out of product |
 | **Viral alignment score** | — | Deferred (ρ &lt; 0.35) |
@@ -112,7 +110,7 @@
 
 **Central surface for structured video reports (Win/Flop). Replaces deleted `/app/video` (2026-04-28).**
 
-**V1 product:** **single turn** per video session — no follow-up Q&A in Answer UI ([`feature-map-v1.md`](feature-map-v1.md) §4.10.1). As-built still supports turn 2+ (see ② below) — Post-V1.
+**V1 product:** Entry qua composer pill / handoff; **follow-up = CTA intent pill** per format ([`feature-map-v1.md`](feature-map-v1.md) §4.10.2) — không free-text Answer composer. **W5-1** build rail; **W5-2** format output polish.
 
 - **FE:** `src/routes/_app/answer/AnswerScreen.tsx` (`routes.ts:15`)
 - **Entry points:**
@@ -139,7 +137,9 @@
   - Canonical: `narrative_vi.diagnosis_vi.sections[].embedded_tiles` joined to `reference_videos` in `DiagnosisSectionRenderer.tsx`
   - Cache repair: `embed_contract_version` + `repair_diagnosis_vi_embedded_tiles()` on corpus/on-demand cache hits (`finalize-lite`); `ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3`
   - FE fallback: `embeddedTilesFromEvidenceAnchors` when anchors carry `aweme_id` (`VideoBody.tsx`)
-- **Signals (read-only lookups):** `hook_effectiveness`, `video_patterns`, `content_class_intelligence`, `signal_grades`, corpus peers; **`peer_percentile` / `peer_percentile_label`** on diagnosis payload → `FlopDiagnosisStrip` (`VideoBody.tsx`); Win W0: `win_er_above_niche_p75`, `win_hook_aligns_niche_top` (`signals/win.py`, hit tier only)
+- **Signals (read-only lookups):** `hook_effectiveness`, `video_patterns`, `content_class_intelligence`, `signal_grades`, corpus peers; **`peer_percentile` / `peer_percentile_label`** on diagnosis payload → `FlopDiagnosisStrip` (`VideoBody.tsx`); **Win W0 (5 total, hit tier):** `win_er_above_niche_p75`, `win_hook_aligns_niche_top` (W1-6) + `win_breakout_vs_channel`, `win_format_in_growth`, `win_replicable_cta` (W4-3) — `signals/win.py`
+- **`analysis_depth` enforcement (Wave 3 @ `9cd0957`):** FE pills Cơ bản/Chuyên sâu → `append_turn.analysis_depth`; BE `BASIC_SECTION_ALLOWLIST` + manifest cap **3** (basic) / **5** (deep); billing 1×/2×; cache PK `(video_id, analysis_depth)`
+- **`boost_attribution` section (Wave 4 @ `9b97207`, F1 deep only):** live M3 heuristic via `signals/distribution.py` + `classify_boost_suspect`; emits in synthesis when signals fire — **no** dedicated FE UI block; F2 basic = teaser/manifest-only per §4.2 whitelist
 
 ### §3.1 Answer handoffs (Wave 1 — query param contract)
 
@@ -156,10 +156,12 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
 - **DB tables:** `answer_sessions`, `answer_turns`, `video_diagnostics`, `video_corpus`, `content_classifications`
 - **Status:** shipped & live
 
-### ② Follow-up turns (Q&A) — not in V1 GTM
+### ② Follow-up turns — CTA intent pills (W5-1)
 
-**V1:** hidden — see [Post-V1 backlog](#post-v1-backlog-không-trong-product-vision-v1).
-- Same POST `/answer/sessions/{id}/turns` with turn `kind` from `appendTurnKindForQuery()` (timing, creators, script, generic, …)
+- Turn 2+ via **IntentCtaRail** — explicit `intent_type` from §4.10.2 matrix; **not** free-text `FollowUpComposer`
+- Same POST `/answer/sessions/{id}/turns`; `source_entry=intent_cta`
+- **TimelineRail** — navigate turns in session
+- **W5-2 (deferred):** `narrative_vi` / body parity per format
 - **Synthesis:** intent-specific `run_*` in `pipelines.py` (e.g. `run_trend_spike`, `run_creator_search`, `run_shot_list`)
 - Text-only free intents may also use Vercel **`POST /api/chat`** when routed to chat mode (see §13)
 - **Status:** shipped & live
@@ -197,7 +199,8 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
   - POST `/channel/diagnose` (`video.py:736`) — SSE narrative channel diagnosis (Lightreel-style v2)
   - POST `/channel/refresh-mine` (`video.py:143`) — refresh signed-in user's channel
 - **Cache:** `channel_diagnoses` row, **`max_age_days=7`** default (`_fetch_channel_diagnoses_cache`, `video.py:291`); `force_refresh=true` bypasses
-- **Synthesis:** `channel_diagnose.py` + `channel_diagnose_prompts.py`; corpus-first peers + live EnsembleData hybrid
+- **Synthesis:** `channel_diagnose.py` + `channel_diagnose_prompts.py` + **`channel_findings.py`** (Wave 4 — P0×4 deterministic findings → `<<<CHANNEL FINDINGS>>>` prompt inject); corpus-first peers + live EnsembleData hybrid
+- **Peer filter (Wave 4):** `_run_peer_corpus_query(..., reference_eligible_only=True)` with &lt;4-handle unfiltered fallback — peers not ads-skew
 - **Credit cost:** **3** `credits_remaining` per cache-miss diagnosis — FE `ChannelScreen.tsx` `CREDIT_COST=3`; BE `channel_diagnose.CHANNEL_DIAGNOSE_CREDIT_COST=3` (pre-check balance ≥3, then 3× `decrement_credit` RPC). Cache hit free. No credit rollback on `stream_failed` (as-built).
 - **DB tables:** `channel_diagnoses`, `video_patterns`, `hook_effectiveness`, `creator_velocity`, `niche_insights`
 - **Status:** shipped & live
@@ -408,9 +411,9 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 | Landing | / | live | Pre-rendered SEO |
 | Auth | /login, /signup, /auth/callback | live | Supabase; Facebook OAuth |
 | Home | /app | live | 3-tier Gợi ý hôm nay + Morning Signal + within-niche breakouts |
-| Answer | /app/answer | live (video 1-turn V1) | `answer_turn` SSE; `FlopDiagnosisStrip` peer percentile; follow-up turns Post-V1 |
+| Answer | /app/answer | live | depth 3/5 cap; boost F1 deep; Win W0×5; **W5-1** CTA follow-up §4.10.2 |
 | History | /app/history | live | `history_union` RPC |
-| Channel | /app/channel | live | 3 credits FE+BE on cache miss (Wave 0) |
+| Channel | /app/channel | live | 3 credits FE+BE; `channel_findings` + `reference_eligible` peer filter (Wave 4) |
 | Trends | /app/trends | live | Pattern grid + kho video + cross-niche lane + desktop rail |
 | Script | `/app/answer` (legacy `/app/script` redirect) | live in Answer | narrative_vi + shoot panel |
 | Compare | /app/compare | codebase only (not V1 GTM) | `/stream`; see Post-V1 backlog |

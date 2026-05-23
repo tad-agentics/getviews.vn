@@ -16,6 +16,7 @@
 | [`product-value-audit.md`](product-value-audit.md) | Value → data audit, gaps, PVA backlog |
 | [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) | Extract field tiers, trim rules |
 | [`data-utilization-map-v1.md`](data-utilization-map-v1.md) | **FIELD × feature** matrix (F1–F8 + Studio) — pre-implement gate |
+| [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) | Wave sequencing + **architecture invariants** (composer + intent-router SSOT) |
 | [`system-design.md`](system-design.md) | Architecture, invariants TD-1–TD-7 — **sync §4.12** khi ship depth/cache |
 | [`emotional-design-system.md`](emotional-design-system.md) | Persona Minh, tone, authority |
 | [`bao-cao-flop-video-kenh-toan-dien-v5.md`](bao-cao-flop-video-kenh-toan-dien-v5.md) | Taxonomy flop (§1.8 Seeding & Ads) — signal engineering reference |
@@ -107,7 +108,11 @@ flowchart TB
   ST --> pills
   XH --> xh
   pills --> depth[Cơ_bản_·_Chuyên_sâu_trong_composer]
+  depth --> router[intent_router_planAnswerEntry]
+  router --> answer[/app/answer_·_/app/channel]
 ```
+
+**Architecture invariant (incremental V1 — giữ nguyên):** Entry Studio/handoff **prefill `?q=`** (URL, @handle, script brief) → [`intent-router.ts`](../../src/routes/_app/intent-router.ts) (`detectIntent` → `planAnswerEntry`). **Turn tiếp theo trong Answer:** **CTA intent pill** (nhãn cố định, `intent_type` explicit) — **không** `FollowUpComposer` chat tự do. **`QueryComposer`** = entry Studio (4 pill); **IntentCtaRail** = follow-up trong session. Giữ toàn bộ `INTENT_DESTINATIONS`; feature mới = thêm row router + thêm hàng CTA matrix §4.10.2. Deprecate `/app/script` shell (✅ W2-1a). Chi tiết: [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) Wave 2 #5–#7.
 
 ### 3.1 Tab Studio (`/app`)
 
@@ -138,11 +143,14 @@ Giữ shell composer hiện tại; đổi **pill** thành **4 mục** (thay chip
 | **Khám Kênh** | Soi kênh @handle | `/app/channel` | F4 Chuyên sâu / F5 Nhanh — §5 |
 | **Tạo kịch bản** | Kịch bản đủ quay | `/app/answer` (`format=script`) | F7; legacy `/app/script` → redirect |
 
-**Composer (luôn visible trong Tab Studio):**
+**Composer (entry Tab Studio — turn 1):**
 
-- Input theo pill: URL TikTok (video flop/win), `@handle` (kênh), hoặc flow script (kịch bản) — **không** câu hỏi tự do / follow-up (§4.10.1).
-- **Hai nút Cơ bản / Chuyên sâu** trong composer — user chọn `analysis_depth` **trước** khi khám **video hoặc kênh** (§4.11.2, §10 billing).
-- Pill flop/win **chỉ đặt framing** (`report.mode`); depth **độc lập** qua nút composer.
+- Input **theo pill** — URL TikTok, `@handle`, hoặc brief kịch bản; **không** câu hỏi text tự do (§4.10.1).
+- **Hai nút Cơ bản / Chuyên sâu** — chọn `analysis_depth` trước submit video/kênh (§4.11.2). ✅ W3 @ `9cd0957`
+- Pill flop/win preset `mode`; depth độc lập qua nút composer.
+- Handoffs ([`answerHandoff.ts`](../../src/lib/answerHandoff.ts)) prefill `?q=` + params — router SSOT turn 1.
+
+**Follow-up trong Answer:** sau mỗi báo cáo → **CTA intent pill** (2–3 nút / format), không mở lại composer chat tự do — §4.10.1–§4.10.2.
 
 ### 3.2 Tab Xu hướng (`/app/trends`)
 
@@ -314,7 +322,7 @@ flowchart TD
 3. **Cơ bản** → V6 whitelist; CTA “Phân tích chuyên sâu” + teaser manifest (§4.2).  
 4. **Chuyên sâu** → cùng `AnswerScreen` / `VideoBody`, full pool — **phiên mới** cùng URL (`depth=deep`), không phải follow-up turn.
 
-**V1 — không follow-up:** Một phiên video = **một báo cáo**; không hỏi thêm trong Answer sau khi có kết quả. Chi tiết §4.10.1.
+**Multi-turn:** Giữ `TimelineRail` + `append_turn` — turn 2+ chỉ qua **CTA intent pill**, không free-text follow-up — §4.10.1.
 
 ### 4.6 Data contract (Trụ 5)
 
@@ -621,14 +629,15 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 | Tab Xu hướng (Douyin) — card tương tự | handoff video nếu có URL VN map | `basic` | `win` | `trends_douyin` |
 | Evidence tile, IdeaBlock, SceneIntel | `prefillUrl` → `?q=` | inherit pill + composer | inherit pill | `evidence` |
 
-**As-built gap (cần implement):**
+**Implementation status (incremental V1):**
 
-| File | Hiện tại | V1 |
-|------|----------|-----|
-| [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx) | `prefillUrl` / `initialPrompt`; composer follow-up + TimelineRail | `depth`/`mode`/`from`; **ẩn** follow-up §4.10.1; URL-only submit từ pill video |
-| [`intent-router.ts`](../../src/routes/_app/intent-router.ts) | Nhiều intent (pattern, timing, …) | V1 Studio: chỉ `video_diagnosis` + route kênh/script theo pill |
-| [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx) ~L1170 | `navigate(..., { prefillUrl })` | Full query: `depth=basic&mode=win&from=trends` |
-| `TrendsRail`, `PatternModal`, `GenericEvidenceGrid`, `SceneIntelligencePanel`, `IdeaBlock` | `prefillUrl` only | Align với bảng trên |
+| File | V1 contract | Status |
+|------|-------------|--------|
+| [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx) | Turn 1: pill/params; turn 2+: **IntentCtaRail** (ẩn `FollowUpComposer` free text) | ✅ W1 + W3 entry; **W5-1** CTA rail |
+| [`intent-router.ts`](../../src/routes/_app/intent-router.ts) | Turn 1: `detectIntent` → `planAnswerEntry`; turn 2+ CTA: **`intent_type` explicit** (bypass free-text classify) | ✅ invariant @ W2-1a |
+| [`QueryComposer.tsx`](../../src/components/QueryComposer.tsx) | Entry Studio: 4 pill + Cơ bản/Chuyên sâu — **không** follow-up slot chat | ✅ W3-0 |
+| [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx), handoff helpers | Full query: `depth=basic&mode=win&from=trends` | ✅ W1-1 (`answerHandoff.ts`) |
+| `TrendsRail`, `PatternModal`, `GenericEvidenceGrid`, `SceneIntelligencePanel`, `IdeaBlock` | Align bảng entry trên | ✅ W1-1/W1-2 |
 
 **Query param contract:**
 
@@ -642,17 +651,46 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 
 **UI labels (tiếng Việt):** “Cơ bản” / “Chuyên sâu” — không English trong product.
 
-#### 4.10.1 V1 — một lượt, không follow-up
+#### 4.10.1 Intent scope — giữ router; follow-up = CTA pill
 
-| | V1 | As-built (Post-V1 → `feature-map.md`) |
-|---|-----|----------------------------------------|
-| **Answer session** | **1 turn** = `video_diagnosis` → `VideoBody` xong | Turn 2+: pattern, timing, ideas, generic, creators, script… qua `append_turn` |
-| **Composer Studio** | Pill video: **chỉ URL TikTok** (hoặc aweme_id); pill kênh → `/app/channel` | Câu hỏi tự do → `intent-router` → research / `/api/chat` |
-| **UI Answer** | Không composer follow-up; không **TimelineRail** multi-turn | `AnswerScreen` input sau báo cáo |
-| **Upsell Chuyên sâu** | Mở lại cùng URL, `depth=deep` (credit mới) | — |
-| **History** | Xem session cũ (`history_union`) | Tạo session text/chat mới từ composer |
+| | V1 (đã chốt) | Build — **W5-1** / **W5-2** |
+|---|-----|------------------------------|
+| **`INTENT_DESTINATIONS`** | **Giữ nguyên** mọi intent trong router — không xóa row | Thêm intent = thêm row + thêm CTA matrix §4.10.2 |
+| **Turn 1 (entry)** | Studio 4 pill · handoff `?q=` · depth/mode/from → `detectIntent` → `planAnswerEntry` | ✅ W1–W3 |
+| **Turn 2+ (follow-up)** | **CTA intent pill** — nhãn tiếng Việt cố định, `intent_type` + payload known; **không** composer chat tự do · **không** `follow_up_unclassifiable` từ free text | `IntentCtaRail` thay `FollowUpComposer`; ẩn input text sau báo cáo |
+| **`TimelineRail`** | Giữ — xem/lui giữa các turn trong session | — |
+| **Output format** | Mỗi `AnswerSessionFormat` body riêng — có thể lệch narrative | **W5-2:** chuẩn hóa `narrative_vi` / renderer parity |
 
-**Implement gợi ý:** FE — sau `ReportV1` video, ẩn input / chỉ CTA Deep + Script + Xu hướng; BE — có thể từ chối `append_turn` khi session đã có `format=video_diagnosis` (optional guard).
+**Không làm:** free-text follow-up trong Answer; thu hẹp router; xóa intent khỏi matrix.
+
+#### 4.10.2 Intent CTA matrix (follow-up — gợi ý theo format hiện tại)
+
+Sau mỗi báo cáo, FE render **2–3 CTA pill** từ bảng gợi ý (có thể lọc theo context: URL đã có, `mode`, tier, credits). Tap CTA → `append_turn` cùng session với `intent_type` explicit (+ prefill `q` / state khi cần URL thứ hai) — **không** qua classify câu hỏi tự do.
+
+| Sau format / turn | CTA pill (ví dụ user-facing) | `intent_type` / hành vi |
+|-------------------|------------------------------|-------------------------|
+| **`video`** (flop/win) | **Tạo kịch bản** | `shot_list` → `answer:script` (context từ video vừa phân tích) |
+| | **So sánh với video khác** | `compare_videos` → `/app/compare` hoặc turn compare (pin video A, nhập URL B) |
+| | **Phân tích chuyên sâu** | Cùng URL, `depth=deep` — phiên/turn mới, billing 2× |
+| | *(flop)* **Sửa hook — tạo biến thể** | `hook_variants` → `answer:ideas` |
+| | *(win)* **Giờ đăng tốt** | `timing` / `content_calendar` → `answer:timing` |
+| **`script`** | **Quay kịch bản** | shoot panel in Answer (`?shoot=`) |
+| | **Phân tích video mẫu** | `video_diagnosis` với URL reference từ session |
+| | **Lưu bản nháp** | persist `draft_scripts` (W2-1c) |
+| **`pattern`** | **Tạo kịch bản theo công thức** | `shot_list` |
+| | **Giải mã video viral** | handoff `video_diagnosis` + URL từ evidence tile |
+| **`timing`** | **Lên lịch tuần này** | `content_calendar` |
+| | **Tạo kịch bản slot hot** | `shot_list` |
+| **`ideas`** | **Viết kịch bản đủ quay** | `shot_list` |
+| | **So sánh hook A/B** | `compare_videos` (2 URL) |
+
+**Quy tắc product:**
+- Mỗi format **≥2, ≤4** CTA visible; ưu tiên JTBD sau turn vừa xong.
+- Copy CTA = **động từ + object** (“Tạo kịch bản”, “So sánh với video khác”) — không câu hỏi mở.
+- CTA disabled khi thiếu prerequisite (vd. compare cần URL thứ hai → mini prompt **chỉ URL**, không chat).
+- `source_entry` / analytics: `intent_cta` + `parent_format` + `cta_id`.
+
+**Implement gợi ý:** FE — `intentCtaSuggestions.ts` (matrix + filters); `IntentCtaRail.tsx` thay `FollowUpComposer` khi `sessionId` + report done; BE — `append_turn` nhận optional `intent_type` override từ CTA (skip re-classify).
 
 ### 4.11 UI/UX — Video Intelligence
 
@@ -665,8 +703,8 @@ Tham chiếu [`artifacts/uiux-reference/`](../../artifacts/uiux-reference/) + [`
 | Tier chip | `performance_tier=hit` breakout | Flop / unknown humility |
 | Section `diagnosis` | “CƠ CHẾ CHẠY ĐÚNG” | “VẤN ĐỀ CHÍNH” |
 | Strip / scenarios | `winLessons`, bright spot | `FlopDiagnosisStrip`, `viewScenarios` |
-| Primary CTA | “Quay theo công thức” → Script Studio | Handoff script sửa hook |
-| Secondary | “Phân tích chuyên sâu” (nếu đang Basic) | Cùng upsell Deep |
+| Primary CTA (trong báo cáo) | Một trong các pill §4.10.2 (vd. “Quay theo công thức”) | Một trong các pill §4.10.2 (vd. “Tạo kịch bản”) |
+| Secondary | “Phân tích chuyên sâu” (Basic) | “So sánh với video khác” · “Sửa hook” |
 
 #### 4.11.2 Nút Cơ bản / Chuyên sâu (composer — Tab Studio)
 
@@ -756,7 +794,7 @@ On-demand upsert: always set `analysis_depth` from request. Corpus path: write *
 
 | Surface | Parameters | Default |
 |---------|------------|---------|
-| `build_video_report` / `append_turn` (turn 1 only V1) | `analysis_depth`, `mode?`, `source_entry?` | `basic`, heuristic mode, `composer`; turn 2+ Post-V1 §4.10.1 |
+| `build_video_report` / `append_turn` | `analysis_depth`, `mode?`, `source_entry?`; turn 2+ từ CTA: `intent_type`, `source_entry=intent_cta` | §4.10.1–§4.10.2 |
 | `run_video_diagnosis` / `/stream` | same | Video diagnosis (answer path) |
 | `manifest_for_prompt` | `depth` | cap 3 / 5 |
 | `select_sections_to_emit` | `depth` | whitelist if `basic` |
@@ -1270,7 +1308,7 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 
 **BE files:** `diagnose_sections.py`, `gemini.py`, `signals/salience.py`, `report_video.py`, `video_analyze.py`, `answer_session.py` — §15.
 
-**Giữ as-built (không productize V1):** `history_union` (đọc cũ); admin/batch. **Không V1:** follow-up turns, text intents từ composer → `feature-map.md` § Post-V1.
+**Giữ as-built:** `history_union`; admin/batch. **V1 UX:** entry composer pill-only; follow-up **IntentCtaRail** §4.10.2 — không free-text Answer composer.
 
 ---
 
@@ -1290,23 +1328,25 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 
 ### 13B — Launch gate still open
 
-- [ ] Mọi video card → **Cơ bản** hoặc **Chuyên sâu**; cùng V6 UI; Cơ bản ⊆ sections Chuyên sâu  
-- [ ] Cache `(video_id, analysis_depth)` tách biệt; basic ⊆ deep sections; không serve nhầm depth  
-- [ ] Composer **4 pill** + Cơ bản/Chuyên sâu picker (§3.1.2)  
-- [ ] §4.9–§4.12 Win: Xu hướng 1 tap → `depth=basic` + `mode=win` + `from=trends` (query params **not wired** in Explore navigate paths yet)  
-- [ ] §4.8 W0: ≥2 signal `win_*` + test; salience `tier_gate=hit`  
-- [ ] Mọi handle → **Nhanh** hoặc **Sâu**; billing đúng spec §10  
-- [ ] Kho / pattern tile → Answer handoff §4.10 (không paste URL thủ công)  
-- [ ] Ritual Studio tier I → **Script Studio** ≤2 tap  
-- [ ] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier  
-- [ ] **§8.7:** 5–8 ngách hero đạt tier tối thiểu `reference_pool` (≥5 video/30d); ưu tiên `niche_norms` / `hook_effectiveness` cho ngách launch  
-- [ ] **§8.7:** Xu hướng — mỗi ngách hero có ≥1 `video_patterns` card không rỗng; Kho + `ConfidenceStrip` khớp tier  
-- [ ] **§8.7:** ≥1 URL corpus-hit → Answer Cơ bản (demo) — chứng minh synthesis path, không yêu cầu mass on-demand pre-launch  
-- [ ] Channel FE/BE credit aligned  
-- [ ] §4.7: reference peers `reference_eligible`; boost section chỉ Chuyên sâu; không claim ads poisoning từ heuristic alone  
-- [ ] §4.8: deep `manifest_for_prompt` cap 5; ≥8 signal backlog P0/P1 có test  
-- [ ] §5.3: F4 có `channel_findings` P0; memo không claim FYP/shadowban chắc chắn  
-- [ ] §4.10.1: Answer video **1 turn** — không composer follow-up; không pattern/timing/ideas từ Studio  
+- [x] Mọi video card → **Cơ bản** hoặc **Chuyên sâu**; cùng V6 UI; Cơ bản ⊆ sections Chuyên sâu — ✅ W3 @ `9cd0957`
+- [x] Cache `(video_id, analysis_depth)` tách biệt; basic ⊆ deep sections; không serve nhầm depth — ✅ W3-1/W3-4 @ `9cd0957`
+- [x] Composer **4 pill** + Cơ bản/Chuyên sâu picker (§3.1.2) — ✅ W3-0 @ `9cd0957`
+- [x] §4.9–§4.12 Win: Xu hướng 1 tap → `depth=basic` + `mode=win` + `from=trends` — ✅ W1-1 (`answerHandoff.ts`)
+- [x] §4.8 W0: ≥2 signal `win_*` + test; salience `tier_gate=hit` — ✅ **5/5** Win W0 @ W1-6 + W4-3 (`signals/win.py`)
+- [ ] Mọi handle → **Nhanh** hoặc **Sâu**; billing đúng spec §10 — channel depth picker **deferred** (video depth only in W3)
+- [x] Kho / pattern tile → Answer handoff §4.10 (không paste URL thủ công) — ✅ W1-1/W1-2
+- [x] Ritual Studio tier I → **Script Studio** ≤2 tap — ✅ W2-1a (Answer prefill)
+- [ ] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier
+- [ ] **§8.7:** 5–8 ngách hero đạt tier tối thiểu `reference_pool` (≥5 video/30d); ưu tiên `niche_norms` / `hook_effectiveness` cho ngách launch
+- [ ] **§8.7:** Xu hướng — mỗi ngách hero có ≥1 `video_patterns` card không rỗng; Kho + `ConfidenceStrip` khớp tier
+- [ ] **§8.7:** ≥1 URL corpus-hit → Answer Cơ bản (demo) — chứng minh synthesis path, không yêu cầu mass on-demand pre-launch
+- [x] Channel FE/BE credit aligned — ✅ W0-1 (3×)
+- [x] §4.7: reference peers `reference_eligible`; boost section chỉ Chuyên sâu; không claim ads poisoning từ heuristic alone — ✅ W4-2/W4-4 @ `9b97207`
+- [x] §4.8: deep `manifest_for_prompt` cap 5; basic cap 3 — ✅ W3-2 @ `9cd0957` (P1 signal backlog partial — only P0 subset in W4-3)
+- [x] §5.3: F4 có `channel_findings` P0; memo không claim FYP/shadowban chắc chắn — ✅ W4-1 @ `9b97207`
+- [x] Composer entry + intent-router SSOT (§3.1.2) — turn 1 qua pill/handoff `?q=`
+- [ ] **W5-1:** Intent CTA pill follow-up — matrix §4.10.2; thay `FollowUpComposer` free text; `source_entry=intent_cta`
+- [ ] **W5-2:** Intent output format — `narrative_vi` / body parity per `AnswerSessionFormat`
 
 ---
 
@@ -1321,7 +1361,7 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 | D4 | Đổi tên route `/app/trends` → `/app/xu-huong`? | SEO/i18n vs redirect cost |
 | D5 | ~~Boost — user khai báo hay OAuth?~~ | **Đã chốt:** chỉ M1–M4 tự động (§4.7) |
 | D6 | `reference_eligible=false` khi `suspect_medium` | **Đề xuất:** A) Auto loại ref + MV aggregates (§4.7.5) |
-| D7 | ~~Xu hướng → video handoff~~ | **Spec chốt:** `depth=basic` + `mode=win` + `from=trends` (§4.10) — **🔨 FE wiring open** (Explore navigate chưa pass query params) |
+| D7 | ~~Xu hướng → video handoff~~ | **Đã chốt + shipped:** `depth=basic` + `mode=win` + `from=trends` (§4.10) — ✅ W1-1 |
 | D8 | Cache composite migration | **Đề xuất:** A) `UNIQUE (video_id, analysis_depth)` + backfill `deep` (§4.12.3) B) defer — ship depth without DB partition |
 | D9 | `mode` win↔flop đổi cache | **Đề xuất V1:** A) Giữ full recompute khi `mode` override (as-built) B) Cache chỉ theo depth; mode = prompt slice (V1.1) |
 | D10 | Compliance trên Win Basic | **Đề xuất:** A) Giữ khi `applies` (§4.2) B) V1.1 bỏ khỏi whitelist Win |
@@ -1343,7 +1383,8 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 | BE report | [`report_video.py`](../../cloud-run/getviews_pipeline/report_video.py), [`answer_session.py`](../../cloud-run/getviews_pipeline/answer_session.py) | `analysis_depth`, `source_entry`, `mode` |
 | BE cache | [`video_analyze.py`](../../cloud-run/getviews_pipeline/video_analyze.py) | Read/write `(video_id, analysis_depth)`; synthesis-only upgrade |
 | DB | `*_video_diagnostics_analysis_depth.sql`, `20260727000000_rename_deep_credits_to_credits.sql` | Cache partition; `credits_remaining` / `credits_granted` |
-| FE routes | [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx), [`intent-router.ts`](../../src/routes/_app/intent-router.ts) | `depth`/`mode`/`from`; **no follow-up** §4.10.1 |
+| FE routes | [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx), [`intent-router.ts`](../../src/routes/_app/intent-router.ts), [`QueryComposer.tsx`](../../src/components/QueryComposer.tsx) | **W5-1** `IntentCtaRail` + matrix §4.10.2; ẩn free follow-up |
+| FE UI (mới) | `IntentCtaRail.tsx`, `intentCtaSuggestions.ts` | Per-format 2–4 CTA; explicit `intent_type` on tap |
 | FE Studio home | [`HomeSuggestionsToday.tsx`](../../src/routes/_app/home/components/HomeSuggestionsToday.tsx) | **Freeze** — no layout reshape |
 | FE trends | [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx), [`TrendsPatternGrid.tsx`](../../src/routes/_app/trends/TrendsPatternGrid.tsx) | **Freeze** UI; handoff query §4.10 |
 | FE UI | `DepthPicker` (mới hoặc inline composer), [`VideoBody.tsx`](../../src/components/v2/answer/video/VideoBody.tsx) | Teasers, Deep CTA §4.11; `FlopDiagnosisStrip` + `peer_percentile` ✅ |
@@ -1365,11 +1406,14 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 - [x] Studio freeze? → **Gợi ý hôm nay** 3 tầng (§3.1.1) — Morning Signal + within/cross-niche distinction documented  
 - [x] Two-axis browse shipped under UI freeze? → **Yes** (class MV, junction filter, CrossNiche lane)  
 - [x] Cross-niche ≠ Home Tier III? → **Yes** (§3.1.1, §3.2.2)  
-- [x] Handoff spec? → **`depth=basic` + `mode=win`** (§4.10) — **FE wiring still 🔨**  
-- [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12) — **migration not shipped**  
+- [x] Handoff spec? → **`depth=basic` + `mode=win`** (§4.10) — ✅ W1-1 wired  
+- [x] Composer entry + router turn 1? → pill/handoff → `planAnswerEntry` (§3.1.2)  
+- [ ] Follow-up = CTA intent pill? → **W5-1** §4.10.2 — không composer chat tự do  
+- [ ] Intent output format round? → **W5-2** — `narrative_vi` per format  
+- [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12) — ✅ W3 @ `9cd0957`  
 - [x] Pre-launch cost ≠ cắt feature? → **§8.6–§8.8** — utilize kho; ingest policy tách track A/B  
-- [ ] Video depth / composer 4 pill — still 🔨 (§3.1.2, §13B)  
-- [ ] Human sign-off §14 D2, D4, D6, D8–D10 trước implement video depth  
+- [x] Video depth / composer 4 pill — ✅ W3 @ `9cd0957` (W3-5 upsell UI deferred)  
+- [ ] Human sign-off §14 D2, D4, D6, D8–D10 trước implement video depth — **depth shipped; D2 channel depth still open**  
 - [ ] Chốt danh sách **ngách hero** + chạy `corpus-health` theo §8.7 trước GTM  
 
 ---

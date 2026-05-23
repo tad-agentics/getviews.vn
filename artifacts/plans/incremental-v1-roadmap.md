@@ -2,11 +2,13 @@
 
 **Version:** 1.1  
 **Date:** 2026-05-22  
-**Branch baseline:** `main` @ `e3b5d01` (as-built re-verified 2026-05-22)  
+**Branch baseline:** `main` @ `9b97207` (Wave 4 ship; Wave 3 @ `9cd0957`)  
 **Status:** SSOT for incremental path to V1 vision — **not** a wholesale `feature-map-v1.md` implementation plan  
 **Changelog v1.1:** As-built audit — fix ref-pool vs channel-peer gaps, `peer_percentile` wiring, W1-4 done scope, handoff inventory, Compare GTM note, F8 DoD.  
 **Wave 0 (2026-05-22):** ✅ Complete — see §4 Wave 0 status.  
-**Wave 1 (2026-05-22):** ✅ Complete — `feat(wave1): handoffs + peer_percentile + win signals` @ `e3b5d01`.
+**Wave 1 (2026-05-22):** ✅ Complete — `feat(wave1): handoffs + peer_percentile + win signals` @ `e3b5d01`.  
+**Wave 3 (2026-05-22):** ✅ Complete @ `9cd0957` — depth epic (W3-5 upsell deferred).  
+**Wave 4 (2026-05-23):** ✅ Complete @ `9b97207` — channel findings + deep utilization.
 
 **Related docs:**
 
@@ -95,13 +97,13 @@ Khi item wire extract → user value, PR phải có:
 |-----|-------------------|------------------|
 | Channel credit FE≠BE | ✅ W0-1 — `CHANNEL_DIAGNOSE_CREDIT_COST=3`; FE/BE aligned @ `8ad7ab0` | — |
 | Trends→Answer handoff | ✅ W1-1/W1-2 — `answerHandoff.ts`; query `depth`/`mode`/`from` → `video_mode` on `/answer/turns` @ `e3b5d01` | — |
-| No `analysis_depth` | Param accepted/logged on BE; **not** enforced (no F2 whitelist, no cache partition) | **Wave 3+** |
+| No `analysis_depth` | ✅ W3 — whitelist + cache `(video_id, analysis_depth)` + billing 1×/2× @ `9cd0957` | — |
 | Home vs Trends breakout scope | ✅ W1-4 copy — Tier III vs TrendsRail 7d/viral vs CrossNiche; nav dedup UX residual → W2 if needed | **Wave 2** (optional) |
-| Answer follow-up turn 2+ | `FollowUpComposer` in `AnswerScreen.tsx` | **Gate** — Wave 5 or post-V1 |
-| `channel_findings[]` P0 | Channel = memo SSE, no manifest | **Wave 4** |
+| Answer follow-up turn 2+ | As-built: `FollowUpComposer` free text | **W5-1:** Intent CTA pill rail §4.10.2 — ẩn chat tự do; giữ multi-turn |
+| `channel_findings[]` P0 | ✅ W4-1 — `channel_findings.py` + `<<<CHANNEL FINDINGS>>>` @ `9b97207` | — |
 | `peer_percentile` | ✅ W1-3 — `finalize_niche_meta_peer_tier` + label when `content_class_tier` axis @ `e3b5d01` | — |
 | Ref pool `reference_eligible` | ✅ Batch ingest + `fetch_corpus_reference_pool` filter (`corpus_context.py`) | **Done** — verify only |
-| Channel peer ads-skew | `_run_peer_corpus_query` **không** `.eq("reference_eligible", True)` | **Wave 4** |
+| Channel peer ads-skew | ✅ W4-4 — `_run_peer_corpus_query(..., reference_eligible_only=True)` + fallback @ `9b97207` | — |
 | Utilization map stale | ✅ W1-5 — v1.1 resync @ `88a86e5`; orphans + BAT column as-built | — |
 
 ### 3.1 Handoff inventory (vision §4.10)
@@ -114,7 +116,7 @@ Khi item wire extract → user value, PR phải có:
 | `GenericEvidenceGrid` | same | ✅ `inheritHandoffFromSearch` (`from=evidence`) | ✅ W1-2 |
 | `SceneIntelligencePanel` | same | ✅ `inheritHandoffFromSearch` (`from=script`) | ✅ W1-2 |
 | `IdeaBlock` | same | ✅ `from=ideas` (raw aweme_id) | ✅ W1-2 |
-| Home composer / Studio | pill + depth picker (post-W3) | free-text `?q=` only | W3 |
+| Home composer / Studio | pill + depth picker (post-W3) | ✅ Cơ bản/Chuyên sâu pills + `?depth=` @ W3 | ✅ W3 |
 | Compare single-side fallback | `/app/answer` + `prefillUrl` | ✅ state `prefillUrl` → query migrate (legacy) | — |
 
 **Note:** ✅ W1-1 — `mode=win` via `?mode=` → `video_mode` on `/answer/turns` → `build_video_report(mode=…)`. `analysis_depth` logged only until Wave 3.
@@ -191,19 +193,27 @@ Khi item wire extract → user value, PR phải có:
 | 2 | Drafts | **Cả hai:** `answer_turns.payload` = source of truth session; `draft_scripts` + `source_session_id` (đã có FK) cho export/shoot/edit lưu lại |
 | 3 | Schema | **Reuse `narrative_vi`** — `_schema_version: "script_v1"`; sections `hook_analysis`, `script_structure`, `next_video`; `shots[]` = structured appendix (không fork type riêng) |
 | 4 | Credits | **OK:** primary script turn **3×**; regenerate/edit shot = follow-up turn **1×** (same as other answer follow-ups) |
-| 5 | Composer + intent-router | **Giữ nguyên** — mọi entry (Studio pill, handoff, deeplink) **prefill `?q=`** → `planAnswerEntry()` / `detectIntent()`; không thay bằng hardcoded script-only nav. Feature mới = thêm row `INTENT_DESTINATIONS` + `AnswerSessionFormat`, không fork route riêng |
+| 5 | Composer + intent-router | **Giữ nguyên** — mọi entry (Studio pill, handoff, deeplink, text tự do) **prefill `?q=`** → `planAnswerEntry()` / `detectIntent()`; không thay bằng hardcoded script-only nav. Feature mới = thêm row `INTENT_DESTINATIONS` + `AnswerSessionFormat`, không fork route riêng |
+| 6 | Intent scope | **Giữ toàn bộ intent** trong router — **không** cắt row |
+| 7 | Follow-up UX | **CTA intent pill** — không composer chat tự do; mỗi `AnswerSessionFormat` gợi ý 2–4 CTA khác nhau (§4.10.2); `intent_type` explicit trên tap |
 
 **Architecture invariant (Wave 2+):**
 
 ```text
-User input (composer | pill | handoff prefill)
+Turn 1: User input (Studio pill | handoff prefill ?q=)
   → intent-router.ts (detectIntent → planAnswerEntry)
   → /app/answer?session=…  OR  redirect /app/channel | /app/compare
   → POST /answer/turns (format + intent_type from router)
+
+Turn 2+: Intent CTA pill (explicit intent_type + payload)
+  → append_turn same session OR redirect compare/channel
+  → NO free-text FollowUpComposer / NO follow_up_unclassifiable from chat
 ```
 
-- **Composer** (`QueryComposer` / Home / Answer shell) = long-lived extensibility surface.
-- **Deprecate** chỉ `/app/script` **route + editor shell** — không deprecate router/composer contract.
+- **Composer** (`QueryComposer`) = **entry Studio only** — 4 pill + depth; không follow-up chat slot.
+- **IntentCtaRail** = follow-up trong Answer — matrix per format §4.10.2.
+- **Giữ toàn bộ** `INTENT_DESTINATIONS` — truy cập qua CTA + entry, không xóa intent.
+- Deprecate chỉ `/app/script` **route + editor shell** — không deprecate router.
 - Handoffs (`answerHandoff.ts`) chỉ set query params / `?q=` — router vẫn là SSOT cho `format=script` vs `video` vs …
 
 **Sequencing:** W2-1a → W2-1b → W2-1c (route + narrative + shoot/drafts); W2-2–W2-4 song song sau W2-1b.
@@ -254,7 +264,7 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 
 ---
 
-### Wave 3 — Depth epic (F2 basic / F1 deep)
+### Wave 3 — Depth epic (F2 basic / F1 deep) ✅ *Shipped 2026-05-22 @ `9cd0957`*
 
 **UI (2026-05-22, pre-W3 BE):** `QueryComposer` thay **Dán link video** / **Dán @handle** → pill **Cơ bản** / **Chuyên sâu** (`QueryComposer.tsx`, `HomeScreen`, `AnswerScreen` initial composer). Handoff `?depth=basic|deep` qua `buildAnswerHandoffPath`; Trends vẫn force `depth=basic`.
 
@@ -265,7 +275,7 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 | **W3-3** FE depth pills + billing 1×/2× | M | High | Product billing | — | — | Pills ✅; BE deduct 2× on `deep` primary video | `QueryComposer.tsx`, `HomeScreen`, `AnswerScreen`, `answer_session.py` |
 | **W3-4** Cache upsert always sets `analysis_depth` | M | Med | No wasted re-extract | Both depths | — | Lookup `.eq(analysis_depth)`; on-demand URL cache partitioned | `video_analyze.py`, `report_video.py` |
 
-**Wave 3 exit:** §13B depth items; still 1-turn Answer unless gate approves follow-up hide (Wave 5).
+**Wave 3 exit:** §13B depth items; follow-up UX → W5-1 CTA pills (§4.10.2).
 
 | Item | Status | Notes |
 |------|--------|-------|
@@ -278,7 +288,7 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 
 ---
 
-### Wave 4 — Channel findings & video deep utilization
+### Wave 4 — Channel findings & video deep utilization ✅ *Shipped 2026-05-23 @ `9b97207`*
 
 | Item | Effort | Risk | F8 utilization impact | Video diag | Channel diag | Acceptance criteria | Files touched |
 |------|--------|------|----------------------|------------|--------------|---------------------|---------------|
@@ -303,10 +313,11 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 
 | Item | Effort | Risk | F8 utilization impact | Video diag | Channel diag | Acceptance criteria | Files touched |
 |------|--------|------|----------------------|------------|--------------|---------------------|---------------|
-| **W5-1** Hide Answer follow-up (turn 2+) — **human gate** | M | Med | Focus F2/F1 single turn | No TimelineRail follow-up | — | V1 §4.10.1; history still works | `AnswerScreen.tsx`, `FollowUpComposer.tsx` |
-| **W5-2** `key_messages` trim post-ablation | S | Low | Cost ~1–3% | — | — | Diff v6 on sample; map §8 updated | `models.py`, `prompts.py` |
-| **W5-3** F5 channel quick peek on Trends card | M | Med | 1–2 P0 findings | — | Teaser | Card shows ceiling OR format entropy | Trends channel card FE + API |
-| **W5-4** GTM copy + launch gate §13B sweep | M | Low | — | — | — | All §13B checkboxes evidence-linked | docs + QA baselines |
+| **W5-1** | Intent CTA pill follow-up — matrix per `AnswerSessionFormat`; ẩn `FollowUpComposer` free text | M | Med | Guided multi-intent session | Turn 2+ without chat | — | Video → ≥3 CTAs (script, compare, deep, …); explicit `intent_type`; `source_entry=intent_cta`; TimelineRail kept | `IntentCtaRail.tsx`, `intentCtaSuggestions.ts`, `AnswerScreen.tsx`, `answer_session.py` |
+| **W5-2** | Intent output format round — align bodies + `narrative_vi` | L | Med | UX consistency | All formats | — | Pattern / timing / ideas / … narrative parity | `report_*.py`, `*Body.tsx`, `gemini.py` |
+| **W5-3** `key_messages` trim post-ablation | S | Low | Cost ~1–3% | — | — | Diff v6 on sample; map §8 updated | `models.py`, `prompts.py` |
+| **W5-4** F5 channel quick peek on Trends card | M | Med | 1–2 P0 findings | — | Teaser | Card shows ceiling OR format entropy | Trends channel card FE + API |
+| **W5-5** GTM copy + launch gate §13B sweep | M | Low | — | — | — | All §13B checkboxes evidence-linked | docs + QA baselines |
 
 ---
 
@@ -325,21 +336,19 @@ Map: extract field → signal (`signals/registry.py`) → `section_id` → UI (`
 | `performance_tier` + corpus stats | performance signals | `diagnosis` | FlopDiagnosisStrip, tier badges |
 | `reference_videos` + proximity | `niche_reference_anchor` | `niche_pattern` | Embedded tiles |
 | `douyin_*` (on-demand) | `douyin_origin_*` | `douyin_origin` | Section when flag on |
-| Batch `boost_attribution` + `reference_eligible` | ingest + ref pool filter | BAT / refs | Corpus refs only — **not** live M3 |
+| Batch `boost_attribution` + `reference_eligible` | ingest + ref pool filter; live M3 ✅ W4-2 | BAT / refs / `boost_attribution` section (F1 deep) | Corpus refs + live deep diagnosis |
 
 ### 5.2 Missing / weak (incremental priority)
 
 | Extract | Target signal/section | Wave | Notes |
 |---------|----------------------|------|-------|
-| `peer_percentile` + class×tier MV | `enrich_niche_meta_with_peer_tier` → label | **W1** | Function exists; **never called**; FE reads `peer_percentile_label` only |
-| Win signals W0 (vision lists 5) | `win_er_*`, `win_hook_*` P0 in W1; rest W4 | W1/W4 | No `win_*` in `signals/` today |
-| `boost_attribution` live M3 | `boost_*`, `distribution_*` | W4 | Batch col ✅; on-demand heuristic **not built** |
-| `stats_history` M4 | `distribution_spike_then_flat` | W4+ | Cron re-fetch T+6h/24h |
-| `hook_analysis.hook_timeline[]` | pacing signals (P1) | W4 | Vision §4.8 backlog |
-| `transitions_per_second` | `editing_cut_pace_*` | W4 | F6 feed + F1 audit |
-| `persona_consistency_signals` | channel rollup OR defer | W4–5 | Orphan §8 — wire F4 P2 or defer |
+| `stats_history` M4 | `distribution_spike_then_flat` | W5+ | Cron re-fetch T+6h/24h — **not** W4 scope |
+| `hook_analysis.hook_timeline[]` | pacing signals (P1) | W5+ | Vision §4.8 P1 backlog — only P0 subset in W4-3 |
+| `transitions_per_second` | `editing_cut_pace_*` | W5+ | F6 feed + F1 audit — P1 |
+| `persona_consistency_signals` | channel rollup OR defer | W5 | Orphan §8 — wire F4 P2 or defer |
 | `key_messages[]` | — | W5 | **Trim-safe** — not wire |
-| `analysis_depth` param | cap 3 vs 5 manifest | W3 | Product knob |
+| Dedicated FE `boost_attribution` UI block | — | Post-V1 | Section emits in synthesis; no standalone FE block |
+| §4.11.3 post-basic upsell UI | teaser + “Phân tích chuyên sâu” CTA | W3-5 | **Deferred** — depth pills + billing only |
 
 ### 5.3 F2 vs F1 depth split (post-W3)
 
@@ -357,7 +366,7 @@ Map: extract field → signal (`signals/registry.py`) → `section_id` → UI (`
 
 ## 6. Channel diagnosis utilization backlog
 
-As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_channel_pattern`; **no** `build_signal_manifest`. Vision: `channel_findings[]` → `<<<CHANNEL FINDINGS>>>`.
+As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_channel_pattern`, **`build_channel_findings()`** (W4-1). Vision: `channel_findings[]` → `<<<CHANNEL FINDINGS>>>` — **✅ shipped @ `9b97207`**.
 
 ### 6.1 Wired
 
@@ -366,25 +375,26 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | ED `fetch_user_posts` | trajectory, score_card | `ScoreCard`, trajectory badges |
 | Corpus by handle | `channel_pattern`, competitive_landscape | Pattern section, peers |
 | `niche_channel_benchmarks` | percentiles in score card | KPI grid |
+| **`channel_findings.py`** (W4-1) | P0×4 findings → `<<<CHANNEL FINDINGS>>>` prompt inject | Evidence-backed memo sections |
 | Gemini memo | `verdict`, `what_falling`, `what_worked`, `recommendations` | `SectionRenderer` |
 
 ### 6.2 Missing (§5.3 P0–P2)
 
 | Finding id | V5 | Data | Wave |
 |------------|-----|------|------|
-| `channel_view_ceiling_300` | §2.1 proxy | views≤300 + ER | W4 |
-| `channel_format_entropy_high` | §2.2 | format distribution | W4 |
-| `channel_recent_vs_peak_er_drop` | §2.2 | recent vs peak windows | W4 |
-| `channel_peer_format_saturation` | §2.3 | top 20 corpus 7d | W4 |
+| `channel_view_ceiling_300` | §2.1 proxy | views≤300 + ER | ✅ W4-1 |
+| `channel_format_entropy_high` | §2.2 | format distribution | ✅ W4-1 |
+| `channel_recent_vs_peak_er_drop` | §2.2 | recent vs peak windows | ✅ W4-1 |
+| `channel_peer_format_saturation` | §2.3 | top 20 corpus 7d | ✅ W4-1 |
 | `channel_compliance_aggregate` | §2.4 | roll-up video compliance signals | W4+ |
 | `channel_boost_outlier_share` | §1.8 | `% suspect_medium` on handle | W4 |
 | `channel_slang_staleness` | §2.5 | aggregate `persona_slang_dated` | W5 |
 
 ### 6.3 Credit & F8
 
-- **Wave 0:** fix 3 vs 1 mismatch before scaling channel usage.
-- **Wave 4:** channel peers must filter `reference_eligible` — `_run_peer_corpus_query` today does **not**; video ref pool already does (W0-5a).
-- Channel memo must not cite ads-skew corpus rows as “viral mẫu” until W4-4 lands.
+- **Wave 0:** ✅ fix 3 vs 1 mismatch before scaling channel usage.
+- **Wave 4:** ✅ channel peers filter `reference_eligible` — `_run_peer_corpus_query(..., reference_eligible_only=True)` + &lt;4 handle fallback @ `9b97207`; video ref pool already did (W0-5a).
+- Channel memo must not cite ads-skew corpus rows as “viral mẫu” — **✅ W4-4 shipped**.
 
 ---
 
@@ -393,7 +403,7 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | Gate | Decision | Blocks | Default recommendation |
 |------|----------|--------|------------------------|
 | **G1** Composer pills Cơ bản/Chuyên sâu | Ship in Wave 3? | W3-3 | Yes — vision §3.1.2; after W1 handoff |
-| **G2** Hide follow-up turn 2+ | V1 or post-V1? | W5-1 | **Defer** until depth stable — Completeness 7/10 |
+| **G2** | ~~Hide follow-up turn 2+~~ | Superseded | W5-1 | **CTA intent pill** thay free-text follow-up — §4.10.2 |
 | **G3** Hero niche list (5–8 IDs) | Which niches get deep ingest | W2-3, §8.7 | Human picks from `creator_niches` with thin corpus report |
 | **G4** Channel billing | 3× vs 1× | W0-1 | **3×** both sides per vision §10 — Completeness 10/10 |
 | **G5** Depth billing | 1× basic / 2× deep | W3-3 | Sign-off before migration |
@@ -436,7 +446,9 @@ Format per project AskUserQuestion: Tech Lead presents options A/B/C with Comple
 |------|----------------|
 | F3 Compare GTM / polish | Route **shipped** (`/app/compare`, `report_compare.py`) — hidden from V1 GTM per `feature-map.md`; no incremental polish unless product promotes |
 | F6 full UX reshape / route rename `/app/xu-huong` | Handoff only in incremental path |
-| Text chat intents ⑤⑥⑦ from composer | Post-V1 |
+| Text chat intents ⑤⑥⑦ from composer | **Không** free composer chat — chỉ CTA pill hoặc entry pill; `/api/chat` legacy rows |
+| Intent CTA follow-up matrix | W5-1 — §4.10.2 `feature-map-v1.md` |
+| Intent output format parity | W5-2 — `narrative_vi` / body per format |
 | `analysis_depth` in Wave 0–2 | Explicitly Wave 3+ |
 | Douyin forecast product | Vision Wave 2+ — not incremental W2 scope |
 | TikTok OAuth / Ads API boost proof | Out of scope |
@@ -465,24 +477,25 @@ Format per project AskUserQuestion: Tech Lead presents options A/B/C with Comple
 
 Incremental V1 **launch-ready** when:
 
-- W0–W2 complete + **either** W3 depth **or** explicit human waiver deferring depth to post-launch mini-release
-- W4 channel_findings P0 **or** waiver with documented risk: channel memo remains free-form → **F8 gap** on aggregate `analysis_json` / compliance roll-ups until C1 ships
+- W0–W2 complete + ✅ **W3 depth** @ `9cd0957` (W3-5 upsell UI deferred)
+- ✅ **W4 channel_findings P0** @ `9b97207` — memo evidence-backed via `channel_findings.py` + peer `reference_eligible` filter
 - §13B items traced to wave IDs in QA report
 - F8: no undocumented orphans; `key_messages` trim only after G6
 - §13A `peer_percentile` — ✅ **W1-3 shipped** @ `e3b5d01` (`finalize_niche_meta_peer_tier` + `peer_percentile_label` on `content_class_tier` axis)
 
 ---
 
-## 13. Top quick wins (next — Wave 2+)
+## 13. Top quick wins (next — Wave 5)
 
-1. **W2-1a** — Redirect `/app/script` → Answer; unify CTAs.
-2. **W2-1b** — Narrative-first script (`narrative_vi` + `ScriptBody` refactor).
-3. **W2-1c** — Drafts + shoot mode inside Answer shell.
-4. **W2-2** — `ConfidenceStrip` on F6 surfaces.
-5. **W2-3** — Hero niche list + `BATCH_PRIORITY_NICHE_IDS`.
+1. **W5-1** — Intent CTA pill follow-up (matrix §4.10.2; thay free-text `FollowUpComposer`).
+2. **W5-2** — Intent output format round (`narrative_vi` per format).
+3. **W5-3** — `key_messages[]` trim post-ablation (G6).
+4. **W5-4** — F5 channel quick peek on Trends card.
+5. **W5-5** — GTM copy + §13B sweep.
+5. **W3-5** (deferred) — §4.11.3 post–Cơ bản upsell UI.
 
-*W0 + W1 complete @ `e3b5d01` — see §4 status tables.*
+*W0–W4 complete — W3 @ `9cd0957`, W4 @ `9b97207`; see §4 status tables.*
 
 ---
 
-*Maintainer: Tech Lead. Next review after Wave 2 merge or taxonomy change.*
+*Maintainer: Tech Lead. Next review after Wave 5 merge or taxonomy change.*

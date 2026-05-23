@@ -4,7 +4,7 @@
 
 **Version:** 1.3 (Wave 4 ship)  
 **Last updated:** 2026-05-23  
-**Code baseline:** `main` @ Wave 4 ship — channel findings + boost_attribution live + peer filter  
+**Code baseline:** `main` @ `9b97207` (Wave 4 ship; Wave 3 @ `9cd0957`)  
 **Status:** As-built FIELD × feature matrix  
 **Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0–4 ✅ (W3-5 upsell deferred)  
 **As-built routes:** [`feature-map.md`](feature-map.md)  
@@ -307,7 +307,7 @@
 
 ---
 
-## §9 — Coverage checklist (v1.2 @ `9cd0957`)
+## §9 — Coverage checklist (v1.3 @ `9b97207`)
 
 | Kiểm tra | Target | Kết quả |
 |----------|--------|---------|
@@ -316,11 +316,11 @@
 | Batch aggregates có ≥1 feature | 100% | ✅ §6 (+ class MVs) |
 | Class-first surfaces documented | Yes | ✅ §6.1 |
 | True orphans với action | ≤5 | ✅ 2 + weak group §8 |
-| Depth split (F2/F1) | Shipped | ✅ §7 — whitelist + cap + cache + billing |
+| Depth split (F2/F1) | Shipped | ✅ §7 @ `9cd0957` — whitelist + cap + cache + billing |
 | Wave 0 F8 verify | Done | ✅ ref pool + boost batch + channel 3× credit |
-| Wave 4 gate doc | Cross-check | ✅ §10 — FIELD × W4-1…W4-4 |
+| Wave 4 gate doc | Cross-check | ✅ §10 — W4-1…W4-4 shipped @ `9b97207` |
 
-**Open gates (incremental roadmap):** W3-5 upsell UI · W1-5 utilization resync ✅ @ v1.3 · Wave 4 ✅.
+**Open gates (incremental roadmap):** W3-5 upsell UI · W5 polish (follow-up hide, F5 Trends teaser, `key_messages` trim).
 
 ---
 
@@ -328,12 +328,12 @@
 
 *Gate trước implement: mỗi W4 item phải có ≥1 hàng FIELD/aggregate ở §1–§6; sau ship → bỏ `🔨`, cập nhật §8.*
 
-| ID | Roadmap deliverable | Utilization map rows (§) | Feature-map § | Fields / aggregates consumed | As-built @ `9cd0957` | W4 acceptance | Primary files |
+| ID | Roadmap deliverable | Utilization map rows (§) | Feature-map § | Fields / aggregates consumed | Shipped @ `9b97207` | W4 acceptance | Primary files |
 |----|---------------------|--------------------------|---------------|------------------------------|----------------------|---------------|---------------|
-| **W4-1** | `build_channel_findings()` P0 (4 findings) + prompt `<<<CHANNEL FINDINGS>>>` | §8 `channel_findings[]`; F4/F5 rollup cols; §6 `channel_diagnoses` | §5.3 C1 | Rollup trên handle: `compliance_flags`, `commerce_intent.*`, `hook_*`, `engagement_rate`, `breakout_multiplier`, `content_format`, `analysis_json` peers | Memo SSE free-form; **no** findings layer | ≥1 finding → inject; **no** FYP% claims | `channel_findings.py` (new), `channel_diagnose.py`, prompts |
-| **W4-2** | Live M3 `boost_attribution` on user video (F1 deep) | §5 `boost_attribution`; §7 F1-only `boost_attribution` section; §8 live M3 | §4.7 M3, §4.8 P0 `boost_*` | `views`, `likes`, `comments`, `engagement_rate`, `breakout_multiplier`, `niche_meta` percentiles (`median_er`, `p90_views`) | Batch ingest col ✅; live diagnosis **no** section | Heuristic in `signals/distribution.py` (hoặc module mới); copy “có dấu hiệu”; **no** `signals/boost.py` | `signals/distribution.py`, `diagnose_sections.py`, `gemini.py` |
-| **W4-3** | §4.8 P0 backlog + 3 Win W0 còn lại | §8 Win remainder; §1–§4 rows cho từng signal | §4.8.3 W0 + P0 table | **Win W0 còn:** `win_breakout_vs_channel` → `breakout_multiplier`, `creator_median_views`; `win_format_in_growth` → `content_format`, `format_distribution`; `win_replicable_cta` → `cta`, `content_format`. **P0 flop:** `boost_views_er_mismatch`, `boost_breakout_low_engagement`, `niche_format_underrepresented`, `niche_hook_percentile_gap` | **2/5** Win W0 in `signals/win.py`; P0 flop backlog **missing** | Fire-rate logged; unit test per new `signal.id` | `signals/win.py`, `signals/*.py`, tests |
-| **W4-4** | Channel peer query `.eq("reference_eligible", True)` | §5 `reference_eligible`; §6.1 F4 peers | §4.7 M2, §4.8.4 | Promoted col `reference_eligible` (from `corpus_boost_suspect` at ingest) | Video ref pool ✅ (`fetch_corpus_reference_pool`); channel peers **unfiltered** | `_run_peer_corpus_query` + fallback chain §4.7.5; peers not ads-skew | `channel_diagnose.py` |
+| **W4-1** | `build_channel_findings()` P0 (4 findings) + prompt `<<<CHANNEL FINDINGS>>>` | §8 `channel_findings[]`; F4/F5 rollup cols; §6 `channel_diagnoses` | §5.3 C1 | Rollup trên handle: `compliance_flags`, `commerce_intent.*`, `hook_*`, `engagement_rate`, `breakout_multiplier`, `content_format`, `analysis_json` peers | ✅ `channel_findings.py` — P0×4 → `<<<CHANNEL FINDINGS>>>` in memo prompt | ≥1 finding → inject; **no** FYP% claims | `channel_findings.py`, `channel_diagnose.py`, prompts |
+| **W4-2** | Live M3 `boost_attribution` on user video (F1 deep) | §5 `boost_attribution`; §7 F1-only `boost_attribution` section; §8 live M3 | §4.7 M3, §4.8 P0 `boost_*` | `views`, `likes`, `comments`, `engagement_rate`, `breakout_multiplier`, `niche_meta` percentiles (`median_er`, `p90_views`) | ✅ `signals/distribution.py` — `boost_attribution` section F1 deep only; copy “có dấu hiệu” | Heuristic in `signals/distribution.py`; **no** `signals/boost.py` | `signals/distribution.py`, `diagnose_sections.py`, `gemini.py` |
+| **W4-3** | §4.8 P0 backlog + 3 Win W0 còn lại | §8 Win remainder; §1–§4 rows cho từng signal | §4.8.3 W0 + P0 table | **Win W0:** `win_breakout_vs_channel`, `win_format_in_growth`, `win_replicable_cta` + W1-6 pair. **P0 flop:** `boost_views_er_mismatch`, `boost_breakout_low_engagement`, `niche_format_underrepresented`, `niche_hook_percentile_gap` | ✅ 5 Win W0 total in `signals/win.py`; P0 flop in `win.py`, `hook.py`, `reference.py` + tests | Fire-rate logged; unit test per new `signal.id` | `signals/win.py`, `signals/*.py`, tests |
+| **W4-4** | Channel peer query `.eq("reference_eligible", True)` | §5 `reference_eligible`; §6.1 F4 peers | §4.7 M2, §4.8.4 | Promoted col `reference_eligible` (from `corpus_boost_suspect` at ingest) | ✅ `_run_peer_corpus_query(..., reference_eligible_only=True)` + &lt;4 handle fallback | Peers not ads-skew | `channel_diagnose.py` |
 
 ### W4-3 signal ↔ FIELD trace (implement checklist)
 

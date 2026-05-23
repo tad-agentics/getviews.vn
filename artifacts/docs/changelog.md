@@ -1,5 +1,29 @@
 # Changelog — GetViews.vn
 
+## 2026-05-21 — follow-up = Intent CTA pill (§4.10.2)
+
+- **`feature-map-v1.md`:** Turn 2+ qua **CTA intent pill** (matrix per format) — không `FollowUpComposer` chat tự do; ví dụ video → Tạo kịch bản / Compare / Chuyên sâu. W5-1 = CTA rail; W5-2 = format output.
+- **`incremental-v1-roadmap.md`:** Wave 2 decision #7; W5 renumbered (W5-1 CTA, W5-2 format, …).
+- **`feature-map.md`:** Answer follow-up spec updated.
+
+## 2026-05-21 — feature-map-v1: giữ toàn bộ intent; W5-1 = format output
+
+- **`feature-map-v1.md` §4.10.1:** Supersedes “1 turn / ẩn follow-up” — **giữ** mọi `INTENT_DESTINATIONS`, multi-turn, composer text + chat ⑤⑥⑦; **W5-1** = chuẩn hóa `narrative_vi` / body per `AnswerSessionFormat`.
+- **`incremental-v1-roadmap.md`:** Wave 2 decision #6; W5-1 reframed; G2 superseded; §10 updated.
+- **`feature-map.md`:** Post-V1 backlog — removed intent/follow-up cuts; added W5-1 format parity row.
+
+## 2026-05-21 — feature-map-v1: composer + intent-router SSOT
+
+- **`feature-map-v1.md`:** Align với [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) Wave 2 decision #5 — **giữ nguyên** `QueryComposer` + `intent-router.ts` (`planAnswerEntry` / `detectIntent`); mọi entry prefill `?q=`; deprecate chỉ `/app/script` shell. §4.10 status table; §4.10.1 Post-V1 text intents ≠ remove router; D7 handoff ✅.
+
+## 2026-05-21 — Wave 4 completion docs sync
+
+- **`incremental-v1-roadmap.md`:** baseline Wave 3 @ `9cd0957`, Wave 4 @ `9b97207`; §3 gaps ✅; §5.2 stale backlog cleared; §6 channel findings wired; §12 launch gate W3+W4 ✅; §13 next = Wave 5.
+- **`data-utilization-map-v1.md` v1.3:** §9/§10 shipped evidence @ `9b97207`; W4 cross-check column updated from pre-ship to as-built.
+- **`feature-map.md`:** header @ `9b97207`; §3 Answer `analysis_depth` + `boost_attribution` (F1 deep) + Win W0×5; §5 Channel `channel_findings` + peer `reference_eligible_only`.
+- **`feature-map-v1.md` §13B:** depth cache, manifest cap 3/5, Win W0≥2, channel findings P0, peer filter, boost deep-only marked ✅ with wave evidence.
+- **`system-design.md` §16:** already reflects Wave 4 (no code change this pass).
+
 ## 2026-05-23 — Wave 4 audit fixes
 
 - **`channel_findings`:** cohort ER threshold from `engagement_p50` (×0.85 when p25 absent); `format_distribution_from_corpus_rows()` from peer corpus; peer select includes `indexed_at` for 7d saturation filter.
