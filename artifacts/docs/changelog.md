@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — W5-3 key_messages trim (G6)
+
+- Removed `key_messages[]` from `VideoAnalysis` / carousel extraction schema.
+- Updated `data-utilization-map-v1.md` §8.
+
 ## 2026-05-23 — W5-2 narrative_vi headline parity
 
 - **BE:** `_attach_narrative_vi_headline()` on `validate_and_store_report` — pattern/timing/ideas/lifecycle/generic.

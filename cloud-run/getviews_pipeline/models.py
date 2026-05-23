@@ -726,7 +726,6 @@ class VideoAnalysis(BaseModel):
     audio_transcript: str
     tone: ToneType
     topics: list[str] = Field(default_factory=list)
-    key_messages: list[str] = Field(default_factory=list)
     cta: str | None = None
     content_direction: ContentDirection
     target_audience: str = ""
@@ -1118,7 +1117,6 @@ class CarouselAnalysis(BaseModel):
     audio_transcript: str
     tone: ToneType
     topics: list[str] = Field(default_factory=list)
-    key_messages: list[str] = Field(default_factory=list)
     cta: str | None = None
     content_direction: ContentDirection
 

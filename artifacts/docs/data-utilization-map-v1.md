@@ -160,7 +160,7 @@
 | `niche_classification.format_axis` | bench | bench | pattern | pattern | leader | — | spec | MV | → `content_format` / `content_class_id` |
 | `niche_classification.confidence` | gate | gate | — | — | — | — | — | BAT | `niche_resolution_confidence` |
 | `topics[]` | bench | bench | — | — | feed | — | — | MV | Promoted; ref desc; sound signals |
-| `key_messages[]` | — | — | — | — | — | — | — | — | **Orphan** — trim-safe (§8) |
+| `key_messages[]` | — | — | — | — | — | — | — | — | **Trimmed W5-3** — removed from extraction schema |
 | `content_direction.what_works` | — | teaser | — | — | feed | anchor | — | MV | `pattern_fingerprint`, `video_patterns` |
 | `content_direction.suggested_angles` | — | teaser | — | — | — | anchor | spec | — | Ritual / script angles |
 | `douyin_origin` | — | audit | — | — | feed | — | — | — | Null at TikTok ingest; on-demand `douyin_match` |
@@ -288,7 +288,7 @@
 
 | Field / nhóm | Verdict | Action |
 |--------------|---------|--------|
-| `key_messages[]` | **Orphan** | Trim after ablation — trim-safe |
+| `key_messages[]` | **Trimmed W5-3** | Removed from Gemini extraction schema (2026-05-23) |
 | `persona_consistency_signals` | **Orphan** | **🔨** wire F4 P2 or defer |
 | `peer_percentile` / `peer_percentile_label` | **Strong** | Wired W1-3 when tier MV + `creator_tier` on corpus row |
 | `win_er_above_niche_p75` / `win_hook_aligns_niche_top` | **Strong** | **✅** `signals/win.py`; `tier_gate=hit`; W1-6 |
