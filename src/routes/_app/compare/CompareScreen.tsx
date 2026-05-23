@@ -118,10 +118,10 @@ export default function CompareScreen() {
       <TopBar kicker="BÁO CÁO" title="So Sánh Hai Video" />
         <main className="container-app pb-12">
           <div className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
-            <p className="gv-mono gv-uc text-[10px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+            <p className="gv-mono gv-uc text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-3)]">
               So sánh hai video
             </p>
-            <p className="gv-serif mt-2 text-[18px] text-[color:var(--gv-ink)]">
+            <p className="gv-serif mt-2 text-[17px] text-[color:var(--gv-ink)]">
               Tính năng cần Cloud Run — chưa bật trên môi trường này.
             </p>
             <Link
@@ -142,10 +142,10 @@ export default function CompareScreen() {
       <TopBar kicker="BÁO CÁO" title="So Sánh Hai Video" />
         <main className="container-app pb-12">
           <div className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
-            <p className="gv-mono gv-uc text-[10px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+            <p className="gv-mono gv-uc text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-3)]">
               So sánh hai video
             </p>
-            <p className="gv-serif mt-2 text-[18px] text-[color:var(--gv-ink)]">
+            <p className="gv-serif mt-2 text-[17px] text-[color:var(--gv-ink)]">
               Cần hai link TikTok để so sánh.
             </p>
             <p className="mt-3 text-sm text-[color:var(--gv-ink-3)]">
@@ -172,7 +172,7 @@ export default function CompareScreen() {
       <TopBar kicker="BÁO CÁO" title="So Sánh Hai Video" />
       <main className="container-app pb-12">
         <header className="mb-5">
-          <p className="gv-mono gv-uc text-[10px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono gv-uc text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-3)]">
             So sánh hai video
           </p>
           <h1 className="gv-serif mt-1 text-[clamp(22px,3.4vw,30px)] leading-[1.2] text-[color:var(--gv-ink)]">
@@ -187,7 +187,7 @@ export default function CompareScreen() {
             className="flex items-center gap-3 rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5"
           >
             <Loader2 className="h-5 w-5 animate-spin text-[color:var(--gv-accent)]" />
-            <span className="gv-mono text-[13px] text-[color:var(--gv-ink-3)]">
+            <span className="gv-mono text-sm text-[color:var(--gv-ink-3)]">
               Đang phân tích song song hai video...
             </span>
           </div>
@@ -195,7 +195,7 @@ export default function CompareScreen() {
 
         {status === "error" && error ? (
           <div className="rounded-[18px] border border-[color:var(--gv-warn)] bg-[color:var(--gv-warn-soft)] p-5">
-            <p className="gv-mono gv-uc text-[10px] tracking-[0.16em] text-[color:var(--gv-warn)]">
+            <p className="gv-mono gv-uc text-[11px] tracking-[0.16em] text-[color:var(--gv-warn)]">
               Lỗi
             </p>
             <p className="mt-2 text-[14px] text-[color:var(--gv-ink-2)]">

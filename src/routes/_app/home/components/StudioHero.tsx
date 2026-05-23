@@ -60,7 +60,7 @@ export const StudioHero = memo(function StudioHero({
 
   if (isError) {
     return (
-      <div className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+      <div className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
         <p className="m-0 text-[14px] font-medium text-[color:var(--gv-danger)]">
           {analysisErrorCopy(error)}
         </p>
@@ -82,7 +82,7 @@ export const StudioHero = memo(function StudioHero({
   if (!ritual || ritual.scripts.length === 0) {
     const isNicheStale = emptyReason === "ritual_niche_stale";
     return (
-      <div className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+      <div className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
         <p className="m-0 text-[14px] font-medium text-[color:var(--gv-ink)]">
           {isNicheStale ? "Kịch bản mới đang chuẩn bị cho ngách này" : "Đang tạo kịch bản cho ngày đầu"}
         </p>
@@ -109,7 +109,7 @@ export const StudioHero = memo(function StudioHero({
   return (
     <div>
       {isThin ? (
-        <p className="gv-mono mb-3 text-[11px] text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mb-3 text-[11px] text-[color:var(--gv-ink-3)]">
           <span className="text-[color:var(--gv-ink-3)]">
             Dữ liệu ngách đang thưa, các retention estimate là định hướng.
           </span>
@@ -187,11 +187,11 @@ const SoundRecommendationStrip = memo(function SoundRecommendationStrip({
         </span>
       </span>
       {deltaPct ? (
-        <span className={`gv-mono text-[10px] ${trendColor}`}>{deltaPct}</span>
+        <span className={`gv-kicker ${trendColor}`}>{deltaPct}</span>
       ) : null}
       {urgencyCopy ? (
         <span
-          className="gv-mono inline-flex items-center rounded-[2px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]"
+          className="gv-mono inline-flex items-center rounded-[2px] px-1.5 py-0.5 text-[11px] font-bold gv-kicker tracking-[0.1em]"
           style={
             accelerating
               ? {
@@ -261,7 +261,7 @@ const RitualEvidenceStrip = memo(function RitualEvidenceStrip({
         }}
         aria-expanded={expanded}
         aria-controls={`ritual-evidence-${rank}`}
-        className="gv-mono inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-2)] transition-colors"
+        className="gv-mono inline-flex items-center gap-1 text-[11px] font-medium gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-2)] transition-colors"
       >
         Xem {ids.length} video tương tự
         <ChevronDown
@@ -285,11 +285,11 @@ const RitualEvidenceStrip = memo(function RitualEvidenceStrip({
               ))}
             </div>
           ) : isError || !videos ? (
-            <p className="text-[11px] text-[color:var(--gv-ink-4)]">
+            <p className="text-[11px] text-[color:var(--gv-ink-3)]">
               Không tải được video tham chiếu — thử lại sau.
             </p>
           ) : visibleCount === 0 ? (
-            <p className="text-[11px] text-[color:var(--gv-ink-4)]">
+            <p className="text-[11px] text-[color:var(--gv-ink-3)]">
               Chưa có thumbnail cho hook này — kịch bản vẫn dùng được.
             </p>
           ) : (
@@ -320,7 +320,7 @@ const RitualEvidenceStrip = memo(function RitualEvidenceStrip({
                         thumbnailUrl={v.thumbnail_url}
                         className="aspect-[9/12] w-full rounded-[3px] object-cover"
                       />
-                      <span className="gv-mono mt-1 block truncate text-[9px] text-[color:var(--gv-ink-4)]">
+                      <span className="gv-mono mt-1 block truncate text-[11px] text-[color:var(--gv-ink-4)]">
                         {formatViews(v.views)}
                       </span>
                     </Element>
@@ -360,18 +360,18 @@ const StudioHeroRow = memo(function StudioHeroRow({
         className="group grid w-full grid-cols-[40px_1fr_auto] items-center gap-x-4 gap-y-2 text-left transition-colors hover:bg-[color:var(--gv-canvas-2)]"
       >
         <span
-          className="gv-mono self-start pt-1 text-[26px] font-semibold leading-none tracking-[-0.02em] text-[color:var(--gv-ink-4)]"
+          className="gv-mono self-start pt-1 text-[24px] font-semibold leading-none tracking-[-0.02em] text-[color:var(--gv-ink-4)]"
           aria-hidden
         >
           {rankLabel}
         </span>
         <div className="min-w-0">
           <div className="mb-1.5 flex flex-wrap items-center gap-2">
-            <span className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] bg-[color:var(--gv-ink)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-white">
+            <span className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] bg-[color:var(--gv-ink)] px-1.5 py-0.5 text-[11px] font-bold gv-kicker tracking-[0.1em] text-white">
               HOOK #{rank}
             </span>
             <span
-              className="gv-mono inline-flex items-center gap-1 whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]"
+              className="gv-mono inline-flex items-center gap-1 whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[11px] font-bold gv-kicker tracking-[0.1em]"
               style={{
                 background: "color-mix(in srgb, var(--gv-pos) 12%, transparent)",
                 color: "var(--gv-pos-deep)",
@@ -381,19 +381,19 @@ const StudioHeroRow = memo(function StudioHeroRow({
               SCRIPT SẴN · {script.shot_count} shot · {script.length_sec}s
             </span>
             {script.hook_type_vi ? (
-              <span className="gv-mono text-[10px] font-medium text-[color:var(--gv-ink-4)]">
+              <span className="gv-kicker text-[color:var(--gv-ink-4)]">
                 {script.hook_type_vi}
               </span>
             ) : null}
           </div>
           <p
-            className="gv-serif m-0 text-[19px] font-medium leading-[1.3] tracking-[-0.01em] text-[color:var(--gv-ink)]"
+            className="gv-serif m-0 text-[17px] font-medium leading-[1.3] tracking-[-0.01em] text-[color:var(--gv-ink)]"
             style={{ textWrap: "pretty" }}
           >
             &ldquo;{script.title_vi}&rdquo;
           </p>
           {script.why_works ? (
-            <p className="mt-1.5 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+            <p className="mt-1.5 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
               {script.why_works}
             </p>
           ) : null}
@@ -403,8 +403,8 @@ const StudioHeroRow = memo(function StudioHeroRow({
           <span className="gv-mono text-[14px] font-bold" style={{ color: "var(--gv-pos)" }}>
             ▲ ~{script.retention_est_pct}%
           </span>
-          <span className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">giữ chân</span>
-          <span className="gv-mono mt-1 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--gv-accent)] group-hover:translate-x-0.5 transition-transform">
+          <span className="gv-kicker text-[color:var(--gv-ink-4)]">giữ chân</span>
+          <span className="gv-mono mt-1 inline-flex items-center gap-1 text-[11px] font-bold gv-kicker tracking-[0.1em] text-[color:var(--gv-accent)] group-hover:translate-x-0.5 transition-transform">
             MỞ SCRIPT
             <ArrowRight className="h-3 w-3" strokeWidth={2.4} aria-hidden />
           </span>

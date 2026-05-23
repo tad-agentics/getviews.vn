@@ -65,7 +65,7 @@ const SignalCard = memo(function SignalCard({
             className={`h-4 w-4 shrink-0 ${isDefensive ? "text-[color:var(--gv-ink-3)]" : "text-[color:var(--gv-accent)]"}`}
             aria-hidden
           />
-          <span className="gv-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-3)]">
+          <span className="gv-kicker text-[color:var(--gv-ink-3)]">
             {signalHeadline(signal)}
           </span>
         </div>

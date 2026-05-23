@@ -64,7 +64,7 @@ export default function OnboardingScreen() {
         role="status"
         aria-label="Đang tải"
       >
-        <p className="text-sm text-[color:var(--gv-ink-4)]">Đang tải hồ sơ…</p>
+        <p className="text-sm text-[color:var(--gv-ink-3)]">Đang tải hồ sơ…</p>
       </div>
     );
   }
@@ -73,16 +73,16 @@ export default function OnboardingScreen() {
     <div className="flex min-h-dvh bg-[color:var(--gv-canvas)]">
       {/* Left column — editorial — hidden on mobile */}
       <aside className="hidden md:flex flex-1 flex-col justify-between border-r border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-[60px] py-[60px]">
-        <p className="gv-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           GETVIEWS · CREATOR STUDIO · SỐ 01
         </p>
 
         <div>
-          <p className="gv-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)] mb-4">
+          <p className="gv-kicker text-[color:var(--gv-ink-3)] mb-4">
             BƯỚC 01 / 01
           </p>
           <h1
-            className="gv-tight text-[64px] leading-[0.95] text-[color:var(--gv-ink)]"
+            className="gv-tight text-[72px] leading-[0.95] text-[color:var(--gv-ink)]"
             style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.04em" }}
           >
             Bạn đang làm việc với{" "}
@@ -94,7 +94,7 @@ export default function OnboardingScreen() {
           </p>
         </div>
 
-        <p className="gv-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono inline-flex items-center gap-2 text-[11px] gv-kicker tracking-[0.16em] text-[color:var(--gv-ink-3)]">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]" />
           CREATOR STUDIO · MẤT ~30 GIÂY
         </p>
@@ -113,7 +113,7 @@ export default function OnboardingScreen() {
               </Btn>
             </div>
           ) : nichesPending ? (
-            <p className="text-sm text-[color:var(--gv-ink-4)]">Đang tải danh sách ngách…</p>
+            <p className="text-sm text-[color:var(--gv-ink-3)]">Đang tải danh sách ngách…</p>
           ) : !niches || niches.length === 0 ? (
             <p className="text-sm text-[color:var(--gv-ink-3)]">
               Chưa có ngách trong hệ thống. Liên hệ hỗ trợ.
@@ -132,7 +132,7 @@ export default function OnboardingScreen() {
                   type="button"
                   onClick={skip}
                   aria-label="Bỏ qua chọn ngách"
-                  className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1.5 text-[13px] text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors"
+                  className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1.5 text-sm text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors"
                 >
                   <ArrowLeft className="h-3 w-3" strokeWidth={1.7} />
                   Bỏ qua
@@ -170,12 +170,12 @@ function NicheGrid({
   return (
     <div role="radiogroup" aria-label="Chọn ngách">
       <div className="mb-3.5 flex items-center justify-between">
-        <p className="gv-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           NGÁCH CỦA BẠN
         </p>
         <p
           className={
-            "gv-mono text-[10px] " +
+            "gv-kicker " +
             (selectedId != null
               ? "text-[color:var(--gv-accent-deep)]"
               : "text-[color:var(--gv-ink-4)]")

@@ -662,7 +662,7 @@ export function MarkdownRenderer({ text, streaming = false, onFollowUp }: Props)
         if (seg.kind === "shot_list") {
           return (
             <div key={idx} className="my-3">
-              <p className="mb-2 gv-type-caption font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+              <p className="mb-2 gv-type-caption font-semibold uppercase tracking-wide text-[color:var(--gv-ink-3)]">
                 Danh sách cảnh quay
               </p>
               {seg.items.map((item, j) => (

@@ -469,7 +469,7 @@ Ranked hook finding. Grid: rank number left, pattern + insight centre, retention
 
 **Hard rule: nothing > 800ms.**
 
-`.gv-fade-up` — light entrance animation (0.45s ease-out, 8px Y translate). Use for streaming content reveals. Delay variants: `.gv-fade-up-delay-1` (60ms), `.gv-fade-up-delay-2` (120ms), `.gv-fade-up-delay-3` (140ms).
+`.gv-fade-up` — light entrance animation (0.32s ease-out, 8px Y translate). Use for streaming content reveals. Delay variants: `.gv-fade-up-delay-1` (60ms), `.gv-fade-up-delay-2` (120ms), `.gv-fade-up-delay-3` (140ms).
 
 `@keyframes gv-pulse` — live dot heartbeat. `opacity + scale` oscillation over 1 cycle.
 

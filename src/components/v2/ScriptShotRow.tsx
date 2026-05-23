@@ -62,15 +62,15 @@ export function ScriptShotRow({
                 : "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-2)]"
           }`}
         >
-          <div className="gv-mono mb-1 text-[10px] opacity-70">SHOT {String(idx + 1).padStart(2, "0")}</div>
+          <div className="gv-mono mb-1 text-[11px] opacity-70">SHOT {String(idx + 1).padStart(2, "0")}</div>
           <div className="gv-mono text-xs font-semibold">
             {shot.t0}–{shot.t1}s
           </div>
-          <div className="gv-mono mt-1 text-[9px] opacity-70">{span}s</div>
+          <div className="gv-mono mt-1 text-[11px] opacity-70">{span}s</div>
         </div>
         <ShotTypeVisual intelSceneType={shot.intelSceneType} cam={shot.cam} />
         <div className={`border-r border-[color:var(--gv-rule)] p-3 transition-opacity ${regenerating ? "opacity-40" : ""}`}>
-          <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">
+          <div className="gv-mono gv-uc mb-1 text-[11px] text-[color:var(--gv-ink-4)]">
             LỜI THOẠI
           </div>
           {shot.vo && shot.vo.length > 0 ? (
@@ -84,10 +84,10 @@ export function ScriptShotRow({
                   className="grid items-baseline gap-2"
                   style={{ gridTemplateColumns: "32px 1fr" }}
                 >
-                  <span className="gv-mono text-[10px] font-semibold tabular-nums text-[color:var(--gv-ink-4)]">
+                  <span className="gv-kicker tabular-nums text-[color:var(--gv-ink-4)]">
                     {line.t}
                   </span>
-                  <p className="gv-serif font-medium tracking-[-0.025em] text-[13.5px] leading-[1.4] text-[color:var(--gv-ink)] m-0">
+                  <p className="gv-serif font-medium tracking-[-0.025em] text-sm leading-[1.4] text-[color:var(--gv-ink)] m-0">
                     <FormattedVO text={line.text} />
                     {line.cue ? <CueChip text={line.cue} /> : null}
                   </p>
@@ -97,16 +97,16 @@ export function ScriptShotRow({
           ) : (
             // Back-compat: legacy shots without ``vo`` (old drafts before
             // the S5 schema bump landed) keep the flat-string rendering.
-            <p className="gv-serif font-semibold tracking-[-0.035em] text-[13.5px] leading-[1.35] text-[color:var(--gv-ink)]">{`"${shot.voice}"`}</p>
+            <p className="gv-serif font-semibold tracking-[-0.035em] text-sm leading-[1.35] text-[color:var(--gv-ink)]">{`"${shot.voice}"`}</p>
           )}
         </div>
         <div className={`relative p-3 transition-opacity ${regenerating ? "opacity-40" : ""}`}>
-          <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">
+          <div className="gv-mono gv-uc mb-1 text-[11px] text-[color:var(--gv-ink-4)]">
             HÌNH ẢNH · {overlayStyleVi(shot.overlay, shot.overlay)}
           </div>
           <p className="mb-2 text-xs leading-[1.4] text-[color:var(--gv-ink-3)]">{shot.viz}</p>
           <div
-            className={`gv-mono inline-flex items-center gap-[5px] rounded-[3px] px-[7px] py-0.5 text-[10px] font-medium ${
+            className={`gv-mono inline-flex items-center gap-[5px] rounded-[3px] px-[7px] py-0.5 text-[11px] font-medium ${
               slow
                 ? "bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-accent-deep)]"
                 : "bg-[rgba(0,159,250,0.12)] text-[rgb(0,159,250)]"
@@ -125,7 +125,7 @@ export function ScriptShotRow({
               }}
               disabled={regenerating}
               aria-label="Viết lại shot này"
-              className="gv-mono gv-uc absolute right-2 top-2 inline-flex items-center gap-1 rounded-[4px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-1.5 py-0.5 text-[9px] tracking-[0.06em] text-[color:var(--gv-ink-3)] hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)] transition-colors disabled:opacity-60"
+              className="gv-mono gv-uc absolute right-2 top-2 inline-flex items-center gap-1 rounded-[4px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-1.5 py-0.5 text-[11px] tracking-[0.06em] text-[color:var(--gv-ink-3)] hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)] transition-colors disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100"
             >
               {regenerating ? (
                 <Loader2 className="h-2.5 w-2.5 animate-spin" aria-hidden />

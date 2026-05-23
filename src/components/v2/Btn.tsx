@@ -13,10 +13,10 @@ const VARIANTS: Record<BtnVariant, string> = {
   ink:
     "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] border border-[color:var(--gv-ink)] " +
     "hover:-translate-y-[1px] hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.3)] " +
-    "disabled:opacity-50",
+    "disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100",
   ghost:
     "font-medium bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] border border-[color:var(--gv-rule)] hover:bg-[color:var(--gv-canvas-2)] " +
-    "disabled:opacity-50",
+    "disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100",
   accent:
     "bg-[color:var(--gv-accent)] text-white border border-[color:var(--gv-accent)] " +
     "hover:bg-[color:var(--gv-accent-deep)] hover:border-[color:var(--gv-accent-deep)] " +

@@ -795,13 +795,13 @@ export default function AnswerScreen() {
                   type="button"
                   onClick={() => navigate("/app")}
                   aria-label="Quay lại Studio"
-                  className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-1 gv-mono text-[11px] font-medium leading-none tracking-[0.06em] text-[color:var(--gv-ink-3)] transition-colors hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)]"
+                  className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-1 gv-kicker leading-none tracking-[0.06em] text-[color:var(--gv-ink-3)] transition-colors hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)]"
                 >
                   <ArrowLeft className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
                   Studio
                 </button>
                 {nicheLabel ? (
-                  <span className="gv-mono text-[11px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-3)]">
+                  <span className="gv-kicker text-[color:var(--gv-ink-3)]">
                     <span className="text-[color:var(--gv-rule)]" aria-hidden>
                       {" "}
                       /{" "}
@@ -811,7 +811,7 @@ export default function AnswerScreen() {
                 ) : null}
               </nav>
               {sessionId && surfaceStats && !loading ? (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2 py-0.5 gv-mono text-[11px] tracking-[0.06em] text-[color:var(--gv-ink-3)]">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2 py-0.5 gv-kicker text-[color:var(--gv-ink-3)]">
                   <Check className="h-3 w-3 text-[color:var(--gv-pos)]" strokeWidth={2.5} aria-hidden />
                   <span className="tabular-nums">{surfaceStats.sampleVideos.toLocaleString("vi-VN")} video</span>
                   <span className="text-[color:var(--gv-rule)]" aria-hidden>
@@ -826,11 +826,11 @@ export default function AnswerScreen() {
             sessionId ? (
               <header className="border-b border-[color:var(--gv-rule)] pb-8">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <p className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+                  <p className="gv-kicker text-[color:var(--gv-ink-3)]">
                     Câu hỏi
                   </p>
                   {dataFreshLabel ? (
-                    <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">{dataFreshLabel}</p>
+                    <p className="gv-kicker text-[color:var(--gv-ink-3)]">{dataFreshLabel}</p>
                   ) : null}
                 </div>
                 <h1
@@ -866,10 +866,10 @@ export default function AnswerScreen() {
             ) : (
               <header className="border-b border-[color:var(--gv-rule)] pb-8">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <p className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+                  <p className="gv-kicker text-[color:var(--gv-ink-3)]">
                     Câu hỏi
                   </p>
-                  <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">—</p>
+                  <p className="gv-kicker text-[color:var(--gv-ink-3)]">—</p>
                 </div>
                 <h1
                   className={ANSWER_HERO_H1_CLASS}
@@ -913,7 +913,7 @@ export default function AnswerScreen() {
                   className="mb-6 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3"
                   role="status"
                 >
-                  <p className="m-0 text-[13px] leading-relaxed text-[color:var(--gv-ink-2)]">
+                  <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink-2)]">
                     Link trong thanh địa chỉ khác video đang hiển thị trong phiên này. Bạn có thể mở phân tích
                     mới cho URL vừa dán.
                   </p>
@@ -998,7 +998,7 @@ export default function AnswerScreen() {
                 </div>
               ) : sessionId && !loading ? (
                 <div className="mt-4 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
-                  <p className="gv-serif text-[16px] leading-snug text-[color:var(--gv-ink)]">
+                  <p className="gv-serif text-[17px] leading-snug text-[color:var(--gv-ink)]">
                     Chưa có lượt trong phiên này.
                   </p>
                   <p className="mt-2 text-[12px] leading-relaxed text-[color:var(--gv-ink-3)]">
@@ -1007,7 +1007,7 @@ export default function AnswerScreen() {
                   </p>
                   <button
                     type="button"
-                    className="mt-3 gv-mono text-[11px] text-[color:var(--gv-accent)] underline"
+                    className="mt-3 gv-kicker text-[color:var(--gv-accent)] underline"
                     onClick={() => void detailQuery.refetch()}
                   >
                     Tải lại phiên

@@ -45,20 +45,20 @@ export function NextVideoCard({ concept, streaming = false }: NextVideoCardProps
           </a>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-accent-deep)]">
+          <p className="text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-accent-deep)]">
             Gợi ý video tiếp theo
           </p>
           <p className="mt-1 text-sm font-semibold text-[color:var(--gv-ink)]">
             {concept.format_label} · ~{concept.duration_sec}s · gap{" "}
             <span className="gv-mono">{concept.channel_share_pct}%</span> format trên kênh
           </p>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-[color:var(--gv-ink-3)]">
+          <p className="mt-2 text-xs leading-relaxed text-[color:var(--gv-ink-3)]">
             {concept.rationale_struct} Peer TB{" "}
             <span className="gv-mono">~{fmtViews(concept.peer_avg_views)}</span> view.
           </p>
           {concept.narrative ? (
             <div className="relative mt-2">
-              <p className="text-[12.5px] leading-relaxed text-[color:var(--foreground)] whitespace-pre-wrap">
+              <p className="text-xs leading-relaxed text-[color:var(--foreground)] whitespace-pre-wrap">
                 {concept.narrative}
               </p>
               {streaming ? (

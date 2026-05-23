@@ -90,7 +90,7 @@ export function ScriptExportModal({
         className="w-[calc(100%-40px)] max-w-[520px] rounded-[8px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
       >
         <div className="mb-2 flex items-center justify-between">
-          <p className="gv-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
+          <p className="gv-kicker text-[color:var(--gv-accent)]">
             XUẤT KỊCH BẢN
           </p>
           <button
@@ -140,13 +140,13 @@ export function ScriptExportModal({
                   ) : null}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold text-[color:var(--gv-ink)]">
+                  <div className="text-sm font-semibold text-[color:var(--gv-ink)]">
                     {f.label}{" "}
-                    <span className="gv-mono text-[10px] font-normal text-[color:var(--gv-ink-4)]">
+                    <span className="gv-kicker font-normal text-[color:var(--gv-ink-4)]">
                       {f.ext}
                     </span>
                   </div>
-                  <div className="text-[11.5px] leading-snug text-[color:var(--gv-ink-3)]">
+                  <div className="text-xs leading-snug text-[color:var(--gv-ink-3)]">
                     {f.sub}
                   </div>
                 </div>
@@ -167,7 +167,7 @@ export function ScriptExportModal({
             type="button"
             onClick={() => onExport(format)}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-[6px] bg-[color:var(--gv-ink)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--gv-canvas)] disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-[6px] bg-[color:var(--gv-ink)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--gv-canvas)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100"
           >
             {exported ? (
               <Check className="h-3 w-3" strokeWidth={2.5} />

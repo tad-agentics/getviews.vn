@@ -5,6 +5,7 @@
  * §J `ActionCardPayload` contract stays uniform across report formats.
  */
 
+import { Calendar, Search, Users } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import type { ActionCardPayloadData } from "@/lib/api-types";
@@ -22,16 +23,17 @@ function defaultRoute(a: ActionCardPayloadData): string {
   return "/app";
 }
 
-function actionIcon(symbol: string): string {
+function ActionIcon({ symbol }: { symbol: string }) {
+  const cls = "h-[22px] w-[22px] text-[color:var(--gv-ink-3)]";
   switch (symbol) {
     case "calendar":
-      return "📅";
+      return <Calendar className={cls} aria-hidden strokeWidth={1.75} />;
     case "search":
-      return "🔎";
+      return <Search className={cls} aria-hidden strokeWidth={1.75} />;
     case "users":
-      return "👥";
+      return <Users className={cls} aria-hidden strokeWidth={1.75} />;
     default:
-      return "•";
+      return <span aria-hidden className="text-[color:var(--gv-ink-3)]">•</span>;
   }
 }
 
@@ -52,10 +54,10 @@ export function TimingActionCards({ actions }: { actions: ActionCardPayloadData[
               primary ? "ring-1 ring-[color:var(--gv-accent)]" : ""
             }`}
           >
-            <div className="mb-2 text-[20px] leading-none" aria-hidden>
-              {actionIcon(a.icon)}
+            <div className="mb-2 leading-none" aria-hidden>
+              <ActionIcon symbol={a.icon} />
             </div>
-            <p className="gv-serif text-[16px] text-[color:var(--gv-ink)]">{a.title}</p>
+            <p className="gv-serif text-[17px] text-[color:var(--gv-ink)]">{a.title}</p>
             <p className="mt-1 text-sm text-[color:var(--gv-ink-3)]">{a.sub}</p>
             {(() => {
               // Timing cards historically used "baseline" instead of
@@ -64,7 +66,7 @@ export function TimingActionCards({ actions }: { actions: ActionCardPayloadData[
               const line = renderForecastLine(a.forecast, { unit: "" });
               return line ? (
                 <div
-                  className={`mt-[10px] rounded px-[10px] py-2 gv-mono text-[11px] text-[color:var(--gv-ink-3)] ${forecastBg}`}
+                  className={`mt-[10px] rounded px-[10px] py-2 gv-kicker text-[color:var(--gv-ink-3)] ${forecastBg}`}
                 >
                   {line}
                 </div>

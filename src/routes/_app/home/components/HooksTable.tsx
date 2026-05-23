@@ -16,7 +16,7 @@ import { formatViews } from "@/lib/formatters";
 function deltaCell(curr: number, prev: number) {
   if (prev === 0) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--gv-accent-deep)]">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 text-[11px] font-semibold gv-kicker tracking-wider text-[color:var(--gv-accent-deep)]">
         Mới
       </span>
     );
@@ -63,7 +63,7 @@ export const HooksTable = memo(function HooksTable({
 
   if (!patterns || patterns.length === 0) {
     const emptyBody = (
-      <p className={`text-sm text-[color:var(--gv-ink-4)] ${embedded ? "" : "mt-6"}`}>
+      <p className={`text-sm text-[color:var(--gv-ink-3)] ${embedded ? "" : "mt-6"}`}>
         Chưa đủ pattern để xếp hạng tuần này. Chạy ingest nữa là có.
       </p>
     );
@@ -89,10 +89,10 @@ export const HooksTable = memo(function HooksTable({
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="gv-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+                <div className="gv-kicker text-[color:var(--gv-ink-4)]">
                   #{String(idx + 1).padStart(2, "0")} · MẪU HOOK
                 </div>
-                <p className="gv-tight mt-1 text-[15px] font-semibold leading-snug text-[color:var(--gv-ink)]">
+                <p className="gv-tight mt-1 text-[17px] font-semibold leading-snug text-[color:var(--gv-ink)]">
                   "{p.display_name || "Pattern"}"
                 </p>
               </div>
@@ -104,7 +104,7 @@ export const HooksTable = memo(function HooksTable({
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-[color:var(--gv-rule-2)] pt-3">
               <div>
                 <dt
-                  className="gv-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]"
+                  className="gv-kicker text-[color:var(--gv-ink-4)]"
                   title="Số video trong ngách của bạn gắn pattern này."
                 >
                   Lượt dùng
@@ -117,7 +117,7 @@ export const HooksTable = memo(function HooksTable({
                 </dd>
               </div>
               <div>
-                <dt className="gv-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+                <dt className="gv-kicker text-[color:var(--gv-ink-4)]">
                   View TB
                 </dt>
                 <dd className="gv-mono mt-0.5 text-sm text-[color:var(--gv-ink)]">
@@ -128,7 +128,7 @@ export const HooksTable = memo(function HooksTable({
 
             {p.sample_hook ? (
               <div className="mt-3 border-t border-[color:var(--gv-rule-2)] pt-3">
-                <div className="gv-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+                <div className="gv-kicker text-[color:var(--gv-ink-4)]">
                   Ví dụ
                 </div>
                 <p className="mt-1 text-sm italic leading-snug text-[color:var(--gv-ink-3)]">
@@ -173,7 +173,7 @@ export const HooksTable = memo(function HooksTable({
                   key={p.id}
                   className="border-t border-[color:var(--gv-rule-2)] first:border-t-0 hover:bg-[color:var(--gv-canvas-2)]/60"
                 >
-                  <td className="px-3 py-3 text-center gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+                  <td className="px-3 py-3 text-center gv-kicker text-[color:var(--gv-ink-4)]">
                     {String(idx + 1).padStart(2, "0")}
                   </td>
                   <td className="px-3 py-3 gv-tight text-[17px] font-semibold text-[color:var(--gv-ink)]">
@@ -234,7 +234,7 @@ function Th({
       scope="col"
       title={hint}
       className={[
-        "px-3 py-2 text-left gv-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]",
+        "px-3 py-2 text-left gv-kicker text-[color:var(--gv-ink-4)]",
         className ?? "",
       ].filter(Boolean).join(" ")}
     >

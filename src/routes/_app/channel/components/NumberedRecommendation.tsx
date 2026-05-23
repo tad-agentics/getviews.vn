@@ -42,7 +42,7 @@ export function NumberedRecommendation({
         <p className="text-sm font-semibold text-[color:var(--foreground)] leading-snug">
           {isHero ? (
             <>
-              <span className="mr-2 rounded bg-[color:var(--gv-accent)]/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[color:var(--gv-accent-deep)]">
+              <span className="mr-2 rounded bg-[color:var(--gv-accent)]/20 px-1.5 py-0.5 text-[11px] font-bold gv-kicker tracking-wide text-[color:var(--gv-accent-deep)]">
                 Ưu tiên
               </span>
               {recommendation.title}
@@ -91,7 +91,7 @@ export function RecommendationList({ recommendations }: RecommendationListProps)
       ))}
       {anti.length > 0 ? (
         <>
-          <p className="mt-4 mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-neg-deep)]">
+          <p className="mt-4 mb-1 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-neg-deep)]">
             Ngừng làm
           </p>
           {anti.map((rec) => (

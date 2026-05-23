@@ -27,7 +27,7 @@ export function DiagnosisPostingContextBlock({
         <SectionProseBlocks
           text={narrative}
           wrapperClassName="space-y-2 mt-2"
-          paragraphClassName="text-[15px] leading-relaxed text-[color:var(--foreground)]"
+          paragraphClassName="text-[17px] leading-relaxed text-[color:var(--foreground)]"
         />
       ) : null}
       <PostingHeatmapEmbed payload={payload} />

@@ -250,10 +250,10 @@ export default function HistoryScreen() {
 
       {/* Header */}
       <div className="flex-shrink-0 border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-6 pt-4 pb-4 lg:px-6">
-        <p className="gv-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           Lịch sử nghiên cứu
         </p>
-        <h1 className="gv-serif mt-1 text-[28px] font-medium leading-tight text-[color:var(--gv-ink)]">
+        <h1 className="gv-serif mt-1 text-[24px] font-medium leading-tight text-[color:var(--gv-ink)]">
           Tất cả các phiên
         </h1>
         <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -329,7 +329,7 @@ export default function HistoryScreen() {
             {Object.entries(grouped).map(([dateGroup, groupRows]) => (
               <div key={dateGroup}>
                 <div className="px-4 py-2 bg-[color:var(--gv-canvas-2)]">
-                  <p className="gv-mono text-[10px] font-medium uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+                  <p className="gv-kicker text-[color:var(--gv-ink-3)]">
                     {dateGroup}
                   </p>
                 </div>
@@ -408,7 +408,7 @@ export default function HistoryScreen() {
                   <p
                     role="status"
                     aria-label="Đang tải thêm"
-                    className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]"
+                    className="gv-kicker text-[color:var(--gv-ink-3)]"
                   >
                     Đang tải thêm…
                   </p>

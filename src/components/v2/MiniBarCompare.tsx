@@ -20,12 +20,12 @@ function Bar({
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
-      <span className="gv-mono w-16 shrink-0 text-[10px] text-[color:var(--gv-ink-4)]">{label}</span>
+      <span className="gv-mono w-16 shrink-0 text-[11px] text-[color:var(--gv-ink-4)]">{label}</span>
       <div className="relative h-3 flex-1 bg-[color:var(--gv-canvas-2)]">
         <div className="absolute inset-y-0 left-0" style={{ width: `${pct}%`, backgroundColor: `var(${colorVar})` }} />
       </div>
       <span
-        className="gv-mono w-8 shrink-0 text-right text-[10px]"
+        className="gv-mono w-8 shrink-0 text-right text-[11px]"
         style={{ color: `var(${colorVar})`, fontWeight: bold ? 600 : 400 }}
       >
         {value.toFixed(1)}s

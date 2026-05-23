@@ -30,8 +30,8 @@ export function TopBar({
       ].filter(Boolean).join(" ")}
     >
       <div className="min-w-0">
-        <p className="gv-uc mb-[3px] text-[9.5px] text-[color:var(--gv-ink-4)]">{kicker}</p>
-        <p className="gv-tight mt-0 truncate text-[19px] leading-none tracking-[-0.03em] text-[color:var(--gv-ink)] md:text-[24px]">
+        <p className="gv-uc mb-[3px] text-[11px] text-[color:var(--gv-ink-3)]">{kicker}</p>
+        <p className="gv-tight mt-0 truncate text-[17px] leading-none tracking-[-0.03em] text-[color:var(--gv-ink)] md:text-[24px]">
           {title}
         </p>
       </div>

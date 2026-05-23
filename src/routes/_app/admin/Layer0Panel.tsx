@@ -59,10 +59,10 @@ function Bignum({ label, value, sub }: { label: string; value: number | string; 
   const display = typeof value === "number" ? formatVN(value) : value;
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="gv-uc text-[10px] font-semibold text-[color:var(--gv-ink-4)]">{label}</span>
+      <span className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">{label}</span>
       <span className="gv-bignum text-[color:var(--gv-ink)] tabular-nums">{display}</span>
       {sub ? (
-        <span className="gv-mono text-[11px] text-[color:var(--gv-ink-3)] tabular-nums">{sub}</span>
+        <span className="gv-kicker text-[color:var(--gv-ink-3)] tabular-nums">{sub}</span>
       ) : null}
     </div>
   );
@@ -78,7 +78,7 @@ function StatusChip({ status }: { status: string | null }) {
   return (
     <span
       className={
-        "inline-flex items-center rounded-full px-2.5 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] " +
+        "inline-flex items-center rounded-full px-2.5 py-0.5 gv-kicker " +
         tone
       }
     >
@@ -90,13 +90,13 @@ function StatusChip({ status }: { status: string | null }) {
 function StaleChip({ count }: { count: number }) {
   if (count === 0) {
     return (
-      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-4)]">
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 gv-kicker bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-4)]">
         Tươi
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg-deep)]">
+    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 gv-kicker bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg-deep)]">
       {count} tín hiệu quá hạn
     </span>
   );
@@ -106,14 +106,14 @@ function NicheRow({ row }: { row: Layer0NicheFreshness }) {
   const name = row.name_vn || row.name_en || `niche ${row.niche_id}`;
   return (
     <tr className="border-b border-[color:var(--gv-rule)] last:border-0">
-      <td className="py-2.5 pr-4 text-[13px] text-[color:var(--gv-ink)]">{name}</td>
+      <td className="py-2.5 pr-4 text-sm text-[color:var(--gv-ink)]">{name}</td>
       <td className="py-2.5 pr-4 gv-mono text-[12px] tabular-nums text-[color:var(--gv-ink)]">
         {row.signal_count}
       </td>
       <td className="py-2.5 pr-4">
         <StaleChip count={row.stale_count} />
       </td>
-      <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+      <td className="py-2.5 pr-4 gv-kicker text-[color:var(--gv-ink-3)]">
         {row.last_hashtag_refresh ?? "—"}
       </td>
     </tr>
@@ -130,7 +130,7 @@ function CandidateRow({ row }: { row: Layer0Candidate }) {
       <td className="py-2.5 pr-4 gv-mono text-[12px] tabular-nums text-[color:var(--gv-ink-3)]">
         {row.avg_views != null ? formatVN(row.avg_views) : "—"}
       </td>
-      <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+      <td className="py-2.5 pr-4 gv-kicker text-[color:var(--gv-ink-3)]">
         {row.discovery_date ?? "—"}
       </td>
     </tr>
@@ -140,7 +140,7 @@ function CandidateRow({ row }: { row: Layer0Candidate }) {
 function RunRow({ row }: { row: Layer0Run }) {
   return (
     <tr className="border-b border-[color:var(--gv-rule)] last:border-0">
-      <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+      <td className="py-2.5 pr-4 gv-kicker text-[color:var(--gv-ink-3)]">
         {relativeAge(row.started_at)}
       </td>
       <td className="py-2.5 pr-4">
@@ -149,7 +149,7 @@ function RunRow({ row }: { row: Layer0Run }) {
       <td className="py-2.5 pr-4 gv-mono text-[12px] tabular-nums text-[color:var(--gv-ink)]">
         {formatDurationMs(row.duration_ms)}
       </td>
-      <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-3)] line-clamp-1">
+      <td className="py-2.5 pr-4 gv-kicker text-[color:var(--gv-ink-3)] line-clamp-1">
         {row.error ? row.error : row.summary ? JSON.stringify(row.summary) : "—"}
       </td>
     </tr>
@@ -177,7 +177,7 @@ export function Layer0Panel() {
   if (isError) {
     const code = (error as Error)?.message ?? "unknown";
     return (
-      <p className="text-[13px] text-[color:var(--gv-neg-deep)]">
+      <p className="text-sm text-[color:var(--gv-neg-deep)]">
         Không tải được dữ liệu Layer0 ({code}).
       </p>
     );
@@ -213,27 +213,27 @@ export function Layer0Panel() {
 
       {/* Niche freshness */}
       <div>
-        <p className="gv-uc mb-2.5 text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+        <p className="gv-uc mb-2.5 text-[11px] font-semibold text-[color:var(--gv-ink-3)]">
           Độ tươi signal · 10 dòng taxonomy ưu tiên quá hạn trước
         </p>
         {topStaleNiches.length === 0 ? (
-          <p className="text-[13px] text-[color:var(--gv-ink-3)]">
+          <p className="text-sm text-[color:var(--gv-ink-3)]">
             Không có dòng taxonomy nào — kiểm tra bảng niche_taxonomy.
           </p>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-[color:var(--gv-rule)]">
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Ngách (taxonomy)
                 </th>
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Số tín hiệu
                 </th>
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Quá hạn
                 </th>
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Refresh hashtag gần nhất
                 </th>
               </tr>
@@ -249,27 +249,27 @@ export function Layer0Panel() {
 
       {/* Pending candidates */}
       <div>
-        <p className="gv-uc mb-2.5 text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+        <p className="gv-uc mb-2.5 text-[11px] font-semibold text-[color:var(--gv-ink-3)]">
           Hashtag chờ duyệt · 20 dòng đầu theo số lần xuất hiện
         </p>
         {data.pending_candidates.length === 0 ? (
-          <p className="text-[13px] text-[color:var(--gv-ink-3)]">
+          <p className="text-sm text-[color:var(--gv-ink-3)]">
             Không còn hashtag ứng viên nào trong hàng đợi duyệt.
           </p>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-[color:var(--gv-rule)]">
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Hashtag
                 </th>
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Số lần xuất hiện
                 </th>
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   View trung bình
                 </th>
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Phát hiện
                 </th>
               </tr>
@@ -285,27 +285,27 @@ export function Layer0Panel() {
 
       {/* Recent runs */}
       <div>
-        <p className="gv-uc mb-2.5 text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+        <p className="gv-uc mb-2.5 text-[11px] font-semibold text-[color:var(--gv-ink-3)]">
           5 lần chạy gần nhất · job batch Layer0
         </p>
         {data.recent_runs.length === 0 ? (
-          <p className="text-[13px] text-[color:var(--gv-ink-3)]">
+          <p className="text-sm text-[color:var(--gv-ink-3)]">
             Chưa có lần chạy nào — kiểm tra lịch cron batch Layer0 (Cloud Run).
           </p>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-[color:var(--gv-rule)]">
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Thời điểm
                 </th>
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Trạng thái
                 </th>
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Thời lượng
                 </th>
-                <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                   Tóm tắt / lỗi
                 </th>
               </tr>

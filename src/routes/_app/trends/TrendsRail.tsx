@@ -94,7 +94,7 @@ function RailSection({
 }) {
   return (
     <section aria-labelledby={`rail-${slug(title)}`}>
-      <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
         {kicker}
       </p>
       <h3
@@ -103,7 +103,7 @@ function RailSection({
       >
         {title}
       </h3>
-      <p className="gv-mono mb-3 text-[10px] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-3 text-[11px] text-[color:var(--gv-ink-3)]">
         {sub}
       </p>
       {isPending ? (
@@ -174,7 +174,7 @@ function RailRow({ video }: { video: RailVideo }) {
           <span className="m-0 line-clamp-2 text-[12px] leading-[1.3] text-[color:var(--gv-ink)]">
             {title}
           </span>
-          <span className="gv-mono mt-1 block text-[10px] text-[color:var(--gv-ink-4)]">
+          <span className="gv-mono mt-1 block text-[11px] text-[color:var(--gv-ink-4)]">
             {[handle, video.views > 0 ? `↑${formatViews(video.views)}` : null, ageLabel]
               .filter(Boolean)
               .join(" · ")}

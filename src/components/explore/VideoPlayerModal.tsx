@@ -246,7 +246,7 @@ export function VideoPlayerModal({
             style={{ flex: "0 0 auto", maxHeight: "45%", minHeight: 0 }}
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)] flex-shrink-0">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--faint)]">Khám phá video</p>
+              <p className="text-[11px] font-bold gv-kicker tracking-widest text-[var(--faint)]">Khám phá video</p>
               <div className="flex md:hidden items-center gap-3">
                 <span className="flex items-center gap-1 text-[11px] text-[var(--muted)]">
                   <Heart className="w-3.5 h-3.5" strokeWidth={2} />{selected.likes}
@@ -260,12 +260,12 @@ export function VideoPlayerModal({
             {hookTemplate ? (
               <div className="px-3 py-2.5 border-b border-[var(--border)] bg-[var(--surface-alt)] flex-shrink-0">
                 {cardTitle ? (
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--faint)] line-clamp-1">
+                  <p className="mb-1 text-[11px] font-bold gv-kicker tracking-widest text-[var(--faint)] line-clamp-1">
                     {cardTitle}
                   </p>
                 ) : null}
                 <div className="flex items-start gap-2">
-                  <p className="flex-1 text-[11px] font-mono leading-snug text-[var(--ink)]">
+                  <p className="flex-1 gv-kicker leading-snug text-[var(--ink)]">
                     {hookTemplate}
                   </p>
                   <button
@@ -276,7 +276,7 @@ export function VideoPlayerModal({
                         setTimeout(() => setCopied(false), 1500);
                       });
                     }}
-                    className="flex-shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-[10px] font-semibold text-[var(--muted)] transition-colors hover:border-[var(--gv-ink)] hover:text-[var(--ink)]"
+                    className="flex-shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] font-semibold text-[var(--muted)] transition-colors hover:border-[var(--gv-ink)] hover:text-[var(--ink)]"
                   >
                     {copied ? "Đã copy ✓" : "Copy"}
                   </button>
@@ -303,8 +303,8 @@ export function VideoPlayerModal({
                         <SafeImg src={v.img} alt="" className="w-full h-full object-cover" />
                         {isSel && <div className="absolute inset-0 bg-[var(--gv-accent)]/20 flex items-center justify-center"><div className="w-3 h-3 rounded-full bg-white/90" /></div>}
                       </div>
-                      {v.text && <p className={`text-[10px] font-semibold leading-snug line-clamp-2 w-full text-left ${isSel ? "text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}>{v.text}</p>}
-                      <p className="text-[10px] font-mono text-[var(--muted)]">{v.views}</p>
+                      {v.text && <p className={`text-[11px] font-semibold leading-snug line-clamp-2 w-full text-left ${isSel ? "text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}>{v.text}</p>}
+                      <p className="gv-kicker text-[var(--muted)]">{v.views}</p>
                     </button>
                   );
                 })}
@@ -332,8 +332,8 @@ export function VideoPlayerModal({
                       {v.text && <p className={`text-[11px] font-semibold leading-snug line-clamp-2 mb-0.5 ${isSel ? "text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}>{v.text}</p>}
                       <p className={`text-[11px] ${v.text ? "text-[var(--faint)]" : isSel ? "text-[var(--gv-accent)] font-semibold" : "text-[var(--ink)] font-semibold"} leading-snug line-clamp-1`}>{v.handle}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[11px] font-mono font-semibold text-[var(--ink)]">{v.views}</span>
-                        <span className="text-[10px] text-[var(--faint)]">{v.time}</span>
+                        <span className="gv-kicker text-[var(--ink)]">{v.views}</span>
+                        <span className="text-[11px] text-[var(--faint)]">{v.time}</span>
                       </div>
                     </div>
                   </button>

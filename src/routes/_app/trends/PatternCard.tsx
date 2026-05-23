@@ -68,7 +68,7 @@ export const PatternCard = memo(function PatternCard({
         {/* Body */}
         <div className="flex flex-col gap-2.5 px-3.5 py-3.5">
           <div className="min-w-0">
-            <h3 className="gv-tight m-0 text-[15.5px] font-semibold leading-[1.25] tracking-[-0.01em] text-[color:var(--gv-ink)] line-clamp-3">
+            <h3 className="gv-tight m-0 text-sm font-semibold leading-[1.25] tracking-[-0.01em] text-[color:var(--gv-ink)] line-clamp-3">
               {headline}
             </h3>
             {sub ? (
@@ -87,7 +87,7 @@ export const PatternCard = memo(function PatternCard({
           <div className="flex items-center gap-2 border-t border-[color:var(--gv-rule)] pt-2">
             {pattern.tier === "strong" && liftLabel ? (
               <span
-                className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em]"
+                className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[11px] font-bold gv-kicker tracking-[0.06em]"
                 style={{
                   background: "color-mix(in srgb, var(--gv-pos) 14%, transparent)",
                   color: "var(--gv-pos-deep)",
@@ -98,7 +98,7 @@ export const PatternCard = memo(function PatternCard({
               </span>
             ) : pattern.tier === "early" ? (
               <span
-                className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em]"
+                className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[11px] font-bold gv-kicker tracking-[0.06em]"
                 style={{
                   background: "color-mix(in srgb, var(--gv-warn,#d49a3b) 18%, transparent)",
                   color: "var(--gv-warn-deep,#7a4a00)",
@@ -108,13 +108,13 @@ export const PatternCard = memo(function PatternCard({
                 Tín hiệu sớm{liftLabel ? ` · ↑${liftLabel}` : ""}
               </span>
             ) : null}
-            <span className="gv-mono text-[10.5px] text-[color:var(--gv-ink-3)] truncate">
+            <span className="gv-kicker text-[color:var(--gv-ink-3)] truncate">
               {pattern.niche_video_count} video trong ngách
             </span>
           </div>
 
           {/* CTA — verb, opens the deep-teach modal. */}
-          <span className="gv-mono inline-flex items-center gap-1 self-start text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--gv-accent)] group-hover:translate-x-0.5 transition-transform">
+          <span className="gv-mono inline-flex items-center gap-1 self-start text-[11px] font-bold gv-kicker tracking-[0.1em] text-[color:var(--gv-accent)] group-hover:translate-x-0.5 transition-transform">
             HỌC CÔNG THỨC
             <ArrowRight className="h-3 w-3" strokeWidth={2.4} aria-hidden />
           </span>
@@ -210,7 +210,7 @@ function CollageTile({ cell }: { cell: PatternVideo }) {
       />
       {handleLabel ? (
         <span
-          className="absolute bottom-1.5 left-2 right-2 truncate text-[10px] leading-tight text-white"
+          className="absolute bottom-1.5 left-2 right-2 truncate text-[11px] leading-tight text-white"
           aria-hidden
         >
           {handleLabel}
@@ -218,7 +218,7 @@ function CollageTile({ cell }: { cell: PatternVideo }) {
       ) : null}
       {cell.views > 0 ? (
         <span
-          className="gv-mono absolute right-1.5 top-1.5 rounded-[3px] bg-black/55 px-1.5 py-0.5 text-[9px] text-white"
+          className="gv-mono absolute right-1.5 top-1.5 rounded-[3px] bg-black/55 px-1.5 py-0.5 text-[11px] text-white"
           aria-hidden
         >
           {formatViews(cell.views)}

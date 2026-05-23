@@ -39,7 +39,7 @@ export function TierHeader({
     >
       <div className="flex min-w-0 flex-1 items-start gap-4">
         <div
-          className="gv-mono gv-tight shrink-0 pt-1 text-[36px] font-semibold leading-[0.85] tracking-[-0.04em] text-[color:var(--gv-ink-4)]"
+          className="gv-mono gv-tight shrink-0 pt-1 text-[32px] font-semibold leading-[0.85] tracking-[-0.04em] text-[color:var(--gv-ink-4)]"
           aria-hidden
         >
           {num}
@@ -47,7 +47,7 @@ export function TierHeader({
         <div className="min-w-0">
           <div
             className={[
-              "gv-uc mb-2 inline-block rounded px-2 py-0.5 text-[10px] font-bold tracking-[0.08em] text-white",
+              "gv-uc mb-2 inline-block rounded px-2 py-0.5 text-[11px] font-bold tracking-[0.08em] text-white",
               TAG_STYLES[tagTone],
             ].join(" ")}
           >
@@ -57,7 +57,7 @@ export function TierHeader({
             {title}
           </h3>
           {caption ? (
-            <p className="mt-1 max-w-[640px] text-[12.5px] leading-normal text-[color:var(--gv-ink-3)]">
+            <p className="mt-1 max-w-[640px] text-xs leading-normal text-[color:var(--gv-ink-3)]">
               {caption}
             </p>
           ) : null}

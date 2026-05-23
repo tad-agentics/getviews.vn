@@ -13,7 +13,7 @@ export function ReportNarrativeHeadline({
   return (
     <section className="gv-fade-up">
       {kicker ? (
-        <p className="gv-mono mb-2 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
           {kicker}
         </p>
       ) : null}

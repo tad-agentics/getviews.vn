@@ -36,7 +36,7 @@ export function TrendingSoundCard({ data }: Props) {
           ) : null}
         </div>
       </div>
-      <p className="mt-2 text-xs text-[color:var(--gv-ink-4)]">{formatVN(data.usage_count)} video dùng tuần này</p>
+      <p className="mt-2 text-xs text-[color:var(--gv-ink-3)]">{formatVN(data.usage_count)} video dùng tuần này</p>
     </div>
   );
 }

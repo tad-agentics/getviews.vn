@@ -73,7 +73,7 @@ function Pill({
       disabled={disabled}
       aria-pressed={active}
       className={
-        "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] transition-colors duration-[120ms] disabled:opacity-50 " +
+        "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] transition-colors duration-[120ms] disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100 " +
         (active
           ? "border border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] font-semibold text-[color:var(--gv-accent-deep)]"
           : "border border-[color:var(--gv-rule)] bg-transparent font-medium text-[color:var(--gv-ink-2)] hover:border-[color:var(--gv-ink-4)]")

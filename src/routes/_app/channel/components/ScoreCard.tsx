@@ -65,7 +65,7 @@ export function ScoreCard({ card }: ScoreCardProps) {
         <p className="gv-kicker mb-3">
           Tóm tắt nhanh
         </p>
-        <p className="gv-mono text-[10px] tabular-nums text-[color:var(--gv-ink-4)]">
+        <p className="gv-kicker tabular-nums text-[color:var(--gv-ink-3)]">
           n={card.sample_size_videos ?? "—"} video · {cohortMeta}
         </p>
       </div>
@@ -79,7 +79,7 @@ export function ScoreCard({ card }: ScoreCardProps) {
               </dd>
             </div>
             {row.caption ? (
-              <p className="mt-1.5 text-[11.5px] leading-relaxed text-[color:var(--gv-ink-3)]">
+              <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--gv-ink-3)]">
                 {row.caption}
               </p>
             ) : null}

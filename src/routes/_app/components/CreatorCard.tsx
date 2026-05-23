@@ -200,7 +200,7 @@ export function CreatorCard({
             {data.verified ? (
               <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-[var(--gv-accent)]" strokeWidth={2.5} />
             ) : null}
-            <span className="ml-auto flex-shrink-0 rounded-full bg-[var(--surface-alt)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+            <span className="ml-auto flex-shrink-0 rounded-full bg-[var(--surface-alt)] px-2 py-0.5 text-[11px] font-semibold gv-kicker tracking-wide text-[var(--muted)]">
               {TIER_LABEL[data.tier]}
             </span>
           </div>
@@ -249,7 +249,7 @@ export function CreatorCard({
                 href={data.best_video.tiktok_url}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--gv-accent)] hover:underline"
+                className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--gv-accent)] hover:underline"
               >
                 Mở trên TikTok <ExternalLink className="h-2.5 w-2.5" strokeWidth={2.5} />
               </a>
@@ -265,7 +265,7 @@ export function CreatorCard({
           {(data.red_flags ?? []).map((f) => (
             <span
               key={f}
-              className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300"
+              className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300"
             >
               {redFlagLabel(f)}
             </span>

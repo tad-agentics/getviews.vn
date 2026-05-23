@@ -31,7 +31,7 @@ export function TimingHeadline({
   return (
     <section className="grid grid-cols-1 gap-6 border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] px-6 py-5 min-[900px]:grid-cols-[1fr_280px]">
       <div>
-        <p className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           {leftKicker}
         </p>
         <h3 className="gv-serif mt-1 text-[32px] font-medium leading-[1.1] tracking-tight text-[color:var(--gv-ink)]">
@@ -45,7 +45,7 @@ export function TimingHeadline({
       </div>
 
       <div>
-        <p className="gv-mono text-[9px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           {rightKicker}
         </p>
         <ol className="mt-2 flex flex-col gap-2 text-[12px]">

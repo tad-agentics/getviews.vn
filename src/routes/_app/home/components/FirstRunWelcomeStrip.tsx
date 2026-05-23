@@ -31,12 +31,12 @@ export const FirstRunWelcomeStrip = memo(function FirstRunWelcomeStrip({
       className="flex flex-wrap items-center justify-between gap-4 border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-ink)] px-5 py-3.5 text-[color:var(--gv-canvas)] sm:px-7"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-3.5">
-        <span className="gv-mono inline-flex items-center gap-1.5 whitespace-nowrap rounded-[4px] bg-[color:var(--gv-accent)] px-2 py-[3px] text-[10px] font-bold uppercase tracking-[0.1em] text-white">
+        <span className="gv-mono inline-flex items-center gap-1.5 whitespace-nowrap rounded-[4px] bg-[color:var(--gv-accent)] px-2 py-[3px] text-[11px] font-bold gv-kicker tracking-[0.1em] text-white">
           <span aria-hidden>●</span>
           NGÀY ĐẦU TIÊN
         </span>
         <p
-          className="m-0 text-[13px] leading-[1.5] text-[color:var(--gv-canvas)]"
+          className="m-0 text-sm leading-[1.5] text-[color:var(--gv-canvas)]"
           style={{ textWrap: "pretty" }}
         >
           Chào {firstName} — đây là toàn cảnh ngách{" "}

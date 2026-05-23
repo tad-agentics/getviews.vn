@@ -33,8 +33,9 @@ export const DouyinHero = memo(function DouyinHero({
           top-right so it doesn't fight the H1. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute right-5 top-3 select-none text-[130px] font-extrabold leading-none tracking-[-0.04em]"
+        className="pointer-events-none absolute right-5 top-3 select-none font-extrabold leading-none tracking-[-0.04em]"
         style={{
+          fontSize: "7.5rem",
           color: "color-mix(in srgb, var(--gv-accent) 8%, transparent)",
         }}
       >
@@ -42,13 +43,13 @@ export const DouyinHero = memo(function DouyinHero({
       </span>
 
       {/* Kicker */}
-      <p className="gv-mono mb-2.5 text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-accent)]">
-        🇨🇳 Kho Douyin · Đà Việt hoá · Cập nhật mỗi 24h
+      <p className="gv-mono mb-2.5 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-accent)]">
+        CN · Kho Douyin · Đà Việt hoá · Cập nhật mỗi 24h
       </p>
 
       {/* H1 — accent highlight on "không cần VPN". */}
       <h1
-        className="gv-tight m-0 mb-4 max-w-[720px] text-[44px] font-medium leading-[1.05] tracking-[-0.025em] text-[color:var(--gv-canvas)]"
+        className="gv-tight m-0 mb-4 max-w-[720px] text-[42px] font-medium leading-[1.05] tracking-[-0.025em] text-[color:var(--gv-canvas)]"
         style={{ fontFamily: "var(--gv-font-display)" }}
       >
         Trend Douyin{" "}
@@ -96,16 +97,16 @@ function HeroNum({
 }) {
   return (
     <div>
-      <p className="gv-mono mb-1.5 text-[9px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-1.5 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-ink-3)]">
         {label}
       </p>
       <p
-        className="gv-tight m-0 text-[30px] leading-none text-[color:var(--gv-canvas)]"
+        className="gv-tight m-0 text-[32px] leading-none text-[color:var(--gv-canvas)]"
         style={{ fontFamily: "var(--gv-font-display)" }}
       >
         {value}
       </p>
-      <p className="gv-mono mt-1.5 text-[10px] text-[color:var(--gv-ink-3)]">
+      <p className="gv-mono mt-1.5 text-[11px] text-[color:var(--gv-ink-3)]">
         {sub}
       </p>
     </div>

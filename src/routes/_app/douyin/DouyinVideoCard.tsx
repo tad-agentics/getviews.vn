@@ -115,15 +115,15 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
         {/* Top row — CN flag + duration */}
         <div className="absolute left-2 right-2 top-2 flex items-start justify-between">
           <span
-            className="gv-mono rounded px-1.5 py-0.5 text-[9px] uppercase tracking-[0.05em] text-white"
+            className="gv-mono rounded px-1.5 py-0.5 text-[11px] gv-kicker tracking-[0.05em] text-white"
             style={{ background: "var(--gv-accent-deep)" }}
             aria-label="Nguồn Douyin Trung Quốc"
           >
-            🇨🇳
+            CN
           </span>
           {duration ? (
             <span
-              className="gv-mono rounded px-1.5 py-0.5 text-[10px] text-white"
+              className="gv-mono rounded px-1.5 py-0.5 text-[11px] text-white"
               style={{ background: "rgba(0,0,0,0.6)" }}
             >
               {duration}
@@ -157,7 +157,7 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
             }}
           >
             <p
-              className="gv-mono mb-0.5 text-[7px] uppercase tracking-[0.05em]"
+              className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-[0.05em]"
               style={{ color: DOUYIN_SUB_VN_GREEN }}
             >
               Sub VN
@@ -171,11 +171,11 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
         {/* Bottom — handle + views + rise */}
         <div className="absolute bottom-2 left-2.5 right-2.5 text-white">
           {video.creator_handle ? (
-            <p className="gv-mono mb-0.5 truncate text-[9.5px] opacity-85">
+            <p className="gv-mono mb-0.5 truncate text-[11px] opacity-85">
               抖音 @{video.creator_handle}
             </p>
           ) : null}
-          <div className="flex items-center justify-between text-[10px]">
+          <div className="flex items-center justify-between text-[11px]">
             <span className="gv-mono">↑ {formatViews(video.views)}</span>
             {rise ? (
               <span
@@ -202,11 +202,11 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
       {/* Body */}
       <div className="flex flex-1 flex-col gap-2 p-3">
         <div>
-          <p className="line-clamp-2 text-[13.5px] leading-snug text-[color:var(--gv-ink)]">
+          <p className="line-clamp-2 text-sm leading-snug text-[color:var(--gv-ink)]">
             {video.title_vi || video.title_zh || ""}
           </p>
           {video.title_zh && video.title_vi ? (
-            <p className="gv-mono mt-1 truncate text-[10px] italic text-[color:var(--gv-ink-4)]">
+            <p className="gv-mono mt-1 truncate text-[11px] italic text-[color:var(--gv-ink-3)]">
               {video.title_zh}
             </p>
           ) : null}
@@ -216,7 +216,7 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
         <div className="mt-auto flex flex-wrap items-center gap-2">
           <span
             className={
-              "gv-mono inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em] " +
+              "gv-mono inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] " +
               meta.toneClass
             }
             data-adapt-level={video.adapt_level ?? "pending"}
@@ -228,7 +228,7 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
             {meta.short}
           </span>
           {relTime ? (
-            <span className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+            <span className="gv-kicker text-[color:var(--gv-ink-4)]">
               {relTime}
             </span>
           ) : null}

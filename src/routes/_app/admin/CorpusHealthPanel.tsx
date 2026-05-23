@@ -46,7 +46,7 @@ function TierChip({ tier }: { tier: ClaimTier }) {
   return (
     <span
       className={
-        "inline-flex items-center rounded-full px-2.5 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] " +
+        "inline-flex items-center rounded-full px-2.5 py-0.5 gv-kicker " +
         (passing
           ? "bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-accent-deep)]"
           : "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-4)]")
@@ -61,7 +61,7 @@ function Bignum({ label, value }: { label: string; value: number | string }) {
   const display = typeof value === "number" ? value.toLocaleString("vi-VN") : value;
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="gv-uc text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+      <span className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
         {label}
       </span>
       <span className="gv-bignum text-[color:var(--gv-ink)] tabular-nums">{display}</span>
@@ -72,7 +72,7 @@ function Bignum({ label, value }: { label: string; value: number | string }) {
 function TierHistogram({ histogram, total }: { histogram: Record<ClaimTier, number>; total: number }) {
   if (total === 0) {
     return (
-      <p className="text-[13px] text-[color:var(--gv-ink-3)]">
+      <p className="text-sm text-[color:var(--gv-ink-3)]">
         Chưa có dòng taxonomy nào trong danh sách.
       </p>
     );
@@ -96,7 +96,7 @@ function TierHistogram({ histogram, total }: { histogram: Record<ClaimTier, numb
                 style={{ width: `${pct}%`, background: "var(--gv-accent)" }}
               />
             </div>
-            <span className="w-[72px] shrink-0 gv-mono text-[11px] tabular-nums text-[color:var(--gv-ink-3)]">
+            <span className="w-[72px] shrink-0 gv-kicker tabular-nums text-[color:var(--gv-ink-3)]">
               {count} ({pct}%)
             </span>
           </div>
@@ -110,7 +110,7 @@ function NicheRow({ row }: { row: CorpusHealthNicheRow }) {
   const name = row.name_vn || row.name_en || `niche ${row.niche_id}`;
   return (
     <tr className="border-b border-[color:var(--gv-rule)] last:border-0">
-      <td className="py-2.5 pr-4 text-[13px] text-[color:var(--gv-ink)]">{name}</td>
+      <td className="py-2.5 pr-4 text-sm text-[color:var(--gv-ink)]">{name}</td>
       <td className="py-2.5 pr-4 gv-mono text-[12px] tabular-nums text-[color:var(--gv-ink-3)]">
         {row.videos_7d}
       </td>
@@ -120,10 +120,10 @@ function NicheRow({ row }: { row: CorpusHealthNicheRow }) {
       <td className="py-2.5 pr-4 gv-mono text-[12px] tabular-nums text-[color:var(--gv-ink-4)]">
         {row.videos_90d}
       </td>
-      <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+      <td className="py-2.5 pr-4 gv-kicker text-[color:var(--gv-ink-3)]">
         {relativeAge(row.last_ingest_at)}
       </td>
-      <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+      <td className="py-2.5 pr-4 gv-kicker text-[color:var(--gv-ink-4)]">
         {relativeAge(row.last_pattern_at ?? null)}
       </td>
       <td className="py-2.5">
@@ -135,7 +135,7 @@ function NicheRow({ row }: { row: CorpusHealthNicheRow }) {
 
 function TH({ children }: { children: React.ReactNode }) {
   return (
-    <th className="py-2 pr-4 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+    <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
       {children}
     </th>
   );
@@ -164,7 +164,7 @@ export function CorpusHealthPanel() {
   if (q.isError) {
     const code = q.error instanceof Error ? q.error.message : "unknown";
     return (
-      <p className="text-[13px] text-[color:var(--gv-danger)]">
+      <p className="text-sm text-[color:var(--gv-danger)]">
         Không tải được corpus health ({code}).
       </p>
     );
@@ -219,7 +219,7 @@ export function CorpusHealthPanel() {
             <div className="mt-2 flex justify-end border-t border-[color:var(--gv-rule)] pt-2">
               <button
                 type="button"
-                className="min-h-11 min-w-11 rounded-md px-3 text-[13px] font-medium text-[color:var(--gv-accent-deep)] underline decoration-[color:var(--gv-rule)] underline-offset-2 transition-colors hover:text-[color:var(--gv-ink)]"
+                className="min-h-11 min-w-11 rounded-md px-3 text-sm font-medium text-[color:var(--gv-accent-deep)] underline decoration-[color:var(--gv-rule)] underline-offset-2 transition-colors hover:text-[color:var(--gv-ink)]"
                 onClick={() => setShowAllNiches((v) => !v)}
                 aria-expanded={showAllNiches}
               >
@@ -232,7 +232,7 @@ export function CorpusHealthPanel() {
         </div>
       </div>
 
-      <p className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+      <p className="gv-kicker text-[color:var(--gv-ink-3)]">
         Cập nhật {new Date(as_of).toLocaleString("vi-VN")} · {niches.length} dòng taxonomy
       </p>
     </div>

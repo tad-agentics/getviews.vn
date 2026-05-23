@@ -11,10 +11,10 @@ export function HookPhaseCard({ phase, className = "" }: HookPhaseCardProps) {
     <article
       className={`rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4 shadow-[0_1px_0_color-mix(in_srgb,var(--gv-ink)_06%,transparent)] ${className}`.trim()}
     >
-      <div className="gv-mono mb-1.5 text-[10px] text-[color:var(--gv-accent-deep)]">{phase.t_range}</div>
+      <div className="gv-mono mb-1.5 text-[11px] text-[color:var(--gv-accent-deep)]">{phase.t_range}</div>
       <h4 className="gv-tight m-0 mb-1.5 text-base text-[color:var(--gv-ink)]">{phase.label}</h4>
       {phase.body?.trim() ? (
-        <p className="m-0 text-[13px] leading-relaxed text-[color:var(--gv-ink-2)]">{phase.body.trim()}</p>
+        <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink-2)]">{phase.body.trim()}</p>
       ) : null}
     </article>
   );

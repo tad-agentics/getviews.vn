@@ -78,7 +78,7 @@ export function VideoRefCard({ data, className = "" }: Props) {
       <div className="px-2 py-1.5 space-y-1">
         {/* Breakout badge — not visible on thumbnail */}
         {data.breakout && data.breakout > 2 ? (
-          <span className="inline-flex items-center gap-0.5 rounded bg-[color:var(--gv-accent)]/80 px-1 py-0.5 text-[9px] font-semibold text-white">
+          <span className="inline-flex items-center gap-0.5 rounded bg-[color:var(--gv-accent)]/80 px-1 py-0.5 text-[11px] font-semibold text-white">
             {formatBreakoutVI(data.breakout)}
             {data.breakout > 5 ? <Star className="h-2.5 w-2.5 shrink-0" aria-hidden /> : null}
           </span>
@@ -90,13 +90,13 @@ export function VideoRefCard({ data, className = "" }: Props) {
             href={tiktokUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 truncate text-[10px] text-[var(--muted)] hover:text-[var(--ink)]"
+            className="flex items-center gap-1 truncate text-[11px] text-[var(--muted)] hover:text-[var(--ink)]"
           >
             <span className="truncate">{handle}</span>
             <ExternalLink className="h-2.5 w-2.5 flex-shrink-0" />
           </a>
         ) : handle ? (
-          <p className="truncate text-[10px] text-[var(--muted)]">{handle}</p>
+          <p className="truncate text-[11px] text-[var(--muted)]">{handle}</p>
         ) : null}
       </div>
     </div>

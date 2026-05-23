@@ -112,12 +112,12 @@ function ReferenceCard({
         />
       ) : null}
       {timecode ? (
-        <span className="gv-mono absolute right-1 top-1 rounded bg-[color:color-mix(in_srgb,var(--gv-ink)_58%,transparent)] px-1 text-[9px] text-[color:var(--gv-canvas)]">
+        <span className="gv-mono absolute right-1 top-1 rounded bg-[color:color-mix(in_srgb,var(--gv-ink)_58%,transparent)] px-1 text-[11px] text-[color:var(--gv-canvas)]">
           {timecode}
         </span>
       ) : null}
       {handle ? (
-        <span className="gv-mono relative text-[9px] opacity-90 drop-shadow">
+        <span className="gv-mono relative text-[11px] opacity-90 drop-shadow">
           @{handle}
         </span>
       ) : null}
@@ -129,7 +129,7 @@ function ReferenceCard({
     <div className="mt-1 flex flex-col gap-0.5">
       {label ? (
         <span
-          className="block text-[10px] leading-[1.3] text-[color:var(--gv-ink-2)] line-clamp-2"
+          className="block text-[11px] leading-[1.3] text-[color:var(--gv-ink-2)] line-clamp-2"
           title={label}
         >
           {label}
@@ -137,7 +137,7 @@ function ReferenceCard({
       ) : null}
       {ref.views != null ? (
         <span
-          className="gv-mono text-[10px] font-semibold text-[color:var(--gv-pos-deep)]"
+          className="gv-kicker text-[color:var(--gv-pos-deep)]"
           aria-label={`${ref.views} view`}
         >
           {formatViews(ref.views)} view
@@ -176,7 +176,7 @@ export function ShotReferenceStrip({ refs, density = "row" }: ShotReferenceStrip
   if (!refs || refs.length === 0) return null;
   return (
     <div className="border-t border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 py-2.5">
-      <div className="gv-mono gv-uc mb-2 text-[9px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+      <div className="gv-mono gv-uc mb-2 text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
         {refs.length} SHOT THAM KHẢO TỪ VIDEO VIEW CAO · CÙNG MỤC ĐÍCH
       </div>
       <div className="flex gap-2 overflow-x-auto pb-0.5">

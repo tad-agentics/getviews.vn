@@ -28,7 +28,7 @@ export function PerformanceTierChip({ tier }: { tier: string | undefined }) {
         : "bg-[color:var(--gv-ink-4)]/15 text-[color:var(--gv-ink-3)]";
   return (
     <span
-      className={`gv-mono rounded-[3px] px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[0.05em] ${toneClass}`}
+      className={`gv-mono rounded-[3px] px-[7px] py-[3px] text-[11px] font-bold uppercase tracking-[0.05em] ${toneClass}`}
       aria-label={`Phân loại hiệu suất: ${label}`}
     >
       {label}

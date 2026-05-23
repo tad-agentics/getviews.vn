@@ -57,7 +57,7 @@ export function FunnelPanel() {
   }
   if (isError) {
     return (
-      <div className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-[13px] text-[color:var(--gv-ink-3)]">
+      <div className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-sm text-[color:var(--gv-ink-3)]">
         Không tải được funnel — {(error as Error)?.message ?? "lỗi không rõ"}.
       </div>
     );
@@ -97,7 +97,7 @@ function WindowToggle({
             aria-selected={active}
             onClick={() => onChange(opt.days)}
             className={
-              "gv-mono rounded-[3px] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] transition-colors " +
+              "gv-mono rounded-[3px] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] transition-colors " +
               (active
                 ? "bg-[color:var(--gv-ink)] text-white"
                 : "border border-[color:var(--gv-rule)] text-[color:var(--gv-ink-3)] hover:bg-[color:var(--gv-canvas-2)]")
@@ -134,11 +134,11 @@ function HotPathFunnel({ data }: { data: AdminFunnelResponse }) {
 
   return (
     <div>
-      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+      <h3 className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-4)]">
         L2.2 hot path · ngày → click → save
       </h3>
       {head === 0 ? (
-        <p className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-4 text-[12.5px] text-[color:var(--gv-ink-3)]">
+        <p className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-4 text-xs text-[color:var(--gv-ink-3)]">
           Chưa có session nào trong cửa sổ — funnel sẽ hiện sau khi creator dùng app.
         </p>
       ) : (
@@ -154,10 +154,10 @@ function HotPathFunnel({ data }: { data: AdminFunnelResponse }) {
                 className="rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3"
               >
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[13px] font-medium text-[color:var(--gv-ink)]">
+                  <span className="text-sm font-medium text-[color:var(--gv-ink)]">
                     {step.label}
                   </span>
-                  <span className="gv-mono whitespace-nowrap text-[11.5px] tabular-nums text-[color:var(--gv-ink-3)]">
+                  <span className="gv-mono whitespace-nowrap text-xs tabular-nums text-[color:var(--gv-ink-3)]">
                     {step.count.toLocaleString("vi-VN")} · {step.uniques} người
                   </span>
                 </div>
@@ -171,7 +171,7 @@ function HotPathFunnel({ data }: { data: AdminFunnelResponse }) {
                   />
                 </div>
                 {i > 0 && pctOfPrev != null ? (
-                  <p className="gv-mono mt-1.5 text-[10px] text-[color:var(--gv-ink-4)]">
+                  <p className="gv-mono mt-1.5 text-[11px] text-[color:var(--gv-ink-3)]">
                     {pctOfPrev}% chuyển đổi từ bước trước
                   </p>
                 ) : null}
@@ -217,7 +217,7 @@ function EnrichmentUptake({ data }: { data: AdminFunnelResponse }) {
 
   return (
     <div>
-      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+      <h3 className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-4)]">
         Enrichment uptake — ai dùng các phần thêm sau Sprint 1-5
       </h3>
       <div
@@ -229,16 +229,16 @@ function EnrichmentUptake({ data }: { data: AdminFunnelResponse }) {
             key={c.label}
             className="rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3"
           >
-            <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+            <p className="gv-mono mb-1.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
               {c.sub}
             </p>
-            <p className="m-0 mb-1 text-[13px] font-medium leading-tight text-[color:var(--gv-ink)]">
+            <p className="m-0 mb-1 text-sm font-medium leading-tight text-[color:var(--gv-ink)]">
               {c.label}
             </p>
             <p className="gv-bignum tabular-nums text-[color:var(--gv-ink)]">
               {c.pct != null ? `${c.pct}%` : "—"}
             </p>
-            <p className="gv-mono mt-1 text-[10.5px] tabular-nums text-[color:var(--gv-ink-3)]">
+            <p className="gv-mono mt-1 text-[11px] tabular-nums text-[color:var(--gv-ink-3)]">
               {c.detail}
             </p>
           </div>
@@ -269,16 +269,16 @@ function L22Watchlist({ data }: { data: AdminFunnelResponse }) {
 
   return (
     <div>
-      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+      <h3 className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-4)]">
         L2.2 events · counts trong cửa sổ
       </h3>
       <div className="overflow-hidden rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
-        <table className="w-full text-[12.5px]">
+        <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-[color:var(--gv-rule)] text-left text-[color:var(--gv-ink-4)]">
-              <th className="gv-mono px-4 py-2 text-[9px] font-semibold uppercase tracking-[0.08em]">Event</th>
-              <th className="gv-mono px-4 py-2 text-right text-[9px] font-semibold uppercase tracking-[0.08em]">Count</th>
-              <th className="gv-mono px-4 py-2 text-right text-[9px] font-semibold uppercase tracking-[0.08em]">Unique users</th>
+              <th className="gv-mono px-4 py-2 text-[11px] font-semibold gv-kicker tracking-[0.08em]">Event</th>
+              <th className="gv-mono px-4 py-2 text-right text-[11px] font-semibold gv-kicker tracking-[0.08em]">Count</th>
+              <th className="gv-mono px-4 py-2 text-right text-[11px] font-semibold gv-kicker tracking-[0.08em]">Unique users</th>
             </tr>
           </thead>
           <tbody>
@@ -292,7 +292,7 @@ function L22Watchlist({ data }: { data: AdminFunnelResponse }) {
               >
                 <td className="px-4 py-2.5">
                   <span className="text-[color:var(--gv-ink)]">{r.label}</span>
-                  <span className="gv-mono ml-2 text-[10px] text-[color:var(--gv-ink-4)]">
+                  <span className="gv-mono ml-2 text-[11px] text-[color:var(--gv-ink-4)]">
                     {r.action}
                   </span>
                 </td>
@@ -332,20 +332,20 @@ function DailyTrend({ data }: { data: AdminFunnelResponse }) {
 
   return (
     <div>
-      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+      <h3 className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-4)]">
         Top actions · daily count
       </h3>
       <div className="overflow-x-auto">
-        <table className="min-w-full text-[11.5px]">
+        <table className="min-w-full text-xs">
           <thead>
             <tr className="border-b border-[color:var(--gv-rule)] text-left text-[color:var(--gv-ink-4)]">
-              <th className="gv-mono whitespace-nowrap px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.08em]">
+              <th className="gv-mono whitespace-nowrap px-3 py-2 text-[11px] font-semibold gv-kicker tracking-[0.08em]">
                 Action
               </th>
               {days.map((d) => (
                 <th
                   key={d}
-                  className="gv-mono whitespace-nowrap px-3 py-2 text-right text-[9px] font-semibold uppercase tracking-[0.08em]"
+                  className="gv-mono whitespace-nowrap px-3 py-2 text-right text-[11px] font-semibold gv-kicker tracking-[0.08em]"
                 >
                   {d.slice(5)}
                 </th>
@@ -357,7 +357,7 @@ function DailyTrend({ data }: { data: AdminFunnelResponse }) {
               const buckets = data.daily_top_actions[action] ?? {};
               return (
                 <tr key={action} className="border-t border-[color:var(--gv-rule)] tabular-nums">
-                  <td className="gv-mono whitespace-nowrap px-3 py-2 text-[10.5px] text-[color:var(--gv-ink)]">
+                  <td className="gv-mono whitespace-nowrap px-3 py-2 text-[11px] text-[color:var(--gv-ink)]">
                     {action}
                   </td>
                   {days.map((d) => (

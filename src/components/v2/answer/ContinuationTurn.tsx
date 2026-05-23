@@ -58,7 +58,7 @@ function TurnMiniResearch() {
       <ResearchDot label="Dùng lại nguồn" done={stage >= 1} active={stage === 0} />
       <ResearchDot label="Trả lời" done={stage >= 2} active={stage === 1} />
       {done ? (
-        <span className="gv-mono inline-flex items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[10px] text-[color:var(--gv-ink-3)]">
+        <span className="gv-mono inline-flex items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[11px] text-[color:var(--gv-ink-3)]">
           <Check className="h-3 w-3 text-[color:var(--gv-pos)]" strokeWidth={2.5} aria-hidden />
           cùng phiên
         </span>
@@ -85,7 +85,7 @@ function ResearchDot({ label, done, active }: { label: string; done: boolean; ac
       </span>
       <span
         className={
-          "gv-mono text-[11px] " +
+          "gv-kicker " +
           (done
             ? "text-[color:var(--gv-ink)]"
             : active
@@ -114,7 +114,7 @@ function TurnDivider({ turn }: { turn: Pick<AnswerTurnRow, "turn_index" | "kind"
         className="absolute -left-[17px] top-7 hidden h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 border-[color:var(--gv-canvas)] bg-[color:var(--gv-accent)] shadow-[0_0_0_1px_var(--gv-ink)] lg:block"
       />
       <div className="mb-2.5 flex items-center gap-3">
-        <p className="gv-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
+        <p className="gv-kicker text-[color:var(--gv-accent)]">
           {label} · LƯỢT {String(turn.turn_index + 1).padStart(2, "0")}
         </p>
         <span className="h-px flex-1 bg-[color:var(--gv-rule)]" aria-hidden />
@@ -246,14 +246,14 @@ function UnknownPayloadSurface({ payload }: { payload: unknown }) {
   return (
     <AnswerBlock kicker="Báo cáo lỗi định dạng">
       <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
-        <p className="gv-serif text-[16px] leading-snug text-[color:var(--gv-ink)]">
+        <p className="gv-serif text-[17px] leading-snug text-[color:var(--gv-ink)]">
           Phiên đã được lưu nhưng định dạng báo cáo không nhận diện được.
         </p>
-        <p className="mt-2 gv-mono text-[11px] leading-relaxed text-[color:var(--gv-ink-3)]">
+        <p className="mt-2 gv-kicker leading-relaxed text-[color:var(--gv-ink-3)]">
           Thử làm mới hoặc mở phiên mới. Nếu tiếp diễn, gửi đoạn bên dưới cho
           team để chẩn đoán nhanh hơn.
         </p>
-        <pre className="mt-3 max-h-64 overflow-auto rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-3 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
+        <pre className="mt-3 max-h-64 overflow-auto rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-3 gv-kicker text-[color:var(--gv-ink-3)]">
           {body}
         </pre>
       </div>

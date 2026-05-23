@@ -46,7 +46,7 @@ export function PostingHeatmap({ grid, legendFooter }: { grid: number[][]; legen
 
   return (
     <section>
-      <p className="gv-mono mb-[10px] text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-3)] font-semibold">
+      <p className="gv-mono mb-[10px] text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)] font-semibold">
         Nhịp đăng · 7 ngày × 8 khung giờ
       </p>
       <div
@@ -57,7 +57,7 @@ export function PostingHeatmap({ grid, legendFooter }: { grid: number[][]; legen
         {TIMING_HOURS_VN.map((h) => (
           <div
             key={h}
-            className="gv-mono px-0 py-[2px] text-center text-[9px] text-[color:var(--gv-ink-4)]"
+            className="gv-mono px-0 py-[2px] text-center text-[11px] text-[color:var(--gv-ink-4)]"
           >
             {h}
           </div>
@@ -66,7 +66,7 @@ export function PostingHeatmap({ grid, legendFooter }: { grid: number[][]; legen
           <Row key={d} label={d} values={grid[di]!} max={max} />
         ))}
       </div>
-      <div className="mt-[10px] flex items-center gap-3 text-[10px]">
+      <div className="mt-[10px] flex items-center gap-3 text-[11px]">
         <span className="gv-mono text-[color:var(--gv-ink-4)]">Ít</span>
         {[0, 0.15, 0.4, 0.7, 1].map((pct, i) => (
           <span
@@ -89,14 +89,14 @@ export function PostingHeatmap({ grid, legendFooter }: { grid: number[][]; legen
 function Row({ label, values, max }: { label: string; values: number[]; max: number }) {
   return (
     <>
-      <div className="gv-mono flex items-center text-[10px] font-medium text-[color:var(--gv-ink-3)]">
+      <div className="gv-mono flex items-center text-[11px] font-medium text-[color:var(--gv-ink-3)]">
         {label}
       </div>
       {values.map((v, hi) => (
         <div
           key={hi}
           aria-label={`${label} · ${TIMING_HOURS_VN[hi]} · ${v} video`}
-          className="gv-mono flex items-center justify-center text-[10px]"
+          className="gv-mono flex items-center justify-center text-[11px]"
           style={{
             backgroundColor: postingCellBackground(v, max),
             color: postingCellLabelColor(v, max),

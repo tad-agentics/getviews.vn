@@ -80,14 +80,14 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
       {/* Header */}
       <header className="flex items-start justify-between gap-4 border-b border-[color:var(--gv-rule)] px-7 py-[18px]">
         <div className="min-w-0 flex-1">
-          <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
             {pattern.instance_count} video · {avgViewsLabel} lượt xem TB
           </p>
-          <DialogTitle className="gv-tight m-0 text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-[color:var(--gv-ink)]">
+          <DialogTitle className="gv-tight m-0 text-[24px] font-semibold leading-[1.05] tracking-[-0.02em] text-[color:var(--gv-ink)]">
             {pattern.display_name}
           </DialogTitle>
           {pattern.sample_hook ? (
-            <DialogDescription className="mt-1.5 text-[13px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+            <DialogDescription className="mt-1.5 text-sm leading-[1.5] text-[color:var(--gv-ink-3)]">
               &ldquo;{pattern.sample_hook}&rdquo;
             </DialogDescription>
           ) : (
@@ -111,7 +111,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
       <div className="grid max-h-[80vh] grid-cols-1 overflow-y-auto min-[820px]:grid-cols-[260px_1fr]">
         {/* Left — phone preview + sample switcher */}
         <aside className="border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-5 min-[820px]:border-b-0 min-[820px]:border-r">
-          <p className="gv-mono mb-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-2.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
             Video mẫu
           </p>
           <PhoneTile video={active} />
@@ -137,7 +137,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
           </Btn>
           {videos.length > 1 ? (
             <>
-              <p className="gv-mono mt-4 mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+              <p className="gv-mono mt-4 mb-2 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
                 Chuyển video ({activeIdx + 1}/{videos.length})
               </p>
               <div className="grid grid-cols-4 gap-1.5">
@@ -169,7 +169,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
                         }}
                         aria-hidden
                       />
-                      <span className="gv-mono absolute bottom-0.5 left-0 right-0 truncate px-1 text-center text-[7.5px] text-white">
+                      <span className="gv-mono absolute bottom-0.5 left-0 right-0 truncate px-1 text-center text-[11px] text-white">
                         {formatViews(v.views)}
                       </span>
                     </button>
@@ -216,7 +216,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
               Áp dụng công thức này → tạo kịch bản
               <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
             </Btn>
-            <p className="gv-mono mt-1.5 text-center text-[10px] text-[color:var(--gv-ink-4)]">
+            <p className="gv-mono mt-1.5 text-center text-[11px] text-[color:var(--gv-ink-3)]">
               Studio sẽ mở sẵn brief với hook line + sample hook đã có ở deck này.
             </p>
           </div>
@@ -241,7 +241,7 @@ function PhoneTileMeta({ video }: { video: PatternVideo }) {
   ].filter(Boolean);
   if (parts.length === 0) return null;
   return (
-    <p className="gv-mono mt-2 text-center text-[10px] leading-snug text-[color:var(--gv-ink-4)]">
+    <p className="gv-mono mt-2 text-center text-[11px] leading-snug text-[color:var(--gv-ink-3)]">
       {parts.join(" · ")}
     </p>
   );
@@ -302,7 +302,7 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
                 }}
                 aria-hidden
               />
-              <span className="gv-mono pointer-events-none absolute left-3 right-3 top-3 text-[10px] text-white opacity-90">
+              <span className="gv-mono pointer-events-none absolute left-3 right-3 top-3 text-[11px] text-white opacity-90">
                 {phoneCaptionHandle(video)}
               </span>
               <span
@@ -337,7 +337,7 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
           }}
           aria-hidden
         />
-        <span className="gv-mono pointer-events-none absolute left-3 right-3 top-3 text-[10px] text-white opacity-90">
+        <span className="gv-mono pointer-events-none absolute left-3 right-3 top-3 text-[11px] text-white opacity-90">
           {phoneCaptionHandle(video)}
         </span>
         <span
@@ -346,7 +346,7 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
         >
           <Play className="h-4 w-4 text-[color:var(--gv-ink)]" fill="currentColor" />
         </span>
-        <span className="gv-mono pointer-events-none absolute bottom-3 left-3 right-3 text-[10px] text-white opacity-90">
+        <span className="gv-mono pointer-events-none absolute bottom-3 left-3 right-3 text-[11px] text-white opacity-90">
           {formatViews(video.views)} lượt xem
         </span>
       </div>
@@ -371,18 +371,18 @@ function Takeaway({
     <div
       className="rounded-md border-l-[3px] border-[color:var(--gv-accent)] bg-[color:var(--gv-paper)] px-4 py-3.5"
     >
-      <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-accent-deep)]">
+      <p className="gv-mono mb-1.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-accent-deep)]">
         Ý CHÍNH
       </p>
       {hasDeck ? (
-        <p className="m-0 text-[13px] leading-[1.55] text-[color:var(--gv-ink)]" style={{ textWrap: "pretty" }}>
+        <p className="m-0 text-sm leading-[1.55] text-[color:var(--gv-ink)]" style={{ textWrap: "pretty" }}>
           {why ? <>{why}{" "}</> : null}
           {careful ? (
             <span className="text-[color:var(--gv-ink-3)]">{careful}</span>
           ) : null}
         </p>
       ) : (
-        <p className="m-0 text-[13px] leading-[1.55] text-[color:var(--gv-ink)]" style={{ textWrap: "pretty" }}>
+        <p className="m-0 text-sm leading-[1.55] text-[color:var(--gv-ink)]" style={{ textWrap: "pretty" }}>
           {hookSample
             ? `Công thức này đang chạy mạnh trong ngách. Hook tiêu biểu: «${hookSample}».`
             : "Công thức này đang chạy mạnh trong ngách của bạn."}{" "}
@@ -399,12 +399,12 @@ function Takeaway({
 function StructureBlock({ structure }: { structure: string[] | null }) {
   return (
     <div>
-      <p className="gv-mono mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
         CẤU TRÚC ĐIỂN HÌNH
       </p>
       {structure && structure.length > 0 ? (
         <ol
-          className="m-0 list-decimal pl-5 text-[13px] leading-[1.6] text-[color:var(--gv-ink-2)]"
+          className="m-0 list-decimal pl-5 text-sm leading-[1.6] text-[color:var(--gv-ink-2)]"
           style={{ textWrap: "pretty" }}
         >
           {structure.map((step, i) => (
@@ -414,7 +414,7 @@ function StructureBlock({ structure }: { structure: string[] | null }) {
           ))}
         </ol>
       ) : (
-        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
           Đang chuẩn bị — biên tập đang tổng hợp 4 bước Hook / Setup / Body / Payoff cho pattern này.
         </p>
       )}
@@ -430,7 +430,7 @@ function GapAnglesBlock({
   const gapAngles = (angles ?? []).filter((a) => a.gap);
   return (
     <div>
-      <p className="gv-mono mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
         GÓC CÒN TRỐNG
         {angles && gapAngles.length > 0 ? (
           <span className="ml-2 text-[color:var(--gv-accent-deep)]">
@@ -439,11 +439,11 @@ function GapAnglesBlock({
         ) : null}
       </p>
       {!angles ? (
-        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
           Đang chuẩn bị — danh sách các góc nội dung chưa creator nào khai thác sẽ xuất hiện ở đây.
         </p>
       ) : gapAngles.length === 0 ? (
-        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
           Tất cả các góc trong pattern này đã có creator khai thác — chưa có cơ hội trống.
         </p>
       ) : (
@@ -451,13 +451,13 @@ function GapAnglesBlock({
           {gapAngles.map((a, i) => (
             <li
               key={`${i}-${a.angle}`}
-              className="flex items-center gap-2.5 rounded-md border px-3 py-2 text-[12.5px]"
+              className="flex items-center gap-2.5 rounded-md border px-3 py-2 text-xs"
               style={{
                 background: "color-mix(in srgb, var(--gv-accent) 6%, var(--gv-paper))",
                 borderColor: "color-mix(in srgb, var(--gv-accent) 30%, var(--gv-rule))",
               }}
             >
-              <span className="gv-mono shrink-0 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-accent-deep)]">
+              <span className="gv-mono shrink-0 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-accent-deep)]">
                 TRỐNG
               </span>
               <span className="flex-1 text-[color:var(--gv-ink)]">{a.angle}</span>

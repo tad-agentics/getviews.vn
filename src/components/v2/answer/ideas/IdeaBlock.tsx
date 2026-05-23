@@ -67,9 +67,9 @@ function SlideAccordion({ slides }: { slides: SlideRow[] }) {
             return (
               <li
                 key={`${step}-${i}`}
-                className="grid grid-cols-[28px_1fr] gap-3 border-t border-[color:var(--gv-rule-2)] px-[14px] py-[10px] first:border-t-0 text-[13px] leading-[1.5] text-[color:var(--gv-ink-2)]"
+                className="grid grid-cols-[28px_1fr] gap-3 border-t border-[color:var(--gv-rule-2)] px-[14px] py-[10px] first:border-t-0 text-sm leading-[1.5] text-[color:var(--gv-ink-2)]"
               >
-                <span className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+                <span className="gv-kicker text-[color:var(--gv-ink-4)]">
                   {String(step).padStart(2, "0")}
                 </span>
                 <span>{body}</span>
@@ -88,12 +88,12 @@ function MetricBlock({ metric }: { metric: IdeaBlockPayloadData["metric"] }) {
   const range = (metric?.range as string | undefined) ?? "";
   return (
     <div>
-      <p className="gv-mono text-[9px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+      <p className="gv-kicker text-[color:var(--gv-ink-3)]">
         {label}
       </p>
-      <p className="gv-serif text-[28px] leading-none text-[color:var(--gv-ink)]">{value}</p>
+      <p className="gv-serif text-[24px] leading-none text-[color:var(--gv-ink)]">{value}</p>
       {range ? (
-        <p className="gv-mono mt-1 text-[11px] text-[color:var(--gv-ink-4)]">{range}</p>
+        <p className="gv-mono mt-1 text-[11px] text-[color:var(--gv-ink-3)]">{range}</p>
       ) : null}
     </div>
   );
@@ -123,7 +123,7 @@ function EvidenceThumbs({ ids }: { ids: string[] }) {
           className="relative aspect-[9/12] w-full overflow-hidden rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-left"
           aria-label={`Xem video tham khảo ${vid}`}
         >
-          <span className="gv-mono absolute bottom-1 left-1 rounded bg-[color:var(--gv-paper)] px-1 text-[10px] text-[color:var(--gv-ink-3)]">
+          <span className="gv-mono absolute bottom-1 left-1 rounded bg-[color:var(--gv-paper)] px-1 text-[11px] text-[color:var(--gv-ink-3)]">
             #{i + 1}
           </span>
         </button>
@@ -145,7 +145,7 @@ export function IdeaBlock({ block }: { block: IdeaBlockPayloadData }) {
   const openingLine = (block.opening_line ?? "").trim();
   return (
     <article className="grid grid-cols-1 gap-5 border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5 min-[900px]:grid-cols-[60px_minmax(0,1fr)_220px]">
-      <div className="gv-bignum text-[40px] leading-none text-[color:var(--gv-ink-3)] min-[900px]:text-[48px]">
+      <div className="gv-bignum text-[42px] leading-none text-[color:var(--gv-ink-3)] min-[900px]:text-[48px]">
         {String(rankNum).padStart(2, "0")}
       </div>
 
@@ -156,7 +156,7 @@ export function IdeaBlock({ block }: { block: IdeaBlockPayloadData }) {
           </h4>
           {lifecycleText ? (
             <span
-              className={`gv-mono rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${lifecycleClassName(block.lifecycle_stage)}`}
+              className={`gv-mono rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${lifecycleClassName(block.lifecycle_stage)}`}
             >
               {lifecycleText}
             </span>
@@ -164,7 +164,7 @@ export function IdeaBlock({ block }: { block: IdeaBlockPayloadData }) {
         </div>
 
         <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-[color:var(--gv-ink-4)]">
-          <span className="gv-mono rounded border border-[color:var(--gv-rule)] px-2 py-0.5 text-[10px] text-[color:var(--gv-ink-2)]">
+          <span className="gv-mono rounded border border-[color:var(--gv-rule)] px-2 py-0.5 text-[11px] text-[color:var(--gv-ink-2)]">
             {tagLabelVi(block.tag)}
           </span>
           {confSample > 0 ? (
@@ -184,10 +184,10 @@ export function IdeaBlock({ block }: { block: IdeaBlockPayloadData }) {
           {block.angle}
         </p>
 
-        <p className="mt-2 text-[13px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+        <p className="mt-2 text-sm leading-[1.5] text-[color:var(--gv-ink-3)]">
           {block.why_works}
           {block.evidence_video_ids.length > 0 ? (
-            <sup className="gv-mono ml-1 text-[10px] font-medium text-[color:var(--gv-accent)]">
+            <sup className="gv-mono ml-1 text-[11px] font-medium text-[color:var(--gv-accent)]">
               [{block.evidence_video_ids.map((_, idx) => idx + 1).join("][")}]
             </sup>
           ) : null}
@@ -204,7 +204,7 @@ export function IdeaBlock({ block }: { block: IdeaBlockPayloadData }) {
             {block.prerequisites.map((p) => (
               <span
                 key={p}
-                className="gv-mono rounded bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[10px] text-[color:var(--gv-ink-3)]"
+                className="gv-mono rounded bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[11px] text-[color:var(--gv-ink-3)]"
               >
                 {p}
               </span>

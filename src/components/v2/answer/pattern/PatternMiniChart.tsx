@@ -63,7 +63,7 @@ function CtaBars2Row({ rows }: { rows: CtaRow[] }) {
         return (
           <div key={r.label} className="flex items-center gap-2">
             <span
-              className="gv-mono w-[64px] shrink-0 text-[10px] text-[color:var(--gv-ink-3)]"
+              className="gv-mono w-[64px] shrink-0 text-[11px] text-[color:var(--gv-ink-3)]"
               title={r.label}
             >
               {r.label}
@@ -81,7 +81,7 @@ function CtaBars2Row({ rows }: { rows: CtaRow[] }) {
                 />
               </div>
             )}
-            <span className="gv-mono w-[34px] shrink-0 text-right text-[10px] text-[color:var(--gv-ink-2)] tabular-nums">
+            <span className="gv-mono w-[34px] shrink-0 text-right text-[11px] text-[color:var(--gv-ink-2)] tabular-nums">
               {r.multiplier.toFixed(1)}×
             </span>
           </div>
@@ -178,7 +178,7 @@ export function PatternMiniChart({ cell }: { cell: PatternCellPayloadData }) {
         <SoundMixBar primaryPct={d.primary_pct} />
         {topSounds.length > 0 ? (
           <p
-            className="gv-mono mt-1 flex flex-wrap gap-x-1.5 truncate text-[9px]"
+            className="gv-mono mt-1 flex flex-wrap gap-x-1.5 truncate text-[11px]"
             title={titleAttr}
           >
             {topSounds.slice(0, 3).map((s, i) => (
@@ -190,7 +190,7 @@ export function PatternMiniChart({ cell }: { cell: PatternCellPayloadData }) {
             ))}
           </p>
         ) : (
-          <p className="gv-mono mt-1 text-[9px] text-[color:var(--gv-ink-4)]">Gốc · Trend</p>
+          <p className="gv-mono mt-1 text-[11px] text-[color:var(--gv-ink-3)]">Gốc · Trend</p>
         )}
       </div>
     );
@@ -208,7 +208,7 @@ export function PatternMiniChart({ cell }: { cell: PatternCellPayloadData }) {
   return (
     <div className="min-h-[60px] rounded border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-2">
       <BarRow bars={fake} />
-      <p className="gv-mono mt-1 text-center text-[9px] text-[color:var(--gv-ink-4)]">{cell.chart_kind}</p>
+      <p className="gv-mono mt-1 text-center text-[11px] text-[color:var(--gv-ink-3)]">{cell.chart_kind}</p>
     </div>
   );
 }

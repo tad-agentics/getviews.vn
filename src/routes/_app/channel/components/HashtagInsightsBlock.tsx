@@ -34,13 +34,13 @@ export function HashtagInsightsBlock({ insights }: HashtagInsightsBlockProps) {
           className="rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 py-2.5"
         >
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="font-mono text-[13px] font-semibold text-[color:var(--gv-ink)]">{row.tag}</span>
-            <span className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+            <span className="font-mono text-sm font-semibold text-[color:var(--gv-ink)]">{row.tag}</span>
+            <span className="gv-kicker text-[color:var(--gv-ink-3)]">
               ×{row.multiplier.toFixed(2)} · {row.count} video · TB {fmtViews(row.avg_views)}
             </span>
           </div>
           {row.caption ? (
-            <p className="mt-1.5 text-[11.5px] leading-relaxed text-[color:var(--gv-ink-3)]">{row.caption}</p>
+            <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--gv-ink-3)]">{row.caption}</p>
           ) : null}
         </li>
       ))}

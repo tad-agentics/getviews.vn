@@ -5,7 +5,7 @@ type ChipSize = "sm" | "md";
 
 const BASE =
   "inline-flex items-center gap-1.5 rounded-full border font-medium transition-colors " +
-  "disabled:opacity-50 disabled:pointer-events-none";
+  "disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100 disabled:pointer-events-none";
 
 const VARIANTS: Record<ChipVariant, string> = {
   default:

@@ -130,7 +130,7 @@ function SectionFindingCard({
   if (!title_vi && !body_vi && !fix_vi) return null;
   return (
     <div className="flex items-start gap-4 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5">
-      <div className="gv-mono mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--gv-canvas-2)] text-[13px] font-bold text-[color:var(--gv-ink)]">
+      <div className="gv-mono mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--gv-canvas-2)] text-sm font-bold text-[color:var(--gv-ink)]">
         {rank}
       </div>
       <div className="min-w-0 flex-1">
@@ -140,12 +140,12 @@ function SectionFindingCard({
           </h4>
         ) : null}
         {body_vi ? (
-          <p className="mt-1.5 max-w-[640px] text-[13px] leading-relaxed text-foreground">
+          <p className="mt-1.5 max-w-[640px] text-sm leading-relaxed text-foreground">
             {body_vi}
           </p>
         ) : null}
         {fix_vi ? (
-          <p className="mt-1.5 max-w-[640px] text-[13px] leading-relaxed text-[color:var(--gv-ink-2)]">
+          <p className="mt-1.5 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-2)]">
             <span className="gv-mono mr-1.5 font-semibold text-[color:var(--gv-accent)]">
               Sửa:
             </span>
@@ -210,7 +210,7 @@ export function DiagnosisSectionRenderer({
           <SectionProseBlocks
             text={text}
             wrapperClassName="space-y-2 mt-2"
-            paragraphClassName="text-[15px] leading-relaxed text-[color:var(--foreground)]"
+            paragraphClassName="text-[17px] leading-relaxed text-[color:var(--foreground)]"
           />
         ) : null}
         {/* Structured concept card is secondary — summary of the prose above */}
@@ -236,7 +236,7 @@ export function DiagnosisSectionRenderer({
         <SectionProseBlocks
           text={text}
           wrapperClassName="space-y-2 mt-2"
-          paragraphClassName="text-[15px] leading-relaxed text-[color:var(--foreground)]"
+          paragraphClassName="text-[17px] leading-relaxed text-[color:var(--foreground)]"
         />
       </div>
       {sid === "distribution" && postingContext ? (

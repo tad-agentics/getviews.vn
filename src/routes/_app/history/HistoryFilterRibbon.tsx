@@ -57,7 +57,7 @@ export function HistoryFilterRibbon({
           >
             <span>{c.label}</span>
             {typeof n === "number" ? (
-              <span className="rounded bg-[color:var(--gv-canvas-2)] px-1.5 text-[10px] font-medium text-[color:var(--gv-ink-2)]">
+              <span className="rounded bg-[color:var(--gv-canvas-2)] px-1.5 text-[11px] font-medium text-[color:var(--gv-ink-2)]">
                 {n}
               </span>
             ) : null}

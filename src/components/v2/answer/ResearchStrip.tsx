@@ -26,7 +26,7 @@ export function ResearchStepStrip({
         return (
           <li
             key={label}
-            className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide transition-colors ${
+            className={`rounded-full border px-2.5 py-1 gv-kicker transition-colors ${
               isDone
                 ? "border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-ink)]"
                 : isActive
@@ -76,7 +76,7 @@ export function ResearchProcessBar({
       className="mt-5 flex flex-col gap-3 border-y border-[color:var(--gv-rule)] py-4 min-[700px]:flex-row min-[700px]:items-center min-[700px]:justify-between"
       aria-label="Tiến trình nghiên cứu"
     >
-      <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-2 text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
+      <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-2 text-sm leading-snug text-[color:var(--gv-ink-2)]">
         {labels.map((label, i) => {
           const isDone = done;
           const isActive = !done && loading && i === step;
@@ -106,11 +106,11 @@ export function ResearchProcessBar({
         })}
       </ol>
       {done && !loading ? (
-        <p className="shrink-0 rounded-full bg-[color:var(--gv-pos)] px-3 py-1 gv-mono text-[10px] font-semibold uppercase tracking-wide text-white">
+        <p className="shrink-0 rounded-full bg-[color:var(--gv-pos)] px-3 py-1 gv-kicker text-white">
           Hoàn tất
         </p>
       ) : loading ? (
-        <p className="shrink-0 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
+        <p className="shrink-0 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-kicker text-[color:var(--gv-ink-3)]">
           Đang chạy…
         </p>
       ) : null}
@@ -146,7 +146,7 @@ export function ProgressPill({
   if (!loading) return null;
   const n = Math.min(stepIndex + 1, total);
   return (
-    <span className="inline-flex items-center rounded-full border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] px-2 py-0.5 font-mono text-[10px] text-[var(--gv-ink-3)]">
+    <span className="inline-flex items-center rounded-full border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] px-2 py-0.5 gv-kicker text-[var(--gv-ink-3)]">
       Đang nghiên cứu… {n}/{total}
     </span>
   );
@@ -196,7 +196,7 @@ function SourceBadge({ tool }: { tool: string }) {
   const isTiktok = tool === "tiktok_live";
   return (
     <span
-      className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
+      className={`shrink-0 rounded-full px-1.5 py-0.5 gv-kicker ${
         isTiktok
           ? "bg-[color:var(--gv-ink)] text-white"
           : "border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] text-[var(--gv-ink-3)]"
@@ -225,7 +225,7 @@ function ToolCard({ card }: { card: ToolCardState }) {
         <span className="truncate text-[12px] text-[var(--gv-ink-2)]">{card.label}</span>
         <SourceBadge tool={card.tool} />
         {card.done && card.found > 0 && (
-          <span className="ml-auto shrink-0 font-mono text-[10px] text-[var(--gv-ink-3)]">
+          <span className="ml-auto shrink-0 gv-kicker text-[var(--gv-ink-3)]">
             {card.found.toLocaleString("vi-VN")} video
             {card.filtered && card.filtered > 0
               ? ` · lọc ${card.filtered.toLocaleString("vi-VN")}`
@@ -233,7 +233,7 @@ function ToolCard({ card }: { card: ToolCardState }) {
           </span>
         )}
         {card.done && card.found === 0 && card.filtered && card.filtered > 0 && (
-          <span className="ml-auto shrink-0 font-mono text-[10px] text-[var(--gv-ink-4)]">
+          <span className="ml-auto shrink-0 gv-kicker text-[var(--gv-ink-4)]">
             {card.filtered.toLocaleString("vi-VN")} bị lọc (kênh tin tức)
           </span>
         )}
@@ -250,10 +250,10 @@ function ToolCard({ card }: { card: ToolCardState }) {
 function StatusRow({ text, iteration }: { text: string; iteration: number }) {
   return (
     <div className="flex items-center gap-2 pb-1 pt-3 first:pt-0">
-      <span className="shrink-0 font-mono text-[9px] uppercase tracking-wider text-[var(--gv-ink-4)]">
+      <span className="shrink-0 gv-kicker text-[var(--gv-ink-4)]">
         {iteration}
       </span>
-      <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--gv-ink)]">
+      <span className="text-[11px] font-medium gv-kicker tracking-wide text-[var(--gv-ink)]">
         {text}
       </span>
     </div>
@@ -302,7 +302,7 @@ export function CacheHitBadge({
   })();
 
   return (
-    <p className="mt-3 gv-mono inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-1 text-[10px] text-[color:var(--gv-ink-3)]">
+    <p className="mt-3 gv-mono inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-1 text-[11px] text-[color:var(--gv-ink-3)]">
       <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--gv-pos)]" aria-hidden />
       Đã phân tích trước
       {timeStr ? <> · cập nhật lúc {timeStr}</> : null}
@@ -508,7 +508,7 @@ export function LivePipelineStrip({
       {legacyLines.length > 0 && (
         <ul
           className={
-            "space-y-1.5 pl-5 text-[12.5px] leading-snug text-[var(--gv-ink-3)] " +
+            "space-y-1.5 pl-5 text-xs leading-snug text-[var(--gv-ink-3)] " +
             (iterationOrder.length > 0 ? "mt-3" : "")
           }
         >
@@ -527,12 +527,12 @@ export function LivePipelineStrip({
       {errorEvents.length > 0 && (
         <div
           role="alert"
-          className="mt-2 flex items-start gap-2 rounded-md border border-[color:var(--gv-neg)]/40 bg-[color:var(--gv-neg)]/8 px-3 py-2 text-[12.5px] text-[color:var(--gv-neg-deep)]"
+          className="mt-2 flex items-start gap-2 rounded-md border border-[color:var(--gv-neg)]/40 bg-[color:var(--gv-neg)]/8 px-3 py-2 text-xs text-[color:var(--gv-neg-deep)]"
         >
           <span aria-hidden className="font-mono">✕</span>
           <div className="flex flex-col gap-0.5">
             <span className="font-medium">{errorEvents[0]!.message_vi}</span>
-            <span className="gv-mono text-[10px] opacity-70">
+            <span className="gv-kicker opacity-70">
               {errorEvents[0]!.code}
               {errorEvents.length > 1 ? ` · +${errorEvents.length - 1} thêm` : ""}
             </span>
@@ -548,7 +548,7 @@ export function LivePipelineStrip({
       )}
 
       {loading && !done && errorEvents.length === 0 && heartbeatElapsedSec && heartbeatElapsedSec > 0 ? (
-        <div className="mt-2 flex items-center gap-1.5 font-mono text-[11px] text-[var(--gv-ink-4)]">
+        <div className="mt-2 flex items-center gap-1.5 gv-kicker text-[var(--gv-ink-4)]">
           <span className="h-1 w-1 animate-pulse rounded-full bg-[var(--gv-ink-4)]" />
           Vẫn đang xử lý · {heartbeatElapsedSec}s…
         </div>

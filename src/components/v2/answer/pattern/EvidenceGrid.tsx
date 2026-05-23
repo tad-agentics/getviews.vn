@@ -17,7 +17,7 @@ function RecencyBadge({ daysAgo }: { daysAgo: number | null | undefined }) {
             : null;
   if (!label) return null;
   return (
-    <span className="gv-mono rounded-full bg-[color:var(--gv-accent-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--gv-accent)]">
+    <span className="gv-mono rounded-full bg-[color:var(--gv-accent-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-[color:var(--gv-accent)]">
       {label}
     </span>
   );
@@ -53,11 +53,11 @@ export function EvidenceGrid({ items }: { items: EvidenceCardPayloadData[] }) {
             <EvidenceThumb item={v} />
             <div className="space-y-1 p-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">{v.creator_handle}</p>
+                <p className="gv-kicker text-[color:var(--gv-ink-3)]">{v.creator_handle}</p>
                 <RecencyBadge daysAgo={v.days_ago} />
               </div>
               <p className="line-clamp-2 text-sm font-medium text-[color:var(--gv-ink)]">{v.title}</p>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
+              <div className="flex flex-wrap gap-x-3 gap-y-1 gv-kicker text-[color:var(--gv-ink-3)]">
                 <span>{formatViews(v.views)} view</span>
                 {v.engagement_rate != null && v.engagement_rate > 0 && (
                   <span className="font-semibold text-[color:var(--gv-accent)]">

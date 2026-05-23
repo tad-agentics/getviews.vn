@@ -61,7 +61,7 @@ function StatusChip({ status }: { status: "queued" | "running" | "ok" | "error" 
   const c = config[status];
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] ${c.bg} ${c.fg}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 gv-kicker ${c.bg} ${c.fg}`}
     >
       {c.label}
     </span>
@@ -70,7 +70,7 @@ function StatusChip({ status }: { status: "queued" | "running" | "ok" | "error" 
 
 function TH({ children }: { children: React.ReactNode }) {
   return (
-    <th className="py-2 pr-4 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+    <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
       {children}
     </th>
   );
@@ -85,14 +85,14 @@ function EntryRow({ entry }: { entry: AdminActionLogEntry }) {
   return (
     <>
       <tr className="border-b border-[color:var(--gv-rule)] last:border-0">
-        <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-3)]" title={entry.created_at}>
+        <td className="py-2.5 pr-4 gv-kicker text-[color:var(--gv-ink-3)]" title={entry.created_at}>
           {relativeTime(entry.created_at)}
         </td>
-        <td className="py-2.5 pr-4 text-[13px] text-[color:var(--gv-ink)]">{entry.action}</td>
-        <td className="py-2.5 pr-4 gv-mono text-[11px] tabular-nums text-[color:var(--gv-ink-4)]">
+        <td className="py-2.5 pr-4 text-sm text-[color:var(--gv-ink)]">{entry.action}</td>
+        <td className="py-2.5 pr-4 gv-kicker tabular-nums text-[color:var(--gv-ink-4)]">
           {formatDuration(entry.duration_ms)}
         </td>
-        <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+        <td className="py-2.5 pr-4 gv-kicker text-[color:var(--gv-ink-3)]">
           {paramSummary}
         </td>
         <td className="py-2.5 pr-4">
@@ -103,19 +103,19 @@ function EntryRow({ entry }: { entry: AdminActionLogEntry }) {
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="gv-mono text-[11px] text-[color:var(--gv-accent)] underline"
+              className="gv-kicker text-[color:var(--gv-accent)] underline"
             >
               {expanded ? "Đóng" : "Xem lỗi"}
             </button>
           ) : (
-            <span className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">—</span>
+            <span className="gv-kicker text-[color:var(--gv-ink-4)]">—</span>
           )}
         </td>
       </tr>
       {expanded && hasError ? (
         <tr className="border-b border-[color:var(--gv-rule)]">
           <td colSpan={6} className="px-0 pb-3 pt-1">
-            <pre className="max-h-40 overflow-auto rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-2 gv-mono text-[10px] text-[color:var(--gv-danger)]">
+            <pre className="max-h-40 overflow-auto rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-2 gv-kicker text-[color:var(--gv-danger)]">
               {entry.error_message}
             </pre>
           </td>
@@ -140,7 +140,7 @@ export function ActionLogPanel() {
   if (q.isError) {
     const msg = q.error instanceof Error ? q.error.message : "unknown";
     return (
-      <p className="text-[13px] text-[color:var(--gv-danger)]">
+      <p className="text-sm text-[color:var(--gv-danger)]">
         Không tải được audit log ({msg}).
       </p>
     );

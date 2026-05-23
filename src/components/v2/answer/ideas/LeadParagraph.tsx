@@ -6,13 +6,13 @@
 export function LeadParagraph({ title, body }: { title: string; body: string }) {
   return (
     <section>
-      <p className="gv-mono mb-2 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
         Brief
       </p>
       <h3 className="gv-serif mb-3 text-[22px] leading-snug text-[color:var(--gv-ink)]">
         {title}
       </h3>
-      <p className="gv-serif max-w-[720px] text-[18px] leading-relaxed text-[color:var(--gv-ink-2)]">
+      <p className="gv-serif max-w-[720px] text-[17px] leading-relaxed text-[color:var(--gv-ink-2)]">
         {body}
       </p>
     </section>

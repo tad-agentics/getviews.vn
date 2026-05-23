@@ -245,7 +245,7 @@ function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period
           <span className="relative z-10 flex items-center gap-1.5">
             {periodLabels[p]}
             {p === "annual" && value !== "annual" && (
-              <span className="text-[9px] font-mono bg-[var(--gv-accent)]/15 text-[var(--gv-accent)] px-1.5 py-0.5 rounded-full">
+              <span className="gv-kicker bg-[var(--gv-accent)]/15 text-[var(--gv-accent)] px-1.5 py-0.5 rounded-full">
                 -20%
               </span>
             )}
@@ -574,7 +574,7 @@ function PricingContent() {
                     Phổ biến
                   </span>
                 )}
-                <p className="text-[10px] sm:text-xs text-[var(--gv-ink-3)] leading-snug px-0.5 sm:px-1">
+                <p className="text-[11px] sm:text-xs text-[var(--gv-ink-3)] leading-snug px-0.5 sm:px-1">
                   {pack.line}
                 </p>
               </button>

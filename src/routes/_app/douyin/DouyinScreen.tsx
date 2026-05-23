@@ -216,7 +216,7 @@ function DouyinScreenMain() {
           />
 
           {/* §II header — kicker + count + Xoá bộ lọc */}
-          <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
+          <p className="gv-mono mb-1.5 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
             § II — Kho video lẻ · Browse theo ngách
           </p>
           <div className="mb-3.5 flex items-baseline justify-between gap-3">
@@ -227,7 +227,7 @@ function DouyinScreenMain() {
               <button
                 type="button"
                 onClick={resetAllFilters}
-                className="gv-mono shrink-0 text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)] underline-offset-4 hover:underline"
+                className="gv-mono shrink-0 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)] underline-offset-4 hover:underline"
               >
                 Xoá bộ lọc
               </button>
@@ -320,7 +320,7 @@ function LoadingState() {
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] py-12 text-center">
-      <p className="gv-mono mb-2 text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
+      <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
         Không tải được
       </p>
       <p className="mb-5 text-[14px] text-[color:var(--gv-ink-2)]">
@@ -342,7 +342,7 @@ function EmptyState({
 }) {
   return (
     <div className="rounded-lg border border-dashed border-[color:var(--gv-rule)] py-20 text-center">
-      <p className="gv-mono mb-2 text-[11px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-ink-3)]">
         Không tìm thấy
       </p>
       <p className="mb-5 text-[14px] text-[color:var(--gv-ink-3)]">

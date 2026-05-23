@@ -1,5 +1,14 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — UIUX 10/10 completeness sweep
+
+- **Typography:** `scripts/uiux-typography-fix.mjs` — 142 files; off-scale `text-[Npx]` → DS scale + `gv-kicker` consolidation.
+- **Disabled states:** `scripts/uiux-disabled-fix.mjs` — 26 files; `disabled:opacity-*` → `gv-faint` surface pattern.
+- **V-08:** Emoji removed — Lucide icons (timing cards), mono `CN` labels (Douyin), `Mới` kicker (WoW band).
+- **V-18:** Final shadows removed from context-menu, menubar, chart tooltip, login hero card.
+- **Scan:** `uiux-compliance-scan.mjs` → **0 hits**, **18/18 routes PASS** (`uiux-ds-audit-2026-05-23.json`).
+- **Docs:** `design-system.md` `.gv-fade-up` 0.32s; plan §11 tracking closed; `uiux-phase3-baseline.json`.
+
 ## 2026-05-23 — UIUX audit fix pass
 
 - **V-06:** Remaining video answer blocks (`EvidenceVideoEmbed`, `FormatCardsGrid`, `CrossFormatPanel`, `ContextStrip`) use `formatViews()` for view counts.

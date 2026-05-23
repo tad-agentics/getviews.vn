@@ -70,7 +70,7 @@ function VideoGridCell({ videoId, label }: VideoGridCellProps) {
       {meta?.views ? (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
           <p
-            className="font-mono text-[11px] font-semibold leading-none text-white"
+            className="gv-kicker leading-none text-white"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {formatVN(meta.views)}

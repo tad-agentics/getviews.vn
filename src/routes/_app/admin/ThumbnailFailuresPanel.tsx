@@ -63,7 +63,7 @@ function FailureRow({ row }: { row: FailureRow }) {
 
 function TH({ children }: { children: React.ReactNode }) {
   return (
-    <th className="py-2 pr-4 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+    <th className="py-2 pr-4 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
       {children}
     </th>
   );
@@ -84,7 +84,7 @@ export function ThumbnailFailuresPanel() {
   if (q.isError) {
     const msg = q.error instanceof Error ? q.error.message : "unknown";
     return (
-      <p className="text-[13px] text-[color:var(--gv-danger)]">
+      <p className="text-sm text-[color:var(--gv-danger)]">
         Không tải được thumbnail failures ({msg}).
       </p>
     );
@@ -98,7 +98,7 @@ export function ThumbnailFailuresPanel() {
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
         <div className="flex flex-col gap-1.5">
-          <span className="gv-uc text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+          <span className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
             Lỗi thumbnail · 7 ngày
           </span>
           <span
@@ -109,7 +109,7 @@ export function ThumbnailFailuresPanel() {
           </span>
         </div>
         <div className="flex flex-col gap-1.5">
-          <span className="gv-uc text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+          <span className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
             Video bị ảnh hưởng
           </span>
           <span className="gv-bignum tabular-nums text-[color:var(--gv-ink)]">
@@ -119,7 +119,7 @@ export function ThumbnailFailuresPanel() {
       </div>
 
       {isEmpty ? (
-        <p className="text-[13px] text-[color:var(--gv-ink-3)]">
+        <p className="text-sm text-[color:var(--gv-ink-3)]">
           Không có lỗi thumbnail trong 7 ngày qua.
         </p>
       ) : (
@@ -145,7 +145,7 @@ export function ThumbnailFailuresPanel() {
         </div>
       )}
 
-      <p className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+      <p className="gv-kicker text-[color:var(--gv-ink-3)]">
         Cập nhật {new Date(as_of).toLocaleString("vi-VN")} · nguồn: thumbnail_failures table
       </p>
     </div>

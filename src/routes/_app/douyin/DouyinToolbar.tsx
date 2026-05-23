@@ -81,7 +81,7 @@ export const DouyinToolbar = memo(function DouyinToolbar({
           type="search"
           value={filters.search}
           onChange={(e) => setSearch(e.target.value)}
-          className="min-w-0 flex-1 border-none bg-transparent py-0 text-[16px] leading-none text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)] sm:text-[12px]"
+          className="min-w-0 flex-1 border-none bg-transparent py-0 text-[17px] leading-none text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)] sm:text-[12px]"
           placeholder="Tìm trong kho · tên TQ, dịch VN, ngách…"
           aria-label="Tìm trong Kho Douyin"
         />
@@ -111,7 +111,7 @@ export const DouyinToolbar = memo(function DouyinToolbar({
         <select
           value={filters.sort}
           onChange={(e) => setSort(e.target.value as DouyinSortKey)}
-          className="h-11 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 text-[16px] text-[color:var(--gv-ink)] outline-none transition-colors hover:border-[color:var(--gv-ink-4)] focus-visible:border-[color:var(--gv-accent)] focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-1 sm:h-8 sm:text-[12px]"
+          className="h-11 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 text-[17px] text-[color:var(--gv-ink)] outline-none transition-colors hover:border-[color:var(--gv-ink-4)] focus-visible:border-[color:var(--gv-accent)] focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-1 sm:h-8 sm:text-[12px]"
           aria-label="Sắp xếp video"
         >
           {SORT_OPTIONS.map((opt) => (
@@ -136,7 +136,7 @@ export const DouyinToolbar = memo(function DouyinToolbar({
           <Bookmark className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
           Kho cá nhân
           {savedCount > 0 ? (
-            <span className="gv-mono text-[10px] opacity-80">· {savedCount}</span>
+            <span className="gv-kicker opacity-80">· {savedCount}</span>
           ) : null}
         </button>
       </div>
@@ -165,7 +165,7 @@ function AdaptChip({
       aria-pressed={active}
       data-adapt-level={level ?? "all"}
       className={
-        "gv-mono inline-flex h-8 items-center gap-1 rounded-full border px-3 text-[10px] font-semibold uppercase tracking-[0.05em] transition-colors " +
+        "gv-mono inline-flex h-8 items-center gap-1 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.05em] transition-colors " +
         (active
           ? meta
             ? meta.toneClass

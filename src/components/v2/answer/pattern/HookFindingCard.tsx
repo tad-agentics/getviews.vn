@@ -11,7 +11,7 @@ function TonePill({ tone }: { tone: "up" | "down" | "neutral" }) {
         : "text-[color:var(--gv-ink-3)]";
   const glyph = tone === "up" ? "↑" : tone === "down" ? "↓" : "—";
   return (
-    <span className={`font-mono text-[10px] ${cls}`} aria-hidden="true">
+    <span className={`gv-kicker ${cls}`} aria-hidden="true">
       {glyph}
     </span>
   );
@@ -52,7 +52,7 @@ function InlineThumbnail({ video }: { video: EvidenceCardPayloadData }) {
         <p className="gv-mono truncate text-[11px] font-medium text-[color:var(--gv-ink)]">
           @{String(video.creator_handle).replace(/^@/, "")}
         </p>
-        <p className="gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           {formatViews(video.views)} view
           {recency ? ` · ${recency}` : ""}
         </p>
@@ -80,14 +80,14 @@ export function HookFindingCard({
   return (
     <div className="grid grid-cols-[40px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 border-b border-[color:var(--gv-rule-2)] pb-6 last:border-b-0 last:pb-0">
       {/* Rank */}
-      <div className="gv-serif text-[28px] leading-none text-[color:var(--gv-ink-3)]">#{row.rank}</div>
+      <div className="gv-serif text-[24px] leading-none text-[color:var(--gv-ink-3)]">#{row.rank}</div>
 
       {/* Main content */}
       <div className="min-w-0 space-y-3">
         <p className="gv-serif text-[17px] leading-snug text-[color:var(--gv-ink)]">{row.pattern}</p>
 
         {/* Primary narrative — journalist prose when available, insight fallback */}
-        <p className="text-[13.5px] leading-relaxed text-[color:var(--gv-ink-2)]">{bodyText}</p>
+        <p className="text-sm leading-relaxed text-[color:var(--gv-ink-2)]">{bodyText}</p>
 
         {/* Inline evidence thumbnail */}
         {inlineVideo ? <InlineThumbnail video={inlineVideo} /> : null}
@@ -108,10 +108,10 @@ export function HookFindingCard({
         {/* Vì sao hiệu quả */}
         {row.why_it_works?.trim() ? (
           <div className="mt-3 space-y-1">
-            <p className="gv-mono text-[10px] font-semibold uppercase tracking-wider text-[color:var(--gv-ink-4)]">
+            <p className="gv-kicker text-[color:var(--gv-ink-3)]">
               Vì sao hiệu quả
             </p>
-            <p className="text-[12.5px] leading-relaxed text-[color:var(--gv-ink-2)]">
+            <p className="text-xs leading-relaxed text-[color:var(--gv-ink-2)]">
               {row.why_it_works}
             </p>
           </div>
@@ -121,7 +121,7 @@ export function HookFindingCard({
         {row.micro_pattern?.trim() ? (
           <div className="mt-2 rounded-md border border-[color:var(--gv-accent)] bg-[color:var(--gv-canvas-2)] px-3 py-2 opacity-90">
             <p className="text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
-              <span className="gv-mono text-[10px] font-semibold text-[color:var(--gv-accent)]">
+              <span className="gv-kicker text-[color:var(--gv-accent)]">
                 ↑ BIẾN THỂ ĐANG NỔI{" "}
               </span>
               {row.micro_pattern}
@@ -133,7 +133,7 @@ export function HookFindingCard({
         {row.cultural_framing?.trim() ? (
           <div className="mt-2 flex items-start gap-2 rounded-md bg-[color:var(--gv-accent-soft)] px-3 py-2">
             <span
-              className="gv-mono mt-0.5 shrink-0 text-[9px] font-semibold uppercase tracking-wider text-[color:var(--gv-accent)]"
+              className="gv-mono mt-0.5 shrink-0 text-[11px] font-semibold gv-kicker tracking-wider text-[color:var(--gv-accent)]"
               aria-label="Văn hóa Việt Nam"
             >
               VN
@@ -148,7 +148,7 @@ export function HookFindingCard({
             {row.prerequisites.map((p) => (
               <span
                 key={p}
-                className="gv-mono rounded bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[10px] text-[color:var(--gv-ink-3)]"
+                className="gv-mono rounded bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[11px] text-[color:var(--gv-ink-3)]"
               >
                 {p}
               </span>
@@ -161,7 +161,7 @@ export function HookFindingCard({
       <div className="flex flex-col items-end gap-1 text-right">
         <div className="flex items-center gap-1">
           <span
-            className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]"
+            className="gv-kicker text-[color:var(--gv-ink-4)]"
             aria-label="Tỉ lệ giữ chân người xem"
           >
             Giữ
@@ -171,7 +171,7 @@ export function HookFindingCard({
         </div>
         <div className="flex items-center gap-1">
           <span
-            className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]"
+            className="gv-kicker text-[color:var(--gv-ink-4)]"
             aria-label="Thay đổi so với tuần trước"
           >
             Đổi
@@ -185,7 +185,7 @@ export function HookFindingCard({
             {row.delta.value}
           </span>
         </div>
-        <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           {row.uses} lượt
           {row.creator_count != null && row.creator_count > 0 ? ` · ${row.creator_count} creator` : ""}
         </p>

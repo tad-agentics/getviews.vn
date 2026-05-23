@@ -152,11 +152,11 @@ function DouyinVideoModalBody({
 
           {/* CN flag top-left */}
           <span
-            className="gv-mono absolute left-2 top-2 rounded px-1.5 py-0.5 text-[9px] uppercase tracking-[0.05em] text-white"
+            className="gv-mono absolute left-2 top-2 rounded px-1.5 py-0.5 text-[11px] gv-kicker tracking-[0.05em] text-white"
             style={{ background: "var(--gv-accent-deep)" }}
             aria-label="Nguồn Douyin Trung Quốc"
           >
-            🇨🇳
+            CN
           </span>
 
           {/* Sub VN band */}
@@ -166,7 +166,7 @@ function DouyinVideoModalBody({
               style={{ bottom: 60, background: "rgba(0,0,0,0.55)" }}
             >
               <p
-                className="gv-mono mb-0.5 text-[7px] uppercase tracking-[0.05em]"
+                className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-[0.05em]"
                 style={{ color: DOUYIN_SUB_VN_GREEN }}
               >
                 Sub VN
@@ -180,11 +180,11 @@ function DouyinVideoModalBody({
           {/* Bottom — handle + views */}
           <div className="absolute bottom-2 left-2.5 right-2.5 text-white">
             {video.creator_handle ? (
-              <p className="gv-mono mb-0.5 truncate text-[9.5px] opacity-85">
+              <p className="gv-mono mb-0.5 truncate text-[11px] opacity-85">
                 抖音 @{video.creator_handle}
               </p>
             ) : null}
-            <div className="flex items-center justify-between text-[10px]">
+            <div className="flex items-center justify-between text-[11px]">
               <span className="gv-mono">↑ {formatViews(video.views)}</span>
             </div>
           </div>
@@ -203,7 +203,7 @@ function DouyinVideoModalBody({
       <div className="flex max-h-[88vh] flex-col overflow-hidden">
         <header className="flex items-start justify-between gap-3 border-b border-[color:var(--gv-rule)] px-6 py-5">
           <div className="min-w-0 flex-1">
-            <p className="gv-mono mb-1 text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
+            <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
               Video Douyin
             </p>
             <DialogTitle
@@ -213,7 +213,7 @@ function DouyinVideoModalBody({
               {titleVI}
             </DialogTitle>
             {video.title_zh && video.title_vi ? (
-              <p className="gv-mono mt-1 text-[11px] italic text-[color:var(--gv-ink-4)]">
+              <p className="gv-mono mt-1 text-[11px] italic text-[color:var(--gv-ink-3)]">
                 {video.title_zh}
               </p>
             ) : null}
@@ -316,12 +316,12 @@ function Stat({
 }) {
   return (
     <div>
-      <p className="gv-mono mb-1 text-[9px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-ink-3)]">
         {label}
       </p>
       <p
         className={
-          "gv-tight m-0 text-[20px] leading-none " +
+          "gv-tight m-0 text-[22px] leading-none " +
           (valueClassName ?? "text-[color:var(--gv-ink)]")
         }
         style={{ fontFamily: "var(--gv-font-display)" }}
@@ -349,13 +349,13 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
       className="mb-5 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4"
       aria-label="Đánh giá khả năng adapt"
     >
-      <p className="gv-mono mb-2 text-[9px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
+      <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
         Khả năng adapt sang VN
       </p>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span
           className={
-            "gv-mono inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.05em] " +
+            "gv-mono inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] " +
             (meta ? meta.toneClass : PENDING_ADAPT_META.toneClass)
           }
           data-adapt-level={video.adapt_level ?? "pending"}
@@ -369,7 +369,7 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
       </div>
 
       {video.adapt_reason ? (
-        <p className="mb-2 text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
+        <p className="mb-2 text-sm leading-snug text-[color:var(--gv-ink-2)]">
           {video.adapt_reason}
         </p>
       ) : null}
@@ -378,7 +378,7 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
         <dl className="mt-2 grid grid-cols-2 gap-3 text-[11px]">
           {eta ? (
             <div>
-              <dt className="gv-mono text-[9px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+              <dt className="gv-kicker text-[color:var(--gv-ink-4)]">
                 ETA về VN
               </dt>
               <dd className="gv-mono mt-0.5 text-[12px] text-[color:var(--gv-ink)]">
@@ -388,7 +388,7 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
           ) : null}
           {rise ? (
             <div>
-              <dt className="gv-mono text-[9px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+              <dt className="gv-kicker text-[color:var(--gv-ink-4)]">
                 Đà ở CN (14 ngày)
               </dt>
               <dd
@@ -413,7 +413,7 @@ function TranslatorNotesSection({ notes }: { notes: DouyinTranslatorNote[] }) {
   if (!notes || notes.length === 0) return null;
   return (
     <section aria-label="Note văn hoá">
-      <p className="gv-mono mb-2 text-[9px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
+      <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
         Note văn hoá ({notes.length})
       </p>
       <ul className="space-y-2">
@@ -423,7 +423,7 @@ function TranslatorNotesSection({ notes }: { notes: DouyinTranslatorNote[] }) {
             className="flex items-start gap-2 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-3"
           >
             <span
-              className="gv-mono inline-flex shrink-0 items-center rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em] text-[color:var(--gv-ink-2)]"
+              className="gv-mono inline-flex shrink-0 items-center rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[11px] font-semibold gv-kicker tracking-[0.05em] text-[color:var(--gv-ink-2)]"
               data-tag={note.tag}
             >
               {note.tag}

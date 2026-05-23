@@ -34,7 +34,7 @@ function Bignum({
         : "text-[color:var(--gv-ink)]";
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="gv-uc text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+      <span className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
         {label}
       </span>
       <span className={`gv-bignum tabular-nums ${toneClass}`}>{display}</span>
@@ -111,17 +111,17 @@ export function EnsembleCreditsPanel() {
     if (msg === "ensemble_token_unset") {
       return (
         <div className="rounded-[var(--gv-radius-md)] border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
-          <p className="text-[13px] font-medium text-[color:var(--gv-ink)]">
+          <p className="text-sm font-medium text-[color:var(--gv-ink)]">
             ENSEMBLE_DATA_API_KEY chưa được cấu hình
           </p>
-          <p className="mt-1.5 gv-mono text-[11px] leading-relaxed text-[color:var(--gv-ink-3)]">
+          <p className="mt-1.5 gv-kicker leading-relaxed text-[color:var(--gv-ink-3)]">
             Đặt env var trên Cloud Run và redeploy để panel này hoạt động.
           </p>
         </div>
       );
     }
     return (
-      <p className="text-[13px] text-[color:var(--gv-danger)]">
+      <p className="text-sm text-[color:var(--gv-danger)]">
         Không tải được EnsembleData usage ({msg}).
       </p>
     );
@@ -170,7 +170,7 @@ export function EnsembleCreditsPanel() {
 
       <EndpointHistory />
 
-      <p className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+      <p className="gv-kicker text-[color:var(--gv-ink-3)]">
         As of {new Date(as_of).toLocaleString("vi-VN")} · {days.length} ngày (UTC)
         {monthly_budget == null
           ? " · đặt ED_MONTHLY_UNIT_BUDGET env để thấy runway"
@@ -189,7 +189,7 @@ function CallSiteBar({ bucket, peak, tone }: { bucket: EnsembleCallSiteBucket; p
   const width = peak > 0 ? Math.max(2, Math.round((bucket.count / peak) * 100)) : 2;
   return (
     <div className="flex items-center gap-3">
-      <span className="w-[180px] shrink-0 gv-mono text-[11px] text-[color:var(--gv-ink)] truncate" title={bucket.key}>
+      <span className="w-[180px] shrink-0 gv-kicker text-[color:var(--gv-ink)] truncate" title={bucket.key}>
         {bucket.key}
       </span>
       <div className="relative h-[6px] flex-1 overflow-hidden rounded-full" style={{ background: "var(--gv-rule-2)" }}>
@@ -201,7 +201,7 @@ function CallSiteBar({ bucket, peak, tone }: { bucket: EnsembleCallSiteBucket; p
           }}
         />
       </div>
-      <span className="w-[96px] shrink-0 gv-mono text-[11px] tabular-nums text-[color:var(--gv-ink-3)]">
+      <span className="w-[96px] shrink-0 gv-kicker tabular-nums text-[color:var(--gv-ink-3)]">
         {bucket.count.toLocaleString("vi-VN")} ({bucket.pct}%)
       </span>
     </div>
@@ -232,7 +232,7 @@ function CallSiteBreakdown() {
     return (
       <div className="flex flex-col gap-2">
         <p className="gv-kicker gv-kicker--dot gv-kicker--muted">Attribution · 7 ngày</p>
-        <p className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           Chưa có call nào được ghi — `ensemble_calls` rỗng. Nếu migration vừa apply thì cần chạy một batch ingest hoặc một /video/analyze trước.
         </p>
       </div>
@@ -247,7 +247,7 @@ function CallSiteBreakdown() {
     <div className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between">
         <p className="gv-kicker gv-kicker--dot gv-kicker--muted">Attribution · 7 ngày · top call sites</p>
-        <span className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+        <span className="gv-kicker text-[color:var(--gv-ink-4)]">
           {total.toLocaleString("vi-VN")} calls total
         </span>
       </div>
@@ -256,12 +256,12 @@ function CallSiteBreakdown() {
           <CallSiteBar key={b.key} bucket={b} peak={peak} />
         ))}
         {tail > 0 ? (
-          <p className="mt-1 gv-mono text-[10px] text-[color:var(--gv-ink-4)]">+ {tail} call site khác</p>
+          <p className="mt-1 gv-kicker text-[color:var(--gv-ink-3)]">+ {tail} call site khác</p>
         ) : null}
       </div>
       {by_request_class.length > 0 ? (
         <div className="flex flex-col gap-1.5 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3">
-          <p className="gv-mono text-[10px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+          <p className="gv-kicker text-[color:var(--gv-ink-3)]">
             Request class
           </p>
           {by_request_class.map((b) => (
@@ -294,10 +294,10 @@ function HistoryRow({
   const width = maxUnits > 0 ? Math.max(2, Math.round((entry.units / maxUnits) * 100)) : 2;
   return (
     <tr className="border-b border-[color:var(--gv-rule)] last:border-0">
-      <td className="py-2 pr-3 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+      <td className="py-2 pr-3 gv-kicker text-[color:var(--gv-ink-3)]">
         {entry.date ?? "—"}
       </td>
-      <td className="py-2 pr-3 gv-mono text-[11px] text-[color:var(--gv-ink)]">
+      <td className="py-2 pr-3 gv-kicker text-[color:var(--gv-ink)]">
         {entry.endpoint ?? "—"}
       </td>
       <td className="py-2 pr-3">
@@ -311,12 +311,12 @@ function HistoryRow({
               style={{ width: `${width}%`, background: "var(--gv-accent)" }}
             />
           </div>
-          <span className="gv-mono text-[11px] tabular-nums text-[color:var(--gv-ink-3)]">
+          <span className="gv-kicker tabular-nums text-[color:var(--gv-ink-3)]">
             {entry.units.toLocaleString("vi-VN")}
           </span>
         </div>
       </td>
-      <td className="py-2 gv-mono text-[11px] tabular-nums text-[color:var(--gv-ink-4)]">
+      <td className="py-2 gv-kicker tabular-nums text-[color:var(--gv-ink-4)]">
         {entry.count != null ? entry.count.toLocaleString("vi-VN") : "—"}
       </td>
     </tr>
@@ -342,7 +342,7 @@ function EndpointHistory() {
     // primary credits + call-site sections above stay useful even
     // when EnsembleData's history endpoint blips.
     return (
-      <p className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+      <p className="gv-kicker text-[color:var(--gv-ink-3)]">
         Không tải được endpoint history ({msg}).
       </p>
     );
@@ -356,7 +356,7 @@ function EndpointHistory() {
         <p className="gv-kicker gv-kicker--dot gv-kicker--muted">
           Endpoint history · {days} ngày · từ EnsembleData
         </p>
-        <p className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           EnsembleData chưa trả về history nào — có thể plan không expose
           endpoint này, hoặc response shape đã đổi. Liên hệ support nếu
           nghi ngờ.
@@ -374,7 +374,7 @@ function EndpointHistory() {
         <p className="gv-kicker gv-kicker--dot gv-kicker--muted">
           Endpoint history · {days} ngày · từ EnsembleData
         </p>
-        <span className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+        <span className="gv-kicker text-[color:var(--gv-ink-4)]">
           {totalUnits.toLocaleString("vi-VN")} units total
         </span>
       </div>
@@ -382,16 +382,16 @@ function EndpointHistory() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[color:var(--gv-rule)]">
-              <th className="py-2 pr-3 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+              <th className="py-2 pr-3 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                 Date
               </th>
-              <th className="py-2 pr-3 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+              <th className="py-2 pr-3 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                 Endpoint
               </th>
-              <th className="py-2 pr-3 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+              <th className="py-2 pr-3 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                 Units
               </th>
-              <th className="py-2 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+              <th className="py-2 text-left gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
                 Count
               </th>
             </tr>
@@ -403,7 +403,7 @@ function EndpointHistory() {
           </tbody>
         </table>
         {entries.length > 50 ? (
-          <p className="mt-2 gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+          <p className="mt-2 gv-kicker text-[color:var(--gv-ink-3)]">
             + {entries.length - 50} dòng khác (ẩn để giữ panel gọn)
           </p>
         ) : null}

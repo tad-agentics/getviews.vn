@@ -67,7 +67,7 @@ export function IdeasBody({
           <p className="gv-kicker gv-kicker--dot mb-2 text-[color:var(--gv-accent-deep)]">
             {sectionKicker}
           </p>
-          <h3 className="gv-tight mb-4 text-[24px] text-[color:var(--gv-ink)] min-[700px]:text-[28px]">
+          <h3 className="gv-tight mb-4 text-[24px] text-[color:var(--gv-ink)] min-[700px]:text-[24px]">
             {ideasHeading}
           </h3>
           <div className="flex flex-col gap-4">
@@ -82,10 +82,10 @@ export function IdeasBody({
 
       {report.style_cards.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
-          <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
             Phong cách
           </p>
-          <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
+          <h3 className="gv-serif mb-3 text-[17px] text-[color:var(--gv-ink)]">
             5 hướng quay song song
           </h3>
           <StyleCardGrid cards={report.style_cards} />
@@ -94,10 +94,10 @@ export function IdeasBody({
 
       {report.stop_doing.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "180ms" }}>
-          <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
             Bỏ ngay
           </p>
-          <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
+          <h3 className="gv-serif mb-3 text-[17px] text-[color:var(--gv-ink)]">
             5 thói quen rớt view
           </h3>
           <StopDoingList rows={report.stop_doing} />
@@ -106,10 +106,10 @@ export function IdeasBody({
 
       {report.actions.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
-          <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
             Bước tiếp theo
           </p>
-          <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
+          <h3 className="gv-serif mb-3 text-[17px] text-[color:var(--gv-ink)]">
             {ideasActionsTitle}
           </h3>
           <IdeasActionCards actions={report.actions} />

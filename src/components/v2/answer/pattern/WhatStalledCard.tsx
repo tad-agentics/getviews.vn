@@ -8,10 +8,10 @@ export function WhatStalledCard({ row }: { row: HookFindingData }) {
       className="grid grid-cols-[40px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 border-b border-[color:var(--gv-rule-2)] border-l-[3px] border-l-[color:var(--gv-danger)] pb-4 pl-3 last:border-b-0 last:pb-0"
       data-testid="what-stalled-card"
     >
-      <div className="gv-serif text-[28px] leading-none text-[color:var(--gv-ink-4)]">#{row.rank}</div>
+      <div className="gv-serif text-[24px] leading-none text-[color:var(--gv-ink-4)]">#{row.rank}</div>
       <div className="min-w-0 space-y-2">
         <p className="gv-serif text-[17px] leading-snug text-[color:var(--gv-ink)]">{row.pattern}</p>
-        <p className="text-[13.5px] leading-relaxed text-[color:var(--gv-ink-2)]">{row.insight}</p>
+        <p className="text-sm leading-relaxed text-[color:var(--gv-ink-2)]">{row.insight}</p>
         <p className="gv-mono mt-[10px] flex flex-wrap gap-x-[14px] gap-y-1 text-[11px] text-[color:var(--gv-ink-3)]">
           <span>Xuất hiện {row.lifecycle.first_seen}</span>
           <span>·</span>
@@ -24,7 +24,7 @@ export function WhatStalledCard({ row }: { row: HookFindingData }) {
         <div className="flex items-center gap-1">
           {/* Audit Pass-3 fix #6 — match HookFindingCard's Vietnamese label. */}
           <span
-            className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]"
+            className="gv-kicker text-[color:var(--gv-ink-4)]"
             aria-label="Tỉ lệ giữ chân người xem"
           >
             Giữ
@@ -32,14 +32,14 @@ export function WhatStalledCard({ row }: { row: HookFindingData }) {
           <span className="gv-mono text-sm font-medium text-[color:var(--gv-ink)]">{row.retention.value}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="gv-mono text-[10px] text-[color:var(--gv-ink-2)]">▼</span>
+          <span className="gv-kicker text-[color:var(--gv-ink-2)]">▼</span>
           <span
             className={`gv-mono text-sm font-medium ${deltaNeg ? "text-[color:var(--gv-ink-2)]" : "text-[color:var(--gv-ink-3)]"}`}
           >
             {row.delta.value}
           </span>
         </div>
-        <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">{row.uses} lượt</p>
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">{row.uses} lượt</p>
       </div>
     </div>
   );

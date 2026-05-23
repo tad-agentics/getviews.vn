@@ -66,14 +66,14 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
       {/* Header */}
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <div className="min-w-0">
-          <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
             Phần I — Pattern
           </p>
           <h2 className="gv-tight m-0 text-[clamp(22px,2.5vw,28px)] font-semibold tracking-[-0.02em] text-[color:var(--gv-ink)]">
             Công thức từ video view cao trong ngách
           </h2>
         </div>
-        <p className="gv-mono max-w-[200px] text-right text-[10px] leading-snug tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono max-w-[200px] text-right text-[11px] leading-snug tracking-[0.06em] text-[color:var(--gv-ink-3)]">
           Chạm thẻ để xem công thức đầy đủ.
         </p>
       </div>
@@ -94,7 +94,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
           ))}
         </div>
       ) : patterns.length === 0 ? (
-        <p className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-[12.5px] text-[color:var(--gv-ink-3)]">
+        <p className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-xs text-[color:var(--gv-ink-3)]">
           Chưa đủ công thức có lift cao trong ngách này tuần qua — hệ thống
           đang cập nhật, sẽ có sau khi đủ video tham chiếu.
         </p>

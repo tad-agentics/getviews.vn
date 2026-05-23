@@ -23,13 +23,13 @@ export function ShotListCard({ data }: Props) {
         </span>
         <span className="flex-1 text-xs text-[color:var(--gv-ink-4)]">{data.duration}</span>
       </div>
-      <p className="mt-2 text-sm font-medium text-gray-800">{data.action}</p>
+      <p className="mt-2 text-sm font-medium text-[color:var(--gv-ink)]">{data.action}</p>
       {data.overlay?.trim() ? (
         <div className="mt-1 rounded border-l-2 border-purple-400 bg-purple-50 px-3 py-1 text-sm font-semibold text-[var(--ink)]">
           {data.overlay}
         </div>
       ) : null}
-      {data.note?.trim() ? <p className="mt-1 text-xs italic text-[color:var(--gv-ink-4)]">{data.note}</p> : null}
+      {data.note?.trim() ? <p className="mt-1 text-xs italic text-[color:var(--gv-ink-3)]">{data.note}</p> : null}
     </div>
   );
 }

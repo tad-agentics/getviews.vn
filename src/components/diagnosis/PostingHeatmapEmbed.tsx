@@ -25,7 +25,7 @@ export function PostingHeatmapEmbed({ payload }: { payload: DiagnosisPostingCont
       className="mt-4 border-t border-[color:var(--gv-rule)] pt-4"
       aria-label="Bằng chứng khung giờ corpus"
     >
-      <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted)]">
+      <p className="mb-2 text-[11px] font-medium gv-kicker tracking-wide text-[color:var(--muted)]">
         Corpus khung giờ đăng (7 ngày × 8 khung · ICT)
       </p>
       <div className="mb-2">

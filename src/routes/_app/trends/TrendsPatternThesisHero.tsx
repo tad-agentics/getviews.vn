@@ -50,7 +50,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
       aria-label={`Tổng quan công thức trong ngách ${nicheLabel}`}
       className="mb-7 rounded-[12px] bg-[color:var(--gv-ink)] px-6 py-7 text-[color:var(--gv-canvas)] sm:px-9 sm:py-8"
     >
-      <p className="gv-mono mb-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-2.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
         {weekKicker} · NGÁCH {nicheLabel.toUpperCase()}
       </p>
 
@@ -71,7 +71,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
       )}
 
       {corpusCaption ? (
-        <p className="gv-mono mt-5 text-[10.5px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mt-5 text-[11px] gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
           {corpusCaption}
         </p>
       ) : null}
@@ -129,17 +129,17 @@ function TopPatternRow({ pattern }: { pattern: TopPattern }) {
 
   return (
     <div className="mt-4 max-w-3xl">
-      <p className="gv-mono mb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-1.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
         Đứng đầu
       </p>
       <p
-        className="gv-tight m-0 text-[16px] leading-[1.45] text-[color:var(--gv-canvas)] sm:text-[17px]"
+        className="gv-tight m-0 text-[17px] leading-[1.45] text-[color:var(--gv-canvas)] sm:text-[17px]"
         style={{ textWrap: "pretty" }}
       >
         &ldquo;{hookLine}&rdquo;
       </p>
       {liftPhrase || handle ? (
-        <p className="mt-1.5 text-[12.5px] leading-[1.45] text-[color:var(--gv-ink-3)]">
+        <p className="mt-1.5 text-xs leading-[1.45] text-[color:var(--gv-ink-3)]">
           {liftPhrase}
           {liftPhrase && handle ? " · " : ""}
           {handle ? (

@@ -57,10 +57,10 @@ export function TimingBody({
 
       {report.contrarian_note ? (
         <div className="mt-4 rounded-lg bg-[color:var(--gv-accent-soft)] px-4 py-3">
-          <p className="gv-mono mb-1 text-[9px] uppercase tracking-widest text-[color:var(--gv-accent)]">
+          <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-widest text-[color:var(--gv-accent)]">
             Insight thực tế
           </p>
-          <p className="text-[13px] leading-relaxed text-[color:var(--gv-ink-2)]">{report.contrarian_note}</p>
+          <p className="text-sm leading-relaxed text-[color:var(--gv-ink-2)]">{report.contrarian_note}</p>
         </div>
       ) : null}
 
@@ -70,10 +70,10 @@ export function TimingBody({
 
       {report.actions.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
-          <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
             Bước tiếp theo
           </p>
-          <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
+          <h3 className="gv-serif mb-3 text-[17px] text-[color:var(--gv-ink)]">
             {timingActionsSectionTitle(sessionIntentType)}
           </h3>
           <TimingActionCards actions={report.actions} />

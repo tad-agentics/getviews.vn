@@ -50,7 +50,7 @@ const sectionVariants = {
 
 const SectionLabel = memo(function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)] mb-3">
+    <p className="gv-kicker text-[color:var(--gv-ink-3)] mb-3">
       {children}
     </p>
   );
@@ -117,7 +117,7 @@ const Row = memo(function Row({
         <p className={`text-sm ${danger ? "text-[color:var(--gv-danger)]" : "text-[color:var(--gv-ink-2)]"}`}>
           {label}
         </p>
-        {sub ? <p className="mt-0.5 text-[11px] text-[color:var(--gv-ink-4)]">{sub}</p> : null}
+        {sub ? <p className="mt-0.5 text-[11px] text-[color:var(--gv-ink-3)]">{sub}</p> : null}
       </div>
       {children ? (
         children
@@ -145,7 +145,7 @@ function SettingsField({
   // htmlFor wiring at every call site. Clicking the label focuses the input.
   return (
     <label className="block">
-      <span className="mb-1.5 block font-mono text-[9px] font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+      <span className="mb-1.5 block gv-kicker text-[color:var(--gv-ink-4)]">
         {label}
       </span>
       {children}
@@ -249,7 +249,7 @@ function ProfileSettingsSection({
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
             maxLength={40}
-            className="w-full rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3.5 py-2.5 text-[16px] text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)] sm:text-sm"
+            className="w-full rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3.5 py-2.5 text-[17px] text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)] sm:text-sm"
           />
         </SettingsField>
         <SettingsField label="Email">
@@ -271,7 +271,7 @@ function ProfileSettingsSection({
               value={draftTiktok}
               onChange={(e) => setDraftTiktok(e.target.value)}
               placeholder="@username"
-              className="w-full rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] py-2.5 pl-9 pr-3.5 text-[16px] text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)] focus:border-[color:var(--gv-ink)] sm:text-sm"
+              className="w-full rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] py-2.5 pl-9 pr-3.5 text-[17px] text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)] focus:border-[color:var(--gv-ink)] sm:text-sm"
             />
           </div>
         </SettingsField>
@@ -359,7 +359,7 @@ function PlanPanel({
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
     >
       <Card className="p-6">
-        <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
           Gói hiện tại
         </p>
         <div className="mt-1.5 mb-3.5 flex flex-wrap items-baseline gap-3">
@@ -379,14 +379,14 @@ function PlanPanel({
             Gói đã hết hạn — gia hạn để tiếp tục phân tích sâu.
           </p>
         ) : creditsResetAt ? (
-          <p className="mb-4 font-mono text-[11px] text-[color:var(--gv-ink-4)]">
+          <p className="mb-4 gv-kicker text-[color:var(--gv-ink-3)]">
             Credits hết hạn: {formatVnDate(creditsResetAt)}
           </p>
         ) : null}
 
         <div className="mb-5 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           <div>
-            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+            <p className="gv-kicker text-[color:var(--gv-ink-3)]">
               Phân tích
             </p>
             <p className="gv-tight text-[1.375rem] font-bold text-[color:var(--gv-ink)]">
@@ -394,13 +394,13 @@ function PlanPanel({
             </p>
           </div>
           <div>
-            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+            <p className="gv-kicker text-[color:var(--gv-ink-3)]">
               Đăng ký
             </p>
             <p className="gv-tight text-[1.375rem] font-bold text-[color:var(--gv-ink)]">{tierName}</p>
           </div>
           <div>
-            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+            <p className="gv-kicker text-[color:var(--gv-ink-3)]">
               Trạng thái
             </p>
             <p className="gv-tight text-[1.375rem] font-bold text-[color:var(--gv-ink)]">
@@ -484,7 +484,7 @@ const NicheRadioRow = memo(function NicheRadioRow({
         selected
           ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
           : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink-3)]"
-      } disabled:opacity-50`}
+      } disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100`}
     >
       <span className="font-medium">{name}</span>
       <AnimatePresence initial={false}>
@@ -754,7 +754,7 @@ const HistoryPanel = memo(function HistoryPanel({
                     <Activity className="h-5 w-5 shrink-0 text-[color:var(--gv-ink-4)]" strokeWidth={2} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-[color:var(--gv-ink)]">{label}</p>
-                      <p className="font-mono text-[11px] text-[color:var(--gv-ink-4)]">
+                      <p className="gv-kicker text-[color:var(--gv-ink-3)]">
                         {dateLabel} · {timeLabel}
                       </p>
                     </div>
@@ -827,7 +827,7 @@ function LogoutSection({
                   type="button"
                   onClick={onConfirm}
                   disabled={logout.isPending}
-                  className="flex-1 min-h-[44px] rounded-xl bg-[color:var(--gv-danger)] py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className="flex-1 min-h-[44px] rounded-xl bg-[color:var(--gv-danger)] py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100"
                 >
                   Đăng xuất
                 </button>
@@ -885,7 +885,7 @@ export default function SettingsScreen() {
         <div className="mx-auto max-w-[1100px] px-7 pb-20 pt-8 lg:pt-10">
           <div className="grid grid-cols-1 gap-9 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
             <aside className="lg:sticky lg:top-8">
-              <p className="mb-3 font-mono text-[9px] font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+              <p className="mb-3 gv-kicker text-[color:var(--gv-ink-3)]">
                 Cài đặt
               </p>
               <nav className="flex flex-col gap-0.5" aria-label="Mục cài đặt">
@@ -894,7 +894,7 @@ export default function SettingsScreen() {
                     key={s.id}
                     type="button"
                     onClick={() => setActiveSection(s.id)}
-                    className={`min-h-[44px] rounded-md px-3 py-2.5 text-left text-[13px] font-medium transition-colors duration-[120ms] ${
+                    className={`min-h-[44px] rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors duration-[120ms] ${
                       activeSection === s.id
                         ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
                         : "text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-canvas-2)]"

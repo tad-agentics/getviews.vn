@@ -22,7 +22,7 @@ export function ConfidenceStrip({
         <button
           type="button"
           onClick={onHumilityToggle}
-          className={`rounded border px-2 py-0.5 gv-mono text-[10px] uppercase tracking-wide transition-colors ${
+          className={`rounded border px-2 py-0.5 gv-kicker transition-colors ${
             humilityVisible
               ? "border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-accent-deep)]"
               : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-3)]"

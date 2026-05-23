@@ -176,10 +176,10 @@ function ExploreCorpusVideoModal({
           <>
             <header className="flex items-start justify-between gap-3 border-b border-[color:var(--gv-rule)] px-4 py-3 min-[420px]:px-5">
               <div className="min-w-0 flex-1">
-                <DialogTitle className="gv-tight m-0 text-left text-[15px] font-semibold leading-snug text-[color:var(--gv-ink)]">
+                <DialogTitle className="gv-tight m-0 text-left text-[17px] font-semibold leading-snug text-[color:var(--gv-ink)]">
                   {video.text || video.caption}
                 </DialogTitle>
-                <p className="gv-mono mt-1 mb-0 text-[10px] text-[color:var(--gv-ink-4)]">
+                <p className="gv-mono mt-1 mb-0 text-[11px] text-[color:var(--gv-ink-3)]">
                   {video.handle} · ↑ {video.views}
                 </p>
               </div>
@@ -226,7 +226,7 @@ function ExploreCorpusVideoModal({
                       href={video.tiktok_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="gv-mono absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-ink)] shadow-sm hover:border-[color:var(--gv-ink)]"
+                      className="gv-mono absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-ink)] shadow-sm hover:border-[color:var(--gv-ink)]"
                     >
                       Mở trên TikTok
                     </a>
@@ -340,35 +340,35 @@ function VideoCard({
         {(showBreakout || showViral) && (
           <div className="absolute top-2 left-2 flex gap-1">
             {showBreakout ? (
-              <span className="rounded-[3px] px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-white bg-[var(--gv-accent)]">
+              <span className="rounded-[3px] px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-white bg-[var(--gv-accent)]">
                 BREAKOUT
               </span>
             ) : null}
             {showViral ? (
-              <span className="rounded-[3px] px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[var(--ink)] bg-[var(--gv-accent-2)]">
+              <span className="rounded-[3px] px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-[var(--ink)] bg-[var(--gv-accent-2)]">
                 VIEW CAO
               </span>
             ) : null}
           </div>
         )}
         {video.durationLabel ? (
-          <div className="absolute top-2 right-2 rounded-[3px] bg-black/50 px-1.5 py-0.5 font-mono text-[10px] text-white">
+          <div className="absolute top-2 right-2 rounded-[3px] bg-black/50 px-1.5 py-0.5 gv-kicker text-white">
             {video.durationLabel}
           </div>
         ) : null}
         <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 text-white">
-          <p className="mb-0.5 font-mono text-[11px]">↑ {video.views}</p>
+          <p className="mb-0.5 gv-kicker">↑ {video.views}</p>
           <p className="line-clamp-2 text-[12px] font-medium leading-tight">{video.text || video.caption}</p>
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 px-0.5">
-        <span className="truncate font-mono text-[10px] text-[var(--gv-ink-3)]">{video.handle}</span>
-        <span className="shrink-0 font-mono text-[10px] text-[var(--faint)]">{video.time}</span>
+        <span className="truncate gv-kicker text-[var(--gv-ink-3)]">{video.handle}</span>
+        <span className="shrink-0 gv-kicker text-[var(--faint)]">{video.time}</span>
       </div>
       {onNavigate ? (
         <div className="flex items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1.5 text-[11px] text-[var(--gv-ink-3)]">
           <span className="min-w-0 truncate">Phân tích video →</span>
-          <span className="max-w-[45%] shrink-0 truncate font-mono text-[10px] text-[var(--faint)]">
+          <span className="max-w-[45%] shrink-0 truncate gv-kicker text-[var(--faint)]">
             {nicheLabel ?? video.contentFormat ?? "—"}
           </span>
         </div>
@@ -399,7 +399,7 @@ function KhoSelectChip({
   return (
     <div className="inline-flex min-h-[44px] items-center py-2.5">
       <div
-        className={`inline-flex ${KHO_FILTER_CHIP_H} max-w-full shrink-0 items-stretch overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[9px] font-medium leading-none text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]`}
+        className={`inline-flex ${KHO_FILTER_CHIP_H} max-w-full shrink-0 items-stretch overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[11px] font-medium leading-none text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]`}
       >
       {onRemove && isDirty ? (
         <button
@@ -416,8 +416,8 @@ function KhoSelectChip({
         onClick={onClick}
         className={
           isDirty && onRemove
-            ? "flex min-h-0 flex-1 items-center gap-0.5 pl-0.5 pr-1.5 !text-[9px] !font-medium !leading-none"
-            : "flex min-h-0 flex-1 items-center gap-0.5 px-2 !text-[9px] !font-medium !leading-none"
+            ? "flex min-h-0 flex-1 items-center gap-0.5 pl-0.5 pr-1.5 !text-[11px] !font-medium !leading-none"
+            : "flex min-h-0 flex-1 items-center gap-0.5 px-2 !text-[11px] !font-medium !leading-none"
         }
       >
         <span className={isDirty ? "font-semibold !leading-none" : "font-medium !leading-none"}>{label}</span>
@@ -443,7 +443,7 @@ function KhoTogglePill({
     return (
       <div className="inline-flex min-h-[44px] items-center py-2.5">
         <div
-          className={`inline-flex max-w-full shrink-0 items-stretch overflow-hidden rounded-full border text-[9px] font-medium leading-none ${KHO_FILTER_CHIP_H} ${
+          className={`inline-flex max-w-full shrink-0 items-stretch overflow-hidden rounded-full border text-[11px] font-medium leading-none ${KHO_FILTER_CHIP_H} ${
             active
               ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)]"
               : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]"
@@ -463,8 +463,8 @@ function KhoTogglePill({
           <span
             className={
               active
-                ? "block !text-[9px] !font-medium !leading-none text-[color:var(--gv-paper)]"
-                : "block !text-[9px] !font-medium !leading-none text-[color:var(--gv-ink)]"
+                ? "block !text-[11px] !font-medium !leading-none text-[color:var(--gv-paper)]"
+                : "block !text-[11px] !font-medium !leading-none text-[color:var(--gv-ink)]"
             }
           >
             {label}
@@ -489,7 +489,7 @@ function KhoTogglePill({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex ${KHO_FILTER_CHIP_H} shrink-0 items-center justify-center rounded-full border px-2 !text-[9px] !font-medium !leading-none transition-all duration-[120ms] ${
+      className={`inline-flex ${KHO_FILTER_CHIP_H} shrink-0 items-center justify-center rounded-full border px-2 !text-[11px] !font-medium !leading-none transition-all duration-[120ms] ${
         active
           ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-paper)]"
           : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink)]"
@@ -1021,7 +1021,7 @@ export default function ExploreScreen() {
             {/* Ref: kicker + thesis on the left; search pill on the right (vertical center vs. left block); filters on a second full-width row. */}
             <div className="mb-3 flex min-w-0 flex-col gap-3 min-[1100px]:mb-4 min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-between min-[1100px]:gap-8">
               <div className="min-w-0 flex-1">
-                <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink-3)]">
+                <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]">
                   II — KHO VIDEO
                 </p>
                 <h2 className="gv-tight m-0 max-w-full text-[clamp(20px,2.3vw,28px)] font-bold leading-[1.2] tracking-[-0.02em] text-[color:var(--gv-ink)]">

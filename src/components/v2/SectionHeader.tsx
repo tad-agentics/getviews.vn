@@ -67,7 +67,7 @@ export function SectionHeader({
             {title}
           </h2>
           {caption ? (
-            <p className="min-w-0 w-full text-[12.5px] leading-relaxed text-[color:var(--gv-ink-3)] sm:max-w-prose sm:flex-1 sm:text-[13px] sm:leading-snug">
+            <p className="min-w-0 w-full text-xs leading-relaxed text-[color:var(--gv-ink-3)] sm:max-w-prose sm:flex-1 sm:text-sm sm:leading-snug">
               {caption}
             </p>
           ) : null}

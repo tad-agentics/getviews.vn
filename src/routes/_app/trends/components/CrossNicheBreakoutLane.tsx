@@ -18,7 +18,7 @@ function Tile({ v }: { v: CrossNicheBreakout }) {
           className="h-full w-full"
         />
         {v.breakout_multiplier != null ? (
-          <span className="absolute left-2 top-2 rounded bg-[color:var(--gv-ink)]/80 px-2 py-0.5 font-[family-name:var(--gv-font-mono)] text-[10px] text-[color:var(--gv-paper)]">
+          <span className="absolute left-2 top-2 rounded bg-[color:var(--gv-ink)]/80 px-2 py-0.5 font-[family-name:var(--gv-font-mono)] text-[11px] text-[color:var(--gv-paper)]">
             {v.breakout_multiplier.toFixed(1)}×
           </span>
         ) : null}
@@ -27,7 +27,7 @@ function Tile({ v }: { v: CrossNicheBreakout }) {
         <p className="truncate text-xs font-medium text-[color:var(--gv-ink)]">
           @{v.creator_handle}
         </p>
-        <p className="font-[family-name:var(--gv-font-mono)] text-[10px] text-[color:var(--gv-ink-3)]">
+        <p className="font-[family-name:var(--gv-font-mono)] text-[11px] text-[color:var(--gv-ink-3)]">
           {formatViews(v.views)} view
         </p>
       </div>
@@ -47,7 +47,7 @@ export const CrossNicheBreakoutLane = memo(function CrossNicheBreakoutLane({
 
   return (
     <section className="mb-8" data-testid="cross-niche-breakout-lane">
-      <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink-3)]">
+      <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]">
         Format đang nổi ở ngách khác
       </p>
       <p className="mb-3 text-sm text-[color:var(--gv-ink-2)]">

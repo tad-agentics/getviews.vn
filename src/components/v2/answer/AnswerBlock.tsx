@@ -16,7 +16,7 @@ export function AnswerBlock({
   }
   return (
     <div className="rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
-      <p className="font-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-accent)]">
+      <p className="gv-kicker text-[color:var(--gv-accent)]">
         {kicker}
       </p>
       <div className="mt-4">{children}</div>

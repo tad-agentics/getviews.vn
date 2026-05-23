@@ -277,7 +277,7 @@ export default function HomeScreen() {
             <div className="mb-3.5 flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2.5">
                 <span
-                  className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-accent-soft)] px-3 py-1 gv-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink)]"
+                  className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-accent-soft)] px-3 py-1 gv-kicker text-[color:var(--gv-ink)]"
                 >
                   <span
                     className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-lime)]"
@@ -358,7 +358,7 @@ export default function HomeScreen() {
                 className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--gv-ink-4)]"
                 aria-hidden
               />
-              <p className="gv-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+              <p className="gv-kicker text-[color:var(--gv-ink-3)]">
                 Bắt đầu nhanh
               </p>
             </div>

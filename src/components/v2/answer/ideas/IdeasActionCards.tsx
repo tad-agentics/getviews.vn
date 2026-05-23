@@ -55,13 +55,13 @@ export function IdeasActionCards({ actions }: { actions: ActionCardPayloadData[]
             <div className="mb-2" aria-hidden>
               <Icon className="h-5 w-5 text-[color:var(--gv-ink-3)]" strokeWidth={1.8} />
             </div>
-            <p className="gv-serif text-[16px] text-[color:var(--gv-ink)]">{a.title}</p>
+            <p className="gv-serif text-[17px] text-[color:var(--gv-ink)]">{a.title}</p>
             <p className="mt-1 text-sm text-[color:var(--gv-ink-3)]">{a.sub}</p>
             {(() => {
               const line = renderForecastLine(a.forecast);
               return line ? (
                 <div
-                  className={`mt-[10px] rounded px-[10px] py-2 gv-mono text-[11px] text-[color:var(--gv-ink-3)] ${forecastBg}`}
+                  className={`mt-[10px] rounded px-[10px] py-2 gv-kicker text-[color:var(--gv-ink-3)] ${forecastBg}`}
                 >
                   {line}
                 </div>

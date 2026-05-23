@@ -14,7 +14,7 @@ function CorpusEvidenceCard({ ex }: { ex: FormatCardExample }) {
     <div className="mb-3 mt-2 flex gap-3 rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-3">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-[color:var(--gv-rule)] px-1.5 py-0.5 font-mono text-[9px] text-[color:var(--gv-ink-4)]">
+          <span className="rounded-full border border-[color:var(--gv-rule)] px-1.5 py-0.5 gv-kicker text-[color:var(--gv-ink-4)]">
             Từ corpus
           </span>
           {ex.creator_handle ? (
@@ -28,7 +28,7 @@ function CorpusEvidenceCard({ ex }: { ex: FormatCardExample }) {
           </p>
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="gv-mono text-[11px] font-medium text-[color:var(--gv-ink)]">
+          <span className="gv-kicker text-[color:var(--gv-ink)]">
             {formatViews(ex.play_count)} lượt xem
           </span>
           {ex.tiktok_url ? (
@@ -77,12 +77,12 @@ export function EvidenceVideoEmbed({
             <span className="text-[11px] text-[color:var(--gv-ink-3)]">@{video.author_handle}</span>
           ) : null}
           {video.source === "live_search" ? (
-            <span className="rounded-full border border-[color:var(--gv-rule)] px-1.5 py-0.5 font-mono text-[9px] text-[color:var(--gv-ink-4)]">
+            <span className="rounded-full border border-[color:var(--gv-rule)] px-1.5 py-0.5 gv-kicker text-[color:var(--gv-ink-4)]">
               Tìm mới
             </span>
           ) : null}
           {video.hook_type ? (
-            <span className="rounded-full bg-[color:var(--gv-accent-soft)] px-1.5 py-0.5 font-mono text-[9px] text-[color:var(--gv-ink-2)]">
+            <span className="rounded-full bg-[color:var(--gv-accent-soft)] px-1.5 py-0.5 gv-kicker text-[color:var(--gv-ink-2)]">
               {video.hook_type}
             </span>
           ) : null}
@@ -95,7 +95,7 @@ export function EvidenceVideoEmbed({
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
           {video.views != null ? (
-            <span className="gv-mono text-[11px] font-medium text-[color:var(--gv-ink)]">
+            <span className="gv-kicker text-[color:var(--gv-ink)]">
               {formatViews(video.views)} lượt xem
             </span>
           ) : null}

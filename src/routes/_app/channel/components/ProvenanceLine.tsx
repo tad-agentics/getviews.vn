@@ -10,7 +10,7 @@ interface ProvenanceLineProps {
 
 export function ProvenanceLine({ provenance, cacheHit }: ProvenanceLineProps) {
   return (
-    <p className="text-[10px] text-[color:var(--muted)] mt-4 mb-2 italic">
+    <p className="text-[11px] text-[color:var(--muted)] mt-4 mb-2 italic">
       {provenance}
       {cacheHit && (
         <span className="ml-2 not-italic font-medium text-[color:var(--muted)] opacity-70">

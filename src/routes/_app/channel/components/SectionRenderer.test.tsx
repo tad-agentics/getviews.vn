@@ -165,7 +165,7 @@ describe("VideoTileRow", () => {
     const tiles = Array.from({ length: 6 }, (_, i) => makeTile({ video_url: `u${i}`, views: i * 1000 }));
     const { container } = render(<VideoTileRow tiles={tiles} />);
     // Each tile is an <a> or a sibling div; count views badges
-    const viewBadges = container.querySelectorAll('.font-mono');
+    const viewBadges = container.querySelectorAll("a[aria-label^='Xem video']");
     expect(viewBadges.length).toBe(4);
   });
 

@@ -45,13 +45,13 @@ function formatLabelVi(format: string | null | undefined): string | null {
 function TypePill({ type }: { type: "answer" | "chat" }) {
   if (type === "answer") {
     return (
-      <span className="gv-mono inline-flex items-center rounded border border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] px-2 py-[2px] text-[10px] uppercase tracking-wide text-[color:var(--gv-accent-deep)]">
+      <span className="gv-mono inline-flex items-center rounded border border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] px-2 py-[2px] text-[11px] gv-kicker tracking-wide text-[color:var(--gv-accent-deep)]">
         Nghiên cứu
       </span>
     );
   }
   return (
-    <span className="gv-mono inline-flex items-center rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-[2px] text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-3)]">
+    <span className="gv-mono inline-flex items-center rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-[2px] text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
       Hội thoại
     </span>
   );
@@ -61,7 +61,7 @@ function FormatSubPill({ format }: { format: string | null | undefined }) {
   const label = formatLabelVi(format);
   if (!label) return null;
   return (
-    <span className="gv-mono inline-flex items-center rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2 py-[2px] text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-3)]">
+    <span className="gv-mono inline-flex items-center rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2 py-[2px] text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
       {label}
     </span>
   );
@@ -98,14 +98,14 @@ export function HistoryRow({
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <TypePill type={row.type} />
           <FormatSubPill format={row.format} />
-          <span className="gv-mono ml-auto text-[10px] text-[color:var(--gv-ink-4)]">
+          <span className="gv-mono ml-auto text-[11px] text-[color:var(--gv-ink-4)]">
             {relativeTime(row.updated_at)}
           </span>
         </div>
         <p className="line-clamp-2 text-[14px] leading-snug text-[color:var(--gv-ink)]">
           {title}
         </p>
-        <p className="gv-mono mt-1 text-[11px] text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mt-1 text-[11px] text-[color:var(--gv-ink-3)]">
           {row.turn_count} {row.type === "answer" ? "lượt" : "tin nhắn"}
         </p>
       </button>

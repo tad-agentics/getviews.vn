@@ -104,7 +104,7 @@ export function ShotTypeVisual({ intelSceneType, cam, className = "", caption }:
       aria-label={`Scene type: ${style.label}`}
     >
       <Icon className="h-5 w-5 opacity-90" strokeWidth={1.75} aria-hidden />
-      <span className="gv-mono text-center text-[9px] leading-[1.1] opacity-80 line-clamp-2">
+      <span className="gv-mono text-center text-[11px] leading-[1.1] opacity-80 line-clamp-2">
         {sub}
       </span>
     </div>

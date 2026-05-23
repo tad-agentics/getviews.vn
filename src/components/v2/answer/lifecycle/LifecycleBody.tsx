@@ -72,7 +72,7 @@ function StagePill({ stage }: { stage: LifecycleStageData }) {
   }[stage];
   return (
     <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 gv-mono text-[10px] uppercase tracking-wide ${toneClass}`}
+      className={`inline-flex items-center rounded border px-2 py-0.5 gv-kicker ${toneClass}`}
     >
       {STAGE_PILL_VN[stage]}
     </span>
@@ -111,7 +111,7 @@ function LifecycleCellCard({
   return (
     <li className="flex flex-col rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
       <header className="flex flex-wrap items-center gap-2">
-        <span className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <span className="gv-kicker text-[color:var(--gv-ink-4)]">
           #{rank}
         </span>
         <StagePill stage={cell.stage} />
@@ -120,10 +120,10 @@ function LifecycleCellCard({
           {Math.round(delta)}%
         </span>
       </header>
-      <p className="gv-serif mt-2 text-[16px] text-[color:var(--gv-ink)]">
+      <p className="gv-serif mt-2 text-[17px] text-[color:var(--gv-ink)]">
         {cell.name}
       </p>
-      <div className="mt-2 flex flex-wrap gap-3 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+      <div className="mt-2 flex flex-wrap gap-3 gv-kicker text-[color:var(--gv-ink-3)]">
         <span>Health {cell.health_score}/100</span>
         {suppLine ? <span>·</span> : null}
         {suppLine ? <span>{suppLine}</span> : null}
@@ -147,10 +147,10 @@ function RefreshMovesList({ moves }: { moves: RefreshMoveData[] }) {
   if (moves.length === 0) return null;
   return (
     <section>
-      <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
         Refresh
       </p>
-      <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
+      <h3 className="gv-serif mb-3 text-[17px] text-[color:var(--gv-ink)]">
         Cách làm mới cell đang yếu
       </h3>
       <ul className="space-y-2">
@@ -160,10 +160,10 @@ function RefreshMovesList({ moves }: { moves: RefreshMoveData[] }) {
             className="rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4"
           >
             <header className="flex flex-wrap items-center justify-between gap-2">
-              <p className="gv-serif text-[15px] text-[color:var(--gv-ink)]">
+              <p className="gv-serif text-[17px] text-[color:var(--gv-ink)]">
                 {m.title}
               </p>
-              <span className="rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-0.5 gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-3)]">
+              <span className="rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-0.5 gv-kicker text-[color:var(--gv-ink-3)]">
                 {EFFORT_LABEL_VN[m.effort]}
               </span>
             </header>
@@ -197,19 +197,19 @@ export function LifecycleBody({ report }: { report: LifecycleReportPayload }) {
 
       {/* A1 — staggered fade-up (per design pack ``screens/answer.jsx`` §reveal). */}
       <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
-        <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
           {header.kicker}
         </p>
-        <h3 className="gv-serif mb-2 text-[20px] leading-tight text-[color:var(--gv-ink)]">
+        <h3 className="gv-serif mb-2 text-[22px] leading-tight text-[color:var(--gv-ink)]">
           {header.title}
         </h3>
-        <p className="text-[15px] leading-snug text-[color:var(--gv-ink-2)]">
+        <p className="text-[17px] leading-snug text-[color:var(--gv-ink-2)]">
           {report.subject_line}
         </p>
       </section>
 
       <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
-        <p className="gv-mono mb-3 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
           Xếp hạng ({report.cells.length})
         </p>
         <ul className="grid grid-cols-1 gap-3 min-[900px]:grid-cols-2">
@@ -228,10 +228,10 @@ export function LifecycleBody({ report }: { report: LifecycleReportPayload }) {
 
       {report.actions.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
-          <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
             Bước tiếp theo
           </p>
-          <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
+          <h3 className="gv-serif mb-3 text-[17px] text-[color:var(--gv-ink)]">
             Biến chu trình thành hành động
           </h3>
           <TimingActionCards actions={report.actions} />

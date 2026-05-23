@@ -8,7 +8,7 @@ export type ScriptPacingRibbonProps = {
 
 function LegendDot({ colorVar, label }: { colorVar: string; label: string }) {
   return (
-    <span className="gv-mono inline-flex items-center gap-[5px] text-[10px] text-[color:var(--gv-ink-3)]">
+    <span className="gv-mono inline-flex items-center gap-[5px] text-[11px] text-[color:var(--gv-ink-3)]">
       <span className="inline-block h-2 w-2 shrink-0" style={{ background: `var(${colorVar})` }} />
       {label}
     </span>
@@ -23,10 +23,10 @@ export function ScriptPacingRibbon({ shots, activeShot, onSelectShot }: ScriptPa
     <div className="rounded-none border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] p-3.5">
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="gv-mono gv-uc mb-1 text-[10px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+          <div className="gv-mono gv-uc mb-1 text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
             NHỊP ĐỘ · PACING RIBBON
           </div>
-          <p className="text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
+          <p className="text-sm leading-snug text-[color:var(--gv-ink-2)]">
             Tempo kịch bản vs{" "}
             <span className="text-[color:var(--gv-chart-benchmark)]">video thắng trong ngách</span>
           </p>
@@ -66,7 +66,7 @@ export function ScriptPacingRibbon({ shots, activeShot, onSelectShot }: ScriptPa
                 className="absolute bottom-0 left-[55%] w-1/4 opacity-50"
                 style={{ height: `${nicheH}%`, backgroundColor: "var(--gv-chart-benchmark)" }}
               />
-              <div className="gv-mono pointer-events-none absolute left-[3px] top-0 text-[9px] text-[color:var(--gv-ink-4)]">
+              <div className="gv-mono pointer-events-none absolute left-[3px] top-0 text-[11px] text-[color:var(--gv-ink-4)]">
                 {String(i + 1).padStart(2, "0")}
               </div>
             </button>
@@ -78,7 +78,7 @@ export function ScriptPacingRibbon({ shots, activeShot, onSelectShot }: ScriptPa
         {shots.map((s, i) => (
           <div
             key={`tick-${i}`}
-            className={`gv-mono pt-0.5 pl-[3px] text-[9px] text-[color:var(--gv-ink-4)] ${
+            className={`gv-mono pt-0.5 pl-[3px] text-[11px] text-[color:var(--gv-ink-4)] ${
               i > 0 ? "border-l border-[color:var(--gv-rule)]" : ""
             }`}
             style={{ flex: (s.t1 - s.t0) / total }}

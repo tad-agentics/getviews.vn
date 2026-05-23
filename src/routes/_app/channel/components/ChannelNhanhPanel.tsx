@@ -17,7 +17,7 @@ export function ChannelNhanhPanel({ handle, onUpgradeToSau }: ChannelNhanhPanelP
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-8 text-[13px] text-[color:var(--gv-ink-3)]">
+      <div className="flex items-center gap-2 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-8 text-sm text-[color:var(--gv-ink-3)]">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
         Đang đọc kho corpus cho {at}…
       </div>
@@ -27,7 +27,7 @@ export function ChannelNhanhPanel({ handle, onUpgradeToSau }: ChannelNhanhPanelP
   if (isError || !data || data.corpus_video_count < 3) {
     return (
       <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6">
-        <p className="m-0 text-[13px] text-[color:var(--gv-ink-3)]">
+        <p className="m-0 text-sm text-[color:var(--gv-ink-3)]">
           Chưa đủ video của {at} trong kho để soi nhanh — thử{" "}
           <button type="button" className="font-semibold text-[color:var(--gv-accent)] underline-offset-2 hover:underline" onClick={onUpgradeToSau}>
             Sâu
@@ -47,10 +47,10 @@ export function ChannelNhanhPanel({ handle, onUpgradeToSau }: ChannelNhanhPanelP
     <div className="flex flex-col gap-4 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 sm:px-7">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="gv-mono m-0 text-[10px] uppercase tracking-[0.12em] text-[color:var(--gv-accent-deep)]">
+          <p className="gv-mono m-0 text-[11px] gv-kicker tracking-[0.12em] text-[color:var(--gv-accent-deep)]">
             Soi kênh · Nhanh
           </p>
-          <h2 className="gv-tight m-0 mt-1 text-[18px] font-semibold text-[color:var(--gv-ink)]">{at}</h2>
+          <h2 className="gv-tight m-0 mt-1 text-[17px] font-semibold text-[color:var(--gv-ink)]">{at}</h2>
           <p className="m-0 mt-1 text-[12px] text-[color:var(--gv-ink-3)]">
             {data.corpus_video_count} video gần nhất trong kho · không trừ credit
           </p>
@@ -74,14 +74,14 @@ export function ChannelNhanhPanel({ handle, onUpgradeToSau }: ChannelNhanhPanelP
           {data.findings.map((f) => (
             <li
               key={f.finding_id}
-              className="rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 py-2.5 text-[12.5px] leading-snug text-[color:var(--gv-ink-2)]"
+              className="rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 py-2.5 text-xs leading-snug text-[color:var(--gv-ink-2)]"
             >
               {f.teaser}
             </li>
           ))}
         </ul>
       ) : data.teaser ? (
-        <p className="m-0 text-[12.5px] leading-snug text-[color:var(--gv-ink-2)]">{data.teaser}</p>
+        <p className="m-0 text-xs leading-snug text-[color:var(--gv-ink-2)]">{data.teaser}</p>
       ) : null}
 
       {breakoutUrl ? (
@@ -99,8 +99,8 @@ export function ChannelNhanhPanel({ handle, onUpgradeToSau }: ChannelNhanhPanelP
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 py-2.5">
-      <p className="gv-mono m-0 text-[9px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">{label}</p>
-      <p className="gv-mono m-0 mt-1 text-[15px] font-semibold text-[color:var(--gv-ink)]">{value}</p>
+      <p className="gv-mono m-0 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">{label}</p>
+      <p className="gv-mono m-0 mt-1 text-[17px] font-semibold text-[color:var(--gv-ink)]">{value}</p>
     </div>
   );
 }

@@ -27,7 +27,7 @@ export const DouyinComingSoonModal = memo(function DouyinComingSoonModal() {
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader className="text-left">
-          <p className="gv-mono mb-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
+          <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
             Tham chiếu
           </p>
           <DialogTitle className="gv-tight text-xl font-medium text-[color:var(--gv-ink)]">

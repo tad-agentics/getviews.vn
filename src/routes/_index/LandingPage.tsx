@@ -539,7 +539,7 @@ function LiveDemoSection({
           <div className="flex gap-4 overflow-x-auto pb-1">
             {NICHE_STRIP.map((niche) => (
               <div key={niche.label} className="flex-shrink-0 flex flex-col gap-1.5">
-                <p className="text-[10px] font-semibold text-[color:var(--gv-ink-3)] uppercase tracking-wide">{niche.label}</p>
+                <p className="text-[11px] font-semibold text-[color:var(--gv-ink-3)] gv-kicker tracking-wide">{niche.label}</p>
                 <div className="flex gap-1">
                   {niche.ids.map((id) => (
                     <div
@@ -699,7 +699,7 @@ function CredibilitySection({ corpusLabel }: { corpusLabel: string }) {
                 </svg>
               </div>
             </div>
-            <p className="text-[10px] text-[color:var(--gv-ink-3)] text-center mt-2">
+            <p className="text-[11px] text-[color:var(--gv-ink-3)] text-center mt-2">
               {corpusLabel} video · 21 niche · Cập nhật hàng tuần
             </p>
           </div>
@@ -950,7 +950,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-[color:var(--gv-rule)]">
-                  <p className="text-xs font-mono text-[color:var(--gv-ink-4)]">So khớp với 1.247 video skincare · 7 ngày qua</p>
+                  <p className="text-xs font-mono text-[color:var(--gv-ink-3)]">So khớp với 1.247 video skincare · 7 ngày qua</p>
                 </div>
               </div>
 
@@ -1122,7 +1122,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 </div>
               </div>
             </div>
-            <p className="text-xs font-mono text-[color:var(--gv-ink-4)] mt-6 pt-4 border-t border-[color:var(--gv-rule)]">
+            <p className="text-xs font-mono text-[color:var(--gv-ink-3)] mt-6 pt-4 border-t border-[color:var(--gv-rule)]">
               412 video review đồ gia dụng · 7 ngày · Updated 4h ago
             </p>
           </motion.div>
@@ -1180,7 +1180,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 >
                   {period === "monthly" ? "Tháng" : period === "biannual" ? "6 tháng" : "Năm"}
                   {period === "annual" && billingPeriod !== "annual" && (
-                    <span className="absolute -top-2 -right-2 bg-[color:var(--gv-ink)] text-white text-[9px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
+                    <span className="absolute -top-2 -right-2 bg-[color:var(--gv-ink)] text-white text-[11px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
                       Save 20%
                     </span>
                   )}
@@ -1219,7 +1219,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   to="/login"
                   className={`inline-flex w-full items-center justify-center rounded-lg px-6 py-3 text-sm font-medium transition-all duration-[120ms] ease-out active:scale-95 ${
                     plan.popular
-                      ? "bg-[color:var(--gv-accent)] text-white hover:bg-[color:var(--gv-accent-deep)] disabled:opacity-50"
+                      ? "bg-[color:var(--gv-accent)] text-white hover:bg-[color:var(--gv-accent-deep)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100"
                       : "border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-rule-2)]"
                   } py-2`}
                 >

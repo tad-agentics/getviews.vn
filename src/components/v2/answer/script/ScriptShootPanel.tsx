@@ -27,7 +27,7 @@ export function ScriptShootPanel({
         aria-label="Đang tải kịch bản"
       >
         <Loader2 className="h-5 w-5 animate-spin text-[color:var(--gv-accent)]" strokeWidth={1.5} />
-        <span className="gv-mono text-[13px] text-[color:var(--gv-ink-3)]">Đang tải kịch bản…</span>
+        <span className="gv-mono text-sm text-[color:var(--gv-ink-3)]">Đang tải kịch bản…</span>
       </div>
     );
   }
@@ -52,7 +52,7 @@ export function ScriptShootPanel({
       aria-label="Chế độ quay"
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[color:var(--gv-rule)] pb-3">
-        <p className="gv-mono m-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-accent)]">
+        <p className="gv-mono m-0 text-[11px] font-semibold gv-kicker tracking-[0.16em] text-[color:var(--gv-accent)]">
           CHẾ ĐỘ QUAY
         </p>
         <Btn variant="ghost" size="sm" type="button" onClick={onClose}>
@@ -60,7 +60,7 @@ export function ScriptShootPanel({
         </Btn>
       </div>
       <header className="border-b-2 border-[color:var(--gv-ink)] pb-4">
-        <div className="gv-mono gv-uc mb-1.5 text-[10px] font-semibold tracking-[0.18em] text-[color:var(--gv-accent)]">
+        <div className="gv-mono gv-uc mb-1.5 text-[11px] font-semibold tracking-[0.18em] text-[color:var(--gv-accent)]">
           HOOK · {draft.tone} · {draft.duration_sec}s
         </div>
         <h2 className="gv-serif m-0 text-[clamp(22px,3.4vw,30px)] leading-[1.2] text-[color:var(--gv-ink)]">
@@ -85,15 +85,15 @@ function ShootShotBlock({ shot, index }: { shot: ScriptShot; index: number }) {
   return (
     <li className="list-none overflow-hidden rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]">
       <div className="p-4">
-        <div className="gv-mono mb-2 text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)]">
+        <div className="gv-mono mb-2 text-[11px] gv-kicker tracking-[0.1em] text-[color:var(--gv-ink-3)]">
           Cảnh {index + 1} · {timePrefix} · {shot.cam}
         </div>
-        <p className="gv-serif m-0 text-[18px] leading-[1.35] text-[color:var(--gv-ink)]">
+        <p className="gv-serif m-0 text-[17px] leading-[1.35] text-[color:var(--gv-ink)]">
           {shot.voice || "(không có voice)"}
         </p>
         {shot.viz ? (
           <p className="gv-mono mt-3 text-[12px] leading-[1.45] text-[color:var(--gv-ink-3)]">
-            <span className="gv-uc mr-2 text-[10px] tracking-[0.12em] text-[color:var(--gv-ink-4)]">
+            <span className="gv-uc mr-2 text-[11px] tracking-[0.12em] text-[color:var(--gv-ink-4)]">
               Viz
             </span>
             {shot.viz}
@@ -101,7 +101,7 @@ function ShootShotBlock({ shot, index }: { shot: ScriptShot; index: number }) {
         ) : null}
         {overlay && overlay !== "NONE" ? (
           <p className="gv-mono mt-1.5 text-[12px] leading-[1.45] text-[color:var(--gv-ink-3)]">
-            <span className="gv-uc mr-2 text-[10px] tracking-[0.12em] text-[color:var(--gv-ink-4)]">
+            <span className="gv-uc mr-2 text-[11px] tracking-[0.12em] text-[color:var(--gv-ink-4)]">
               Overlay
             </span>
             {overlayStyleVi(overlay, overlay)}

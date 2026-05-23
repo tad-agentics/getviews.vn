@@ -7,7 +7,7 @@ export function ChannelQuickPeekTeaser({ handle }: { handle: string | null }) {
   if (!teaser) return null;
   return (
     <p className="mt-1 text-[11px] leading-snug text-[color:var(--gv-ink-3)] line-clamp-2">
-      <span className="gv-mono text-[9px] uppercase tracking-wide text-[color:var(--gv-accent)]">
+      <span className="gv-kicker text-[color:var(--gv-accent)]">
         Soi kênh ·{" "}
       </span>
       {teaser}

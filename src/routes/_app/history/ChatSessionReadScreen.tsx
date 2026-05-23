@@ -84,7 +84,7 @@ export default function ChatSessionReadScreen() {
             <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />
             Lịch sử
           </Btn>
-          <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gv-ink-4)]">
+          <span className="gv-kicker text-[var(--gv-ink-4)]">
             Phiên chat (chỉ đọc)
           </span>
         </div>

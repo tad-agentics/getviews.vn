@@ -56,7 +56,7 @@ function VerdictBadge({ verdict }: { verdict: DiagnosticVerdictData }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 gv-mono text-[10px] uppercase tracking-wide ${toneClass}`}
+      className={`inline-flex items-center rounded border px-2 py-0.5 gv-kicker ${toneClass}`}
       data-verdict={verdict}
     >
       {VERDICT_LABEL_VN[verdict]}
@@ -76,12 +76,12 @@ function CategoryCard({
   return (
     <li className="flex flex-col rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
       <header className="flex flex-wrap items-center gap-2">
-        <span className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <span className="gv-kicker text-[color:var(--gv-ink-4)]">
           #{rank}
         </span>
         <VerdictBadge verdict={category.verdict} />
       </header>
-      <p className="gv-serif mt-2 text-[16px] text-[color:var(--gv-ink)]">
+      <p className="gv-serif mt-2 text-[17px] text-[color:var(--gv-ink)]">
         {category.name}
       </p>
       <p className="mt-2 text-sm leading-snug text-[color:var(--gv-ink-2)]">
@@ -108,17 +108,17 @@ function PrescriptionCard({ p }: { p: DiagnosticPrescriptionData }) {
   return (
     <li className="flex flex-col rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
       <header className="flex flex-wrap items-center gap-2">
-        <span className="rounded border border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] px-2 py-0.5 gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-accent-deep)]">
+        <span className="rounded border border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] px-2 py-0.5 gv-kicker text-[color:var(--gv-accent-deep)]">
           {p.priority}
         </span>
-        <span className="ml-auto gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <span className="ml-auto gv-kicker text-[color:var(--gv-ink-4)]">
           {EFFORT_LABEL_VN[p.effort]}
         </span>
       </header>
-      <p className="gv-serif mt-2 text-[16px] text-[color:var(--gv-ink)]">
+      <p className="gv-serif mt-2 text-[17px] text-[color:var(--gv-ink)]">
         {p.action}
       </p>
-      <p className="mt-2 rounded bg-[color:var(--gv-canvas-2)] px-3 py-2 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+      <p className="mt-2 rounded bg-[color:var(--gv-canvas-2)] px-3 py-2 gv-kicker text-[color:var(--gv-ink-3)]">
         {p.impact}
       </p>
     </li>
@@ -140,10 +140,10 @@ function NicheExecutionTipCallout({ tip }: { tip: string }) {
       className="gv-surface-brutal gv-surface-brutal--compact p-4"
       data-testid="niche-execution-tip"
     >
-      <p className="gv-mono gv-uc text-[10px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono gv-uc text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-3)]">
         Gợi ý ngách · tuần này
       </p>
-      <p className="gv-serif mt-1.5 text-[16px] leading-snug text-[color:var(--gv-ink)]">
+      <p className="gv-serif mt-1.5 text-[17px] leading-snug text-[color:var(--gv-ink)]">
         {tip}
       </p>
     </div>
@@ -164,10 +164,10 @@ function PasteLinkCTA({
       onClick={() => navigate(cta.route)}
       className="w-full rounded-lg border-2 border-[color:var(--gv-accent)] bg-[color:var(--gv-paper)] p-4 text-left transition-colors hover:bg-[color:var(--gv-accent-soft)]"
     >
-      <p className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-accent-deep)]">
+      <p className="gv-kicker text-[color:var(--gv-accent-deep)]">
         Chẩn đoán chính xác
       </p>
-      <p className="gv-serif mt-1 text-[18px] leading-snug text-[color:var(--gv-ink)]">
+      <p className="gv-serif mt-1 text-[17px] leading-snug text-[color:var(--gv-ink)]">
         {cta.title}
       </p>
     </button>
@@ -193,19 +193,19 @@ export function DiagnosticBody({ report }: { report: DiagnosticReportPayload }) 
 
       {/* A1 — staggered fade-up (per design pack ``screens/answer.jsx`` §reveal). */}
       <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
-        <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
           Chẩn đoán URL-less
         </p>
-        <h3 className="gv-serif mb-2 text-[20px] leading-tight text-[color:var(--gv-ink)]">
+        <h3 className="gv-serif mb-2 text-[22px] leading-tight text-[color:var(--gv-ink)]">
           5 hạng mục — không có link video
         </h3>
-        <p className="text-[15px] leading-snug text-[color:var(--gv-ink-2)]">
+        <p className="text-[17px] leading-snug text-[color:var(--gv-ink-2)]">
           {report.framing}
         </p>
       </section>
 
       <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
-        <p className="gv-mono mb-3 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
           Hạng mục ({report.categories.length})
         </p>
         <ul className="grid grid-cols-1 gap-3 min-[900px]:grid-cols-2">
@@ -225,10 +225,10 @@ export function DiagnosticBody({ report }: { report: DiagnosticReportPayload }) 
 
       {report.prescriptions.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
-          <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
             Ưu tiên sửa
           </p>
-          <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
+          <h3 className="gv-serif mb-3 text-[17px] text-[color:var(--gv-ink)]">
             Thử theo thứ tự này
           </h3>
           <ul className="grid grid-cols-1 gap-3 min-[900px]:grid-cols-3">

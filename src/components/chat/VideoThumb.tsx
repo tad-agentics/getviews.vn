@@ -72,7 +72,7 @@ export function VideoThumb({
             <path fill="#69C9D0" d="M10.06 13.28a2.89 2.89 0 0 0-2.89 2.89 2.89 2.89 0 0 0 2.89 2.89 2.89 2.89 0 0 0 2.88-2.5V2h3.45c.09.78.4 1.5.88 2.08a4.83 4.83 0 0 0 2.9 2.17v3.44a8.18 8.18 0 0 1-4.78-1.52v6.5a6.34 6.34 0 0 1-6.33 6.33 6.34 6.34 0 0 1-6.34-6.34 6.34 6.34 0 0 1 6.34-6.34c.27 0 .53.02.79.05v3.48a2.89 2.89 0 0 0-.79-.1z"/>
             <path fill="#EE1D52" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"/>
           </svg>
-          <p className="text-center text-[9px] leading-tight text-[var(--faint)] px-1">Xem trên TikTok</p>
+          <p className="text-center text-[11px] leading-tight text-[var(--faint)] px-1">Xem trên TikTok</p>
         </div>
       )}
 
@@ -81,7 +81,7 @@ export function VideoThumb({
         <div className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/50 to-transparent">
           <div className="flex items-start justify-between px-1.5 pt-1.5">
             {handle ? (
-              <span className="max-w-[70%] truncate text-[10px] font-semibold leading-tight text-white/90">
+              <span className="max-w-[70%] truncate text-[11px] font-semibold leading-tight text-white/90">
                 {handle}
               </span>
             ) : <span />}
@@ -99,12 +99,12 @@ export function VideoThumb({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/60 to-transparent">
           <div className="flex items-end justify-between px-1.5 pb-1.5">
             {views != null && views > 0 ? (
-              <span className="font-mono text-[10px] font-semibold tabular-nums text-white/90">
+              <span className="gv-kicker tabular-nums text-white/90">
                 {formatVN(views)} views
               </span>
             ) : <span />}
             {daysAgo != null ? (
-              <span className="text-[10px] text-white/70">{formatRecencyVI(daysAgo)}</span>
+              <span className="text-[11px] text-white/70">{formatRecencyVI(daysAgo)}</span>
             ) : null}
           </div>
         </div>

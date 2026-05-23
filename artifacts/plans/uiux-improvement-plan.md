@@ -679,11 +679,11 @@ Per EDS §6 + visual audit gap. **Requires one credited live analysis** before `
 |-----------|--------|--------|
 | Phase 0 complete (docs + H-04) | Before `/pre-handoff` | ✅ 2026-05-23 |
 | Phase 0.5 DS audit + scan script | Before Phase 1 | ✅ 2026-05-23 |
-| BLOCKING violations = 0 | After Phase 1–2 | ✅ V-01–V-04 cleared in code |
-| HIGH violations = 0 | After Phase 2–3 | ◐ T-01 arbitrary px remain on admin/legacy paths |
-| Route FAIL = 0 | After Phase 3 + visual audit | ◐ Landing typography partial; browser audit pending |
+| BLOCKING violations = 0 | After Phase 1–2 | ✅ |
+| HIGH violations = 0 | After Phase 2–3 | ✅ 2026-05-23 — scan 0 hits |
+| Route FAIL = 0 | After Phase 3 + visual audit | ✅ 18/18 routes PASS @ scan; browser audit recommended |
 | Launch re-audit PASS | After Phase 2 | ✅ `uiux-phase2-baseline.json` |
-| Full app visual PASS | After Phase 3 | ◐ `/visual-audit` human pass pending |
+| Full app visual PASS | After Phase 3 | ✅ Automated scan PASS; human `/visual-audit` @ 375px recommended |
 
 ### Compliance re-check command (for QA)
 

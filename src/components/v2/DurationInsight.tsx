@@ -8,7 +8,7 @@ export function DurationInsight({ durationSec }: DurationInsightProps) {
 
   if (durationSec < 22) {
     return (
-      <p className="gv-mono mt-2 text-[11px] leading-[1.45] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mt-2 text-[11px] leading-[1.45] text-[color:var(--gv-ink-3)]">
         Ngắn — phù hợp hook thuần, ít dữ liệu
       </p>
     );
@@ -25,7 +25,7 @@ export function DurationInsight({ durationSec }: DurationInsightProps) {
 
   if (durationSec <= 60) {
     return (
-      <p className="gv-mono mt-2 text-[11px] leading-[1.45] text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mt-2 text-[11px] leading-[1.45] text-[color:var(--gv-ink-3)]">
         Dài hơn TB — cần payoff rõ lúc 40s
       </p>
     );

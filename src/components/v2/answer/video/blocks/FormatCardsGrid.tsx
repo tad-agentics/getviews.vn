@@ -34,7 +34,7 @@ export function FormatCardsGrid({
 
   return (
     <section className="mb-6">
-      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+      <h3 className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-4)]">
         Format đang hoạt động trong ngách này
       </h3>
       <div
@@ -60,7 +60,7 @@ export function FormatCardsGrid({
               key={`${card.format_name_vi}-${i}`}
               className="flex flex-col rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4"
             >
-              <h4 className="mb-1 text-[13px] font-semibold text-foreground">
+              <h4 className="mb-1 text-sm font-semibold text-foreground">
                 {card.format_name_vi}
               </h4>
               <p className="mb-2 text-[12px] leading-snug text-[color:var(--gv-ink-2)]">
@@ -77,7 +77,7 @@ export function FormatCardsGrid({
               ) : null}
               {hasEvidence ? (
                 <>
-                  <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+                  <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
                     Minh chứng trong kho
                   </p>
                   <EvidenceVideoEmbed
@@ -87,13 +87,13 @@ export function FormatCardsGrid({
                   />
                 </>
               ) : (
-                <p className="mb-2 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
+                <p className="mb-2 text-[11px] leading-snug text-[color:var(--gv-ink-3)]">
                   Chưa có video minh chứng từ kho cho format này.
                 </p>
               )}
               {moreExamples.length >= 1 ? (
                 <div className="mb-2 border-t border-[color:var(--gv-rule)] pt-3">
-                  <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+                  <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
                     Ví dụ thực tế
                   </p>
                   <div className="space-y-1.5">

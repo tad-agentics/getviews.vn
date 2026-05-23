@@ -117,7 +117,7 @@ type OauthErrorState = {
 /** Full-width OAuth / email actions — Studio radius + focus ring (matches v2/Btn focus). */
 const fullWidthAction =
   "flex w-full items-center justify-center gap-2.5 rounded-[var(--gv-radius-md)] px-4 py-3 text-sm font-semibold " +
-  "transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 " +
+  "transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100 " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)]";
 
 export default function LoginRoute() {
@@ -227,7 +227,7 @@ export default function LoginRoute() {
               <LoginHeroThumb
                 key={t.id}
                 videoId={t.id}
-                className="absolute h-[124px] w-[88px] overflow-hidden rounded-[var(--gv-radius-md)] border-2 border-white/10 shadow-xl"
+                className="absolute h-[124px] w-[88px] overflow-hidden rounded-[var(--gv-radius-md)] border-2 border-white/20"
                 style={{
                   transform: `rotate(${t.rotate}deg) translateX(${t.x}px) translateY(${t.y}px)`,
                   zIndex: t.z,
@@ -437,7 +437,7 @@ export default function LoginRoute() {
         </motion.p>
 
         <div className="w-full max-w-[400px] rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]/80 px-4 py-3 text-center backdrop-blur-sm">
-          <p className="text-[11px] leading-relaxed text-[color:var(--gv-ink-4)]">
+          <p className="text-[11px] leading-relaxed text-[color:var(--gv-ink-3)]">
             Bằng cách đăng nhập, bạn đồng ý với{" "}
             <Link to="#" className="text-[color:var(--gv-accent)] hover:underline">
               Điều khoản dịch vụ

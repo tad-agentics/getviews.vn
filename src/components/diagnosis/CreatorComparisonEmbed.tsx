@@ -33,7 +33,7 @@ function CreatorComparisonEvidenceCell({
       className={`flex flex-col gap-2 rounded-lg border ${borderCls} bg-[color:var(--gv-paper)] p-3`}
     >
       <span
-        className={`gv-mono text-[9px] font-semibold uppercase tracking-wider ${labelCls}`}
+        className={`gv-kicker ${labelCls}`}
       >
         {label}
       </span>
@@ -51,7 +51,7 @@ function CreatorComparisonEvidenceCell({
       <span className="gv-mono text-[22px] font-bold leading-none text-[color:var(--gv-ink)]">
         {fmtViews(video.views)}
       </span>
-      <span className="text-[10px] text-[color:var(--gv-ink-3)]">lượt xem</span>
+      <span className="text-[11px] text-[color:var(--gv-ink-3)]">lượt xem</span>
       {captionHint ? (
         <p className="m-0 line-clamp-2 text-[11px] leading-snug text-[color:var(--gv-ink-2)]">
           {captionHint}
@@ -67,7 +67,7 @@ function CreatorComparisonEvidenceCell({
           Xem video →
         </a>
       ) : (
-        <p className="m-0 mt-auto pt-1 text-[10px] text-[color:var(--gv-ink-4)]">
+        <p className="m-0 mt-auto pt-1 text-[11px] text-[color:var(--gv-ink-3)]">
           Chưa có link TikTok cho video này.
         </p>
       )}
@@ -81,7 +81,7 @@ export function CreatorComparisonEmbed({ data }: { data: CreatorComparison }) {
       className="mt-4 border-t border-[color:var(--gv-rule)] pt-4"
       aria-label={`So sánh trong kênh ${data.creator_handle}`}
     >
-      <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted)]">
+      <p className="mb-3 text-[11px] font-medium gv-kicker tracking-wide text-[color:var(--muted)]">
         So sánh trong kênh · {data.creator_handle}
       </p>
 
@@ -102,7 +102,7 @@ export function CreatorComparisonEmbed({ data }: { data: CreatorComparison }) {
         <span className="min-w-0 text-[12px] leading-snug text-[color:var(--gv-ink-2)]">
           Tỉ lệ views cao nhất so với thấp nhất trong mẫu
         </span>
-        <span className="gv-mono shrink-0 text-[13px] font-bold text-[color:var(--gv-ink)]">
+        <span className="gv-mono shrink-0 text-sm font-bold text-[color:var(--gv-ink)]">
           {data.delta.toLocaleString("vi-VN")}×
         </span>
       </div>

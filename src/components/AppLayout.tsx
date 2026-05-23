@@ -91,7 +91,7 @@ function NicheOfYoursBlock() {
 
   return (
     <div className="px-4 pb-2.5 pt-[14px]">
-      <p className="gv-uc mb-2.5 text-[9px] text-[color:var(--gv-ink-4)]">Ngách Của Bạn</p>
+      <p className="gv-uc mb-2.5 text-[11px] text-[color:var(--gv-ink-3)]">Ngách Của Bạn</p>
       <ul className="flex flex-col gap-1">
         {isPending && niches.length === 0
           ? sidebarIds.map((id) => (
@@ -107,7 +107,7 @@ function NicheOfYoursBlock() {
                 <li key={n.id} aria-current={isFocus ? "true" : undefined}>
                   <div className="flex w-full items-center justify-between gap-2 px-2.5 py-[6px] text-left text-[12px] text-[color:var(--gv-ink-2)]">
                     <span className="truncate">{n.name}</span>
-                    <span className="gv-mono shrink-0 text-[10px] text-[color:var(--gv-pos-deep)]">↑{n.hot}</span>
+                    <span className="gv-mono shrink-0 text-[11px] text-[color:var(--gv-pos-deep)]">↑{n.hot}</span>
                   </div>
                 </li>
               );
@@ -141,7 +141,7 @@ function NavItem({
       aria-disabled={disabled || undefined}
       aria-current={active ? "page" : undefined}
       className={[
-        "flex w-full items-center gap-2.5 rounded-md px-3 py-[9px] text-left text-[13px] transition-colors duration-150",
+        "flex w-full items-center gap-2.5 rounded-md px-3 py-[9px] text-left text-sm transition-colors duration-150",
         disabled
           ? "cursor-default font-medium text-[color:var(--gv-ink-2)] opacity-60"
           : active
@@ -152,7 +152,7 @@ function NavItem({
       <Icon className="h-[15px] w-[15px] shrink-0" strokeWidth={1.8} />
       <span className="min-w-0 flex-1 whitespace-nowrap">{label}</span>
       {badge ? (
-        <span className="shrink-0 text-[9px] font-medium uppercase tracking-wider text-[color:var(--gv-ink-4)]">
+        <span className="shrink-0 text-[11px] font-medium gv-kicker tracking-wider text-[color:var(--gv-ink-4)]">
           {badge}
         </span>
       ) : null}
@@ -659,12 +659,12 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             <LogoMark />
             <div className="min-w-0 leading-none">
               <span
-                className="gv-tight block text-[19px] font-bold leading-none text-[color:var(--gv-ink)] md:text-[20px]"
+                className="gv-tight block text-[17px] font-bold leading-none text-[color:var(--gv-ink)] md:text-[22px]"
                 style={{ letterSpacing: "-0.04em" }}
               >
                 Getviews<span className="text-[color:var(--gv-accent-2-deep)]">.</span>
               </span>
-              <p className="gv-uc mt-[3px] text-[9px] font-semibold text-[color:var(--gv-ink-4)] md:text-[9.5px]">
+              <p className="gv-uc mt-[3px] text-[11px] font-semibold text-[color:var(--gv-ink-3)] md:text-[11px]">
                 Creator Studio
               </p>
             </div>
@@ -729,7 +729,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             icon={Archive}
             label="Kho Douyin"
             active={active === "douyin"}
-            badge="🇨🇳"
+            badge="CN"
             onClick={() => {
               navigate("/app/douyin");
               onClose?.();
@@ -770,7 +770,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 transition={{ duration: 0.18, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
-                <p className="mb-2.5 flex items-center gap-1.5 gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+                <p className="mb-2.5 flex items-center gap-1.5 gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-3)]">
                   <Pin className="h-2.5 w-2.5 rotate-45" strokeWidth={2} />
                   Ghim
                 </p>
@@ -801,7 +801,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
           {recent.length > 0 && (
             <>
-              <p className="gv-uc mb-2.5 text-[9px] text-[color:var(--gv-ink-4)]">Gần Đây</p>
+              <p className="gv-uc mb-2.5 text-[11px] text-[color:var(--gv-ink-3)]">Gần Đây</p>
               <div className="flex flex-col gap-0">
                 {recent.map((session) => (
                   <SessionRow
@@ -830,10 +830,10 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           )}
 
           {sidebarSessionsLoading && sessions.length === 0 ? (
-            <p className="py-3 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">Đang tải phiên…</p>
+            <p className="py-3 text-[11px] leading-snug text-[color:var(--gv-ink-3)]">Đang tải phiên…</p>
           ) : null}
           {!sidebarSessionsLoading && sessions.length === 0 ? (
-            <p className="py-3 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
+            <p className="py-3 text-[11px] leading-snug text-[color:var(--gv-ink-3)]">
               Chưa có hội thoại hay phiên nghiên cứu nào.
             </p>
           ) : null}
@@ -867,7 +867,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               aria-haspopup="dialog"
               aria-expanded={showProfileModal}
               onClick={() => setShowProfileModal((v) => !v)}
-              className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--gv-accent)] text-[13px] font-semibold text-white ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[color:var(--gv-rule)]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--gv-accent)] text-sm font-semibold text-white ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[color:var(--gv-rule)]"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />

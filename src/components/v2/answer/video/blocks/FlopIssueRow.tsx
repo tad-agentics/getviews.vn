@@ -43,7 +43,7 @@ export function FlopIssueNarrativeRow({
     >
       {/* Rank number */}
       <div
-        className={`gv-mono mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${numCls}`}
+        className={`gv-mono mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${numCls}`}
         aria-label={`Lỗi ${rank}`}
       >
         {rank}
@@ -55,7 +55,7 @@ export function FlopIssueNarrativeRow({
         </h4>
 
         {narrativeItem?.narrative ? (
-          <p className="mb-2 mt-1.5 max-w-[640px] text-[13px] leading-relaxed text-foreground">
+          <p className="mb-2 mt-1.5 max-w-[640px] text-sm leading-relaxed text-foreground">
             {narrativeItem.narrative}
           </p>
         ) : null}
@@ -69,14 +69,14 @@ export function FlopIssueNarrativeRow({
 
         {/* detail paragraph */}
         {issue.detail ? (
-          <p className="mb-2 mt-1 max-w-[640px] text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+          <p className="mb-2 mt-1 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
             {issue.detail}
           </p>
         ) : null}
 
         {/* Fix action — "Sửa:" matches Vietnamese voice spec */}
         {issue.fix ? (
-          <p className="mt-1.5 max-w-[640px] text-[13px] leading-relaxed text-[color:var(--gv-ink-2)]">
+          <p className="mt-1.5 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-2)]">
             <span className="gv-mono mr-1.5 font-semibold text-[color:var(--gv-accent)]">
               Sửa:
             </span>

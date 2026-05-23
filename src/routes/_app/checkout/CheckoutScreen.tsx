@@ -48,7 +48,7 @@ function PaymentMethodIcon({ method }: { method: PaymentMethod }) {
       className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
       style={{ background: config.bg }}
     >
-      <span className="text-[10px] font-bold" style={{ color: config.color }}>
+      <span className="text-[11px] font-bold" style={{ color: config.color }}>
         {config.label}
       </span>
     </div>

@@ -4,7 +4,7 @@ import { QueryComposer } from "@/components/v2/QueryComposer";
 import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
 
 const FOLLOW_UP_PILL =
-  "inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-left text-[11px] font-medium leading-snug text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-left text-[11px] font-medium leading-snug text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] disabled:pointer-events-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100";
 
 const DEFAULT_FOLLOW_UPS = [
   "Thời điểm đăng nào tốt nhất cho các hook này?",
@@ -65,7 +65,7 @@ export function FollowUpComposer({
 
   return (
     <div className="mt-10">
-      <p className="mb-3 font-mono text-[10px] uppercase tracking-wide text-[var(--gv-ink-4)]">
+      <p className="mb-3 gv-kicker text-[var(--gv-ink-4)]">
         {kicker}
       </p>
       <QueryComposer

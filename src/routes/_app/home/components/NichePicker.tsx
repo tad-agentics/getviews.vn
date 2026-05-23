@@ -71,7 +71,7 @@ export const NichePicker = memo(function NichePicker({
   if (niches.length <= 1) {
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-[13px] font-medium text-[color:var(--gv-ink)]"
+        className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-sm font-medium text-[color:var(--gv-ink)]"
         aria-label="Ngách đang theo dõi"
       >
         <span
@@ -93,17 +93,17 @@ export const NichePicker = memo(function NichePicker({
         aria-controls={panelId}
         aria-label={`Ngách đang xem: ${current.name}`}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] px-3.5 py-2 text-[13px] font-medium text-[color:var(--gv-ink)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+        className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] px-3.5 py-2 text-sm font-medium text-[color:var(--gv-ink)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
       >
         <span
           aria-hidden
-          className="gv-mono text-[9px] font-bold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]"
+          className="gv-kicker text-[color:var(--gv-ink-4)]"
         >
           NGÁCH
         </span>
         <span>{current.name}</span>
         {current.hot > 0 ? (
-          <span className="gv-mono text-[11px] font-medium text-[color:var(--gv-pos-deep)]">
+          <span className="gv-kicker text-[color:var(--gv-pos-deep)]">
             ↑{current.hot} hot
           </span>
         ) : null}
@@ -125,12 +125,12 @@ export const NichePicker = memo(function NichePicker({
                 aria-selected={isCurrent}
                 onClick={() => handleSelect(n.id)}
                 className={
-                  "flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-[13px] text-[color:var(--gv-ink)] transition-colors hover:bg-[color:var(--gv-canvas-2)] " +
+                  "flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm text-[color:var(--gv-ink)] transition-colors hover:bg-[color:var(--gv-canvas-2)] " +
                   (isCurrent ? "bg-[color:var(--gv-canvas-2)]" : "")
                 }
               >
                 <span>{n.name}</span>
-                <span className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+                <span className="gv-kicker text-[color:var(--gv-ink-4)]">
                   {n.hot.toLocaleString("vi-VN")}
                 </span>
               </button>
@@ -143,7 +143,7 @@ export const NichePicker = memo(function NichePicker({
                 setOpen(false);
                 onEditNiches();
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left gv-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left gv-kicker text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
             >
               + Đổi ngách đang theo dõi
             </button>

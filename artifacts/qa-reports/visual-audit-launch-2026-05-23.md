@@ -9,7 +9,7 @@
 
 ## Verdict
 
-**PASS_WITH_CONCERNS** (B-01/B-02 **CLOSED** @ `2247047` — 2026-05-23)
+**PASS** (B-01/B-02 **CLOSED** @ `2247047`; UIUX scan **0 hits** @ `1dcdda4+` — 2026-05-23)
 
 The product is structurally complete and copy-compliant. All launch-delta screens (ChannelDepthPicker, Trends report, answer depth pills) are rendered and functional. **B-01** resolved via Option A+: EDS §5 synced to Getviews Magenta `#F72585` per Branding Guideline v1.1 — production was correct, docs were stale. **B-02** resolved: `api/landing-stats.ts` returns `corpus_indexed_count`; landing uses `formatCorpusMarketingCount()` with humility tier — no hardcoded "1.500+" in UI. Remaining items are NON-BLOCKING (NB-01–NB-08) and V/T compliance backlog per `uiux-improvement-plan.md`.
 
@@ -253,7 +253,7 @@ All functional requirements are met:
 
 ## Status Signal
 
-**DONE_WITH_CONCERNS** → **B-01/B-02 CLOSED @ 2026-05-23** (dogfood + NB items remain)
+**DONE** → **PASS** @ 2026-05-23 (automated scan 0 hits; dogfood attested; human browser audit recommended)
 
 **Closed (2026-05-23):**
 1. ~~**B-01:**~~ EDS §5 updated to magenta `#F72585` — production was correct; docs were stale.

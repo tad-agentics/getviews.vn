@@ -53,7 +53,7 @@ function FormatRangeCell({
       }`}
     >
       <p
-        className={`gv-mono m-0 text-[18px] font-bold leading-none ${
+        className={`gv-mono m-0 text-[17px] font-bold leading-none ${
           isAnalyzed ? "text-[color:var(--gv-accent)]" : "text-[color:var(--gv-ink)]"
         }`}
       >
@@ -65,7 +65,7 @@ function FormatRangeCell({
           <span className="ml-1.5 text-[color:var(--gv-ink-4)]">(video này)</span>
         ) : null}
       </p>
-      <p className="m-0 text-[10px] text-[color:var(--gv-ink-4)]">
+      <p className="m-0 text-[11px] text-[color:var(--gv-ink-3)]">
         {formatViews(entry.avg_views)} TB · {entry.n} video
       </p>
     </div>
@@ -151,7 +151,7 @@ export function ChannelProofBlock({
         </p>
       ) : null}
       {channelContext.median_views != null ? (
-        <p className="mt-1 text-[11px] text-[color:var(--gv-ink-4)]">
+        <p className="mt-1 text-[11px] text-[color:var(--gv-ink-3)]">
           Trung vị kênh:{" "}
           <span className="gv-mono font-medium text-[color:var(--gv-ink)]">
             {formatViews(Math.round(channelContext.median_views))}
@@ -171,7 +171,7 @@ export function ChannelProofBlock({
         className="mt-4 border-t border-[color:var(--gv-rule)] pt-4"
         aria-label="Dữ liệu format trên kênh"
       >
-        <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted)]">
+        <p className="mb-3 text-[11px] font-medium gv-kicker tracking-wide text-[color:var(--muted)]">
           Phân bổ format trên kênh {handle || ""}
         </p>
         {body}
@@ -181,7 +181,7 @@ export function ChannelProofBlock({
 
   return (
     <section className="mb-6" aria-label="Dữ liệu kênh">
-      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+      <h3 className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-4)]">
         Dữ liệu kênh {handle || ""}
       </h3>
       {body}
@@ -213,7 +213,7 @@ export function ChannelContextLegacy({
             key={v.aweme_id}
             className="rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3"
           >
-            <div className="mb-1 inline-block rounded-full bg-[color:var(--gv-pos)]/15 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase text-[color:var(--gv-pos)]">
+            <div className="mb-1 inline-block rounded-full bg-[color:var(--gv-pos)]/15 px-2 py-0.5 gv-kicker text-[color:var(--gv-pos)]">
               HIT
             </div>
             <p className="truncate text-[12px] text-[color:var(--gv-ink-2)]">
@@ -237,7 +237,7 @@ export function ChannelContextLegacy({
           </div>
         ))}
         <div className="rounded-[10px] border border-[color:var(--gv-accent)]/40 bg-[color:var(--gv-paper)] p-3">
-          <div className="mb-1 inline-block rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 font-mono text-[9px] font-semibold uppercase text-[color:var(--gv-accent)]">
+          <div className="mb-1 inline-block rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 gv-kicker text-[color:var(--gv-accent)]">
             Video này
           </div>
           <p className="truncate text-[12px] text-[color:var(--gv-ink-2)]">
@@ -257,7 +257,7 @@ export function ChannelContextLegacy({
               key={v.aweme_id}
               className="rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3"
             >
-              <div className="mb-1 inline-block rounded-full bg-[color:var(--gv-neg-soft)] px-2 py-0.5 font-mono text-[9px] font-semibold uppercase text-[color:var(--gv-neg)]">
+              <div className="mb-1 inline-block rounded-full bg-[color:var(--gv-neg-soft)] px-2 py-0.5 gv-kicker text-[color:var(--gv-neg)]">
                 Thấp hơn TB
               </div>
               <p className="truncate text-[12px] text-[color:var(--gv-ink-2)]">
@@ -303,7 +303,7 @@ export function ChannelContextLegacy({
         className="mt-4 border-t border-[color:var(--gv-rule)] pt-4"
         aria-label="Ngữ cảnh kênh"
       >
-        <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted)]">
+        <p className="mb-3 text-[11px] font-medium gv-kicker tracking-wide text-[color:var(--muted)]">
           Video gần đây trên kênh
         </p>
         {body}

@@ -106,10 +106,10 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
         ) : null}
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3.5 text-white">
           <div className="flex items-start justify-between gap-2">
-            <span className="rounded px-2 py-0.5 gv-mono text-[10px] font-bold uppercase tracking-[0.05em] text-white bg-[color:var(--gv-accent)]">
+            <span className="rounded px-2 py-0.5 gv-kicker text-white bg-[color:var(--gv-accent)]">
               {isBreakout ? "BREAKOUT" : "ĐANG NỔI"}
             </span>
-            {dur ? <span className="gv-mono text-[11px] opacity-95">{dur}</span> : null}
+            {dur ? <span className="gv-kicker opacity-95">{dur}</span> : null}
           </div>
           <div className="min-h-0 flex-1 flex flex-col justify-end pt-8">
             {v.hook_phrase ? (
@@ -129,10 +129,10 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
       </div>
       <div className="mt-3 space-y-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="gv-mono text-[11px] font-semibold text-[color:var(--gv-ink-3)]">
+          <span className="gv-kicker text-[color:var(--gv-ink-3)]">
             @{v.creator_handle}
           </span>
-          <span className="gv-mono text-[11px] font-bold text-[color:var(--gv-pos-deep)]">
+          <span className="gv-kicker text-[color:var(--gv-pos-deep)]">
             ↑ {formatViews(v.views)}
           </span>
         </div>

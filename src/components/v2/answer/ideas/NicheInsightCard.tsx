@@ -32,10 +32,10 @@ export function NicheInsightCard({ insight }: { insight: NicheInsightData | null
         Gợi ý ngách tuần này
       </p>
       <article className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
-        <p className="gv-mono mb-2 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
           Hành động ngay
         </p>
-        <p className="gv-serif text-[18px] leading-[1.4] text-[color:var(--gv-ink)]">
+        <p className="gv-serif text-[17px] leading-[1.4] text-[color:var(--gv-ink)]">
           {tip}
         </p>
         {formulaBadge ? (

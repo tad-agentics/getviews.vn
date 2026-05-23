@@ -43,7 +43,7 @@ function PillSelect<T extends string | number>({
 }) {
   return (
     <label className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5">
-      <span className="gv-uc text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+      <span className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
         {label}
       </span>
       <select
@@ -53,7 +53,7 @@ function PillSelect<T extends string | number>({
           const matched = options.find((o) => String(o.value) === raw);
           if (matched) onChange(matched.value);
         }}
-        className="bg-transparent gv-mono text-[11px] font-semibold text-[color:var(--gv-ink)] gv-focus"
+        className="bg-transparent gv-kicker text-[color:var(--gv-ink)] gv-focus"
       >
         {options.map((o) => (
           <option key={String(o.value)} value={String(o.value)}>
@@ -79,13 +79,13 @@ function LogEntryRow({ entry }: { entry: CloudRunLogEntry }) {
         className="flex w-full items-start gap-3 text-left"
         aria-expanded={hasMore ? expanded : undefined}
       >
-        <span className="w-[76px] shrink-0 gv-mono text-[10px] tabular-nums text-[color:var(--gv-ink-4)]">
+        <span className="w-[76px] shrink-0 gv-kicker tabular-nums text-[color:var(--gv-ink-4)]">
           {ts}
         </span>
-        <span className={`w-[74px] shrink-0 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] ${severityTone(entry.severity)}`}>
+        <span className={`w-[74px] shrink-0 gv-kicker ${severityTone(entry.severity)}`}>
           {entry.severity}
         </span>
-        <span className="min-w-0 flex-1 gv-mono text-[11px] leading-relaxed text-[color:var(--gv-ink)] break-words">
+        <span className="min-w-0 flex-1 gv-kicker leading-relaxed text-[color:var(--gv-ink)] break-words">
           {expanded ? entry.message : preview}
         </span>
       </button>
@@ -104,7 +104,7 @@ function DisabledCard({ reason, hint }: { reason: string; hint: string }) {
   return (
     <div className="flex flex-col gap-1.5 rounded-[var(--gv-radius-md)] border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
       <p className="gv-serif text-[14px] text-[color:var(--gv-ink)]">{title}</p>
-      <p className="gv-mono text-[11px] leading-relaxed text-[color:var(--gv-ink-3)]">
+      <p className="gv-kicker leading-relaxed text-[color:var(--gv-ink-3)]">
         {hint}
       </p>
     </div>
@@ -149,7 +149,7 @@ export function LogsPanel() {
           className="h-48 animate-pulse rounded-[var(--gv-radius-md)] bg-[color:var(--gv-canvas-2)]"
         />
       ) : q.isError ? (
-        <p className="text-[13px] text-[color:var(--gv-danger)]">
+        <p className="text-sm text-[color:var(--gv-danger)]">
           Không tải được logs ({q.error instanceof Error ? q.error.message : "unknown"}).
         </p>
       ) : !q.data ? null : q.data.enabled === false ? (

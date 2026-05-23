@@ -64,16 +64,16 @@ export function GenericEvidenceGrid({
               className="h-full w-full"
               placeholderClassName=""
             />
-            <span className="gv-mono absolute left-1 top-1 rounded bg-[color:var(--gv-paper)] px-1 text-[10px] text-[color:var(--gv-ink-3)]">
+            <span className="gv-mono absolute left-1 top-1 rounded bg-[color:var(--gv-paper)] px-1 text-[11px] text-[color:var(--gv-ink-3)]">
               #{i + 1}
             </span>
           </button>
           <div className="flex flex-col gap-1 border-t border-[color:var(--gv-rule)] px-3 py-2 text-[12px]">
-            <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+            <p className="gv-kicker text-[color:var(--gv-ink-3)]">
               {v.creator_handle}
             </p>
             <p className="line-clamp-2 text-[color:var(--gv-ink-2)]">{v.title}</p>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 gv-kicker text-[color:var(--gv-ink-3)]">
               <span>{formatViews(v.views)} view</span>
               {v.engagement_rate != null && v.engagement_rate > 0 && (
                 <span className="font-semibold text-[color:var(--gv-accent)]">

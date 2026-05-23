@@ -13,7 +13,7 @@ export function CrossFormatPanel({
         kicker="Tín hiệu liên ngách"
         title={`Format ${signal.format_label_vi} đang lan toả ${signal.niches_with_format} ngách`}
       />
-      <p className="mt-1 text-[13px] text-[color:var(--gv-ink-3)]">
+      <p className="mt-1 text-sm text-[color:var(--gv-ink-3)]">
         Trong 30 ngày qua, {signal.total_sample_size} video cùng format này
         đang chạy ở {signal.niches_with_format} ngách khác nhau — tín hiệu
         format hot ngoài ngách của bạn.
@@ -28,7 +28,7 @@ export function CrossFormatPanel({
               <span className="font-medium text-[color:var(--gv-ink)]">
                 {h.hook_type_vi || h.hook_type}
               </span>
-              <span className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+              <span className="gv-kicker text-[color:var(--gv-ink-3)]">
                 {formatViews(Math.round(h.avg_views))} view ·{" "}
                 {h.niche_spread} ngách
               </span>

@@ -71,9 +71,9 @@ describe("CalendarStrip", () => {
     ];
     const { container } = render(<CalendarStrip slots={slots} />);
     const grid = container.querySelector(".grid");
-    const labels = Array.from(grid!.querySelectorAll("span.gv-mono"))
-      .map((n) => n.textContent?.trim() ?? "")
-      .filter((t) => /^(Thứ|CN)/.test(t));
+    const labels = Array.from(grid!.children).map(
+      (cell) => cell.querySelector("span")?.textContent?.trim() ?? "",
+    );
     expect(labels).toEqual(["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"]);
   });
 

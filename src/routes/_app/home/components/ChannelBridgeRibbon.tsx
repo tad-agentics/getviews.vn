@@ -26,7 +26,7 @@ export const ChannelBridgeRibbon = memo(function ChannelBridgeRibbon({
       className="flex flex-wrap items-center justify-between gap-3.5 bg-[color:var(--gv-ink)] px-5 py-4 text-[color:var(--gv-canvas)] sm:px-6"
     >
       <div className="min-w-0 flex-1">
-        <p className="gv-mono mb-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--gv-accent)]">
+        <p className="gv-mono mb-1 text-[11px] font-bold gv-kicker tracking-[0.1em] text-[color:var(--gv-accent)]">
           → TIẾP THEO
         </p>
         <p
@@ -39,7 +39,7 @@ export const ChannelBridgeRibbon = memo(function ChannelBridgeRibbon({
       <button
         type="button"
         onClick={onScrollToSuggestions}
-        className="gv-mono shrink-0 whitespace-nowrap rounded-[4px] bg-[color:var(--gv-accent)] px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[color:var(--gv-accent-deep)]"
+        className="gv-mono shrink-0 whitespace-nowrap rounded-[4px] bg-[color:var(--gv-accent)] px-3.5 py-2 text-[11px] font-bold gv-kicker tracking-[0.1em] text-white transition-colors hover:bg-[color:var(--gv-accent-deep)]"
       >
         Xem gợi ý ↓
       </button>

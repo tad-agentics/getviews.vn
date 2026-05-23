@@ -53,7 +53,7 @@ export function BottomTabBar({ active }: { active?: AppShellActive }) {
                 onClick={() => navigate(to)}
                 aria-current={isActive ? "page" : undefined}
                 className={
-                  "flex h-14 w-full flex-col items-center justify-center gap-0.5 px-0.5 text-[9px] font-medium leading-tight transition-colors sm:text-[10px] " +
+                  "flex h-14 w-full flex-col items-center justify-center gap-0.5 px-0.5 text-[11px] font-medium leading-tight transition-colors sm:text-[11px] " +
                   (isActive
                     ? "text-[color:var(--gv-ink)]"
                     : "text-[color:var(--gv-ink-4)] active:text-[color:var(--gv-ink)]")

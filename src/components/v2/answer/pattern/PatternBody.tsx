@@ -28,10 +28,10 @@ function sumToneClass(tone: SumStatData["tone"]): string {
 function OutlierStoryBanner({ story }: { story: OutlierStory }) {
   return (
     <div className="mb-6 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-3.5">
-      <p className="gv-mono mb-1 text-[9px] uppercase tracking-widest text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-widest text-[color:var(--gv-ink-3)]">
         Đỉnh cao tuần này
       </p>
-      <p className="text-[15px] leading-snug text-[color:var(--gv-ink)]">
+      <p className="text-[17px] leading-snug text-[color:var(--gv-ink)]">
         <span className="font-semibold">{story.creator_handle}</span> đạt{" "}
         <span className="font-mono font-bold text-[color:var(--gv-accent)]">
           {formatViews(story.views)} view
@@ -75,10 +75,10 @@ function ABPairStrip({ pair }: { pair: PatternABPair }) {
   return (
     <div className="mb-6 overflow-hidden rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
       <div className="border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-2.5">
-        <span className="gv-mono text-[9px] uppercase tracking-widest text-[color:var(--gv-ink-4)]">
+        <span className="gv-kickerst text-[color:var(--gv-ink-4)]">
           A/B cùng creator · {pair.creator_handle}
         </span>
-        <span className="gv-mono ml-2 text-[9px] text-[color:var(--gv-ink-3)]">{pair.hook_contrast}</span>
+        <span className="gv-mono ml-2 text-[11px] text-[color:var(--gv-ink-3)]">{pair.hook_contrast}</span>
       </div>
       <div className="grid grid-cols-2 divide-x divide-[color:var(--gv-rule)]">
         <AbPairSide
@@ -88,7 +88,7 @@ function ABPairStrip({ pair }: { pair: PatternABPair }) {
             tiktok_url: pair.hit.tiktok_url,
           })}
         >
-          <p className="gv-mono mb-1 text-[9px] uppercase text-[color:var(--gv-pos)]">Hook thắng</p>
+          <p className="gv-mono mb-1 text-[11px] gv-kicker text-[color:var(--gv-pos)]">Hook thắng</p>
           <p className="gv-mono text-[22px] font-bold leading-none text-[color:var(--gv-ink)]">
             {fmt(pair.hit.views)}
           </p>
@@ -101,7 +101,7 @@ function ABPairStrip({ pair }: { pair: PatternABPair }) {
             tiktok_url: pair.flop.tiktok_url,
           })}
         >
-          <p className="gv-mono mb-1 text-[9px] uppercase text-[color:var(--gv-ink-4)]">Hook thua</p>
+          <p className="gv-mono mb-1 text-[11px] gv-kicker text-[color:var(--gv-ink-3)]">Hook thua</p>
           <p className="gv-mono text-[22px] font-bold leading-none text-[color:var(--gv-ink-3)]">
             {fmt(pair.flop.views)}
           </p>
@@ -124,17 +124,17 @@ function CrossPatternSynthesis({ items }: { items: string[] }) {
   if (!visible.length) return null;
   return (
     <div className="mt-8 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-4">
-      <p className="gv-mono mb-3 text-[9px] uppercase tracking-widest text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-widest text-[color:var(--gv-ink-3)]">
         Tóm lại tuần này
       </p>
       <ul className="space-y-2.5">
         {visible.map((theme, i) => (
           <li
             key={`${i}-${theme.slice(0, 24)}`}
-            className="flex items-start gap-2.5 text-[13px] leading-snug text-[color:var(--gv-ink-2)]"
+            className="flex items-start gap-2.5 text-sm leading-snug text-[color:var(--gv-ink-2)]"
           >
             <span
-              className="mt-0.5 shrink-0 font-mono text-[11px] font-bold text-[color:var(--gv-accent)]"
+              className="mt-0.5 shrink-0 gv-kicker text-[color:var(--gv-accent)]"
               aria-hidden
             >
               →
@@ -194,18 +194,18 @@ export function PatternBody({
           all at once. ``gv-fade-up`` is defined in ``src/app.css`` and
           respects ``prefers-reduced-motion``. */}
       <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
-        <p className="gv-mono mb-2 text-[10px] tracking-wide text-[color:var(--gv-danger)]">
+        <p className="gv-mono mb-2 text-[11px] tracking-wide text-[color:var(--gv-danger)]">
           {labels.tldrKicker}
         </p>
         <h3 className="gv-serif mb-1 text-[22px] leading-snug text-[color:var(--gv-ink)]">
           {labels.tldrTitle}
         </h3>
-        <p className="mt-2 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">{report.tldr.thesis}</p>
+        <p className="mt-2 text-[17px] leading-relaxed text-[color:var(--gv-ink-2)]">{report.tldr.thesis}</p>
         {report.tldr.callouts && report.tldr.callouts.length > 0 ? (
           <div className="mt-6 grid grid-cols-1 gap-4 border-y border-[color:var(--gv-ink)] py-6 sm:grid-cols-3">
             {report.tldr.callouts.map((c) => (
               <div key={c.label} className="text-center">
-                <p className="gv-mono text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">{c.label}</p>
+                <p className="gv-kicker text-[color:var(--gv-ink-3)]">{c.label}</p>
                 <p className="gv-serif mt-1 text-[22px] text-[color:var(--gv-ink)]">{c.value}</p>
                 <p className={`gv-mono mt-1 text-[11px] ${sumToneClass(c.tone)}`}>
                   {c.tone === "up" ? "↑ " : c.tone === "down" ? "↓ " : ""}
@@ -219,10 +219,10 @@ export function PatternBody({
 
       {findings.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "180ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-danger)]">
+          <p className="gv-mono mb-1 text-[11px] tracking-wide text-[color:var(--gv-danger)]">
             {labels.findingsKicker}
           </p>
-          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">{labels.findingsTitle}</h3>
+          <h3 className="gv-serif mb-4 text-[17px] text-[color:var(--gv-ink)]">{labels.findingsTitle}</h3>
           <div className="flex flex-col gap-4">
             {findings.map((row) => (
               <HookFindingCard
@@ -237,10 +237,10 @@ export function PatternBody({
 
       {!thin ? (
         <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-danger)]">
+          <p className="gv-mono mb-1 text-[11px] tracking-wide text-[color:var(--gv-danger)]">
             {labels.stalledKicker}
           </p>
-          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">{labels.stalledTitle}</h3>
+          <h3 className="gv-serif mb-4 text-[17px] text-[color:var(--gv-ink)]">{labels.stalledTitle}</h3>
           {report.what_stalled.length === 0 ? (
             <WhatStalledRow empty reason={report.confidence.what_stalled_reason} />
           ) : (
@@ -255,10 +255,10 @@ export function PatternBody({
 
       {evidence.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "300ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] tracking-wide text-[color:var(--gv-ink-3)]">
             {labels.evidenceKicker}
           </p>
-          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
+          <h3 className="gv-serif mb-4 text-[17px] text-[color:var(--gv-ink)]">
             {labels.evidenceTitleForCount(evidence.length)}
           </h3>
           <EvidenceGrid items={evidence} />
@@ -273,10 +273,10 @@ export function PatternBody({
 
       {report.patterns.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "360ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] tracking-wide text-[color:var(--gv-ink-3)]">
             {labels.patternsKicker}
           </p>
-          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
+          <h3 className="gv-serif mb-4 text-[17px] text-[color:var(--gv-ink)]">
             {labels.patternsTitleForSample(n)}
           </h3>
           <PatternCellGrid cells={report.patterns} />
@@ -291,10 +291,10 @@ export function PatternBody({
 
       {report.actions.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "420ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
+          <p className="gv-mono mb-1 text-[11px] tracking-wide text-[color:var(--gv-ink-3)]">
             {labels.actionsKicker}
           </p>
-          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">{labels.actionsTitle}</h3>
+          <h3 className="gv-serif mb-4 text-[17px] text-[color:var(--gv-ink)]">{labels.actionsTitle}</h3>
           <PatternActionCards actions={report.actions} />
         </section>
       ) : null}

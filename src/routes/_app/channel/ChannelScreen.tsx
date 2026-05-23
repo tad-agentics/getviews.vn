@@ -175,21 +175,21 @@ export default function ChannelScreen() {
         {emptyParams ? (
           <div className="flex flex-col gap-6">
             <header className="flex min-w-0 flex-col gap-2">
-              <span className="gv-uc flex items-center gap-1.5 text-[10px] font-semibold text-[color:var(--gv-accent-deep)]">
+              <span className="gv-uc flex items-center gap-1.5 text-[11px] font-semibold text-[color:var(--gv-accent-deep)]">
                 <Search className="h-3 w-3 text-[color:var(--gv-accent)]" aria-hidden />
                 KHÁM KÊNH
               </span>
-              <h1 className="gv-tight m-0 text-[22px] font-semibold leading-[1.1] tracking-[-0.03em] text-[color:var(--gv-ink)] sm:text-[26px] lg:text-[28px]">
+              <h1 className="gv-tight m-0 text-[22px] font-semibold leading-[1.1] tracking-[-0.03em] text-[color:var(--gv-ink)] sm:text-[24px] lg:text-[24px]">
                 Khám bất kỳ kênh TikTok nào
               </h1>
-              <p className="max-w-prose text-[12.5px] leading-relaxed text-[color:var(--gv-ink-3)] sm:text-[13px]">
+              <p className="max-w-prose text-xs leading-relaxed text-[color:var(--gv-ink-3)] sm:text-sm">
                 Dán @handle hoặc tìm kênh để phân tích 60 video gần nhất — kết quả trả về kết luận tổng quan,
                 video hiệu quả nhất, video kéo điểm, so sánh với kênh cùng ngách và 3–5 đề xuất hành động cụ thể.
               </p>
             </header>
 
             {!cloudConfigured ? (
-              <div className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-[13px] text-[color:var(--gv-ink-3)]">
+              <div className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-sm text-[color:var(--gv-ink-3)]">
                 Cần cấu hình Cloud Run API để phân tích kênh.
               </div>
             ) : (
@@ -207,7 +207,7 @@ export default function ChannelScreen() {
                     style={{ boxShadow: "3px 3px 0 var(--gv-ink)" }}
                   >
                     <span
-                      className="gv-mono flex shrink-0 items-center border-r border-[color:var(--gv-rule)] px-3.5 text-[13px] text-[color:var(--gv-ink-3)]"
+                      className="gv-mono flex shrink-0 items-center border-r border-[color:var(--gv-rule)] px-3.5 text-sm text-[color:var(--gv-ink-3)]"
                       aria-hidden
                     >
                       tiktok.com/
@@ -241,7 +241,7 @@ export default function ChannelScreen() {
                         type="submit"
                         disabled={!draftHandle.trim() || !hasCredits}
                         className={
-                          "flex shrink-0 items-center gap-1.5 border-l border-[color:var(--gv-rule)] px-5 text-[13px] font-semibold text-[color:var(--gv-canvas)] transition-colors " +
+                          "flex shrink-0 items-center gap-1.5 border-l border-[color:var(--gv-rule)] px-5 text-sm font-semibold text-[color:var(--gv-canvas)] transition-colors " +
                           (draftHandle.trim() && hasCredits
                             ? "bg-[color:var(--gv-ink)] hover:bg-[color:var(--gv-ink-2)]"
                             : "cursor-not-allowed bg-[color:var(--gv-ink-2)] opacity-60")
@@ -260,7 +260,7 @@ export default function ChannelScreen() {
                     </div>
                     <span
                       className={
-                        "gv-mono rounded-full px-2.5 py-0.5 text-[10px] font-semibold " +
+                        "gv-mono rounded-full px-2.5 py-0.5 text-[11px] font-semibold " +
                         (hasCredits
                           ? "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)]"
                           : "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg-deep)]")
@@ -397,7 +397,7 @@ function ChannelDiagnosisBody({
         }}
       >
         <label className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span className="gv-mono text-[10px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">
+          <span className="gv-kicker text-[color:var(--gv-ink-4)]">
             Kênh khác
           </span>
           <input
@@ -451,7 +451,7 @@ function ChannelDiagnosisBody({
           {channelInitial("", handle)}
         </div>
         <div>
-          <h1 className="gv-tight m-0 text-[20px] font-semibold leading-tight">{at}</h1>
+          <h1 className="gv-tight m-0 text-[22px] font-semibold leading-tight">{at}</h1>
           {diagnose.trajectoryShape && (
             <p className="text-xs text-[color:var(--gv-ink-3)] mt-0.5">
               {TRAJECTORY_LABELS[diagnose.trajectoryShape] ?? diagnose.trajectoryShape.replace(/_/g, " ")}

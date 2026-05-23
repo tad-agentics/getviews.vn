@@ -17,10 +17,10 @@ export function FatigueBand({ band }: { band: TimingReportPayload["fatigue_band"
       role="note"
       className="flex flex-col gap-1 rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-3 text-[color:var(--gv-ink-2)]"
     >
-      <p className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+      <p className="gv-kicker text-[color:var(--gv-ink-3)]">
         Cảnh báo bão hoà · {weeks} tuần
       </p>
-      <p className="text-[13px] leading-[1.5]">{copy}</p>
+      <p className="text-sm leading-[1.5]">{copy}</p>
     </aside>
   );
 }

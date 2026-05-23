@@ -91,7 +91,7 @@ function NextStepsSection({ text }: { text: string }) {
 
   return (
     <section className="mb-6">
-      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+      <h3 className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-4)]">
         Làm gì tiếp theo
       </h3>
       {lines.length > 1 ? (
@@ -327,14 +327,14 @@ export function VideoBody({
           >
             {!meta.thumbnail_url ? (
               <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-3">
-                <span className="gv-mono text-center text-[10px] font-medium uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+                <span className="gv-mono text-center text-[11px] font-medium gv-kicker tracking-wide text-[color:var(--gv-ink-4)]">
                   Chưa có ảnh bìa
                 </span>
               </div>
             ) : null}
             {!isFlop && meta.is_breakout ? (
               <div className="pointer-events-none absolute left-3 top-3 z-[1]">
-                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[0.05em] text-[color:var(--gv-paper)]">
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[11px] font-bold gv-kicker tracking-[0.05em] text-[color:var(--gv-paper)]">
                   BREAKOUT
                 </span>
               </div>
@@ -354,7 +354,7 @@ export function VideoBody({
               </div>
             ) : null}
             <div className="pointer-events-none absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
-              <div className="gv-mono text-[11px] opacity-90">
+              <div className="gv-kicker opacity-90">
                 {meta.creator?.trim() ? atHandle(meta.creator) : "Kênh chưa xác định"} ·{" "}
                 {Math.round(duration)}s
               </div>
@@ -365,7 +365,7 @@ export function VideoBody({
               ) : null}
             </div>
           </div>
-          <p className="min-[900px]:hidden text-center gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+          <p className="min-[900px]:hidden text-center gv-kicker text-[color:var(--gv-ink-3)]">
             Cuộn xuống để xem báo cáo
           </p>
         </div>
@@ -386,7 +386,7 @@ export function VideoBody({
         <header>
           {isFlop ? (
             <div className="mb-1 flex flex-wrap items-center gap-2">
-              <span className="gv-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
+              <span className="gv-kicker text-[color:var(--gv-accent)]">
                 {brightEffective?.signal_type === "hook_only_problem" ||
                 (retEnd != null && retEnd >= 68)
                   ? flopIssueCount > 0
@@ -398,14 +398,14 @@ export function VideoBody({
               </span>
               <PerformanceTierChip tier={performanceTier} />
               {meta.content_format ? (
-                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[9px] capitalize tracking-[0.04em] text-[color:var(--gv-ink-3)]">
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] capitalize tracking-[0.04em] text-[color:var(--gv-ink-3)]">
                   {meta.content_format.replace(/_/g, " ")}
                 </span>
               ) : null}
             </div>
           ) : report.carousel_subformat_label ? (
             <div className="mb-1 flex flex-wrap items-center gap-2">
-              <span className="gv-mono text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+              <span className="gv-kicker text-[color:var(--gv-ink-4)]">
                 MỔ CAROUSEL VIEW CAO ·{" "}
                 <span className="normal-case text-[color:var(--gv-ink-3)]">
                   {report.carousel_subformat_label}
@@ -418,14 +418,14 @@ export function VideoBody({
               </span>
               <PerformanceTierChip tier={performanceTier} />
               {meta.content_format ? (
-                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[9px] capitalize tracking-[0.04em] text-[color:var(--gv-ink-3)]">
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] capitalize tracking-[0.04em] text-[color:var(--gv-ink-3)]">
                   {meta.content_format.replace(/_/g, " ")}
                 </span>
               ) : null}
             </div>
           ) : (
             <div className="mb-1 flex flex-wrap items-center gap-2">
-              <span className="gv-mono text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+              <span className="gv-kicker text-[color:var(--gv-ink-4)]">
                 MỔ VIDEO VIEW CAO ·{" "}
                 <span className="normal-case text-[color:var(--gv-ink-3)]">
                   {meta.niche_label ?? "—"}
@@ -433,7 +433,7 @@ export function VideoBody({
               </span>
               <PerformanceTierChip tier={performanceTier} />
               {meta.content_format ? (
-                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[9px] capitalize tracking-[0.04em] text-[color:var(--gv-ink-3)]">
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] capitalize tracking-[0.04em] text-[color:var(--gv-ink-3)]">
                   {meta.content_format.replace(/_/g, " ")}
                 </span>
               ) : null}
@@ -452,10 +452,10 @@ export function VideoBody({
 
         {isFlop && viewScenariosEffective && viewScenariosEffective.length > 0 ? (
           <section className="mb-4" aria-label="Mức độ cải thiện có thể kỳ vọng">
-            <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+            <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-3)]">
               Mức cải thiện lượt xem (ước lượng thận trọng)
             </p>
-            <ol className="m-0 list-decimal space-y-2 pl-4 text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
+            <ol className="m-0 list-decimal space-y-2 pl-4 text-sm leading-snug text-[color:var(--gv-ink-2)]">
               {viewScenariosEffective.map((row, idx) => (
                 <li key={`${idx}-${row.focus_vi.slice(0, 24)}`}>
                   <span className="font-medium text-foreground">{row.focus_vi}</span>
@@ -587,7 +587,7 @@ export function VideoBody({
             <CollapsibleTrigger asChild>
               <button
                 type="button"
-                className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
+                className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
               >
                 <span>Dòng thời gian · Cấu trúc {Math.round(duration)} giây</span>
                 <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>
@@ -628,7 +628,7 @@ export function VideoBody({
             <CollapsibleTrigger asChild>
               <button
                 type="button"
-                className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
+                className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
               >
                 <span>Giải mã hook · {isFlop ? "3 giây đầu dễ mất người xem" : "3 giây đầu vì sao người xem dừng"}</span>
                 <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>
@@ -650,7 +650,7 @@ export function VideoBody({
           <CollapsibleTrigger asChild>
             <button
               type="button"
-              className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
+              className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
             >
               <span>Bối cảnh phân tích</span>
               <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>

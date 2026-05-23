@@ -25,7 +25,7 @@ function VideoTile({ tile }: VideoTileProps) {
         />
         {/* View-count overlay */}
         <div className="absolute bottom-0 left-0 right-0 px-1.5 py-1 bg-gradient-to-t from-black/70 to-transparent">
-          <span className="font-mono text-[10px] font-semibold text-white leading-none">
+          <span className="gv-kicker text-white leading-none">
             {formatViews(tile.views)}
           </span>
         </div>
@@ -33,7 +33,7 @@ function VideoTile({ tile }: VideoTileProps) {
       {/* Caption snippet */}
       {tile.caption_snippet && (
         <div className="px-1.5 py-1">
-          <p className="text-[10px] text-[color:var(--muted)] line-clamp-2 leading-tight">
+          <p className="text-[11px] text-[color:var(--muted)] line-clamp-2 leading-tight">
             {tile.caption_snippet}
           </p>
         </div>
@@ -72,7 +72,7 @@ export function VideoTileRow({ tiles, label }: VideoTileRowProps) {
   return (
     <div className="mt-3 mb-1">
       {label && (
-        <p className="text-[11px] font-medium text-[color:var(--muted)] uppercase tracking-wide mb-2">
+        <p className="text-[11px] font-medium text-[color:var(--muted)] gv-kicker tracking-wide mb-2">
           {label}
         </p>
       )}

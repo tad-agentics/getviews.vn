@@ -26,7 +26,7 @@ export function HookTimingMeter({ delayMs }: HookTimingMeterProps) {
           }}
         />
       </div>
-      <div className="gv-mono pointer-events-none flex justify-between pt-1 text-[9px] leading-none text-[color:var(--gv-ink-4)]">
+      <div className="gv-mono pointer-events-none flex justify-between pt-1 text-[11px] leading-none text-[color:var(--gv-ink-4)]">
         <span>0s</span>
         <span>1s</span>
         <span>2s</span>

@@ -98,7 +98,7 @@ function LearnMoreContent() {
     <div className="max-w-xl mx-auto space-y-6">
       {sections.map((section) => (
         <div key={section.heading}>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--faint)] px-4 mb-2">
+          <p className="text-[11px] font-semibold gv-kicker tracking-widest text-[var(--faint)] px-4 mb-2">
             {section.heading}
           </p>
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
@@ -109,7 +109,7 @@ function LearnMoreContent() {
           </div>
         </div>
       ))}
-      <p className="text-center text-[11px] font-mono text-[var(--faint)] mt-10 pb-2">getviews.vn · v1.0.0</p>
+      <p className="text-center gv-kicker text-[var(--faint)] mt-10 pb-2">getviews.vn · v1.0.0</p>
     </div>
   );
 }

@@ -36,14 +36,14 @@ export const DouyinPatternCard = memo(function DouyinPatternCard({
     >
       <header className="flex items-baseline justify-between gap-2">
         <span
-          className="gv-mono inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[10px] font-semibold text-[color:var(--gv-ink-3)]"
+          className="gv-mono inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[11px] font-semibold text-[color:var(--gv-ink-3)]"
           aria-label={`Pattern hạng ${pattern.rank}`}
         >
           {pattern.rank}
         </span>
         {rise ? (
           <span
-            className="gv-mono inline-flex items-center gap-1 text-[10px] font-medium"
+            className="gv-mono inline-flex items-center gap-1 text-[11px] font-medium"
             style={{ color: "var(--gv-pos-deep)" }}
             aria-label={`Tăng trung bình ${rise} so với 14 ngày trước`}
           >
@@ -54,7 +54,7 @@ export const DouyinPatternCard = memo(function DouyinPatternCard({
       </header>
 
       <h3
-        className="gv-tight m-0 text-[15px] font-medium leading-snug text-[color:var(--gv-ink)]"
+        className="gv-tight m-0 text-[17px] font-medium leading-snug text-[color:var(--gv-ink)]"
       >
         {pattern.name_vn}
       </h3>
@@ -62,16 +62,16 @@ export const DouyinPatternCard = memo(function DouyinPatternCard({
       {/* Hook template — fill-in-the-blank, the design's "money line".
           The literal "___" blank is preserved so the user sees the
           adaptable shape of the hook. */}
-      <p className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-2 text-[12.5px] italic leading-snug text-[color:var(--gv-ink-2)]">
+      <p className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-2 text-xs italic leading-snug text-[color:var(--gv-ink-2)]">
         &quot;{pattern.hook_template_vi}&quot;
       </p>
 
       {/* Format signature */}
-      <p className="line-clamp-3 text-[11.5px] leading-snug text-[color:var(--gv-ink-3)]">
+      <p className="line-clamp-3 text-xs leading-snug text-[color:var(--gv-ink-3)]">
         {pattern.format_signal_vi}
       </p>
 
-      <footer className="mt-auto flex items-center justify-between gap-2 text-[10px] text-[color:var(--gv-ink-4)]">
+      <footer className="mt-auto flex items-center justify-between gap-2 text-[11px] text-[color:var(--gv-ink-4)]">
         <span className="gv-mono">
           {pattern.sample_video_ids.length} video mẫu
         </span>

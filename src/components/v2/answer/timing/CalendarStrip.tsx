@@ -48,10 +48,10 @@ export function CalendarStrip({ slots }: { slots: CalendarSlotData[] }) {
 
   return (
     <section>
-      <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+      <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
         Lịch content tuần
       </p>
-      <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
+      <h3 className="gv-serif mb-3 text-[17px] text-[color:var(--gv-ink)]">
         {slots.length} video đề xuất cho tuần tới
       </h3>
       <div className="grid grid-cols-7 gap-1.5">
@@ -79,8 +79,8 @@ function CalendarCell({
         className="flex min-h-[96px] flex-col gap-1 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-2 opacity-60"
         aria-label={`${label} — không có đề xuất`}
       >
-        <span className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">{label}</span>
-        <span className="text-[18px] text-[color:var(--gv-ink-4)]">—</span>
+        <span className="gv-kicker text-[color:var(--gv-ink-4)]">{label}</span>
+        <span className="text-[17px] text-[color:var(--gv-ink-4)]">—</span>
       </div>
     );
   }
@@ -91,16 +91,16 @@ function CalendarCell({
       className="flex min-h-[96px] flex-col gap-1.5 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-2"
       title={slot.rationale}
     >
-      <span className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">{label}</span>
+      <span className="gv-kicker text-[color:var(--gv-ink-4)]">{label}</span>
       <span
-        className={`inline-flex w-max items-center rounded-full px-1.5 py-0.5 gv-mono text-[9px] font-medium ${chipClass}`}
+        className={`inline-flex w-max items-center rounded-full px-1.5 py-0.5 gv-kicker ${chipClass}`}
       >
         {KIND_LABELS[slot.kind]}
       </span>
       <p className="line-clamp-2 text-[11px] font-medium leading-tight text-[color:var(--gv-ink)]">
         {slot.title}
       </p>
-      <span className="gv-mono mt-auto text-[10px] text-[color:var(--gv-ink-4)]">
+      <span className="gv-mono mt-auto text-[11px] text-[color:var(--gv-ink-4)]">
         {slot.suggested_time}
       </span>
     </div>

@@ -30,7 +30,7 @@ export function PatternSubreports({ report }: { report: PatternReportPayload }) 
       className="rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
       aria-label="Phân tích thời điểm đăng"
     >
-      <p className="gv-mono mb-3 text-[10px] uppercase tracking-wide text-[color:var(--gv-accent)] font-semibold">
+      <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-accent)] font-semibold">
         Kèm theo · khung giờ đăng
       </p>
       <TimingBody report={timing} />

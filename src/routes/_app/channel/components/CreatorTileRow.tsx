@@ -34,7 +34,7 @@ function CreatorTile({ creator }: CreatorTileProps) {
           {sampleUrl && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-6 h-6 rounded-full bg-black/50 flex items-center justify-center">
-                <span className="text-white text-[10px] leading-none">▶</span>
+                <span className="text-white text-[11px] leading-none">▶</span>
               </div>
             </div>
           )}
@@ -44,11 +44,11 @@ function CreatorTile({ creator }: CreatorTileProps) {
           <p className="text-[11px] font-semibold text-[color:var(--foreground)] truncate">
             @{creator.handle}
           </p>
-          <p className="text-[10px] text-[color:var(--muted)] mt-0.5">
+          <p className="text-[11px] text-[color:var(--muted)] mt-0.5">
             {creator.followers != null ? `${formatFollowers(creator.followers)} followers` : "N/A"}
           </p>
           {creator.avg_views > 0 && (
-            <p className="text-[10px] text-[color:var(--muted)]">
+            <p className="text-[11px] text-[color:var(--muted)]">
               avg {formatViews(creator.avg_views)} views
             </p>
           )}
@@ -71,7 +71,7 @@ export function CreatorTileRow({ creators, label }: CreatorTileRowProps) {
   return (
     <div className="mt-3 mb-1">
       {label && (
-        <p className="text-[11px] font-medium text-[color:var(--muted)] uppercase tracking-wide mb-2">
+        <p className="text-[11px] font-medium text-[color:var(--muted)] gv-kicker tracking-wide mb-2">
           {label}
         </p>
       )}

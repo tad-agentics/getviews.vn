@@ -49,7 +49,7 @@ export function TimingHeatmap({
             <div
               key={h}
               className={`gv-mono px-0 text-center text-[color:var(--gv-ink-4)] ${
-                compact ? "py-0 text-[8px]" : "py-[2px] text-[9px]"
+                compact ? "py-0 text-[11px]" : "py-[2px] text-[11px]"
               }`}
             >
               {h}
@@ -61,7 +61,7 @@ export function TimingHeatmap({
         </div>
       </div>
       <div
-        className={`flex items-center gap-3 text-[10px] ${compact ? "mt-1.5 gap-2 text-[9px]" : "mt-[10px]"}`}
+        className={`flex items-center gap-3 text-[11px] ${compact ? "mt-1.5 gap-2 text-[11px]" : "mt-[10px]"}`}
       >
         <span className="gv-mono text-[color:var(--gv-ink-4)]">Thấp</span>
         {[0, 3, 5, 7, 9].map((v) => (
@@ -89,7 +89,7 @@ export function TimingHeatmap({
     <section>
       <p
         className={`gv-mono uppercase tracking-wide text-[color:var(--gv-accent)] font-semibold ${
-          compact ? "mb-1.5 text-[9px]" : "mb-[10px] text-[10px]"
+          compact ? "mb-1.5 text-[11px]" : "mb-[10px] text-[11px]"
         }`}
       >
         Lưới khung giờ (ICT) · 7 ngày × 8 khung
@@ -112,7 +112,7 @@ function Row({
     <>
       <div
         className={`gv-mono flex items-center font-medium text-[color:var(--gv-ink-3)] ${
-          compact ? "text-[8px]" : "text-[10px]"
+          compact ? "text-[11px]" : "text-[11px]"
         }`}
       >
         {label}
@@ -122,7 +122,7 @@ function Row({
           key={hi}
           aria-label={`${label} · ${TIMING_HOURS_VN[hi]} · ${Number.isFinite(v) ? v.toFixed(1) : "—"}`}
           className={`gv-mono flex items-center justify-center ${
-            compact ? "min-h-[14px] text-[8px]" : "text-[10px]"
+            compact ? "min-h-[14px] text-[11px]" : "text-[11px]"
           }`}
           style={{
             backgroundColor: cellBackgroundForValue(v),

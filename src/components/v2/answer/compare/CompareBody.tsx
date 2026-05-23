@@ -63,7 +63,7 @@ function SideHeader({
       className="sticky top-0 z-10 -mx-4 mb-3 flex items-center gap-2 border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]/95 px-4 py-2.5 backdrop-blur min-[900px]:static min-[900px]:mx-0 min-[900px]:rounded-none min-[900px]:bg-transparent min-[900px]:px-0 min-[900px]:py-0 min-[900px]:backdrop-blur-none"
     >
       <span
-        className="gv-mono inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] text-[10px] font-bold text-[color:var(--gv-ink)]"
+        className="gv-mono inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] text-[11px] font-bold text-[color:var(--gv-ink)]"
         aria-label={`Video ${letter}`}
       >
         {letter}
@@ -82,10 +82,10 @@ function SideHeader({
 function StatChip({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2.5 py-1.5">
-      <div className="gv-mono gv-uc text-[9px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+      <div className="gv-mono gv-uc text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
         {label}
       </div>
-      <div className="gv-mono mt-0.5 text-[13px] font-semibold text-[color:var(--gv-ink)]">
+      <div className="gv-mono mt-0.5 text-sm font-semibold text-[color:var(--gv-ink)]">
         {value}
       </div>
     </div>
@@ -149,10 +149,10 @@ function DeltaBar({ delta }: { delta: CompareDelta }) {
       className="gv-surface-brutal gv-surface-brutal--compact mb-6 p-4"
       data-testid="compare-delta-bar"
     >
-      <div className="gv-mono gv-uc mb-1.5 text-[10px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+      <div className="gv-mono gv-uc mb-1.5 text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
         Khác biệt chính
       </div>
-      <p className="gv-serif text-[16px] leading-[1.45] text-[color:var(--gv-ink)]">
+      <p className="gv-serif text-[17px] leading-[1.45] text-[color:var(--gv-ink)]">
         {delta.verdict}
       </p>
 
@@ -173,7 +173,7 @@ function DeltaBar({ delta }: { delta: CompareDelta }) {
 
       {delta.verdict_fallback ? (
         <p
-          className="gv-mono mt-2 text-[10px] text-[color:var(--gv-ink-4)]"
+          className="gv-mono mt-2 text-[11px] text-[color:var(--gv-ink-3)]"
           data-testid="compare-delta-fallback"
         >
           (tổng hợp tự động — chưa qua mô hình)

@@ -15,15 +15,15 @@ function StyleCard({ row }: { row: StyleCardRow }) {
   const desc = row.desc ?? "";
   const paired = Array.isArray(row.paired_ideas) ? row.paired_ideas : [];
   return (
-    <li className="flex h-full flex-col justify-between border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-[14px] text-[13px] text-[color:var(--gv-ink-2)]">
+    <li className="flex h-full flex-col justify-between border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-[14px] text-sm text-[color:var(--gv-ink-2)]">
       <div>
-        <p className="gv-serif text-[16px] font-medium text-[color:var(--gv-ink)]">{name}</p>
+        <p className="gv-serif text-[17px] font-medium text-[color:var(--gv-ink)]">{name}</p>
         {desc ? (
           <p className="mt-1 text-[12px] leading-[1.5] text-[color:var(--gv-ink-3)]">{desc}</p>
         ) : null}
       </div>
       {paired.length > 0 ? (
-        <p className="gv-mono mt-3 text-[10px] text-[color:var(--gv-ink-4)]">
+        <p className="gv-mono mt-3 text-[11px] text-[color:var(--gv-ink-3)]">
           Cho ý tưởng {paired.join(", ")}
         </p>
       ) : null}

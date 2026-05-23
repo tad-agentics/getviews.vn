@@ -89,7 +89,7 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
           className={`w-full resize-none border-0 bg-transparent font-[family-name:var(--gv-font-sans)] text-[17px] leading-relaxed text-[var(--gv-ink)] placeholder:text-[var(--gv-ink-4)] ${FOCUS_RING}`}
         />
         {showNicheCaption && nicheLabel ? (
-          <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-[var(--gv-ink-4)]">
+          <p className="mt-1 gv-kicker text-[var(--gv-ink-4)]">
             NGHIÊN CỨU · {nicheLabel}
           </p>
         ) : null}
@@ -126,12 +126,12 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
               </button>
             </div>
             {showUrlChip ? (
-              <span className="rounded-md border border-[var(--gv-rule)] px-2 py-0.5 font-mono text-[10px] text-[var(--gv-ink-4)]">
+              <span className="rounded-md border border-[var(--gv-rule)] px-2 py-0.5 gv-kicker text-[var(--gv-ink-4)]">
                 URL detected
               </span>
             ) : null}
             {corpusCount != null ? (
-              <span className="font-mono text-[10px] text-[var(--gv-ink-4)]">
+              <span className="gv-kicker text-[var(--gv-ink-4)]">
                 {corpusCount.toLocaleString()}+ video
               </span>
             ) : null}

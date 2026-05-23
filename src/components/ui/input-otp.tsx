@@ -17,7 +17,7 @@ function InputOTP({
     <OTPInput
       data-slot="input-otp"
       containerClassName={cn(
-        "flex items-center gap-2 has-disabled:opacity-50",
+        "flex items-center gap-2 has-disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100",
         containerClassName,
       )}
       className={cn("disabled:cursor-not-allowed", className)}

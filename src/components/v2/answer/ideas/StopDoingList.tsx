@@ -16,15 +16,15 @@ export function StopDoingList({ rows }: { rows: StopRow[] }) {
           <span className="gv-serif text-[22px] leading-none text-[color:var(--gv-ink-4)]">
             {String(i + 1).padStart(2, "0")}
           </span>
-          <div className="min-w-0 text-[13px] leading-[1.5] text-[color:var(--gv-ink-2)]">
-            <p className="gv-serif text-[15px] font-medium text-[color:var(--gv-ink)]">{r.bad}</p>
+          <div className="min-w-0 text-sm leading-[1.5] text-[color:var(--gv-ink-2)]">
+            <p className="gv-serif text-[17px] font-medium text-[color:var(--gv-ink)]">{r.bad}</p>
             {r.why ? (
               <p className="mt-1 text-[12px] text-[color:var(--gv-ink-3)]">{r.why}</p>
             ) : null}
           </div>
           {r.fix ? (
-            <p className="col-span-full min-[700px]:col-auto rounded bg-[color:var(--gv-accent-soft)] px-3 py-2 text-[13px] leading-[1.5] text-[color:var(--gv-accent-deep)]">
-              <span className="gv-mono mr-2 text-[10px] uppercase tracking-wide">Fix</span>
+            <p className="col-span-full min-[700px]:col-auto rounded bg-[color:var(--gv-accent-soft)] px-3 py-2 text-sm leading-[1.5] text-[color:var(--gv-accent-deep)]">
+              <span className="gv-mono mr-2 text-[11px] gv-kicker tracking-wide">Fix</span>
               {r.fix}
             </p>
           ) : null}

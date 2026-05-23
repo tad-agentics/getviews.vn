@@ -41,7 +41,7 @@ export function CueChip({ text }: { text: string | null | undefined }) {
   const inner = trimmed.replace(/^\[|\]$/g, "");
   return (
     <span
-      className={`gv-mono inline-block ml-2 align-middle rounded-[3px] px-1.5 py-[1px] text-[10.5px] font-medium opacity-90 ${CUE_STYLES[kind]}`}
+      className={`gv-mono inline-block ml-2 align-middle rounded-[3px] px-1.5 py-[1px] text-[11px] font-medium opacity-90 ${CUE_STYLES[kind]}`}
       data-cue-kind={kind}
     >
       {inner}

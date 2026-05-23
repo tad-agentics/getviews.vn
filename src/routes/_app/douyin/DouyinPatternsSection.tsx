@@ -129,7 +129,7 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
         role="status"
       >
         <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} aria-hidden />
-        <span className="text-[13px]">Đang tải Pattern signals…</span>
+        <span className="text-sm">Đang tải Pattern signals…</span>
       </section>
     );
   }
@@ -146,7 +146,7 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
             strokeWidth={2}
             aria-hidden
           />
-          <span className="text-[13px]">
+          <span className="text-sm">
             Không tải được Pattern signals — đang chỉ hiển thị video bên dưới.
           </span>
         </div>
@@ -154,7 +154,7 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
           <button
             type="button"
             onClick={onRetry}
-            className="gv-mono text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)] underline-offset-4 hover:underline"
+            className="gv-kicker text-[color:var(--gv-accent-deep)] underline-offset-4 hover:underline"
           >
             Thử lại
           </button>
@@ -184,7 +184,7 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
         {groups.map(({ niche, rows }) => (
           <div key={niche?.id ?? "unknown"}>
             {niche ? (
-              <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-ink-3)]">
+              <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-ink-3)]">
                 {niche.name_vn}
               </p>
             ) : null}
@@ -219,13 +219,13 @@ function SectionHeader({ meta }: { meta: HeaderMeta }) {
   return (
     <header className="mb-3.5 flex flex-wrap items-baseline justify-between gap-3">
       <div className="min-w-0 flex-1">
-        <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
-          § I — Tín hiệu sớm · 🇨🇳 Pattern đang nổ ở TQ
+        <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
+          § I — Tín hiệu sớm · CN · Pattern đang nổ ở TQ
         </p>
         <h2 className="gv-tight m-0 text-[22px] font-medium leading-tight text-[color:var(--gv-ink)]">
           3 pattern đi trước VN 4–10 tuần
         </h2>
-        <p className="m-0 mt-1.5 max-w-[620px] text-[12.5px] leading-snug text-[color:var(--gv-ink-3)]">
+        <p className="m-0 mt-1.5 max-w-[620px] text-xs leading-snug text-[color:var(--gv-ink-3)]">
           Cấu trúc lặp lại trên Douyin, đã sub VN, kèm note văn hoá và đánh giá khả
           năng adapt. Click để mở deck đầy đủ.
         </p>
@@ -249,17 +249,17 @@ function SectionHeader({ meta }: { meta: HeaderMeta }) {
                 : "bg-[color:var(--gv-accent)]")
             }
           />
-          <span className="gv-mono text-[9px] font-semibold uppercase tracking-[0.06em]">
+          <span className="gv-kicker">
             {meta?.stale ? "Có thể chưa cập nhật" : freshLabel}
           </span>
           {weekLabel ? (
-            <span className="gv-mono text-[9px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+            <span className="gv-kicker text-[color:var(--gv-ink-4)]">
               · Tuần {weekLabel}
             </span>
           ) : null}
         </div>
       ) : (
-        <span className="gv-mono shrink-0 text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+        <span className="gv-mono shrink-0 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-ink-4)]">
           Đang chờ batch đầu tiên
         </span>
       )}

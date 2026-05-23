@@ -67,7 +67,7 @@ function formatAdminTriggerError(raw: string): { summary: string; hint: string |
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="gv-uc text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+    <span className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
       {children}
     </span>
   );
@@ -141,7 +141,7 @@ function ConfirmBlock({
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
-      <p className="text-[13px] text-[color:var(--gv-ink)]">
+      <p className="text-sm text-[color:var(--gv-ink)]">
         Chạy <span className="font-semibold">{job.label}</span>?
       </p>
       {job.heavy ? (
@@ -150,7 +150,7 @@ function ConfirmBlock({
         </p>
       ) : null}
       {Object.keys(body).length > 0 ? (
-        <pre className="overflow-x-auto rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-2 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+        <pre className="overflow-x-auto rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-2 gv-kicker text-[color:var(--gv-ink-3)]">
           {JSON.stringify(body, null, 2)}
         </pre>
       ) : null}
@@ -172,7 +172,7 @@ function ResultBlock({
   return (
     <div className="flex flex-col gap-2 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-pos-soft)] p-4">
       <p className="gv-kicker gv-kicker--dot gv-kicker--pos">Xong — kết quả</p>
-      <pre className="max-h-64 overflow-auto rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-2 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
+      <pre className="max-h-64 overflow-auto rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-2 gv-kicker text-[color:var(--gv-ink-3)]">
         {JSON.stringify(result, null, 2)}
       </pre>
       <div className="flex justify-end">
@@ -250,14 +250,14 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
     <article className="flex flex-col gap-3 rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="gv-serif text-[15px] text-[color:var(--gv-ink)]">{job.label}</p>
+          <p className="gv-serif text-[17px] text-[color:var(--gv-ink)]">{job.label}</p>
           {hasParams ? (
-            <p className="mt-1 gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+            <p className="mt-1 gv-kicker text-[color:var(--gv-ink-3)]">
               params · {Object.keys(job.body_schema).join(", ")}
             </p>
           ) : null}
           {job.heavy ? (
-            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-accent-deep)]">
+            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 gv-kicker text-[color:var(--gv-accent-deep)]">
               heavy
             </span>
           ) : null}
@@ -301,7 +301,7 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
                 : "Đã nhận — đang chờ worker pick up…"}
             </span>
           </div>
-          <span className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+          <span className="gv-kicker text-[color:var(--gv-ink-4)]">
             job_id · {dialog.jobId.slice(0, 8)}… · poll mỗi 3s
           </span>
         </div>
@@ -347,7 +347,7 @@ export function TriggersPanel() {
   if (catalog.isError) {
     const msg = catalog.error instanceof Error ? catalog.error.message : "unknown";
     return (
-      <p className="text-[13px] text-[color:var(--gv-danger)]">
+      <p className="text-sm text-[color:var(--gv-danger)]">
         Không tải được trigger catalog ({msg}).
       </p>
     );
