@@ -275,7 +275,7 @@ def _run_diagnose(
         patch(
             "getviews_pipeline.channel_diagnose.select_niche_peer_creators",
             new_callable=AsyncMock,
-            return_value=(fake_peer_raw, "niche_only"),
+            return_value=(fake_peer_raw, "niche_only", []),
         ),
         patch(
             "getviews_pipeline.channel_diagnose.derive_channel_persona",

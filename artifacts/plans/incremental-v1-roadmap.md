@@ -292,10 +292,10 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 | Item | Status | Notes |
 |------|--------|-------|
 | W4-0 Utilization map Wave 4 gate | ✅ | §10 cross-check @ map v1.2 (`9cd0957` baseline) |
-| W4-1 `channel_findings` | 🔨 | — |
-| W4-2 Live M3 boost | 🔨 | — |
-| W4-3 Signal backlog + Win W0 remainder | 🔨 | 2/5 Win shipped W1-6 |
-| W4-4 Channel `reference_eligible` peers | 🔨 | Video ref pool ✅ |
+| W4-1 `channel_findings` | ✅ | P0×4 + `<<<CHANNEL FINDINGS>>>` prompt inject |
+| W4-2 Live M3 boost | ✅ | `boost_attribution` section F1 deep; `signals/distribution.py` |
+| W4-3 Signal backlog + Win W0 remainder | ✅ | 5 Win W0 + P0 flop signals + tests |
+| W4-4 Channel `reference_eligible` peers | ✅ | Eligible-first + &lt;4 handle fallback |
 
 ---
 

@@ -446,7 +446,7 @@ async def _run_channel_diagnose(
     creator_tier = _classify_creator_tier(
         int(channel_followers) if channel_followers is not None else None
     )
-    peer_creators_raw, peer_source = await select_niche_peer_creators(
+    peer_creators_raw, peer_source, peer_corpus_rows = await select_niche_peer_creators(
         sb_user,
         legacy_nid,
         persona.get("dominant_content_class_id"),
@@ -541,6 +541,22 @@ async def _run_channel_diagnose(
     # --- Step 5: Gemini synthesis ---
     await step_queue.put({"type": "step_start", "index": 5, "label": "Đang viết phân tích"})
 
+    from getviews_pipeline.channel_findings import (
+        build_channel_findings,
+        format_distribution_from_corpus_rows,
+    )
+
+    channel_findings = build_channel_findings(
+        videos=videos,
+        channel_pattern=channel_pattern,
+        recent_window_30d=recent_window,
+        inflection=inflection,
+        niche_benchmarks=niche_benchmarks,
+        peer_corpus_rows=peer_corpus_rows,
+        dominant_format=str(persona.get("dominant_format") or ""),
+        niche_format_distribution=format_distribution_from_corpus_rows(peer_corpus_rows),
+    )
+
     context_str = build_channel_diagnosis_context(
         handle=handle,
         videos=videos,
@@ -556,6 +572,7 @@ async def _run_channel_diagnose(
         channel_persona=persona,
         peer_source=peer_source,
         next_video_concept=next_video_seed,
+        channel_findings=channel_findings,
     )
 
     from google.genai import types as genai_types

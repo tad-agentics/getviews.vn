@@ -37,6 +37,7 @@ class VideoSectionId(StrEnum):
     persona = "persona"
     script_structure = "script_structure"
     next_video = "next_video"
+    boost_attribution = "boost_attribution"
 
 
 Manifest = dict[str, list[Signal]]
@@ -158,6 +159,10 @@ def _applies_hook_analysis(_ctx: dict, manifest: Manifest) -> bool:
     )
 
 
+def _applies_boost_attribution(_ctx: dict, manifest: Manifest) -> bool:
+    return _has_gate(manifest, "boost_attribution")
+
+
 SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.diagnosis, 10, True, lambda _c, _m: True),
     SectionSpec(VideoSectionId.compliance, 15, False, _applies_compliance),
@@ -172,6 +177,7 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.sound, 62, False, _applies_sound),
     SectionSpec(VideoSectionId.persona, 65, False, _applies_persona),
     SectionSpec(VideoSectionId.script_structure, 68, False, _applies_script_structure),
+    SectionSpec(VideoSectionId.boost_attribution, 70, False, _applies_boost_attribution),
     SectionSpec(VideoSectionId.next_video, 90, True, lambda _c, _m: True),
 )
 
@@ -229,6 +235,10 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("script_structure", "average"): "CẤU TRÚC KỊCH BẢN",
     ("script_structure", "flop"): "CẤU TRÚC KỊCH BẢN",
     ("script_structure", "unknown"): "CẤU TRÚC KỊCH BẢN",
+    ("boost_attribution", "hit"): "CÓ DẤU HIỆU ADS/SEEDING",
+    ("boost_attribution", "average"): "CÓ DẤU HIỆU ADS/SEEDING",
+    ("boost_attribution", "flop"): "CÓ DẤU HIỆU ADS/SEEDING",
+    ("boost_attribution", "unknown"): "CÓ DẤU HIỆU ADS/SEEDING",
     ("next_video", "hit"): "VIDEO TIẾP THEO NÊN QUAY",
     ("next_video", "average"): "VIDEO TIẾP THEO NÊN QUAY",
     ("next_video", "flop"): "VIDEO TIẾP THEO NÊN QUAY",

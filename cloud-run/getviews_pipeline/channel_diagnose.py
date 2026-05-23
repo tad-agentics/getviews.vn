@@ -1336,18 +1336,29 @@ def normalize_peer_creator_for_fe(
     }
 
 
+def _peer_unique_handle_count(rows: list[dict[str, Any]]) -> int:
+    return len({
+        str(r.get("creator_handle") or "").lower()
+        for r in rows
+        if r.get("creator_handle")
+    })
+
+
 def _run_peer_corpus_query(
     user_sb: Any,
     legacy_niche_id: int,
     exclude_handle: str,
     content_class_id: int | None,
     creator_tier: str | None = None,
+    *,
+    reference_eligible_only: bool = False,
 ) -> list[dict[str, Any]]:
     ex = exclude_handle.lower().strip()
     q = (
         user_sb.table("video_corpus")
         .select(
-            "creator_handle,views,content_format,thumbnail_url,video_url,video_id,caption,creator_tier"
+            "creator_handle,views,content_format,thumbnail_url,video_url,video_id,"
+            "caption,creator_tier,reference_eligible,indexed_at"
         )
         .eq("ingest_loop_niche_id", legacy_niche_id)
         .neq("creator_handle", ex)
@@ -1356,8 +1367,46 @@ def _run_peer_corpus_query(
         q = q.eq("content_class_id", content_class_id)
     if creator_tier:
         q = q.eq("creator_tier", creator_tier)
+    if reference_eligible_only:
+        q = q.eq("reference_eligible", True)
     res = q.order("views", desc=True).limit(160).execute()
     return res.data or []
+
+
+def _peer_corpus_with_eligible_fallback(
+    user_sb: Any,
+    legacy_niche_id: int,
+    exclude_handle: str,
+    content_class_id: int | None,
+    creator_tier: str | None,
+) -> list[dict[str, Any]]:
+    """Try ``reference_eligible=true`` first; retry unfiltered when &lt;4 unique handles."""
+    eligible = _run_peer_corpus_query(
+        user_sb,
+        legacy_niche_id,
+        exclude_handle,
+        content_class_id,
+        creator_tier,
+        reference_eligible_only=True,
+    )
+    if _peer_unique_handle_count(eligible) >= 4:
+        return eligible
+    all_rows = _run_peer_corpus_query(
+        user_sb,
+        legacy_niche_id,
+        exclude_handle,
+        content_class_id,
+        creator_tier,
+        reference_eligible_only=False,
+    )
+    if _peer_unique_handle_count(eligible) < 4:
+        logger.info(
+            "[channel_diagnose] peer reference_eligible fallback "
+            "eligible_handles=%d all_handles=%d",
+            _peer_unique_handle_count(eligible),
+            _peer_unique_handle_count(all_rows),
+        )
+    return all_rows
 
 
 def _peer_tier_fallback_chain(
@@ -1369,50 +1418,35 @@ def _peer_tier_fallback_chain(
 ) -> tuple[list[dict[str, Any]], PeerSource]:
     """(class, tier) → (class, all tiers) → niche-only fallback."""
     if content_class_id is None:
-        rows = _run_peer_corpus_query(
+        rows = _peer_corpus_with_eligible_fallback(
             user_sb, legacy_niche_id, exclude_handle, None, creator_tier=None,
         )
-        n = len({str(r.get("creator_handle") or "").lower() for r in rows if r.get("creator_handle")})
+        n = _peer_unique_handle_count(rows)
         if n >= 4:
             return rows, "niche_only"
         return rows, "thin" if rows else "thin"
 
     if creator_tier:
-        tier_rows = _run_peer_corpus_query(
+        tier_rows = _peer_corpus_with_eligible_fallback(
             user_sb,
             legacy_niche_id,
             exclude_handle,
             content_class_id,
             creator_tier=creator_tier,
         )
-        n_handles = len({
-            str(r.get("creator_handle") or "").lower()
-            for r in tier_rows
-            if r.get("creator_handle")
-        })
-        if n_handles >= 4:
+        if _peer_unique_handle_count(tier_rows) >= 4:
             return tier_rows, "content_class"
 
-    class_rows = _run_peer_corpus_query(
+    class_rows = _peer_corpus_with_eligible_fallback(
         user_sb, legacy_niche_id, exclude_handle, content_class_id, creator_tier=None,
     )
-    n_class = len({
-        str(r.get("creator_handle") or "").lower()
-        for r in class_rows
-        if r.get("creator_handle")
-    })
-    if n_class >= 4:
+    if _peer_unique_handle_count(class_rows) >= 4:
         return class_rows, "content_class"
 
-    niche_rows = _run_peer_corpus_query(
+    niche_rows = _peer_corpus_with_eligible_fallback(
         user_sb, legacy_niche_id, exclude_handle, None, creator_tier=None,
     )
-    n_niche = len({
-        str(r.get("creator_handle") or "").lower()
-        for r in niche_rows
-        if r.get("creator_handle")
-    })
-    if n_niche >= 4:
+    if _peer_unique_handle_count(niche_rows) >= 4:
         return niche_rows, "niche_only"
     if niche_rows:
         return niche_rows, "thin"
@@ -1427,10 +1461,10 @@ async def select_niche_peer_creators(
     channel_avg: float,
     limit: int = 3,
     creator_tier: str | None = None,
-) -> tuple[list[dict[str, Any]], PeerSource]:
+) -> tuple[list[dict[str, Any]], PeerSource, list[dict[str, Any]]]:
     """Corpus-first peers (content_class + optional tier → fallback) + follower enrichment."""
     if channel_avg <= 0:
-        return [], "thin"
+        return [], "thin", []
 
     tier_rows, source = _peer_tier_fallback_chain(
         user_sb,
@@ -1440,7 +1474,7 @@ async def select_niche_peer_creators(
         creator_tier,
     )
     if not tier_rows:
-        return [], "thin"
+        return [], "thin", []
 
     by_h: dict[str, list[dict[str, Any]]] = {}
     for r in tier_rows:
@@ -1502,7 +1536,7 @@ async def select_niche_peer_creators(
         })
 
     creators.sort(key=lambda c: c["avg_views"], reverse=True)
-    return creators[:limit], source
+    return creators[:limit], source, tier_rows
 
 
 def derive_next_video_concept(

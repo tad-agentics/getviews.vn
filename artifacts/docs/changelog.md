@@ -1,5 +1,18 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — Wave 4 audit fixes
+
+- **`channel_findings`:** cohort ER threshold from `engagement_p50` (×0.85 when p25 absent); `format_distribution_from_corpus_rows()` from peer corpus; peer select includes `indexed_at` for 7d saturation filter.
+- **`system-design.md` §16:** Wave 4 channel findings + peer `reference_eligible` + video live boost documented.
+
+## 2026-05-23 — Wave 4 complete (channel findings + deep signals)
+
+- **W4-4:** `_run_peer_corpus_query` filters `reference_eligible=true`; `_peer_corpus_with_eligible_fallback` when &lt;4 handles.
+- **W4-1:** `channel_findings.py` — P0×4 findings + `<<<CHANNEL FINDINGS>>>` in channel memo prompt.
+- **W4-2:** Live M3 `boost_attribution` section (F1 deep only) via `extract_live_boost_attribution_signals`.
+- **W4-3:** Win W0 remainder (`win_breakout_vs_channel`, `win_format_in_growth`, `win_replicable_cta`) + P0 flop (`niche_format_underrepresented`, `niche_hook_percentile_gap`, boost P0).
+- **Tests:** 47 passed (Wave 4 + related suites).
+
 ## 2026-05-22 — Utilization map v1.2 (Wave 3 resync + Wave 4 gate)
 
 - **`data-utilization-map-v1.md` v1.2:** baseline @ `9cd0957`; §7 depth split marked shipped; §10 Wave 4 cross-check (W4-1…W4-4 ↔ FIELD matrix).

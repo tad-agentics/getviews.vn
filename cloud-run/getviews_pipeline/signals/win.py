@@ -145,10 +145,149 @@ def extract_win_hook_aligns_niche_top_signal(ctx: dict) -> list[Signal]:
     ]
 
 
+def extract_win_breakout_vs_channel_signal(ctx: dict) -> list[Signal]:
+    if not _tier_gated(ctx):
+        return []
+    us = _user_stats(ctx)
+    bm_raw = us.get("breakout_multiplier") or us.get("target_vs_creator_median")
+    if bm_raw is None:
+        return []
+    try:
+        bm = float(bm_raw)
+    except (TypeError, ValueError):
+        return []
+    if bm < 2.0:
+        return []
+
+    med = us.get("creator_median_views")
+    views = int(us.get("views") or 0)
+    med_i = int(med) if med is not None else None
+    base = (
+        f"Video breakout ×{bm:.1f} so median kênh ({med_i:,} view)"
+        if med_i is not None
+        else f"Video breakout ×{bm:.1f} so baseline kênh"
+    )
+    claim = base + f" — {views:,} view cho thấy cơ chế vượt trội so pattern thường."
+
+    return [
+        Signal(
+            id="win_breakout_vs_channel",
+            section_id="channel_pattern",
+            taxonomy_ref="§4.8.3",
+            salience=0.87,
+            claim=claim,
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"breakout_multiplier={bm:.2f} views={views} creator_median={med_i}",
+                    location="user_stats.breakout_multiplier",
+                )
+            ],
+            suggested_fix="Nhân bản format/hook của hit này trong 2 video tiếp theo.",
+        )
+    ]
+
+
+def extract_win_format_in_growth_signal(ctx: dict) -> list[Signal]:
+    if not _tier_gated(ctx):
+        return []
+    nm = _niche_meta(ctx)
+    dist = nm.get("format_distribution")
+    if not isinstance(dist, dict) or not dist:
+        return []
+    sample = int(nm.get("sample_size") or 0)
+    if sample < _MIN_NICHE_SAMPLE:
+        return []
+
+    fmt = str(ctx.get("content_format") or "").strip().lower().replace("-", "_")
+    if not fmt:
+        return []
+
+    items = sorted(
+        ((str(k).strip().lower().replace("-", "_"), int(v)) for k, v in dist.items() if int(v or 0) > 0),
+        key=lambda x: -x[1],
+    )
+    if len(items) < 2:
+        return []
+    top_share = items[0][1]
+    fmt_share = next((share for name, share in items if name == fmt), 0)
+    if fmt_share < top_share * 0.85:
+        return []
+
+    return [
+        Signal(
+            id="win_format_in_growth",
+            section_id="niche_pattern",
+            taxonomy_ref="§4.8.3",
+            salience=0.85,
+            claim=(
+                f"Format `{fmt}` đang nằm nhóm tích lũy view trong ngách "
+                f"({fmt_share}% corpus) — video khớp sóng growth."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"content_format={fmt} format_share={fmt_share}%",
+                    location="content_format+niche_meta.format_distribution",
+                )
+            ],
+            suggested_fix="Giữ format; thử biến thể hook trong cùng family.",
+        )
+    ]
+
+
+def _verbal_cta_present(ctx: dict) -> bool:
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return False
+    ci = ua.get("commerce_intent") or {}
+    if isinstance(ci, dict) and ci.get("verbal_cta_present"):
+        return True
+    return bool(str(ua.get("cta") or "").strip())
+
+
+def extract_win_replicable_cta_signal(ctx: dict) -> list[Signal]:
+    if not _tier_gated(ctx):
+        return []
+    if not _verbal_cta_present(ctx):
+        return []
+
+    fmt = str(ctx.get("content_format") or "").strip()
+    if not fmt or fmt.lower() in ("none", "other"):
+        return []
+
+    ua = ctx.get("user_analysis") or {}
+    cta = str((ua.get("commerce_intent") or {}).get("verbal_cta_quote") or ua.get("cta") or "").strip()
+
+    return [
+        Signal(
+            id="win_replicable_cta",
+            section_id="next_video",
+            taxonomy_ref="§4.8.3",
+            salience=0.82,
+            claim=(
+                f"CTA lời nói rõ + format `{fmt}` lặp lại được — "
+                "cơ chế chuyển đổi có thể nhân bản video sau."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"cta={cta[:80]} format={fmt}",
+                    location="user_analysis.cta+content_format",
+                )
+            ],
+            suggested_fix="Giữ CTA verbal + cấu trúc format; đổi hook line mỗi tuần.",
+        )
+    ]
+
+
 def extract_win_signals(ctx: dict) -> list[Signal]:
     out: list[Signal] = []
     out.extend(extract_win_er_above_niche_p75_signal(ctx))
     out.extend(extract_win_hook_aligns_niche_top_signal(ctx))
+    out.extend(extract_win_breakout_vs_channel_signal(ctx))
+    out.extend(extract_win_format_in_growth_signal(ctx))
+    out.extend(extract_win_replicable_cta_signal(ctx))
     if out:
         logger.info(
             "[signals/win] fired ids=%s tier=%s",

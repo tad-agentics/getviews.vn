@@ -2,12 +2,11 @@
 
 > **Pivot SSOT (2026-05-21+):** Cohort canonical = `(content_class_id, creator_tier)`; browse/filter = junction `content_class_id` — [`system-design.md`](system-design.md) §9 · [`two-axis-niche-model.md`](two-axis-niche-model.md).
 
-**Version:** 1.2 (Wave 3 resync + Wave 4 gate)  
-**Last updated:** 2026-05-22  
-**Code baseline:** `main` @ Wave 3 ship (`9cd0957` — `analysis_depth`, cache PK, atomic billing)  
-**Status:** As-built FIELD × feature matrix + V1 gap markers (`🔨`)  
-**Vision:** [`feature-map-v1.md`](feature-map-v1.md) v2.0 FINAL  
-**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0 ✅ · Wave 1 ✅ · Wave 2 ✅ · Wave 3 ✅ (W3-5 upsell deferred)  
+**Version:** 1.3 (Wave 4 ship)  
+**Last updated:** 2026-05-23  
+**Code baseline:** `main` @ Wave 4 ship — channel findings + boost_attribution live + peer filter  
+**Status:** As-built FIELD × feature matrix  
+**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0–4 ✅ (W3-5 upsell deferred)  
 **As-built routes:** [`feature-map.md`](feature-map.md)  
 **Technical audit:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) (tier A–D, trim-safe)  
 **Schema source:** [`models.py`](../../cloud-run/getviews_pipeline/models.py) `VideoAnalysis` · [`corpus_ingest.py`](../../cloud-run/getviews_pipeline/corpus_ingest.py) `_build_corpus_row`
@@ -39,9 +38,9 @@
 | Cột | ID | Mô tả |
 |-----|-----|--------|
 | **F2** | F2 | Video **Cơ bản** — whitelist §4.2, manifest cap 3, billing 1×, cache `(video_id, basic)` |
-| **F1** | F1 | Video **Chuyên sâu** — full `SECTION_POOL` + `boost_attribution` (**🔨** live M3) + cap 5, billing 2×, cache `(video_id, deep)` |
-| **F5** | F5 | Soi kênh **Nhanh** — card ED + 1–2 finding P0 (**🔨** `channel_findings` — W4-1) |
-| **F4** | F4 | Soi kênh **Sâu** — SSE memo + trajectory/score_card (**🔨** `channel_findings[]` §5.3 — W4-1) |
+| **F1** | F1 | Video **Chuyên sâu** — full `SECTION_POOL` + `boost_attribution` + cap 5, billing 2×, cache `(video_id, deep)` |
+| **F5** | F5 | Soi kênh **Nhanh** — card ED + 1–2 finding P0 (`channel_findings`) |
+| **F4** | F4 | Soi kênh **Sâu** — SSE memo + trajectory/score_card + `channel_findings[]` §5.3 |
 | **F6** | F6 | **Xu hướng** — công thức viral + kho video (class-first browse) |
 | **STU** | Studio §3.1 | **Gợi ý hôm nay** I Morning Signal · II hooks · III within-niche breakouts |
 | **F7** | F7 | **Script Studio** — hook, shot list, scene intel, ritual prefill |
@@ -198,8 +197,8 @@
 | `text_overlay_count` / `scene_count` / `video_duration` | bench | audit | — | pattern | feed | — | spec | MV | Derived from extract |
 | `transcript_snippet` | bench | bench | — | — | — | — | — | gate | Promoted 500 chars; full-text search **🔨** F8 |
 | `niche_resolution_source` / `_confidence` / `inferred_creator_niche_id` | — | — | — | — | feed | anchor | — | BAT | HI-11 telemetry |
-| `boost_attribution` | — | audit | flag | rollup | filter | — | — | MV | **Batch ✅** ingest; **🔨** live M3 user video |
-| `reference_eligible` | ref | ref | — | ref | filter | — | — | MV | **✅** M2 — `fetch_corpus_reference_pool` when `corpus_boost_hard_reject`; **🔨** channel peers W4 |
+| `boost_attribution` | — | audit | flag | rollup | filter | — | — | MV | Batch ✅ ingest; live M3 user video ✅ |
+| `reference_eligible` | ref | ref | — | ref | filter | — | — | MV | M2 ref pool + channel peers ✅ |
 | `ingest_relaxation_tier` | — | — | — | — | — | — | — | BAT | Ingest policy telemetry |
 | `stats_history` | — | audit | — | rollup | — | — | — | M4 | **🔨** §4.7 P1 cron re-fetch |
 | `distribution_shape` | — | audit | — | — | — | — | — | M4 | Derived from `stats_history` |
@@ -224,7 +223,7 @@
 | `creator_velocity` | — | — | show | score | — | — | — | MV | ED rollup by handle | **✅** channel score card inputs |
 | `trending_sounds` | teaser | audit | — | — | feed | — | spec | MV | `sound_id`, lifecycle | **✅** |
 | `claim_tiers` | gate | gate | gate | gate | gate | gate | gate | gate | Sample size gates | **✅** `ConfidenceStrip`, corpus-health |
-| `channel_diagnoses` (cached memo) | — | — | — | show | — | — | — | — | Output F4 | **✅** 7d cache; **🔨** findings inject |
+| `channel_diagnoses` (cached memo) | — | — | — | show | — | — | — | — | Output F4 | **✅** 7d cache + findings inject |
 | `video_shots` (R2 + matcher) | — | teaser | — | — | — | — | spec | MV | `scenes[]` frames | **✅** |
 
 ### §6.1 Class-first surfaces (as-built @ `8ad7ab0`)
@@ -238,7 +237,7 @@
 | **F6 Cross-niche** `CrossNicheBreakoutLane` | `video_corpus` | `content_class_id NOT IN` user junction |
 | **F6 TrendsRail** | `useTrendsRailVideos` | Within `ingest_loop_niche_id` — 7d + viral rails |
 | **F1/F2 diagnosis** | `fetch_video_benchmark_with_axis` | tier MV → class MV → niche fallback |
-| **F4 channel peers** | `video_corpus` by handle | Class+tier fallback chain; **no** `reference_eligible` filter yet (**🔨** W4-4) |
+| **F4 channel peers** | `video_corpus` by handle | Class+tier fallback chain; `reference_eligible` filter + thin fallback |
 
 ---
 
@@ -293,16 +292,16 @@
 | `persona_consistency_signals` | **Orphan** | **🔨** wire F4 P2 or defer |
 | `peer_percentile` / `peer_percentile_label` | **Strong** | Wired W1-3 when tier MV + `creator_tier` on corpus row |
 | `win_er_above_niche_p75` / `win_hook_aligns_niche_top` | **Strong** | **✅** `signals/win.py`; `tier_gate=hit`; W1-6 |
-| `win_breakout_vs_channel` / `win_format_in_growth` / `win_replicable_cta` | **Missing** | **🔨** W4-3 — W0 Win còn lại (§4.8.3) |
-| `channel_findings[]` roll-ups | **Missing** | **🔨** W4-1 — aggregate `analysis_json` on handle |
+| `win_breakout_vs_channel` / `win_format_in_growth` / `win_replicable_cta` | **Strong** | **✅** `signals/win.py` W4-3 |
+| `channel_findings[]` roll-ups | **Strong** | **✅** `channel_findings.py` W4-1 |
 | `key_timestamps[]` | Weak | Schema compat; defer |
 | `energy_level` | Weak | `pattern_fingerprint` only — OK BAT |
 | `hook_analysis.hook_notes` | Weak | Prompt filler |
 | `content_context.primary_subjects` | Weak | Synthesis only |
 | `niche_classification` on **peer** rows | Intentional skip | Ref score ignores |
 | `douyin_origin` on TikTok corpus | Null at ingest | F1 on-demand only |
-| Live `boost_attribution` (M3) | **Partial** | Batch col ✅ (`corpus_boost_suspect`); user-video heuristic **🔨** W4-2 |
-| F4 channel peer `reference_eligible` | **Partial** | Video ref pool ✅ (`corpus_context`); channel `_run_peer_corpus_query` **🔨** W4-4 |
+| Live `boost_attribution` (M3) | **Strong** | Batch col ✅ + live `boost_attribution` section ✅ W4-2 |
+| F4 channel peer `reference_eligible` | **Strong** | Video ref pool + channel peers ✅ W4-4 |
 
 **Không coi orphan:** `commerce_intent`, `text_overlays[]`, `audio_track_role`, `target_audience`, `pain_points`, `style_tags`.
 
@@ -321,7 +320,7 @@
 | Wave 0 F8 verify | Done | ✅ ref pool + boost batch + channel 3× credit |
 | Wave 4 gate doc | Cross-check | ✅ §10 — FIELD × W4-1…W4-4 |
 
-**Open gates (incremental roadmap):** W3-5 upsell UI · **W4** (§10) · W1-5 utilization resync ✅ @ v1.2.
+**Open gates (incremental roadmap):** W3-5 upsell UI · W1-5 utilization resync ✅ @ v1.3 · Wave 4 ✅.
 
 ---
 

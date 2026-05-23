@@ -34,6 +34,9 @@ kiểm toán, KHÔNG phải bảng đánh giá theo tiêu chí.
 Mọi số liệu (view, P%, tỉ lệ format…) phải có ngay câu giải thích ý nghĩa cho creator \
 (không để số trần). Mỗi đoạn: nêu số → giải thích → hàm ý hành động (ngắn).
 
+Khi có block <<<CHANNEL FINDINGS>>>: dùng từng finding làm bằng chứng số trong memo; \
+KHÔNG khẳng định FYP % hay shadowban chắc chắn — chỉ diễn giải “có dấu hiệu”.
+
 === QUY TẮC VIẾT ===
 
 Phong cách:
@@ -246,6 +249,7 @@ def build_channel_diagnosis_context(
     channel_persona: dict[str, Any] | None = None,
     peer_source: str | None = None,
     next_video_concept: dict[str, Any] | None = None,
+    channel_findings: list[Any] | None = None,
 ) -> str:
     """Build the user-facing context string with ``<<<BLOCK>>>`` delimiters.
 
@@ -446,5 +450,12 @@ def build_channel_diagnosis_context(
             f"sample_video_url: {next_video_concept.get('sample_video_url')}",
         ]
         blocks.append("<<<NEXT VIDEO CONCEPT>>>\n" + "\n".join(nv_lines))
+
+    if channel_findings:
+        from getviews_pipeline.channel_findings import format_findings_for_prompt
+
+        block = format_findings_for_prompt(channel_findings)
+        if block:
+            blocks.append(block)
 
     return "\n\n".join(blocks)

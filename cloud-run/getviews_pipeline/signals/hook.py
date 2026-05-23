@@ -229,6 +229,53 @@ def extract_gia_soc_compliance_signal(ctx: dict) -> list[Signal]:
     ]
 
 
+def extract_niche_hook_percentile_gap_signal(ctx: dict) -> list[Signal]:
+    nm = ctx.get("niche_meta") or {}
+    if not isinstance(nm, dict):
+        return []
+    dist = nm.get("hook_distribution")
+    if not isinstance(dist, dict) or not dist:
+        return []
+    sample = int(nm.get("sample_size") or 0)
+    if sample < _MIN_NICHE_SAMPLE_FOR_HOOK_RANK:
+        return []
+
+    total = sum(int(v or 0) for v in dist.values())
+    if total <= 0:
+        return []
+
+    ha = _hook_analysis_dict(ctx)
+    ht = str(ha.get("hook_type") or "").strip().lower().replace("-", "_")
+    if not ht or ht in ("none", "other"):
+        return []
+
+    hook_count = int(dist.get(ht) or dist.get(ht.replace("_", "-")) or 0)
+    percentile = round(100 * hook_count / total)
+    if percentile >= 15:
+        return []
+
+    return [
+        Signal(
+            id="niche_hook_percentile_gap",
+            section_id="hook_analysis",
+            taxonomy_ref="§4.8.3",
+            salience=0.77,
+            claim=(
+                f"Hook `{ht}` chỉ ~{percentile}% corpus ngách — "
+                "có dấu hiệu lệch pattern hook đang tích lũy view."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=f"hook_type={ht} niche_hook_share={percentile}%",
+                    location="user_analysis.hook_analysis+niche_meta.hook_distribution",
+                )
+            ],
+            suggested_fix="Thử hook thuộc top 3 distribution hoặc tách biệt rõ chủ đích.",
+        )
+    ]
+
+
 def extract_hook_signals(ctx: dict) -> list[Signal]:
     out: list[Signal] = []
     out.extend(extract_hook_first_frame_product_signal(ctx))
@@ -237,4 +284,5 @@ def extract_hook_signals(ctx: dict) -> list[Signal]:
     out.extend(extract_hook_body_contract_signal(ctx))
     out.extend(extract_dialect_consistency_signal(ctx))
     out.extend(extract_gia_soc_compliance_signal(ctx))
+    out.extend(extract_niche_hook_percentile_gap_signal(ctx))
     return out

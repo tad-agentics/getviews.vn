@@ -755,10 +755,13 @@ Admin panel tile (`/app/admin`) shows 7-day failure count + top-10 video_ids. Sp
 | Source | Usage |
 |---|---|
 | EnsembleData | Live fetch of the 30 most-recent videos for the handle (`fetch_user_posts`) |
-| `video_corpus` | **Corpus-first peer creators** (`select_niche_peer_creators`) — content_class → niche_only → thin; follower enrichment via EnsembleData (never surface `0` as real count). |
+| `video_corpus` | **Corpus-first peer creators** (`select_niche_peer_creators`) — content_class → niche_only → thin; **`reference_eligible=true` first** with unfiltered fallback when &lt;4 peer handles (§4.7 M2). Follower enrichment via EnsembleData (never surface `0` as real count). |
 | `video_corpus` + `map_legacy_corpus_to_content_class` | **Channel persona** — dominant content class + label (`derive_channel_persona`). |
 | `niche_channel_benchmarks` RPC | Percentile band (P25/P50/P75) + median posts/week for score card + prompts |
+| **`channel_findings.py`** (Wave 4) | Deterministic P0 findings → `<<<CHANNEL FINDINGS>>>` inject before Gemini (no FYP % / shadowban certainty). |
 | Gemini | Vietnamese narrative only (synthesis model, ~`gemini-3-flash-preview`). Structured blocks (score card, hashtags, peer table, next-video skeleton) are **template-generated**. |
+
+**Video diagnosis (Wave 4 — separate from channel memo):** live **`boost_attribution`** section (F1 `analysis_depth=deep` only) via `signals/distribution.py` + `classify_boost_suspect`; Win W0 remainder + P0 flop signals in `signals/win.py`, `hook.py`, `reference.py`.
 
 ### Trajectory classification
 
