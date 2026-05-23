@@ -138,7 +138,6 @@ function ReportPayloadBody({
   onOpenScriptShoot,
   analysisDepth,
   showDeepUpsell,
-  onRequestDeepAnalysis,
   lockedSections,
 }: {
   payload: ReportV1;
@@ -154,7 +153,6 @@ function ReportPayloadBody({
   onOpenScriptShoot?: (draftId: string) => void;
   analysisDepth?: AnswerHandoffDepth | null;
   showDeepUpsell?: boolean;
-  onRequestDeepAnalysis?: () => void;
   lockedSections?: LockedSectionTeaser[];
 }) {
   // Kicker strings intentionally Vietnamese — matches CLAUDE.md's
@@ -212,7 +210,6 @@ function ReportPayloadBody({
             narrativeReady={videoStreamProgress?.narrativeReady ?? null}
             analysisDepth={analysisDepth ?? null}
             showDeepUpsell={showDeepUpsell}
-            onRequestDeepAnalysis={onRequestDeepAnalysis}
             lockedSections={lockedSections}
           />
         </AnswerBlock>
@@ -272,7 +269,6 @@ export function ContinuationTurn({
   onOpenScriptShoot,
   analysisDepth,
   showDeepUpsell,
-  onRequestDeepAnalysis,
   lockedSections,
 }: {
   turn: AnswerTurnRow;
@@ -286,7 +282,6 @@ export function ContinuationTurn({
   onOpenScriptShoot?: (draftId: string) => void;
   analysisDepth?: AnswerHandoffDepth | null;
   showDeepUpsell?: boolean;
-  onRequestDeepAnalysis?: () => void;
   lockedSections?: LockedSectionTeaser[];
 }) {
   // Primary turn duplicates AnswerScreen hero (“Câu hỏi” + H1). Divider +
@@ -303,7 +298,6 @@ export function ContinuationTurn({
         onOpenScriptShoot={onOpenScriptShoot}
         analysisDepth={analysisDepth}
         showDeepUpsell={showDeepUpsell}
-        onRequestDeepAnalysis={onRequestDeepAnalysis}
         lockedSections={lockedSections}
       />
     </article>

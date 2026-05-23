@@ -139,6 +139,26 @@ def select_builder_for_turn(session_fmt: str, kind: str) -> str:
     return "generic"
 
 
+# CTA pill explicit intent → report builder (§4.10.2 W5-1).
+_INTENT_CTA_BUILDER: dict[str, str] = {
+    "shot_list": "script",
+    "timing": "timing",
+    "content_calendar": "timing",
+    "hook_variants": "ideas",
+    "brief_generation": "ideas",
+    "trend_spike": "pattern",
+    "content_directions": "pattern",
+    "video_diagnosis": "video",
+    "compare_videos": "generic",
+}
+
+
+def builder_for_intent_cta(intent_type: str | None) -> str | None:
+    if not intent_type:
+        return None
+    return _INTENT_CTA_BUILDER.get(intent_type)
+
+
 # Intent id → lifecycle mode discriminator. Kept centralised so the
 # dispatcher and the intent router agree on which mode each intent
 # produces. See ``artifacts/docs/report-template-prd-lifecycle.md``.
@@ -396,6 +416,8 @@ def append_turn(
     kind: str,
     classifier_confidence_score: float | None = None,
     intent_id: str | None = None,
+    intent_type_override: str | None = None,
+    cta_id: str | None = None,
     video_mode: str | None = None,
     analysis_depth: str | None = None,
     source_entry: str | None = None,
@@ -410,6 +432,8 @@ def append_turn(
       - ``intent_id`` is the classifier's ``primary`` label; included in
         the event metadata so D.5.1 can attribute low-confidence rates
         per intent.
+      - ``intent_type_override`` + ``source_entry=intent_cta``: skip
+        free-text re-classify; map builder from CTA matrix (§4.10.2).
     """
     from getviews_pipeline.supabase_client import user_supabase
 
@@ -420,7 +444,7 @@ def append_turn(
     sb_srv = get_service_client()
     sess = (
         sb_srv.table("answer_sessions")
-        .select("id,user_id,format,niche_id,title,initial_q")
+        .select("id,user_id,format,niche_id,title,initial_q,intent_type")
         .eq("id", session_id)
         .single()
         .execute()
@@ -440,7 +464,22 @@ def append_turn(
     turn_index = max_idx + 1
 
     session_fmt = session.get("format") or "pattern"
-    builder_fmt = select_builder_for_turn(session_fmt, kind)
+    skip_classify = source_entry == "intent_cta" and bool(intent_type_override)
+    cta_builder = builder_for_intent_cta(intent_type_override) if skip_classify else None
+    builder_fmt = cta_builder or select_builder_for_turn(session_fmt, kind)
+    turn_intent = (
+        intent_type_override
+        if skip_classify
+        else (session.get("intent_type") or "trend_spike")
+    )
+    if skip_classify:
+        logger.info(
+            "[answer/turns] intent_cta cta_id=%s intent=%s parent_fmt=%s builder=%s",
+            cta_id,
+            intent_type_override,
+            session_fmt,
+            builder_fmt,
+        )
     resolved_video_depth = (
         analysis_depth if analysis_depth in ("basic", "deep") else "basic"
     )
@@ -505,7 +544,7 @@ def append_turn(
             inner = build_pattern_report(
                 niche_pk,
                 query,
-                session.get("intent_type") or "trend_spike",
+                turn_intent,
                 window_days=window_days,
                 subreports=subs or None,
                 step_queue=step_queue,
@@ -514,7 +553,7 @@ def append_turn(
             inner = build_ideas_report(
                 niche_pk,
                 query,
-                session.get("intent_type") or "brief_generation",
+                turn_intent if turn_intent in ("hook_variants", "brief_generation") else "brief_generation",
                 window_days=window_days,
                 step_queue=step_queue,
             )
@@ -525,7 +564,7 @@ def append_turn(
             # hint makes the behaviour explicit for primary turns.
             timing_mode = (
                 "calendar"
-                if (session.get("intent_type") or "") == "content_calendar"
+                if turn_intent == "content_calendar"
                 else None
             )
             inner = build_timing_report(
@@ -539,7 +578,7 @@ def append_turn(
             inner = build_lifecycle_report(
                 niche_pk,
                 query,
-                lifecycle_mode_for_intent(session.get("intent_type")),
+                lifecycle_mode_for_intent(turn_intent),
                 window_days=window_days,
                 step_queue=step_queue,
             )

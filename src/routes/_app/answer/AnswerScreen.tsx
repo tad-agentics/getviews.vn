@@ -31,7 +31,6 @@ import { Plus, Check, ArrowLeft } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { ScriptShootPanel } from "@/components/v2/answer/script/ScriptShootPanel";
 import {
-  appendTurnKindForQuery,
   parseAnswerHandoffParams,
   planAnswerEntry,
 } from "@/routes/_app/intent-router";
@@ -42,6 +41,9 @@ import {
 } from "@/lib/answerHandoff";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
+import { IntentCtaRail } from "@/components/v2/answer/IntentCtaRail";
+import type { IntentCtaContext, IntentCtaSuggestion } from "@/lib/intentCtaSuggestions";
+import { appendTurnKindForIntent } from "@/routes/_app/intent-router";
 import {
   CacheHitBadge,
   LivePipelineStrip,
@@ -130,9 +132,31 @@ function pickAnswerErrorCode(e: unknown, fallback: string): string {
 const ANSWER_HERO_H1_CLASS =
   "gv-tight mt-0 w-full min-w-0 max-w-[880px] [overflow-wrap:anywhere] text-[clamp(0.875rem,2.25vi+0.45rem,2.35rem)] leading-[1.2] tracking-[-0.03em] text-[color:var(--gv-ink)] sm:leading-[1.15]";
 
-function relatedFromReport(p: ReportV1 | null): string[] {
-  if (!p) return [];
-  return p.report.related_questions ?? [];
+function evidenceVideoQueryFromPayload(p: ReportV1 | null): string | null {
+  if (!p) return null;
+  if (p.kind === "pattern" || p.kind === "generic") {
+    const ev = p.report.evidence_videos?.[0];
+    if (ev?.video_id) {
+      const handle = ev.creator_handle?.trim();
+      if (handle) {
+        const h = handle.startsWith("@") ? handle.slice(1) : handle;
+        return `https://www.tiktok.com/@${h}/video/${ev.video_id}`;
+      }
+      return ev.video_id;
+    }
+  }
+  return null;
+}
+
+function scriptDraftIdFromTurns(turns: AnswerTurnRow[]): string | null {
+  for (let i = turns.length - 1; i >= 0; i -= 1) {
+    const row = turns[i]?.payload;
+    if (row?.kind === "script") {
+      const draftId = (row.report as { draft_id?: string }).draft_id;
+      if (typeof draftId === "string" && draftId.trim()) return draftId.trim();
+    }
+  }
+  return null;
 }
 
 export default function AnswerScreen() {
@@ -498,117 +522,92 @@ export default function AnswerScreen() {
     })();
   }, [sessionId, seedQ, CLOUD, user, defaultProfileNicheId, handoff, setSearchParams, navigate, queryClient, uid, stream]);
 
-  const submitFollowUp = useCallback(async () => {
-    const q = followUp.trim();
-    if (!sessionId || !q || !CLOUD || !user) return;
-    setBootstrapLoading(true);
-    setError(null);
-    try {
-      const entry = planAnswerEntry(q, true);
-      if (entry.kind === "redirect") {
-        navigate(entry.to);
-        setFollowUp("");
-        return;
-      }
-      const turnKind = appendTurnKindForQuery(q, true);
-
-      const result = await stream({
-        mode: "answer_turn",
-        answerSessionId: sessionId,
-        query: q,
-        turnKind,
-        sessionFormat: detailQuery.data?.session?.format,
-      });
-      if (!result.ok) {
-        setError(pickAnswerErrorCode(result.error, "follow_up_failed"));
-        return;
-      }
-      setFollowUp("");
-      logUsage("answer_turn_append", {
-        session_id: sessionId,
-        kind: turnKind,
-        intent_type: entry.intent_type,
-      });
-      if (result.finalPayload) {
-        const cached = queryClient.getQueryData<AnswerDetailCache>(
-          answerSessionKeys.detail(sessionId),
-        );
-        const nextIndex = cached?.turns.length ?? 0;
-        const synthesized: AnswerTurnRow = {
-          id: `optimistic-${sessionId}-${nextIndex}`,
+  const appendCtaTurn = useCallback(
+    async (suggestion: IntentCtaSuggestion, query: string) => {
+      if (!sessionId || !query.trim() || !CLOUD || !user) return;
+      setBootstrapLoading(true);
+      setError(null);
+      try {
+        const turnKind = appendTurnKindForIntent(suggestion.intentType);
+        const result = await stream({
+          mode: "answer_turn",
+          answerSessionId: sessionId,
+          query: query.trim(),
+          turnKind,
+          sessionFormat: detailQuery.data?.session?.format,
+          sourceEntry: "intent_cta",
+          intentType: suggestion.intentType,
+          ctaId: suggestion.id,
+          analysisDepth:
+            suggestion.id === "video_deep" ? "deep" : handoff.depth,
+          videoMode: handoff.mode ?? undefined,
+        });
+        if (!result.ok) {
+          setError(pickAnswerErrorCode(result.error, "follow_up_failed"));
+          return;
+        }
+        logUsage("answer_turn_append", {
           session_id: sessionId,
-          turn_index: nextIndex,
           kind: turnKind,
-          query: q,
-          payload: result.finalPayload,
-          credits_used: turnKind === "script" ? 3 : 0,
-          created_at: new Date().toISOString(),
-        };
-        queryClient.setQueryData<AnswerDetailCache>(
-          answerSessionKeys.detail(sessionId),
-          (prev) => {
-            // Fallback session shape only used when cache is unexpectedly empty.
-            const fallbackSession = prev?.session ?? {
-              id: sessionId,
-              user_id: user.id,
-              title: null,
-              initial_q: q,
-              intent_type: entry.intent_type,
-              format: "generic",
-              niche_id: null,
-            };
-            return injectOptimisticTurn(prev, fallbackSession, synthesized);
-          },
-        );
+          intent_type: suggestion.intentType,
+          source_entry: "intent_cta",
+          cta_id: suggestion.id,
+        });
+        if (result.finalPayload) {
+          const cached = queryClient.getQueryData<AnswerDetailCache>(
+            answerSessionKeys.detail(sessionId),
+          );
+          const nextIndex = cached?.turns.length ?? 0;
+          const synthesized: AnswerTurnRow = {
+            id: `optimistic-${sessionId}-${nextIndex}`,
+            session_id: sessionId,
+            turn_index: nextIndex,
+            kind: turnKind,
+            query: query.trim(),
+            payload: result.finalPayload,
+            credits_used: turnKind === "script" ? 3 : 0,
+            created_at: new Date().toISOString(),
+          };
+          queryClient.setQueryData<AnswerDetailCache>(
+            answerSessionKeys.detail(sessionId),
+            (prev) => {
+              const fallbackSession = prev?.session ?? {
+                id: sessionId,
+                user_id: user.id,
+                title: null,
+                initial_q: query.trim(),
+                intent_type: suggestion.intentType,
+                format: detailQuery.data?.session?.format ?? "generic",
+                niche_id: null,
+              };
+              return injectOptimisticTurn(prev, fallbackSession, synthesized);
+            },
+          );
+        }
+        if (uid) {
+          await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
+        }
+      } catch (e) {
+        if (typeof console !== "undefined") {
+          console.error("[answer/cta] failed", e);
+        }
+        setError(pickAnswerErrorCode(e, "follow_up_failed"));
+      } finally {
+        setBootstrapLoading(false);
       }
-      if (uid) {
-        await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
-      }
-    } catch (e) {
-      if (typeof console !== "undefined") {
-        console.error("[answer/follow_up] failed", e);
-      }
-      setError(pickAnswerErrorCode(e, "follow_up_failed"));
-    } finally {
-      setBootstrapLoading(false);
-    }
-  }, [sessionId, followUp, CLOUD, user, navigate, queryClient, uid, stream, detailQuery.data?.session?.format]);
-
-  const submitComposer = useCallback(() => {
-    const q = followUp.trim();
-    if (!q || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
-    if (!sessionId) {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("q", q);
-          next.set("depth", handoff.depth);
-          return next;
-        },
-        { replace: true },
-      );
-      setFollowUp("");
-      return;
-    }
-    void submitFollowUp();
-  }, [
-    followUp,
-    CLOUD,
-    user,
-    bootstrapLoading,
-    streamInFlight,
-    sessionId,
-    handoff.depth,
-    setSearchParams,
-    submitFollowUp,
-  ]);
-
-  const related = relatedFromReport(lastPayload);
-
-  const videoStreamProgress =
-    streamInFlight && detailQuery.data?.session?.format === "video"
-      ? { preSynthesisData, channelContext, narrativeReady }
-      : undefined;
+    },
+    [
+      sessionId,
+      CLOUD,
+      user,
+      stream,
+      queryClient,
+      uid,
+      handoff.depth,
+      handoff.mode,
+      detailQuery.data?.session?.format,
+    ],
+  );
 
   const onRequestDeepAnalysis = useCallback(() => {
     const report = lastPayload?.kind === "video" ? lastPayload.report : null;
@@ -637,6 +636,138 @@ export default function AnswerScreen() {
     lastPayload,
     detailQuery.data?.session?.initial_q,
   ]);
+
+  const handleIntentCta = useCallback(
+    (suggestion: IntentCtaSuggestion, query: string) => {
+      if (suggestion.action === "handoff") {
+        if (suggestion.id === "video_deep") {
+          onRequestDeepAnalysis();
+          return;
+        }
+        const report = lastPayload?.kind === "video" ? lastPayload.report : null;
+        const meta = report?.meta;
+        const url =
+          resolveVideoHandoffQuery({
+            seedQ,
+            sessionInitialQ: detailQuery.data?.session?.initial_q,
+            videoId: report?.video_id,
+            creatorHandle: typeof meta?.creator === "string" ? meta.creator : null,
+          }) ??
+          evidenceVideoQueryFromPayload(lastPayload) ??
+          query.trim();
+        if (!url) return;
+        navigate(
+          buildAnswerHandoffPath({
+            q: url,
+            depth: handoff.depth,
+            mode: handoff.mode ?? "win",
+            ...(handoff.from ? { from: handoff.from } : {}),
+          }),
+        );
+        return;
+      }
+      if (suggestion.action === "compare_navigate") {
+        const urlA =
+          resolveVideoHandoffQuery({
+            seedQ,
+            sessionInitialQ: detailQuery.data?.session?.initial_q,
+            videoId:
+              lastPayload?.kind === "video" ? lastPayload.report.video_id : undefined,
+            creatorHandle:
+              lastPayload?.kind === "video" &&
+              typeof lastPayload.report.meta?.creator === "string"
+                ? lastPayload.report.meta.creator
+                : null,
+          }) ?? "";
+        const urlB = query.trim();
+        if (!urlA || !urlB) return;
+        navigate(
+          `/app/compare?url_a=${encodeURIComponent(urlA)}&url_b=${encodeURIComponent(urlB)}`,
+        );
+        return;
+      }
+      if (suggestion.action === "shoot_panel") {
+        const draftId = scriptDraftIdFromTurns(turns);
+        if (draftId) openScriptShoot(draftId);
+        return;
+      }
+      void appendCtaTurn(suggestion, query);
+    },
+    [
+      appendCtaTurn,
+      navigate,
+      seedQ,
+      handoff,
+      lastPayload,
+      turns,
+      openScriptShoot,
+      detailQuery.data?.session?.initial_q,
+      onRequestDeepAnalysis,
+    ],
+  );
+
+  const submitComposer = useCallback(() => {
+    const q = followUp.trim();
+    if (!q || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
+    if (!sessionId) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("q", q);
+          next.set("depth", handoff.depth);
+          return next;
+        },
+        { replace: true },
+      );
+      setFollowUp("");
+      return;
+    }
+  }, [
+    followUp,
+    CLOUD,
+    user,
+    bootstrapLoading,
+    streamInFlight,
+    sessionId,
+    handoff.depth,
+    setSearchParams,
+  ]);
+
+  const videoStreamProgress =
+    streamInFlight && detailQuery.data?.session?.format === "video"
+      ? { preSynthesisData, channelContext, narrativeReady }
+      : undefined;
+
+  const intentCtaContext = useMemo((): IntentCtaContext => {
+    const report = lastPayload?.kind === "video" ? lastPayload.report : null;
+    const meta = report?.meta;
+    return {
+      format: detailQuery.data?.session?.format ?? "generic",
+      mode: handoff.mode,
+      depth: handoff.depth,
+      videoQuery: resolveVideoHandoffQuery({
+        seedQ,
+        sessionInitialQ: detailQuery.data?.session?.initial_q,
+        videoId: report?.video_id,
+        creatorHandle: typeof meta?.creator === "string" ? meta.creator : null,
+      }),
+      scriptDraftId: scriptDraftIdFromTurns(turns),
+      evidenceVideoQuery: evidenceVideoQueryFromPayload(lastPayload),
+      sessionInitialQ: detailQuery.data?.session?.initial_q ?? null,
+    };
+  }, [
+    detailQuery.data?.session?.format,
+    detailQuery.data?.session?.initial_q,
+    handoff.mode,
+    handoff.depth,
+    seedQ,
+    lastPayload,
+    turns,
+  ]);
+
+  const showIntentCtaRail = Boolean(
+    sessionId && lastPayload && !loading && !streamInFlight && turnCount > 0,
+  );
 
   return (
     <AppLayout active="answer" enableMobileSidebar>
@@ -841,7 +972,6 @@ export default function AnswerScreen() {
                         !loading &&
                         handoff.depth === "basic"
                       }
-                      onRequestDeepAnalysis={onRequestDeepAnalysis}
                       lockedSections={
                         t.payload.kind === "video"
                           ? t.payload.report.locked_sections
@@ -883,16 +1013,23 @@ export default function AnswerScreen() {
                   </button>
                 </div>
               ) : null}
-              <FollowUpComposer
-                value={followUp}
-                onChange={setFollowUp}
-                onSubmit={submitComposer}
-                suggestedPrompts={related}
-                variant={sessionId ? "followUp" : "initial"}
-                disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
-                analysisDepth={handoff.depth}
-                onAnalysisDepthChange={setAnalysisDepth}
-              />
+              {showIntentCtaRail ? (
+                <IntentCtaRail
+                  context={intentCtaContext}
+                  disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
+                  onCta={handleIntentCta}
+                />
+              ) : (
+                <FollowUpComposer
+                  value={followUp}
+                  onChange={setFollowUp}
+                  onSubmit={submitComposer}
+                  variant="initial"
+                  disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
+                  analysisDepth={handoff.depth}
+                  onAnalysisDepthChange={setAnalysisDepth}
+                />
+              )}
             </TimelineRail>
           }
         />

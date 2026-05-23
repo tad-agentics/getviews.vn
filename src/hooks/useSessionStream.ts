@@ -139,6 +139,9 @@ export type StreamArgs =
       videoMode?: "win" | "flop" | null;
       analysisDepth?: "basic" | "deep" | null;
       sourceEntry?: string | null;
+      /** Explicit intent from CTA pill — skip free-text classify (§4.10.2). */
+      intentType?: string | null;
+      ctaId?: string | null;
       resumeStreamId?: string;
       lastSeq?: number;
       /**
@@ -295,6 +298,8 @@ export function useSessionStream<TPayload = unknown>(
                 ...(args.videoMode ? { video_mode: args.videoMode } : {}),
                 ...(args.analysisDepth ? { analysis_depth: args.analysisDepth } : {}),
                 ...(args.sourceEntry ? { source_entry: args.sourceEntry } : {}),
+                ...(args.intentType ? { intent_type: args.intentType } : {}),
+                ...(args.ctaId ? { cta_id: args.ctaId } : {}),
               }),
               signal: abort.signal,
             });

@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — W5-1 Intent CTA rail + audit fixes
+
+- **W5-1:** `IntentCtaRail` + `intentCtaSuggestions.ts` replace free-text follow-up; BE `intent_type` + `source_entry=intent_cta` on append.
+- **W3-5 fix:** Locked-section teasers only in `VideoDeepUpsell`; deep upgrade CTA consolidated in `IntentCtaRail` (no duplicate sticky button).
+- **Docs:** Roadmap §12 W3-5 status aligned.
+
 ## 2026-05-23 — W3-5 post–Cơ bản upsell UI (§4.11.3)
 
 - **FE:** `VideoDeepUpsell` sticky CTA + locked-section teaser pills on basic `VideoBody`; handoff to new session via `buildAnswerHandoffPath({ depth: 'deep' })`.

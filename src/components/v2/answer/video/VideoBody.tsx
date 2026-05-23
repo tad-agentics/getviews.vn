@@ -138,7 +138,6 @@ export function VideoBody({
   narrativeReady = null,
   analysisDepth = null,
   showDeepUpsell = false,
-  onRequestDeepAnalysis,
   lockedSections,
 }: {
   report: VideoReportPayload;
@@ -147,7 +146,6 @@ export function VideoBody({
   narrativeReady?: VideoAnswerNarrativeReadyPayload | null;
   analysisDepth?: "basic" | "deep" | null;
   showDeepUpsell?: boolean;
-  onRequestDeepAnalysis?: () => void;
   lockedSections?: LockedSectionTeaser[];
 }) {
   const navigate = useNavigate();
@@ -236,9 +234,7 @@ export function VideoBody({
     [lockedSections, report.locked_sections],
   );
   const renderDeepUpsell =
-    showDeepUpsell &&
-    shouldShowDeepUpsell(analysisDepth, report.analysis_depth) &&
-    typeof onRequestDeepAnalysis === "function";
+    showDeepUpsell && shouldShowDeepUpsell(analysisDepth, report.analysis_depth);
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const hasChannelPattern = sectionIds.has("channel_pattern");
   const hasHookAnalysis = sectionIds.has("hook_analysis");
@@ -545,10 +541,7 @@ export function VideoBody({
         ) : null}
 
         {renderDeepUpsell ? (
-          <VideoDeepUpsell
-            lockedSections={lockedSectionTeasers}
-            onRequestDeepAnalysis={onRequestDeepAnalysis}
-          />
+          <VideoDeepUpsell lockedSections={lockedSectionTeasers} />
         ) : null}
 
         {/* Standalone channel block: shown when channel data is available but

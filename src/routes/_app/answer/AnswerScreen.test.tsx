@@ -94,13 +94,19 @@ vi.mock("@/components/v2/answer/FollowUpComposer", () => ({
     value,
     onChange,
     onSubmit,
+    variant,
   }: {
     disabled?: boolean;
     value: string;
     onChange: (v: string) => void;
     onSubmit: () => void;
+    variant?: string;
   }) => (
-    <div data-testid="follow-up-composer" data-disabled={String(disabled ?? false)}>
+    <div
+      data-testid="follow-up-composer"
+      data-disabled={String(disabled ?? false)}
+      data-variant={variant ?? "initial"}
+    >
       <textarea
         data-testid="composer-input"
         value={value}
@@ -108,6 +114,28 @@ vi.mock("@/components/v2/answer/FollowUpComposer", () => ({
       />
       <button type="button" data-testid="composer-submit" disabled={disabled} onClick={onSubmit}>
         Gửi
+      </button>
+    </div>
+  ),
+}));
+vi.mock("@/components/v2/answer/IntentCtaRail", () => ({
+  IntentCtaRail: ({
+    disabled,
+    onCta,
+  }: {
+    disabled?: boolean;
+    onCta: (s: { id: string; intentType: string }, q: string) => void;
+  }) => (
+    <div data-testid="intent-cta-rail" data-disabled={String(disabled ?? false)}>
+      <button
+        type="button"
+        data-testid="cta-script"
+        disabled={disabled}
+        onClick={() =>
+          onCta({ id: "video_script", intentType: "shot_list" }, "Tạo kịch bản từ kết quả")
+        }
+      >
+        Tạo kịch bản
       </button>
     </div>
   ),
@@ -401,15 +429,21 @@ describe("AnswerScreen state transitions", () => {
     });
   });
 
-  it("enables the follow-up composer once a sessionId is in the URL", () => {
+  it("shows IntentCtaRail instead of follow-up composer when session has turns", () => {
     mockUseAnswerSessionDetail.mockReturnValue({
-      data: { session: makeSession(), turns: [makeTurn()] },
+      data: { session: makeSession({ format: "video" }), turns: [makeTurn()] },
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
     });
     renderScreen("/app/answer?session=sess-abc");
+    expect(screen.getByTestId("intent-cta-rail")).toBeTruthy();
+    expect(screen.queryByTestId("follow-up-composer")).toBeNull();
+  });
+
+  it("shows initial composer when no session is active", () => {
+    renderScreen("/app/answer");
     const composer = screen.getByTestId("follow-up-composer");
-    expect(composer.getAttribute("data-disabled")).toBe("false");
+    expect(composer.getAttribute("data-variant")).toBe("initial");
   });
 });

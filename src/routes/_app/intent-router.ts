@@ -443,7 +443,14 @@ export function appendTurnKindForQuery(
   priorAssistant: boolean,
 ): "timing" | "creators" | "script" | "generic" {
   const { intentType } = detectIntent(query.trim(), priorAssistant);
-  if (intentType === "timing") return "timing";
+  return appendTurnKindForIntent(intentType);
+}
+
+/** Explicit intent from CTA pill — skip free-text classify (§4.10.2). */
+export function appendTurnKindForIntent(
+  intentType: string,
+): "timing" | "creators" | "script" | "generic" {
+  if (intentType === "timing" || intentType === "content_calendar") return "timing";
   if (intentType === "creator_search") return "creators";
   if (intentType === "shot_list") return "script";
   return "generic";

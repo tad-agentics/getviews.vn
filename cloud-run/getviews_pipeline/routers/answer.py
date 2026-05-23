@@ -41,6 +41,8 @@ class AnswerTurnAppendBody(StrictBody):
     kind: Literal["primary", "timing", "creators", "script", "generic"] = "primary"
     classifier_confidence_score: float | None = Field(default=None, ge=0.0, le=1.0)
     intent_id: str | None = Field(default=None, max_length=80)
+    intent_type: str | None = Field(default=None, max_length=80)
+    cta_id: str | None = Field(default=None, max_length=40)
     video_mode: Literal["win", "flop"] | None = None
     analysis_depth: Literal["basic", "deep"] | None = None
     source_entry: str | None = Field(default=None, max_length=40)
@@ -171,6 +173,8 @@ async def answer_append_turn(
                 kind=body.kind,
                 classifier_confidence_score=body.classifier_confidence_score,
                 intent_id=body.intent_id,
+                intent_type_override=body.intent_type,
+                cta_id=body.cta_id,
                 video_mode=body.video_mode,
                 analysis_depth=body.analysis_depth,
                 source_entry=body.source_entry,

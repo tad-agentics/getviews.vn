@@ -57,20 +57,11 @@ vi.mock("@/routes/_app/components/ThumbnailTile", () => ({
   ThumbnailTile: () => <div data-testid="thumbnail-tile" />,
 }));
 vi.mock("@/components/v2/answer/video/VideoDeepUpsell", () => ({
-  VideoDeepUpsell: ({
-    lockedSections,
-    onRequestDeepAnalysis,
-  }: {
-    lockedSections: { title_vi: string }[];
-    onRequestDeepAnalysis: () => void;
-  }) => (
+  VideoDeepUpsell: ({ lockedSections }: { lockedSections: { title_vi: string }[] }) => (
     <div data-testid="video-deep-upsell">
       {lockedSections.map((s) => (
         <span key={s.title_vi}>{s.title_vi}</span>
       ))}
-      <button type="button" onClick={onRequestDeepAnalysis}>
-        Phân tích chuyên sâu (2 credit)
-      </button>
     </div>
   ),
 }));
@@ -525,8 +516,7 @@ describe("VideoBody render", () => {
     expect(screen.queryAllByRole("link", { name: /Xem video/ })).toHaveLength(0);
   });
 
-  it("renders deep upsell when basic depth and showDeepUpsell", () => {
-    const onRequest = vi.fn();
+  it("renders locked-section teasers when basic depth and showDeepUpsell", () => {
     render(
       <MemoryRouter>
         <VideoBody
@@ -536,14 +526,11 @@ describe("VideoBody render", () => {
           })}
           analysisDepth="basic"
           showDeepUpsell
-          onRequestDeepAnalysis={onRequest}
         />
       </MemoryRouter>,
     );
     expect(screen.getByTestId("video-deep-upsell")).toBeTruthy();
     expect(screen.getByText("Âm thanh và nhịp điệu")).toBeTruthy();
-    screen.getByRole("button", { name: "Phân tích chuyên sâu (2 credit)" }).click();
-    expect(onRequest).toHaveBeenCalledOnce();
   });
 
   it("hides deep upsell for deep analysis depth", () => {
@@ -553,7 +540,6 @@ describe("VideoBody render", () => {
           report={makeWinReport({ analysis_depth: "deep" })}
           analysisDepth="deep"
           showDeepUpsell
-          onRequestDeepAnalysis={() => undefined}
         />
       </MemoryRouter>,
     );

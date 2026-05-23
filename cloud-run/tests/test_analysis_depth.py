@@ -142,6 +142,15 @@ def test_upsell_locked_sections_basic_only() -> None:
     assert upsell_locked_sections(manifest, ctx, depth="deep", performance_tier="average") == []
 
 
+def test_builder_for_intent_cta_maps_intents() -> None:
+    from getviews_pipeline.answer_session import builder_for_intent_cta
+
+    assert builder_for_intent_cta("shot_list") == "script"
+    assert builder_for_intent_cta("content_calendar") == "timing"
+    assert builder_for_intent_cta("hook_variants") == "ideas"
+    assert builder_for_intent_cta("not_a_cta") is None
+
+
 def test_append_turn_deduct_credits_atomic(monkeypatch) -> None:
     """Deep primary must use single RPC with p_amount=2 — no partial deduct."""
     from unittest.mock import MagicMock
