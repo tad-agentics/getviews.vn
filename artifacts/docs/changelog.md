@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — docs: as-built resync @ 680c803
+
+- **`data-utilization-map-v1.md`:** v1.4 baseline @ `680c803`; Wave 5 ✅; W3-5 upsell shipped; §9 open gates → Launch phase backlog.
+- **`feature-map-v1.md`:** F1/F2/F6 shipped status; §4.7.7/§4.8.6/§4.12.5/§5.3.6 checkboxes; boost section W4-2; channel 3× credit resolved; D6/D8/D10 closed; F5 ◐ (Trends peek only).
+- **`feature-map.md`:** Header @ `680c803`; W5-1/W5-2 shipped notes.
+
 ## 2026-05-23 — W5-5 GTM copy + §13B sweep
 
 - **`feature-map-v1.md`:** §13B W5-1…W5-4 checkboxes evidence-linked.

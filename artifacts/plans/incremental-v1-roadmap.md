@@ -2,13 +2,14 @@
 
 **Version:** 1.1  
 **Date:** 2026-05-22  
-**Branch baseline:** `main` @ `9b97207` (Wave 4 ship; Wave 3 @ `9cd0957`)  
+**Branch baseline:** `main` @ `680c803` (Wave 5 ship; Wave 4 @ `9b97207`; Wave 3 @ `9cd0957`)  
 **Status:** SSOT for incremental path to V1 vision — **not** a wholesale `feature-map-v1.md` implementation plan  
 **Changelog v1.1:** As-built audit — fix ref-pool vs channel-peer gaps, `peer_percentile` wiring, W1-4 done scope, handoff inventory, Compare GTM note, F8 DoD.  
 **Wave 0 (2026-05-22):** ✅ Complete — see §4 Wave 0 status.  
 **Wave 1 (2026-05-22):** ✅ Complete — `feat(wave1): handoffs + peer_percentile + win signals` @ `e3b5d01`.  
 **Wave 3 (2026-05-22):** ✅ Complete @ `9cd0957` + W3-5 upsell UI (§4.11.3).  
-**Wave 4 (2026-05-23):** ✅ Complete @ `9b97207` — channel findings + deep utilization.
+**Wave 4 (2026-05-23):** ✅ Complete @ `9b97207` — channel findings + deep utilization.  
+**Wave 5 (2026-05-23):** ✅ Complete @ `680c803` — intent CTA rail, format parity, key_messages trim, Trends channel peek, §13B sweep.
 
 **Related docs:**
 
@@ -99,7 +100,7 @@ Khi item wire extract → user value, PR phải có:
 | Trends→Answer handoff | ✅ W1-1/W1-2 — `answerHandoff.ts`; query `depth`/`mode`/`from` → `video_mode` on `/answer/turns` @ `e3b5d01` | — |
 | No `analysis_depth` | ✅ W3 — whitelist + cache `(video_id, analysis_depth)` + billing 1×/2× @ `9cd0957` | — |
 | Home vs Trends breakout scope | ✅ W1-4 copy — Tier III vs TrendsRail 7d/viral vs CrossNiche; nav dedup UX residual → W2 if needed | **Wave 2** (optional) |
-| Answer follow-up turn 2+ | As-built: `FollowUpComposer` free text | **W5-1:** Intent CTA pill rail §4.10.2 — ẩn chat tự do; giữ multi-turn |
+| Answer follow-up turn 2+ | ✅ W5-1 @ `f3054f5` — `IntentCtaRail` + `intentCtaSuggestions.ts`; ẩn `FollowUpComposer` free text; deep upgrade CTA in rail (not sticky body) | — |
 | `channel_findings[]` P0 | ✅ W4-1 — `channel_findings.py` + `<<<CHANNEL FINDINGS>>>` @ `9b97207` | — |
 | `peer_percentile` | ✅ W1-3 — `finalize_niche_meta_peer_tier` + label when `content_class_tier` axis @ `e3b5d01` | — |
 | Ref pool `reference_eligible` | ✅ Batch ingest + `fetch_corpus_reference_pool` filter (`corpus_context.py`) | **Done** — verify only |
@@ -275,7 +276,7 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 | **W3-3** FE depth pills + billing 1×/2× | M | High | Product billing | — | — | Pills ✅; BE deduct 2× on `deep` primary video | `QueryComposer.tsx`, `HomeScreen`, `AnswerScreen`, `answer_session.py` |
 | **W3-4** Cache upsert always sets `analysis_depth` | M | Med | No wasted re-extract | Both depths | — | Lookup `.eq(analysis_depth)`; on-demand URL cache partitioned | `video_analyze.py`, `report_video.py` |
 
-**Wave 3 exit:** §13B depth items; follow-up UX → W5-1 CTA pills (§4.10.2).
+**Wave 3 exit:** §13B depth items; follow-up UX → ✅ W5-1 CTA pills shipped @ `f3054f5` (§4.10.2).
 
 | Item | Status | Notes |
 |------|--------|-------|
@@ -284,7 +285,7 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 | W3-2 BE whitelist + manifest cap | ✅ | `BASIC_SECTION_ALLOWLIST`; cap 3/5 |
 | W3-3 Billing 1×/2× | ✅ | `append_turn` deduct ×2 on video deep |
 | W3-4 Cache partition | ✅ | PK `(video_id, analysis_depth)`; on-demand URL keyed |
-| W3-5 §4.11.3 post–Cơ bản upsell UI | ✅ | Teaser pills + sticky “Phân tích chuyên sâu (2 credit)” CTA; `locked_sections` from BE manifest |
+| W3-5 §4.11.3 post–Cơ bản upsell UI | ✅ | Teaser pills + `locked_sections` in body; deep upgrade CTA moved to `IntentCtaRail` @ W5-1 (not sticky body button) |
 
 ---
 
@@ -309,7 +310,7 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 
 ---
 
-### Wave 5 — Polish & gated cuts
+### Wave 5 — Polish & gated cuts ✅ *Shipped 2026-05-23 @ `680c803`*
 
 | Item | Effort | Risk | F8 utilization impact | Video diag | Channel diag | Acceptance criteria | Files touched |
 |------|--------|------|----------------------|------------|--------------|---------------------|---------------|
@@ -318,6 +319,16 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 | **W5-3** `key_messages` trim post-ablation | S | Low | Cost ~1–3% | — | — | Diff v6 on sample; map §8 updated | `models.py`, `prompts.py` |
 | **W5-4** F5 channel quick peek on Trends card | M | Med | 1–2 P0 findings | — | Teaser | Card shows ceiling OR format entropy | Trends channel card FE + API |
 | **W5-5** GTM copy + launch gate §13B sweep | M | Low | — | — | — | All §13B checkboxes evidence-linked | docs + QA baselines |
+
+**Wave 5 exit:** §13B sweep evidence in `artifacts/qa-reports/wave5-baseline.json`; incremental W0–W5 complete.
+
+| Item | Status | Notes |
+|------|--------|-------|
+| W5-1 Intent CTA rail | ✅ | `IntentCtaRail`, `intentCtaSuggestions.ts`; hide `FollowUpComposer` free text; BE `intent_type` + `source_entry=intent_cta`; deep upgrade CTA in rail @ `f3054f5` |
+| W5-2 `narrative_vi` headline parity | ✅ | `report_types.py`, `ReportNarrativeHeadline.tsx`, format bodies @ `d9e4628` |
+| W5-3 `key_messages[]` trim | ✅ | Extraction schema trim @ `65e4145` — **G6 caveat:** trim applied without formal ablation metrics |
+| W5-4 F5 channel quick peek | ✅ | `channel_quick_peek.py`, `ChannelQuickPeekTeaser.tsx` on Trends @ `98814cb` |
+| W5-5 §13B sweep + QA baseline | ✅ | Launch gate evidence + changelog @ `680c803` |
 
 ---
 
@@ -346,7 +357,7 @@ Map: extract field → signal (`signals/registry.py`) → `section_id` → UI (`
 | `hook_analysis.hook_timeline[]` | pacing signals (P1) | W5+ | Vision §4.8 P1 backlog — only P0 subset in W4-3 |
 | `transitions_per_second` | `editing_cut_pace_*` | W5+ | F6 feed + F1 audit — P1 |
 | `persona_consistency_signals` | channel rollup OR defer | W5 | Orphan §8 — wire F4 P2 or defer |
-| `key_messages[]` | — | W5 | **Trim-safe** — not wire |
+| `key_messages[]` | — | ✅ W5-3 @ `65e4145` | **Trimmed** from extraction schema — G6: trim without formal ablation metrics |
 | Dedicated FE `boost_attribution` UI block | — | Post-V1 | Section emits in synthesis; no standalone FE block |
 | §4.11.3 post-basic upsell UI | teaser + “Phân tích chuyên sâu” CTA | W3-5 | ✅ Shipped — `VideoDeepUpsell` + `locked_sections` metadata |
 
@@ -388,7 +399,7 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | `channel_peer_format_saturation` | §2.3 | top 20 corpus 7d | ✅ W4-1 |
 | `channel_compliance_aggregate` | §2.4 | roll-up video compliance signals | W4+ |
 | `channel_boost_outlier_share` | §1.8 | `% suspect_medium` on handle | W4 |
-| `channel_slang_staleness` | §2.5 | aggregate `persona_slang_dated` | W5 |
+| `channel_slang_staleness` | §2.5 | aggregate `persona_slang_dated` | W5+ | **Not** W5-4 (quick peek only) — still open |
 
 ### 6.3 Credit & F8
 
@@ -403,11 +414,11 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | Gate | Decision | Blocks | Default recommendation |
 |------|----------|--------|------------------------|
 | **G1** Composer pills Cơ bản/Chuyên sâu | Ship in Wave 3? | W3-3 | Yes — vision §3.1.2; after W1 handoff |
-| **G2** | ~~Hide follow-up turn 2+~~ | Superseded | W5-1 | **CTA intent pill** thay free-text follow-up — §4.10.2 |
+| **G2** | Hide follow-up turn 2+ | — | — | ✅ **Resolved @ W5-1** — `IntentCtaRail` thay free-text follow-up; §4.10.2 |
 | **G3** Hero niche list (5–8 IDs) | Which niches get deep ingest | W2-3, §8.7 | Human picks from `creator_niches` with thin corpus report |
 | **G4** Channel billing | 3× vs 1× | W0-1 | **3×** both sides per vision §10 — Completeness 10/10 |
 | **G5** Depth billing | 1× basic / 2× deep | W3-3 | Sign-off before migration |
-| **G6** `key_messages` trim | Post-ablation only | W5-3 | Wait for fire-rate metrics |
+| **G6** `key_messages` trim | Post-ablation only | — | ✅ **Trim shipped @ W5-3** (`65e4145`) — **caveat:** no formal ablation metrics logged |
 
 Format per project AskUserQuestion: Tech Lead presents options A/B/C with Completeness scores before Wave 3+ execution.
 
@@ -419,7 +430,7 @@ Format per project AskUserQuestion: Tech Lead presents options A/B/C with Comple
 - [ ] Append [`changelog.md`](../docs/changelog.md) in same commit as code
 - [ ] If FIELD wired: update [`data-utilization-map-v1.md`](../docs/data-utilization-map-v1.md) row + remove from §8 orphans
 - [ ] If architectural: update [`system-design.md`](../docs/system-design.md) §9/§10
-- [ ] QA baseline: `artifacts/qa-reports/<wave-id>-baseline.json`
+- [x] QA baseline: `artifacts/qa-reports/<wave-id>-baseline.json` (Wave 5: `wave5-baseline.json` @ `680c803`)
 - [ ] Do **not** edit canonical `feature-map-v1.md` without human amendment approval
 
 ---
@@ -447,8 +458,8 @@ Format per project AskUserQuestion: Tech Lead presents options A/B/C with Comple
 | F3 Compare GTM / polish | Route **shipped** (`/app/compare`, `report_compare.py`) — hidden from V1 GTM per `feature-map.md`; no incremental polish unless product promotes |
 | F6 full UX reshape / route rename `/app/xu-huong` | Handoff only in incremental path |
 | Text chat intents ⑤⑥⑦ from composer | **Không** free composer chat — chỉ CTA pill hoặc entry pill; `/api/chat` legacy rows |
-| Intent CTA follow-up matrix | W5-1 — §4.10.2 `feature-map-v1.md` |
-| Intent output format parity | W5-2 — `narrative_vi` / body per format |
+| ~~Intent CTA follow-up matrix~~ | ✅ W5-1 @ `f3054f5` — shipped |
+| ~~Intent output format parity~~ | ✅ W5-2 @ `d9e4628` — shipped |
 | `analysis_depth` in Wave 0–2 | Explicitly Wave 3+ |
 | Douyin forecast product | Vision Wave 2+ — not incremental W2 scope |
 | TikTok OAuth / Ads API boost proof | Out of scope |
@@ -477,25 +488,32 @@ Format per project AskUserQuestion: Tech Lead presents options A/B/C with Comple
 
 Incremental V1 **launch-ready** when:
 
-- W0–W2 complete + ✅ **W3 depth** @ `9cd0957` + W3-5 @ `a271b1e`; W5-1 CTA rail @ `f3054f5`
+- ✅ **W0–W5 complete** @ `680c803` — baseline `a271b1e` → `680c803`
+- ✅ **W3 depth** @ `9cd0957` + W3-5 upsell teasers; deep CTA in `IntentCtaRail` @ W5-1 (`f3054f5`)
 - ✅ **W4 channel_findings P0** @ `9b97207` — memo evidence-backed via `channel_findings.py` + peer `reference_eligible` filter
-- §13B items traced to wave IDs in QA report
-- F8: no undocumented orphans; `key_messages` trim only after G6
+- ✅ **W5 polish** — CTA rail, `narrative_vi` parity, `key_messages` trim (G6 caveat), Trends channel quick peek, §13B sweep
+- §13B evidence: `artifacts/qa-reports/wave5-baseline.json`
+- F8: no undocumented orphans; `key_messages` ✅ trimmed @ W5-3 (formal ablation metrics deferred)
 - §13A `peer_percentile` — ✅ **W1-3 shipped** @ `e3b5d01` (`finalize_niche_meta_peer_tier` + `peer_percentile_label` on `content_class_tier` axis)
 
 ---
 
-## 13. Top quick wins (next — Wave 5)
+## 13. Post-W5 next steps (remaining §13B / post-V1)
 
-1. **W5-1** — Intent CTA pill follow-up (matrix §4.10.2; thay free-text `FollowUpComposer`).
-2. **W5-2** — Intent output format round (`narrative_vi` per format).
-3. **W5-3** — `key_messages[]` trim post-ablation (G6).
-4. **W5-4** — F5 channel quick peek on Trends card.
-5. **W5-5** — GTM copy + §13B sweep.
-5. ~~**W3-5** (deferred) — §4.11.3 post–Cơ bản upsell UI.~~ ✅ Done
+Wave 5 tasks complete — items below are **not** Wave 5 scope; trace to `feature-map-v1.md` §13B or post-V1 backlog:
 
-*W0–W4 complete — W3 @ `9cd0957`, W4 @ `9b97207`; see §4 status tables.*
+1. **Hero niche depth** — §8.7 batch priority + corpus-health copy when thin.
+2. **Corpus-health humility copy** — admin + user-facing claim tiers on hero niches.
+3. **Channel depth picker** — basic/deep parity for channel diagnosis (vision §5.3).
+4. **`channel_slang_staleness`** — §6.2 P2 finding; W5-4 was quick peek only.
+5. **`channel_compliance_aggregate`** — §6.2 roll-up (W4+).
+6. **Stats history M4 / hook timeline / cut pace** — §5.2 W5+ signal backlog.
+7. **`persona_consistency_signals`** — channel rollup or defer (§5.2 orphan).
+
+~~**W3-5** — §4.11.3 post–Cơ bản upsell UI.~~ ✅ Done (teasers in body; deep CTA in rail @ W5-1)
+
+*W0–W5 complete @ `680c803`; **Launch phase** (§13B + F5 channel depth) — see §13 below.*
 
 ---
 
-*Maintainer: Tech Lead. Next review after Wave 5 merge or taxonomy change.*
+*Maintainer: Tech Lead. Next review after post-W5 §13B items or taxonomy change.*

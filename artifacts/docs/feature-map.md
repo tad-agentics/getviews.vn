@@ -1,11 +1,11 @@
-# Feature Map (main @ 9b97207)
+# Feature Map (main @ 680c803)
 
 *Comprehensive full-stack inventory of user-facing surfaces, backend endpoints, synthesis paths, and database tables. **Source of truth** for what ships where — update this file in the same commit as any route, endpoint, or orchestration change.*
 
 *User value / JTBD / gap analysis:* [`product-value-audit.md`](product-value-audit.md) (value → data, doc-only).  
 *V1 product vision (chỉ phạm vi ship GTM V1):* [`feature-map-v1.md`](feature-map-v1.md) — **không** liệt kê tính năng ngoài V1; xem **§ Post-V1 backlog** bên dưới.
 
-*Verified against codebase **2026-05-23** (Wave 4 — channel findings + deep utilization @ `9b97207`; Wave 3 depth @ `9cd0957`). Spot-checked: two-axis browse; Home tier I–III; Trends Explore; `analysis_depth` whitelist + cache partition; `channel_findings.py`; live `boost_attribution` (F1 deep); Win W0 signals (5 total); channel peer `reference_eligible_only` filter.*
+*Verified against codebase **2026-05-23** (Wave 5 @ `680c803`; Wave 4 @ `9b97207`; Wave 3 @ `9cd0957`). Spot-checked: two-axis browse; Home tier I–III; Trends Explore; `analysis_depth` whitelist + cache partition; W3-5 upsell + W5-1 IntentCtaRail; `channel_findings.py`; live `boost_attribution` (F1 deep); Win W0 signals (5 total); channel peer `reference_eligible_only` filter; W5-4 channel quick peek.*
 
 *Pivot SSOT:* Production ingest/browse defaults — [`system-design.md`](system-design.md) §9 · taxonomy tables — [`two-axis-niche-model.md`](two-axis-niche-model.md).*
 
@@ -110,7 +110,7 @@
 
 **Central surface for structured video reports (Win/Flop). Replaces deleted `/app/video` (2026-04-28).**
 
-**V1 product:** Entry qua composer pill / handoff; **follow-up = CTA intent pill** per format ([`feature-map-v1.md`](feature-map-v1.md) §4.10.2) — không free-text Answer composer. **W5-1** build rail; **W5-2** format output polish.
+**V1 product:** Entry qua composer pill / handoff; **follow-up = CTA intent pill** per format ([`feature-map-v1.md`](feature-map-v1.md) §4.10.2) — không free-text Answer composer. **W5-1** ✅ IntentCtaRail; **W5-2** ✅ `narrative_vi` parity per format.
 
 - **FE:** `src/routes/_app/answer/AnswerScreen.tsx` (`routes.ts:15`)
 - **Entry points:**
@@ -161,7 +161,7 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
 - Turn 2+ via **IntentCtaRail** — explicit `intent_type` from §4.10.2 matrix; **not** free-text `FollowUpComposer`
 - Same POST `/answer/sessions/{id}/turns`; `source_entry=intent_cta`
 - **TimelineRail** — navigate turns in session
-- **W5-2 (deferred):** `narrative_vi` / body parity per format
+- **W5-2:** ✅ `narrative_vi` / body parity per format @ `d9e4628`
 - **Synthesis:** intent-specific `run_*` in `pipelines.py` (e.g. `run_trend_spike`, `run_creator_search`, `run_shot_list`)
 - Text-only free intents may also use Vercel **`POST /api/chat`** when routed to chat mode (see §13)
 - **Status:** shipped & live
@@ -411,7 +411,7 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 | Landing | / | live | Pre-rendered SEO |
 | Auth | /login, /signup, /auth/callback | live | Supabase; Facebook OAuth |
 | Home | /app | live | 3-tier Gợi ý hôm nay + Morning Signal + within-niche breakouts |
-| Answer | /app/answer | live | depth 3/5 cap; boost F1 deep; Win W0×5; **W5-1** CTA follow-up §4.10.2 |
+| Answer | /app/answer | live | depth 3/5 cap; boost F1 deep; Win W0×5; W5-1 CTA rail; W5-2 format parity |
 | History | /app/history | live | `history_union` RPC |
 | Channel | /app/channel | live | 3 credits FE+BE; `channel_findings` + `reference_eligible` peer filter (Wave 4) |
 | Trends | /app/trends | live | Pattern grid + kho video + cross-niche lane + desktop rail |

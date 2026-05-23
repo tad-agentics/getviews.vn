@@ -2,11 +2,11 @@
 
 > **Pivot SSOT (2026-05-21+):** Cohort canonical = `(content_class_id, creator_tier)`; browse/filter = junction `content_class_id` — [`system-design.md`](system-design.md) §9 · [`two-axis-niche-model.md`](two-axis-niche-model.md).
 
-**Version:** 1.3 (Wave 4 ship)  
+**Version:** 1.4 (Wave 5 ship + doc resync)  
 **Last updated:** 2026-05-23  
-**Code baseline:** `main` @ `9b97207` (Wave 4 ship; Wave 3 @ `9cd0957`)  
+**Code baseline:** `main` @ `680c803` (Wave 5 ship; Wave 4 @ `9b97207`; Wave 3 @ `9cd0957`)  
 **Status:** As-built FIELD × feature matrix  
-**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0–4 ✅ (W3-5 upsell deferred)  
+**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0–5 ✅ @ `680c803`; **Launch phase** (§13B) open  
 **As-built routes:** [`feature-map.md`](feature-map.md)  
 **Technical audit:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) (tier A–D, trim-safe)  
 **Schema source:** [`models.py`](../../cloud-run/getviews_pipeline/models.py) `VideoAnalysis` · [`corpus_ingest.py`](../../cloud-run/getviews_pipeline/corpus_ingest.py) `_build_corpus_row`
@@ -66,7 +66,7 @@
 | `feed` | Feed Xu hướng / pattern deck / explore sort |
 | `MV` | Materialized view / nightly batch job |
 | `gate` | Gate section / claim tier / eligibility |
-| `teaser` | Manifest tính đủ; F2 **không** synthesize section F1-only (§4.2); upsell CTA **🔨** W3-5 |
+| `teaser` | Manifest tính đủ; F2 **không** synthesize section F1-only (§4.2); upsell teasers + deep CTA rail ✅ W3-5 + W5-1 |
 | `ref` | Reference pool / proximity ranking |
 | `—` | Không consumer cột này (giải thích §8 nếu vẫn extract) |
 
@@ -253,7 +253,7 @@
 | Billing | 1× basic · 2× deep primary video — `decrement_credit(p_amount)` |
 | Cache | PK `(video_id, analysis_depth)` — `video_analyze.py` lookup/upsert |
 | Legacy `/stream` | Explicit `analysis_depth=deep` in `pipelines.py` (full pool parity) |
-| **Not shipped** | §4.11.3 post-basic upsell UI — **🔨** W3-5 |
+| Upsell UI | §4.11.3 teasers in body + deep CTA in `IntentCtaRail` — ✅ W3-5 @ `a271b1e` + W5-1 @ `f3054f5` |
 
 ### F2 synthesize (whitelist §4.2) — target
 
@@ -307,7 +307,7 @@
 
 ---
 
-## §9 — Coverage checklist (v1.3 @ `9b97207`)
+## §9 — Coverage checklist (v1.4 @ `680c803`)
 
 | Kiểm tra | Target | Kết quả |
 |----------|--------|---------|
@@ -319,8 +319,9 @@
 | Depth split (F2/F1) | Shipped | ✅ §7 @ `9cd0957` — whitelist + cap + cache + billing |
 | Wave 0 F8 verify | Done | ✅ ref pool + boost batch + channel 3× credit |
 | Wave 4 gate doc | Cross-check | ✅ §10 — W4-1…W4-4 shipped @ `9b97207` |
+| Wave 5 polish | Shipped | ✅ W5-1…W5-5 @ `680c803` — CTA rail, format parity, key_messages trim, Trends channel peek |
 
-**Open gates (incremental roadmap):** W3-5 upsell UI · W5 polish (follow-up hide, F5 Trends teaser, `key_messages` trim).
+**Open gates (Launch phase — post-W5):** §13B corpus-health + hero niches · F5 full on `/app/channel` · channel findings P1/P2 · video P1 signal backlog (see [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) §13).
 
 ---
 
