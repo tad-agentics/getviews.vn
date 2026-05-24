@@ -138,7 +138,7 @@
 | `sound_dialect_audio` | teaser | audit | — | — | feed | — | spec | — | `sound_dialect_audio_mismatch`; `trending_sounds` |
 | `trending_vpop_sound` | teaser | audit | — | rollup | feed | — | — | — | `metadata_business_vpop_cml_friction` |
 | `share_trigger_type` | teaser | audit | — | — | — | — | spec | — | `trigger_share_*` |
-| `save_trigger_type` | teaser | audit | — | — | — | — | spec | — | **🔨** W0 `win_*` hit-tier backlog |
+| `save_trigger_type` | teaser | audit | — | — | — | — | spec | — | **Strong** — `signals/triggers.py` + `engagement_save_trigger_weak` |
 | `loop_architecture_score` | teaser | audit | — | — | — | — | — | — | `engagement_loop_architecture` |
 | `trigger_*` (su_that, share, save archetypes) | gate | audit | — | — | — | — | spec | — | `signals/triggers.py` → `diagnosis` |
 
@@ -198,7 +198,8 @@
 | `transcript_snippet` | bench | bench | — | — | — | — | — | gate | Promoted 500 chars; full-text search **🔨** F8 |
 | `niche_resolution_source` / `_confidence` / `inferred_creator_niche_id` | — | — | — | — | feed | anchor | — | BAT | HI-11 telemetry |
 | `boost_attribution` | — | audit | flag | rollup | filter | — | — | MV | Batch ✅ ingest; live M3 user video ✅ |
-| `reference_eligible` | ref | ref | — | ref | filter | — | — | MV | M2 ref pool + channel peers ✅ |
+| `comment_radar` | — | audit | show | — | — | — | — | BAT | JSONB col + live payload; F1 `boost_attribution` M5; `CommentRadarTile` |
+| `reference_eligible` | ref | ref | filter | ref | filter | filter | — | — | MV | M2 ref pool + channel peers ✅; STU/ticker/CrossNiche ✅ S4-3 |
 | `ingest_relaxation_tier` | — | — | — | — | — | — | — | BAT | Ingest policy telemetry |
 | `stats_history` | — | audit | — | rollup | — | — | — | M4 | **✅** M4 cron re-fetch + `distribution_spike_then_flat` |
 | `distribution_shape` | — | audit | — | — | — | — | — | M4 | **✅** Derived from `stats_history` @ launch M4 |
@@ -234,9 +235,10 @@
 |---------|-----------|-----------------|
 | **STU Tier I** `MorningSignalStrip` | `content_class_intelligence` via `useClassMorningSignals` | Primary junction classes only |
 | **STU Tier II** `HooksTable` | `hook_effectiveness` + patterns | `useTopPatterns` scoped to creator niche |
-| **STU Tier III** `BreakoutGrid` | `video_corpus` | `content_class_id IN junction`; `breakout_multiplier ≥ 1` |
+| **STU Tier III** `BreakoutGrid` / `useTopBreakouts` | `video_corpus` | `content_class_id IN junction`; `breakout_multiplier ≥ 1`; **`reference_eligible=true` first** + fallback |
+| **Home ticker** `_breakout_items` | `video_corpus` | `ingest_loop_niche_id`; **`reference_eligible=true` first** + fallback |
 | **F6 Kho video** `ExploreScreen` | `video_corpus` | `applyVideoCorpusNicheFilter` class-first; thin banner = sum junction `sample_size` |
-| **F6 Cross-niche** `CrossNicheBreakoutLane` | `video_corpus` | `content_class_id NOT IN` user junction |
+| **F6 Cross-niche** `CrossNicheBreakoutLane` | `video_corpus` | `content_class_id NOT IN` user junction; **`reference_eligible=true` first** + fallback |
 | **F6 TrendsRail** | `useTrendsRailVideos` | Within `ingest_loop_niche_id` — 7d + viral rails |
 | **F1/F2 diagnosis** | `fetch_video_benchmark_with_axis` | tier MV → class MV → niche fallback |
 | **F4 channel peers** | `video_corpus` by handle | Class+tier fallback chain; `reference_eligible` filter + thin fallback |
@@ -256,6 +258,8 @@
 | Manifest cap | 3/section (basic) · 5/section (deep) — `manifest_for_prompt(depth=)` |
 | Billing | 1× basic · 2× deep primary video — `decrement_credit(p_amount)` |
 | Cache | PK `(video_id, analysis_depth)` — `video_analyze.py` lookup/upsert |
+| On-demand basic→deep | ✅ `_try_on_demand_basic_upgrade_source` — rehydrate `extract_json` from basic `cached_response`; no Gemini re-extract |
+| On-demand sidecars | ✅ `finalize_video_narrative_layer` → `resolve_comment_radar` when `source=on_demand` or missing radar |
 | Legacy `/stream` | Explicit `analysis_depth=deep` in `pipelines.py` (full pool parity) |
 | Upsell UI | §4.11.3 teasers in body + deep CTA in `IntentCtaRail` — ✅ W3-5 @ `a271b1e` + W5-1 @ `f3054f5` |
 
@@ -325,6 +329,7 @@
 | Wave 4 gate doc | Cross-check | ✅ §10 — W4-1…W4-4 shipped @ `9b97207` |
 | Wave 5 polish | Shipped | ✅ W5-1…W5-5 @ `680c803` — CTA rail, format parity, key_messages trim, Trends channel peek |
 | Launch Phases 0–2c + infra | Shipped | ✅ @ `b479f64` — channel Nhanh/Sâu, findings P1/P2, video P1 signals, M4 stats_history, types regen, Cloud Run deploy |
+| §4 closure S4-* | Shipped | ✅ @ 2026-05-23 — synthesis-only upgrade, M5 seeding signal, eligible-first breakouts |
 
 **GTM gates (human):** `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` — see [`launch-phase3-baseline.json`](../qa-reports/launch-phase3-baseline.json).
 
@@ -361,6 +366,22 @@
 | §4.7 P1 partial (M3 live) | §5 `boost_attribution` F1 live ≠ `—`; §7 `boost_attribution` section emits |
 | Channel memo evidence-backed | §6 `channel_diagnoses` row note drops **🔨 findings inject** |
 | F8 M2 on channel peers | §6.1 F4 peers row drops **🔨 W4-4** |
+
+---
+
+## §11 — §4 Video Intelligence closure cross-check (S4 @ 2026-05-23)
+
+| ID | Deliverable | Map rows | Feature-map § | Primary files |
+|----|-------------|----------|---------------|---------------|
+| **S4-1** | On-demand synthesis-only + `extract_json` persist | §7 depth split | §4.12.2 | `video_analyze.py`, `report_video.py` |
+| **S4-2** | `seeding_comment_pattern` + on-demand `comment_radar` | §5 `comment_radar`; §7 F1 `boost_attribution` | §4.7 M5, §4.8.3 P2 | `distribution.py`, `comment_radar*.py` |
+| **S4-3** | Eligible-first breakouts | §5 `reference_eligible` STU/F6; §6.1 | §4.7.5 | `useTopBreakouts.ts`, `ticker.py`, `useCrossNicheBreakouts.ts` |
+
+### S4-2 signal ↔ FIELD trace
+
+| `signal.id` | § map FIELD | `section_id` | Data |
+|-------------|-------------|--------------|------|
+| `seeding_comment_pattern` | §5 `comment_radar` | `boost_attribution` | `sampled`, `neutral_pct`, `spam_skipped_ratio`, `user_stats.views/comments`, `niche_meta` percentiles |
 
 ---
 

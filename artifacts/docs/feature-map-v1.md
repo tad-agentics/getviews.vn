@@ -471,7 +471,7 @@ Không field request-body / không cột `user_declared_*`.
 | `_select_by_proximity_then_er` | Deprioritize / skip `suspect_medium` rows còn sót |
 | `select_top_performers` | Sort `breakout_multiplier` với ER guard, không raw `views` |
 | `niche_intelligence` MV | Aggregate từ `reference_eligible = true` — **bridge**; canonical aggregates → class MVs post-pivot |
-| Home / ticker | Ưu tiên breakout **và** `reference_eligible` (thin corpus → disclaimer như hiện) |
+| Home / ticker | ✅ Ưu tiên breakout **và** `reference_eligible` first + thin fallback (S4-3) |
 
 Video user `suspect_medium`: narrative nói refs là **corpus organic-shaped**; so sánh format/hook, không gọi peer là “viral mẫu mực” nếu peer bị loại.
 
@@ -601,20 +601,20 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 
 #### 4.8.5 Thứ tự implement (gắn §11)
 
-*Depth/cache + W0 Win + P0 boost shipped @ W3/W4; **P1 signal backlog** §4.8.3 still open.*
+*Depth/cache + W0 Win + P0/P1/P2 boost shipped @ W3/W4/S4; **M5 `seeding_comment_pattern`** ✅ S4-2.*
 
 | Sprint | Deliverable |
 |--------|-------------|
-| **W0 (F2 Win)** | `signals/performance.py` hoặc `signals/win.py`: 2 signal P0 `win_er_*`, `win_hook_*`; salience `tier_gate=hit`; unit tests |
-| **S1 (F8 P0)** | §4.7 M1/M2 + `niche_meta` percentiles + 2 signal `niche_*` |
-| **S2 (F1 P1)** | `signals/boost.py`, `boost_attribution`, `manifest_for_prompt(depth)` cap=5, `analysis_depth` + cache composite (§4.12) |
-| **S3 (F1 P1)** | Backlog §4.8.3 **P1** + Win W0 còn lại (`win_breakout_*`, `win_format_*`) |
-| **S4 (F8 P2)** | M5 comment + timing hint |
+| **W0 (F2 Win)** | ✅ `signals/win.py`: 2 signal P0 `win_er_*`, `win_hook_*`; salience `tier_gate=hit`; unit tests |
+| **S1 (F8 P0)** | ✅ §4.7 M1/M2 + `niche_meta` percentiles + 2 signal `niche_*` |
+| **S2 (F1 P1)** | ✅ `boost_attribution`, `manifest_for_prompt(depth)` cap=5, `analysis_depth` + cache composite (§4.12) |
+| **S3 (F1 P1)** | ✅ Backlog §4.8.3 **P1** + Win W0 còn lại (`win_breakout_*`, `win_format_*`) |
+| **S4 (F8 P2)** | ✅ M5 `seeding_comment_pattern` + on-demand `comment_radar` sidecar (§4.7 M5) |
 
 #### 4.8.6 Acceptance (bổ sung §13)
 
 - [x] `analysis_depth=deep` → `manifest_for_prompt` cap **5**/section; basic cap **3** — ✅ W3-2 @ `9cd0957`  
-- [x] ≥**8** signal backlog P0/P1 có test unit trong `cloud-run/tests/test_*_signals*.py` — **partial** (Launch Phase 2a/2c P1 shipped + tests; full §4.8.3 backlog not 100%)
+- [x] ≥**8** signal backlog P0/P1 có test unit trong `cloud-run/tests/test_*_signals*.py` — ✅ Phase 2a/2c + S4 M5 (`PHASE2C_IDS` 15/15)
 - [x] Signal mới có `taxonomy_ref` + `evidence[]` với số từ ctx — ✅ Launch Phase 2a/2c new signals (`test_phase2a_p1_video_signals.py`, `test_phase2c_p1_p2_video_signals.py`)
 - [x] Deep report trung bình ≥**2** signal/section trong prompt so với basic (sample 10 video QA) — ✅ `test_analysis_depth_486_sample.py` + `launch-phase2-signal-density-486.json` @ `b479f64`
 
@@ -799,10 +799,11 @@ flowchart LR
 
 | Topic | As-built | V1 spec |
 |-------|----------|---------|
-| Cache lookup | `.eq("video_id", vid)` — **1 row/video** | `.eq("video_id").eq("analysis_depth", depth)` |
+| Cache lookup | ✅ `.eq("video_id").eq("analysis_depth", depth)` — composite PK | Same |
 | `mode` win↔flop switch | Skip cache → full recompute ([`video_analyze.py`](../../cloud-run/getviews_pipeline/video_analyze.py) L1551–1556) | **V1 đề xuất giữ (D9)** — đơn giản; cost khi user đổi mode |
 | Extract | 1× / video | Không re-extract khi basic→deep |
-| Basic → Deep | — | Cache miss `deep` → synthesis-only (manifest + extract đã có) |
+| Basic → Deep | ✅ On-demand: `_try_on_demand_basic_upgrade_source` rehydrates `extract_json` → synthesis-only; corpus: `analysis_json` row | Cache miss `deep` → synthesis-only (manifest + extract đã có) |
+| On-demand cache shape | ✅ `cached_response.extract_json` + `extract_schema_version` on basic persist | Server-only extract copy for upgrade |
 
 #### 4.12.3 Migration sketch (F8 — implement sau doc approve)
 

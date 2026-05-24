@@ -1372,6 +1372,7 @@ def _synthesize_diagnosis_v6_section_pool(
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
     analysis_depth: str = "basic",
+    comment_radar: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """Section-pool diagnosis: signals → section pick list → JSON-first v6 prompt."""
     from getviews_pipeline.compliance import collect_compliance_flags
@@ -1396,6 +1397,7 @@ def _synthesize_diagnosis_v6_section_pool(
         content_format=content_format,
         niche_name=niche_name,
         corpus_size=corpus_size,
+        comment_radar=comment_radar,
     )
     manifest = build_signal_manifest(ctx_dict)
     depth = "basic" if analysis_depth == "basic" else "deep"
@@ -1525,6 +1527,7 @@ def synthesize_diagnosis_v2(
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
     analysis_depth: str = "basic",
+    comment_radar: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """V2 narrative diagnosis — Markdown body plus optional structured narrative/format cards."""
 
@@ -1550,6 +1553,7 @@ def synthesize_diagnosis_v2(
             cross_format_signal=cross_format_signal,
             niche_posting_context_block=niche_posting_context_block,
             analysis_depth=analysis_depth,
+            comment_radar=comment_radar,
         )
 
     allowed = _allowed_aweme_ids(reference_videos)

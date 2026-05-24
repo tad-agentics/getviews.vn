@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — §4 Video Intelligence closure (S4)
+
+- **S4-1:** On-demand basic→deep synthesis-only — persist `extract_json` in `cached_response`; `_try_on_demand_basic_upgrade_source` skips Gemini re-extract when fresh basic row exists.
+- **S4-2:** M5 `seeding_comment_pattern` signal + `comment_radar` in `build_diagnosis_ctx`; on-demand finalize fetches `comment_radar` sidecar; `spam_skipped_ratio` on `CommentRadar`.
+- **S4-3:** Eligible-first breakouts — `useTopBreakouts`, `ticker._breakout_items`, `useCrossNicheBreakouts` prefer `reference_eligible=true` with thin fallback.
+- **Docs:** `feature-map-v1` §4.8.5/§4.12.2/§4.7.5; `data-utilization-map-v1` §5/§6.1/§7/§8/§9/§11.
+
 ## 2026-05-24 — Sidebar + mobile shell align design pack
 
 - **Sidebar:** Badge Kho Douyin ``🇨🇳 N MỚI`` (video mới sau baseline visit; cap 99+); **+ ĐỔI** ngách → Cài đặt; Gần đây + Ghim + thời gian.

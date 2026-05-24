@@ -63,6 +63,34 @@ def _apply_peer_tier_to_niche_meta(
 ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3
 # Minimum on-demand blob version we still attempt embed repair on (v2 blobs may lack tiles).
 ON_DEMAND_RESPONSE_SCHEMA_VERSION_MIN = 2
+# Persisted in on-demand ``cached_response`` for basic→deep synthesis-only upgrade (§4.12.2).
+EXTRACT_JSON_SCHEMA_VERSION = 1
+_ON_DEMAND_UPGRADE_STRIP_KEYS = frozenset(
+    {
+        "narrative_vi",
+        "format_cards",
+        "diagnosis",
+        "performance_tier",
+        "locked_sections",
+        "analysis_depth",
+        "bright_spot_signal",
+        "view_scenarios",
+        "channel_context",
+        "niche_posting_context",
+        "creator_comparison",
+        "sources",
+        "related_questions",
+        "embed_contract_version",
+        "_schema_version",
+    }
+)
+# Server-only fields persisted in ``cached_response`` — never ship to the FE.
+_ON_DEMAND_CLIENT_STRIP_KEYS = frozenset({"extract_json", "extract_schema_version"})
+
+
+def _strip_on_demand_client_cache_fields(out: dict[str, Any]) -> None:
+    for key in _ON_DEMAND_CLIENT_STRIP_KEYS:
+        out.pop(key, None)
 
 
 def _truncate_tiktok_caption(text: str, *, max_len: int = 2000) -> str:
@@ -117,6 +145,35 @@ def _merge_sidecars_into_response(
     if radar is not None:
         out["comment_radar"] = radar
     return out
+
+
+def _ensure_comment_radar_on_out(out: dict[str, Any]) -> None:
+    """Best-effort comment_radar for on-demand / missing sidecar (§4.7 M5)."""
+    if out.get("comment_radar"):
+        return
+    video_id = str(out.get("video_id") or "")
+    if not video_id:
+        return
+    meta = out.get("meta") if isinstance(out.get("meta"), dict) else {}
+    comment_count = int(meta.get("comments") or 0)
+    if str(out.get("source") or "") != "on_demand" and comment_count < 5:
+        return
+    try:
+        import asyncio
+
+        from getviews_pipeline.comment_radar_cache import resolve_comment_radar
+
+        radar = asyncio.run(
+            resolve_comment_radar(video_id, comment_count_hint=comment_count),
+        )
+        if radar:
+            out["comment_radar"] = radar
+    except Exception as exc:
+        logger.warning(
+            "[video_narrative] comment_radar resolve failed video_id=%s: %s",
+            video_id,
+            exc,
+        )
 
 
 # ── Gemini output schemas (Call 1 — structured errors only) ─────────────
@@ -1217,6 +1274,7 @@ def _attach_depth_upsell_metadata(
         content_format=content_format_str,
         niche_name=str(meta.get("niche_label") or ""),
         corpus_size=int(niche_meta.get("sample_size") or niche_meta.get("corpus_size") or 0),
+        comment_radar=out.get("comment_radar") if isinstance(out.get("comment_radar"), dict) else None,
     )
     manifest = build_signal_manifest(ctx)
     tier = str(out.get("performance_tier") or "unknown")
@@ -1286,6 +1344,7 @@ def finalize_video_narrative_layer(
         # for the caller (matches the post-synthesis branch below).
         out.pop("__narrative_analysis", None)
         out.pop("__narrative_content_format", None)
+        _strip_on_demand_client_cache_fields(out)
         return
 
     from getviews_pipeline.gemini import synthesize_diagnosis_v2
@@ -1396,6 +1455,8 @@ def finalize_video_narrative_layer(
         )
     )
     out["reference_videos"] = slim_refs
+
+    _ensure_comment_radar_on_out(out)
 
     views = int(meta.get("views") or 0)
     corpus_avg_views = float(niche_meta.get("avg_views") or 0.0)
@@ -1602,6 +1663,9 @@ def finalize_video_narrative_layer(
             ),
             niche_posting_context_block=niche_posting_context_block,
             analysis_depth=depth,
+            comment_radar=(
+                out.get("comment_radar") if isinstance(out.get("comment_radar"), dict) else None
+            ),
         )
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")
@@ -1752,6 +1816,9 @@ def finalize_video_narrative_layer(
 
         service_client = get_service_client()
         cacheable = {k: v for k, v in out.items() if not k.startswith("__")}
+        if isinstance(analysis, dict) and analysis:
+            cacheable["extract_json"] = analysis
+            cacheable["extract_schema_version"] = EXTRACT_JSON_SCHEMA_VERSION
         _persist_on_demand_cache(
             service_client,
             tiktok_url=on_demand_url,
@@ -1800,6 +1867,7 @@ def finalize_video_narrative_layer(
         analysis=analysis,
         content_format=content_format,
     )
+    _strip_on_demand_client_cache_fields(out)
 
 
 def run_video_analyze_pipeline(
@@ -2292,7 +2360,87 @@ def _try_on_demand_cache_hit(
             )
     from getviews_pipeline.observability import log_cache_event
     log_cache_event(event="cache_hit", cache_source="on_demand_cache", video_id=None)
+    _strip_on_demand_client_cache_fields(cached)
     return cached
+
+
+def _try_on_demand_basic_upgrade_source(
+    service_sb: Any,
+    tiktok_url: str,
+    *,
+    step_queue: Any | None = None,
+) -> dict[str, Any] | None:
+    """Rehydrate pre-synthesis state from a fresh basic on-demand row (§4.12.2).
+
+    Returns an ``out`` dict with ``__narrative_analysis`` set from persisted
+    ``extract_json`` so ``finalize_video_narrative_layer`` can run deep synthesis
+    without re-extracting via Gemini vision. Legacy basic rows without
+    ``extract_json`` return ``None`` (caller falls back to full extract).
+    """
+    if not tiktok_url:
+        return None
+    canonical_url = normalize_tiktok_url(tiktok_url)
+    try:
+        res = (
+            service_sb.table("video_diagnostics")
+            .select("cached_response,computed_at")
+            .eq("tiktok_url", canonical_url)
+            .eq("source", "on_demand")
+            .eq("analysis_depth", "basic")
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning(
+            "[video_analyze:on_demand] basic upgrade lookup failed url=%s: %s",
+            tiktok_url,
+            exc,
+        )
+        return None
+    rows = getattr(res, "data", None) or []
+    if not rows:
+        return None
+    row = rows[0]
+    if not _diagnostics_fresh(row):
+        return None
+    cached = row.get("cached_response")
+    if not isinstance(cached, dict) or not cached:
+        return None
+    if int(cached.get("response_schema_version") or 1) < ON_DEMAND_RESPONSE_SCHEMA_VERSION_MIN:
+        return None
+    extract = cached.get("extract_json")
+    if not isinstance(extract, dict) or not extract:
+        return None
+
+    out: dict[str, Any] = dict(cached)
+    for key in _ON_DEMAND_UPGRADE_STRIP_KEYS:
+        out.pop(key, None)
+
+    meta = out.get("meta") if isinstance(out.get("meta"), dict) else {}
+    out["__narrative_analysis"] = extract
+    out.pop("extract_json", None)
+    out.pop("extract_schema_version", None)
+    out["__narrative_content_format"] = str(
+        meta.get("content_format") or out.get("content_format") or ""
+    )
+    out["__tiktok_desc"] = str(meta.get("caption") or meta.get("title") or "")
+    out["__cache_on_demand_url"] = tiktok_url
+    out["__cache_on_demand_vid"] = str(out.get("video_id") or cached.get("video_id") or "")
+    out["__analysis_depth"] = "deep"
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_process
+
+        emit(step_queue, step_process("Đang nâng cấp phân tích chuyên sâu..."))
+
+    from getviews_pipeline.observability import log_cache_event
+
+    log_cache_event(
+        event="synthesis_upgrade",
+        cache_source="on_demand_cache",
+        video_id=out.get("video_id"),
+    )
+    return out
 
 
 def _persist_on_demand_cache(
@@ -2346,8 +2494,9 @@ def run_video_analyze_on_demand(
       • Never reads or writes ``video_corpus`` (does write to
         ``video_diagnostics`` with ``source='on_demand'`` to cache
         the response and skip Gemini on subsequent hits).
-      • Skips sidecar fetches (``thumbnail_analysis`` + ``comment_radar``
-        are corpus-only — no row to attach them to).
+      • Skips ``thumbnail_analysis`` during extract (corpus row sidecar).
+        ``comment_radar`` is resolved in ``finalize_video_narrative_layer``
+        for on-demand URLs when comments warrant it (§4.7 M5).
       • Best-effort niche resolution via hashtag classifier; when nothing
         matches, ``niche_id=0`` and ``niche_meta`` falls back to the same
         empty-pool copy the existing screen renders for sparse niches.
@@ -2374,6 +2523,15 @@ def run_video_analyze_on_demand(
     )
     if cached is not None:
         return cached
+
+    if depth == "deep":
+        upgrade = _try_on_demand_basic_upgrade_source(
+            service_sb,
+            tiktok_url,
+            step_queue=step_queue,
+        )
+        if upgrade is not None:
+            return upgrade
 
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process

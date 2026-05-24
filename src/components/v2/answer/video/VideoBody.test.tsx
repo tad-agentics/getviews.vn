@@ -579,6 +579,23 @@ describe("VideoBody render", () => {
     expect(screen.queryByLabelText("Phân loại nguồn view")).toBeNull();
   });
 
+  it("renders CommentRadarTile when on-demand report includes comment_radar", () => {
+    renderInRouter(
+      makeWinReport({
+        source: "on_demand",
+        comment_radar: {
+          sampled: 12,
+          total_available: 48,
+          sentiment: { positive_pct: 40, negative_pct: 10, neutral_pct: 50 },
+          purchase_intent: { count: 2, top_phrases: ["mua ở đâu"] },
+          questions_asked: 3,
+          language: "vi",
+        },
+      }),
+    );
+    expect(screen.getByTestId("comment-radar-tile")).toBeTruthy();
+  });
+
   it("hides deep upsell for deep analysis depth", () => {
     render(
       <MemoryRouter>

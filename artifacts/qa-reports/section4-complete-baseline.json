@@ -1,0 +1,61 @@
+{
+  "feature": "S4-section4-complete",
+  "task": "S4-section4-complete",
+  "date": "2026-05-24",
+  "verdict": "PASS",
+  "healthScore": 100,
+  "scope": [
+    "S4-1 on-demand basic→deep synthesis-only + extract_json persist",
+    "S4-2 seeding_comment_pattern + on-demand comment_radar",
+    "S4-3 reference_eligible eligible-first breakouts",
+    "S4-4 docs sync",
+    "S4-4b utilization §11 cross-check"
+  ],
+  "passResults": {
+    "pass1": "PASS",
+    "pass2": "PASS",
+    "pass3": "PASS",
+    "pass4": "PASS",
+    "pass5": "PASS"
+  },
+  "categoryScores": {
+    "visual": 100,
+    "data": 100,
+    "security": 100,
+    "interaction": 100,
+    "build": 100,
+    "copy": 100
+  },
+  "tests": {
+    "pytest": [
+      "cloud-run/tests/test_on_demand_depth_upgrade.py",
+      "cloud-run/tests/test_seeding_comment_signal.py",
+      "cloud-run/tests/test_phase2c_p1_p2_video_signals.py",
+      "cloud-run/tests/test_boost_attribution_live.py",
+      "cloud-run/tests/test_ticker.py"
+    ],
+    "vitest": [
+      "src/hooks/useTopBreakouts.test.ts"
+    ],
+    "pytest_result": "38 passed (S4 subset + ticker)",
+    "vitest_result": "4 passed",
+    "typecheck": "pass"
+  },
+  "acceptance": {
+    "on_demand_synthesis_upgrade": true,
+    "phase2c_ids_15_of_15": true,
+    "eligible_first_breakouts": true,
+    "utilization_comment_radar_row": true,
+    "utilization_section_11": true,
+    "feature_map_4_8_5_4_12_2": true
+  },
+  "findings": [],
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  },
+  "concerns": [],
+  "recommendation": "Ship after human review; no deploy in this session."
+}

@@ -21,21 +21,40 @@ export async function fetchCrossNicheBreakouts(
   limit = 3,
 ): Promise<CrossNicheBreakout[]> {
   const since14 = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString();
-  let q = supabase
-    .from("video_corpus")
-    .select(COLS)
-    .gte("indexed_at", since14)
-    .gte("breakout_multiplier", 1.5)
-    .not("content_class_id", "is", null);
-  q = applyBrowsableCorpusFilter(q);
-  if (excludeClassIds.length > 0) {
-    q = q.not("content_class_id", "in", `(${excludeClassIds.join(",")})`);
+
+  async function run(eligibleOnly: boolean): Promise<CrossNicheBreakout[]> {
+    let q = supabase
+      .from("video_corpus")
+      .select(COLS)
+      .gte("indexed_at", since14)
+      .gte("breakout_multiplier", 1.5)
+      .not("content_class_id", "is", null);
+    if (eligibleOnly) {
+      q = q.eq("reference_eligible", true);
+    }
+    q = applyBrowsableCorpusFilter(q);
+    if (excludeClassIds.length > 0) {
+      q = q.not("content_class_id", "in", `(${excludeClassIds.join(",")})`);
+    }
+    const { data, error } = await q
+      .order("breakout_multiplier", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []) as CrossNicheBreakout[];
   }
-  const { data, error } = await q
-    .order("breakout_multiplier", { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return (data ?? []) as CrossNicheBreakout[];
+
+  const eligible = await run(true);
+  if (eligible.length >= limit) return eligible;
+  const fallback = await run(false);
+  const seen = new Set(eligible.map((r) => r.video_id));
+  const merged = [...eligible];
+  for (const row of fallback) {
+    if (seen.has(row.video_id)) continue;
+    seen.add(row.video_id);
+    merged.push(row);
+    if (merged.length >= limit) break;
+  }
+  return merged;
 }
 
 /** Wave 3b — breakout videos outside user junction classes (cap 3). */

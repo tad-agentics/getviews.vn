@@ -41,20 +41,31 @@ class _NotModifier:
 class _Query:
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         self._rows = rows
+        self._filters: list[tuple[str, Any]] = []
 
     def select(self, *_: Any, **__: Any) -> _Query:    return self
-    def eq(self, *_: Any, **__: Any) -> _Query:        return self
+    def eq(self, col: str, val: Any) -> _Query:
+        self._filters.append((col, val))
+        return self
     def in_(self, *_: Any, **__: Any) -> _Query:       return self
     def gte(self, *_: Any, **__: Any) -> _Query:       return self
     def order(self, *_: Any, **__: Any) -> _Query:     return self
-    def limit(self, *_: Any, **__: Any) -> _Query:     return self
+    def limit(self, n: int) -> _Query:
+        self._limit = n
+        return self
 
     @property
     def not_(self) -> _NotModifier:
         return _NotModifier(self)
 
     def execute(self) -> _Exec:
-        return _Exec(self._rows)
+        rows = list(self._rows)
+        for col, val in self._filters:
+            if not any(col in r for r in self._rows):
+                continue
+            rows = [r for r in rows if r.get(col) == val]
+        limit = getattr(self, "_limit", len(rows))
+        return _Exec(rows[:limit])
 
 
 class _Client:
@@ -88,6 +99,22 @@ def test_breakout_drops_below_threshold() -> None:
     assert items[0].bucket == "breakout"
     assert "3.4×" in items[0].headline_vi
     assert "5M" in items[0].headline_vi
+
+
+def test_breakout_prefers_reference_eligible() -> None:
+    client = _Client({
+        "video_corpus": [
+            {"video_id": "ineligible", "creator_handle": "b", "views": 9_000_000,
+             "breakout_multiplier": 5.0, "reference_eligible": False},
+            {"video_id": "eligible1", "creator_handle": "a", "views": 5_000_000,
+             "breakout_multiplier": 3.4, "reference_eligible": True},
+            {"video_id": "eligible2", "creator_handle": "c", "views": 4_000_000,
+             "breakout_multiplier": 2.8, "reference_eligible": True},
+        ],
+    })
+    items = _breakout_items(client, NICHE, SINCE)
+    assert len(items) == 2
+    assert {i.target_id for i in items} == {"eligible1", "eligible2"}
 
 
 def test_breakout_handles_missing_multiplier() -> None:

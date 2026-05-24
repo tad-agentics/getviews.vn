@@ -90,19 +90,38 @@ async def compute_ticker(client: Any, niche_id: int) -> list[TickerItem]:
 
 # ── bucket queries ─────────────────────────────────────────────────────────
 
-def _breakout_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
-    """Top 2 videos by breakout_multiplier ingested in the last 7d."""
-    rows = (
+def _breakout_rows(
+    client: Any,
+    niche_id: int,
+    since: str,
+    *,
+    eligible_only: bool,
+) -> list[dict[str, Any]]:
+    q = (
         client.table("video_corpus")
-        .select("video_id, creator_handle, views, breakout_multiplier")
+        .select("video_id, creator_handle, views, breakout_multiplier, reference_eligible")
         .eq("ingest_loop_niche_id", niche_id)
         .gte("created_at", since)
         .not_.is_("breakout_multiplier", None)
-        .order("breakout_multiplier", desc=True)
-        .limit(2)
-        .execute()
-        .data or []
     )
+    if eligible_only:
+        q = q.eq("reference_eligible", True)
+    return q.order("breakout_multiplier", desc=True).limit(2).execute().data or []
+
+
+def _breakout_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
+    """Top 2 videos by breakout_multiplier ingested in the last 7d."""
+    rows = _breakout_rows(client, niche_id, since, eligible_only=True)
+    if len(rows) < 2:
+        seen = {r.get("video_id") for r in rows}
+        for r in _breakout_rows(client, niche_id, since, eligible_only=False):
+            vid = r.get("video_id")
+            if vid in seen:
+                continue
+            seen.add(vid)
+            rows.append(r)
+            if len(rows) >= 2:
+                break
     out: list[TickerItem] = []
     for r in rows:
         bm = float(r.get("breakout_multiplier") or 0)

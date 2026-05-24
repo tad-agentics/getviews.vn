@@ -424,12 +424,102 @@ def extract_posted_at_ritual_hint_signal(ctx: dict) -> list[Signal]:
     ]
 
 
+def _comment_radar(ctx: dict) -> dict:
+    cr = ctx.get("comment_radar")
+    return cr if isinstance(cr, dict) else {}
+
+
+def _radar_neutral_pct(radar: dict) -> float:
+    sentiment = radar.get("sentiment")
+    if isinstance(sentiment, dict) and sentiment.get("neutral_pct") is not None:
+        try:
+            return float(sentiment["neutral_pct"])
+        except (TypeError, ValueError):
+            pass
+    try:
+        return float(radar.get("neutral_pct") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def extract_seeding_comment_pattern_signal(ctx: dict) -> list[Signal]:
+    """§4.7 M5 — comment spam/neutral skew + thin engagement on high views."""
+    radar = _comment_radar(ctx)
+    sampled = int(radar.get("sampled") or 0)
+    if sampled < 8:
+        return []
+
+    try:
+        spam_skipped_ratio = float(radar.get("spam_skipped_ratio") or 0.0)
+    except (TypeError, ValueError):
+        spam_skipped_ratio = 0.0
+    neutral_pct = _radar_neutral_pct(radar)
+    if spam_skipped_ratio < 0.5 and neutral_pct < 85.0:
+        return []
+
+    us = _user_stats(ctx)
+    views = int(us.get("views") or 0)
+    comments = int(us.get("comments") or 0)
+    if views < 10_000:
+        return []
+
+    comment_rate = (comments / views) if views > 0 else 0.0
+    er = us.get("engagement_rate")
+    try:
+        er_f = float(er or 0)
+    except (TypeError, ValueError):
+        er_f = 0.0
+    if er_f <= 1.0:
+        er_f *= 100.0
+
+    pct = boost_percentiles_from_niche_intel(_niche_meta(ctx))
+    boost = classify_boost_suspect(
+        views=views,
+        er=er_f,
+        comments=comments,
+        percentiles=pct,
+        hard_reject_enabled=False,
+    )
+    low_comment_rate = comment_rate < pct.p10_comment_rate
+    boost_suspect = boost.attribution in ("suspect_low", "suspect_medium")
+    if not (low_comment_rate or boost_suspect):
+        return []
+
+    return [
+        Signal(
+            id="seeding_comment_pattern",
+            section_id="boost_attribution",
+            taxonomy_ref="§4.7 M5",
+            salience=0.8,
+            claim=(
+                f"Có dấu hiệu seeding ảo: {sampled} comment mẫu, "
+                f"{neutral_pct:.0f}% trung tính, spam skip {spam_skipped_ratio:.0%}; "
+                f"{views:,} view với {comments} comment ({comment_rate:.3g}/view) — "
+                f"không khẳng định boost chắc."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=(
+                        f"sampled={sampled} neutral_pct={neutral_pct:.1f} "
+                        f"spam_skipped_ratio={spam_skipped_ratio:.2f} "
+                        f"views={views} comments={comments}"
+                    ),
+                    location="comment_radar+user_stats",
+                )
+            ],
+            suggested_fix="Đối chiếu hook/ER organic trước khi scale; kiểm tra comment thật.",
+        )
+    ]
+
+
 def extract_live_boost_attribution_signals(ctx: dict) -> list[Signal]:
     out: list[Signal] = []
     out.extend(extract_boost_views_er_mismatch_signal(ctx))
     out.extend(extract_boost_breakout_low_engagement_signal(ctx))
     out.extend(extract_distribution_spike_then_flat_signal(ctx))
     out.extend(extract_boost_tradeoff_education_signal(ctx))
+    out.extend(extract_seeding_comment_pattern_signal(ctx))
     if out:
         logger.info(
             "[signals/distribution] boost_attribution fired ids=%s",

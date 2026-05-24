@@ -1,6 +1,60 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { pickRotatingBreakoutWindow } from "./useTopBreakouts";
+import { fetchBreakoutPass, pickRotatingBreakoutWindow } from "./useTopBreakouts";
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: { from: vi.fn() },
+}));
+
+vi.mock("@/lib/corpusNicheFilter", () => ({
+  applyBrowsableCorpusFilter: (q: unknown) => q,
+  applyVideoCorpusNicheFilter: (q: unknown) => q,
+  fetchContentClassIdsForCreatorNiche: vi.fn(async () => []),
+}));
+
+describe("fetchBreakoutPass", () => {
+  it("queries reference_eligible=true before unfiltered fallback", async () => {
+    const { supabase } = await import("@/lib/supabase");
+    const chainEligible = {
+      select: vi.fn().mockReturnThis(),
+      gte: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      then: undefined,
+    };
+    chainEligible.limit.mockImplementation(() =>
+      Promise.resolve({
+        data: [{ video_id: "e1", views: 100, breakout_multiplier: 2 }],
+        error: null,
+      }),
+    );
+    const chainAll = {
+      select: vi.fn().mockReturnThis(),
+      gte: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+    };
+    chainAll.limit.mockImplementation(() =>
+      Promise.resolve({
+        data: [
+          { video_id: "e1", views: 100, breakout_multiplier: 2 },
+          { video_id: "u1", views: 90, breakout_multiplier: 1.5 },
+        ],
+        error: null,
+      }),
+    );
+    vi.mocked(supabase.from)
+      .mockReturnValueOnce(chainEligible as never)
+      .mockReturnValueOnce(chainAll as never);
+
+    const rows = await fetchBreakoutPass("2026-01-01", { contentClassIds: [], legacyNicheId: null }, 2);
+    expect(chainEligible.eq).toHaveBeenCalledWith("reference_eligible", true);
+    expect(rows[0]!.video_id).toBe("e1");
+    expect(rows.some((r) => r.video_id === "u1")).toBe(true);
+  });
+});
 
 describe("pickRotatingBreakoutWindow", () => {
   const pool = [

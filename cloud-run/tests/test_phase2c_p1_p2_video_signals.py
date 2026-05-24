@@ -48,6 +48,7 @@ PHASE2C_IDS = frozenset(
         "engagement_save_trigger_weak",
         "distribution_posted_at_ritual_hint",
         "channel_video_vs_eligible_peers",
+        "seeding_comment_pattern",
     }
 )
 
@@ -254,8 +255,23 @@ def test_manifest_includes_all_phase2c_ids() -> None:
         user_stats={"views": 3000, "engagement_rate": 2.0, "caption": "x", "hashtag_count": 2}
     )
 
+    ctx_seeding = _ctx(
+        user_stats={
+            "views": 50_000,
+            "comments": 8,
+            "engagement_rate": 0.3,
+            "caption": "x",
+            "hashtag_count": 2,
+        },
+        comment_radar={
+            "sampled": 10,
+            "spam_skipped_ratio": 0.6,
+            "sentiment": {"neutral_pct": 90.0, "positive_pct": 5.0, "negative_pct": 5.0},
+        },
+    )
+
     found: set[str] = set()
-    for ctx in (ctx_main, ctx_boost, ctx_channel):
+    for ctx in (ctx_main, ctx_boost, ctx_channel, ctx_seeding):
         manifest = build_signal_manifest(ctx)
         found |= {s.id for lst in manifest.values() for s in lst}
 

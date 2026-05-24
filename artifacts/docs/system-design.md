@@ -342,7 +342,7 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 | `creator_niches` | Supabase | Migrations only | **16 active** UX-facing buckets (taxonomy v2: `comedy` 5, `art_craft` 17; retired: `pets_home`) |
 | `content_classifications` | Supabase | Migrations only | **82** analysis-facing categories (77 video + 5 carousel HI-16; class 82 AI) |
 | `video_corpus` | Cloud Run batch | Service role only | 46K+ analyzed TikTok videos; `ingest_source` is write-once |
-| `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); PK `(video_id, analysis_depth)` partitions basic vs deep; `cached_response.response_schema_version` (bump invalidates stale rows when `meta.caption` / refs change) |
+| `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); PK `(video_id, analysis_depth)` partitions basic vs deep; `cached_response.response_schema_version` (bump invalidates stale rows when `meta.caption` / refs change); basic rows persist `extract_json` for synthesis-only deep upgrade (S4-1) |
 | `chat_sessions` | Supabase | Client + Cloud Run | Chat model — title, niche, soft-delete via `deleted_at` |
 | `chat_messages` | Supabase | Cloud Run only | Chat model — immutable (no UPDATE); text intent transcripts |
 | `answer_sessions` | Supabase | Client + Cloud Run | Answer model — session format, intent type |

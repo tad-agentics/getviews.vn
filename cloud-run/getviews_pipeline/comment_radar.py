@@ -126,11 +126,13 @@ class CommentRadar:
     purchase_intent_phrases: tuple[str, ...]
     questions_asked: int
     language: str    # "vi" | "mixed" | "non-vi" | "unknown"
+    spam_skipped_ratio: float = 0.0
 
     def asdict(self) -> dict[str, Any]:
         return {
             "sampled": self.sampled,
             "total_available": self.total_available,
+            "spam_skipped_ratio": round(self.spam_skipped_ratio, 3),
             "sentiment": {
                 "positive_pct": round(self.positive_pct, 1),
                 "negative_pct": round(self.negative_pct, 1),
@@ -156,6 +158,7 @@ class CommentRadar:
             purchase_intent_phrases=(),
             questions_asked=0,
             language="unknown",
+            spam_skipped_ratio=0.0,
         )
 
 
@@ -245,6 +248,7 @@ def score_comments(
         return CommentRadar.empty(total_available=total_available)
 
     sampled = 0
+    spam_skipped = 0
     positive = 0
     negative = 0
     neutral = 0
@@ -256,6 +260,7 @@ def score_comments(
 
     for raw in comment_list:
         if _is_spammy(raw):
+            spam_skipped += 1
             continue
         sampled += 1
         text = raw.strip()
@@ -290,6 +295,9 @@ def score_comments(
     if sampled == 0:
         return CommentRadar.empty(total_available=total_available)
 
+    considered = spam_skipped + sampled
+    spam_skipped_ratio = spam_skipped / considered if considered > 0 else 0.0
+
     pos_pct = 100.0 * positive / sampled
     neg_pct = 100.0 * negative / sampled
     neu_pct = 100.0 * neutral / sampled
@@ -313,6 +321,7 @@ def score_comments(
         purchase_intent_phrases=tuple(intent_phrases),
         questions_asked=questions,
         language=language,
+        spam_skipped_ratio=spam_skipped_ratio,
     )
 
 

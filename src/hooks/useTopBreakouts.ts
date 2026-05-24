@@ -40,6 +40,50 @@ export function pickRotatingBreakoutWindow<T extends { video_id: string }>(
 /** How often the visible trio shifts among the top breakout pool (must divide refetch cadence sensibly). */
 const HOME_BREAKOUT_ROTATION_MS = 15 * 60 * 1000;
 
+type BreakoutFilterScope = { contentClassIds: number[]; legacyNicheId: number | null };
+
+async function queryBreakoutPool(
+  since: string,
+  filterScope: BreakoutFilterScope,
+  limit: number,
+  eligibleOnly: boolean,
+): Promise<BreakoutVideo[]> {
+  let q = supabase
+    .from("video_corpus")
+    .select(CORPUS_COLS)
+    .gte("indexed_at", since)
+    .gte("breakout_multiplier", 1.0);
+  if (eligibleOnly) {
+    q = q.eq("reference_eligible", true);
+  }
+  q = applyBrowsableCorpusFilter(applyVideoCorpusNicheFilter(q, filterScope));
+  const { data, error } = await q
+    .order("breakout_multiplier", { ascending: false })
+    .order("indexed_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as BreakoutVideo[];
+}
+
+/** Eligible-first with unfiltered fallback (§4.7.5 — mirror W4-4). */
+export async function fetchBreakoutPass(
+  since: string,
+  filterScope: BreakoutFilterScope,
+  limit: number,
+): Promise<BreakoutVideo[]> {
+  const eligible = await queryBreakoutPool(since, filterScope, limit, true);
+  if (eligible.length >= limit) return eligible;
+  const fallback = await queryBreakoutPool(since, filterScope, limit, false);
+  const seen = new Set(eligible.map((r) => r.video_id));
+  const merged = [...eligible];
+  for (const row of fallback) {
+    if (seen.has(row.video_id)) continue;
+    seen.add(row.video_id);
+    merged.push(row);
+  }
+  return merged;
+}
+
 /**
  * Top breakout-style tiles for Home. Strategy:
  * 1) True breakouts (multiplier set) in the last 14 days, filtered by content_class_id
@@ -85,40 +129,29 @@ async function fetchTopBreakoutsForHome(
 
   // 1) Recent breakouts — multiplier must be ≥ 1.0 (beat channel average).
   //    indexed_at matches ingest/corpus updates better than created_at row stamp.
-  let q1 = supabase
-    .from("video_corpus")
-    .select(CORPUS_COLS)
-    .gte("indexed_at", since14)
-    .gte("breakout_multiplier", 1.0);
-  q1 = applyBrowsableCorpusFilter(applyVideoCorpusNicheFilter(q1, filterScope));
-  const { data: d1, error: e1 } = await q1
-    .order("breakout_multiplier", { ascending: false })
-    .order("indexed_at", { ascending: false })
-    .limit(24);
-  if (e1) throw e1;
-  appendUnique((d1 ?? []) as BreakoutVideo[]);
+  appendUnique(await fetchBreakoutPass(since14, filterScope, 24));
 
   // 2) Older breakouts (multiplier still set and ≥ 1.0)
   if (pool.length < limit) {
-    let q2 = supabase
-      .from("video_corpus")
-      .select(CORPUS_COLS)
-      .gte("indexed_at", since90)
-      .gte("breakout_multiplier", 1.0);
-    q2 = applyBrowsableCorpusFilter(applyVideoCorpusNicheFilter(q2, filterScope));
-    const { data: d2, error: e2 } = await q2
-      .order("breakout_multiplier", { ascending: false })
-      .order("indexed_at", { ascending: false })
-      .limit(48);
-    if (e2) throw e2;
-    appendUnique((d2 ?? []) as BreakoutVideo[]);
+    appendUnique(await fetchBreakoutPass(since90, filterScope, 48));
   }
 
   // 3) Top views — fills the row when multipliers are not backfilled yet
   if (pool.length < limit) {
     let q3 = supabase.from("video_corpus").select(CORPUS_COLS);
     q3 = applyBrowsableCorpusFilter(applyVideoCorpusNicheFilter(q3, filterScope));
-    const { data: d3, error: e3 } = await q3
+    const eligibleViews = await q3
+      .eq("reference_eligible", true)
+      .order("views", { ascending: false })
+      .order("indexed_at", { ascending: false })
+      .limit(60);
+    if (eligibleViews.error) throw eligibleViews.error;
+    appendUnique((eligibleViews.data ?? []) as BreakoutVideo[]);
+  }
+  if (pool.length < limit) {
+    let q3b = supabase.from("video_corpus").select(CORPUS_COLS);
+    q3b = applyBrowsableCorpusFilter(applyVideoCorpusNicheFilter(q3b, filterScope));
+    const { data: d3, error: e3 } = await q3b
       .order("views", { ascending: false })
       .order("indexed_at", { ascending: false })
       .limit(60);
