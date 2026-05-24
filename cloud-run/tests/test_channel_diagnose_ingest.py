@@ -542,7 +542,9 @@ def test_decrement_credit_raises_insufficient_only_when_data_is_none():
         _decrement_credit_or_raise(sb, user_id="u-1")
 
 
-def test_decrement_credit_pre_check_skips_rpc_when_balance_below_cost():
+def test_decrement_credit_raises_when_rpc_returns_null():
+    """Atomic RPC returns NULL when the user lacks the full amount — no
+    partial charge, surfaced as InsufficientCreditsError."""
     from getviews_pipeline.channel_diagnose import (
         CHANNEL_DIAGNOSE_CREDIT_COST,
         InsufficientCreditsError,
@@ -550,27 +552,31 @@ def test_decrement_credit_pre_check_skips_rpc_when_balance_below_cost():
     )
 
     sb = MagicMock()
-    sb.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
-        data={"credits_remaining": CHANNEL_DIAGNOSE_CREDIT_COST - 1}
-    )
+    sb.rpc.return_value.execute.return_value = MagicMock(data=None)
     with pytest.raises(InsufficientCreditsError):
         _decrement_credit_or_raise(sb, user_id="u-1")
-    sb.rpc.assert_not_called()
+    # One atomic deduction attempt for the full amount — never a partial loop.
+    sb.rpc.assert_called_once_with(
+        "decrement_credit",
+        {"p_user_id": "u-1", "p_amount": CHANNEL_DIAGNOSE_CREDIT_COST},
+    )
 
 
-def test_decrement_credit_charges_three_times_on_success():
+def test_decrement_credit_charges_atomically_with_amount():
+    """Single guarded RPC spends all CHANNEL_DIAGNOSE_CREDIT_COST credits at
+    once (TD-1: a mid-deduction failure can't leave a partial charge)."""
     from getviews_pipeline.channel_diagnose import (
         CHANNEL_DIAGNOSE_CREDIT_COST,
         _decrement_credit_or_raise,
     )
 
     sb = MagicMock()
-    sb.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
-        data={"credits_remaining": CHANNEL_DIAGNOSE_CREDIT_COST}
-    )
     sb.rpc.return_value.execute.return_value = MagicMock(data=5)
     _decrement_credit_or_raise(sb, user_id="u-1")
-    assert sb.rpc.call_count == CHANNEL_DIAGNOSE_CREDIT_COST
+    sb.rpc.assert_called_once_with(
+        "decrement_credit",
+        {"p_user_id": "u-1", "p_amount": CHANNEL_DIAGNOSE_CREDIT_COST},
+    )
     assert CHANNEL_DIAGNOSE_CREDIT_COST == 3
 
 
