@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.deps import require_batch_caller
@@ -54,6 +54,40 @@ class BatchIngestRequest(StrictBody):
             "Set to 0 to disable (manual ops only — never for scheduled cron)."
         ),
     )
+    ingest_shift: str | None = Field(
+        default=None,
+        description=(
+            "Nightly class-loop slice: a–f. Split active content_class_ingest_targets "
+            "into ingest_shift_count priority-ordered chunks; this run processes one chunk."
+        ),
+    )
+    ingest_shift_count: int = Field(
+        default=3,
+        ge=1,
+        le=6,
+        description="Number of nightly ingest shifts (default 3 cron jobs: a, b, c).",
+    )
+
+    @field_validator("ingest_shift")
+    @classmethod
+    def _normalize_ingest_shift(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        letter = v.strip().lower()
+        if letter not in "abcdef":
+            raise ValueError("ingest_shift must be a–f")
+        return letter
+
+    @field_validator("ingest_shift_count")
+    @classmethod
+    def _validate_shift_letter_in_range(cls, v: int, info) -> int:
+        shift = info.data.get("ingest_shift")
+        if shift is not None and "abcdef".index(shift) >= v:
+            raise ValueError(
+                f"ingest_shift={shift!r} requires ingest_shift_count > "
+                f"{ 'abcdef'.index(shift) }",
+            )
+        return v
 
 
 class BatchReingestVideosRequest(StrictBody):
@@ -109,21 +143,30 @@ async def batch_ingest(
     from getviews_pipeline.supabase_client import get_service_client
 
     logger.info(
-        "POST /batch/ingest triggered — niche_ids=%s deep_pool=%s wall_clock_budget_s=%d",
+        "POST /batch/ingest triggered — niche_ids=%s deep_pool=%s wall_clock_budget_s=%d "
+        "ingest_shift=%s ingest_shift_count=%d",
         body.niche_ids,
         body.deep_pool,
         body.wall_clock_budget_s,
+        body.ingest_shift,
+        body.ingest_shift_count,
     )
     async with record_job_run(get_service_client(), "batch/ingest") as obs_summary:
         obs_summary["niche_ids"] = body.niche_ids
         obs_summary["deep_pool"] = body.deep_pool
         obs_summary["wall_clock_budget_s"] = body.wall_clock_budget_s
+        obs_summary["ingest_shift"] = body.ingest_shift
+        obs_summary["ingest_shift_count"] = body.ingest_shift_count
         try:
             summary = await run_batch_ingest(
                 niche_ids=body.niche_ids,
                 deep_pool=body.deep_pool,
                 wall_clock_budget_s=body.wall_clock_budget_s,
+                ingest_shift=body.ingest_shift,
+                ingest_shift_count=body.ingest_shift_count,
             )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
         except EnsembleDailyBudgetExceeded as exc:
             logger.error("Batch ingest aborted (ED daily budget): %s", exc)
             raise HTTPException(
@@ -142,6 +185,8 @@ async def batch_ingest(
             "materialized_view_refreshed": summary.materialized_view_refreshed,
             "aborted_early": summary.aborted_early,
             "niches_remaining": summary.niches_remaining,
+            "content_class_ids_planned": summary.content_class_ids_planned,
+            "remaining_content_class_ids": summary.remaining_content_class_ids,
             "hi13": {
                 "batch_line_ok": summary.hi13_batch_line_ok,
                 "batch_line_fail": summary.hi13_batch_line_fail,
@@ -160,6 +205,10 @@ async def batch_ingest(
         "materialized_view_refreshed": summary.materialized_view_refreshed,
         "aborted_early": summary.aborted_early,
         "niches_remaining": summary.niches_remaining,
+        "ingest_shift": summary.ingest_shift,
+        "ingest_shift_count": summary.ingest_shift_count,
+        "content_class_ids_planned": summary.content_class_ids_planned,
+        "remaining_content_class_ids": summary.remaining_content_class_ids,
         "niche_results": summary.niche_results,
     })
 

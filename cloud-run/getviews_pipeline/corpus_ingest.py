@@ -290,6 +290,10 @@ class BatchSummary:
     # of niches that were not processed before the budget expired.
     aborted_early: bool = False
     niches_remaining: int = 0
+    ingest_shift: str | None = None
+    ingest_shift_count: int = 1
+    content_class_ids_planned: list[int] = field(default_factory=list)
+    remaining_content_class_ids: list[int] = field(default_factory=list)
     ingest_mode: str = "legacy"
     score_cohort: str = "legacy"
     ingest_loop: str = "niche"
@@ -3767,6 +3771,8 @@ async def run_batch_ingest(
     *,
     deep_pool: bool = False,
     wall_clock_budget_s: int = 3400,
+    ingest_shift: str | None = None,
+    ingest_shift_count: int = 3,
 ) -> BatchSummary:
     """Run full batch ingest. Optionally restrict to specific niche_ids.
 
@@ -3777,6 +3783,9 @@ async def run_batch_ingest(
         wall_clock_budget_s: Stop processing niches after this many seconds (default 3400s
             ≈57 min). A 2-minute safety buffer is applied so the function returns before
             the Cloud Run request timeout (3600s). Set to 0 to disable the guard.
+        ingest_shift: When set (``a``–``f``), process only that slice of active class
+            targets after splitting by ``ingest_shift_count`` (default 3 nightly shifts).
+        ingest_shift_count: Number of shifts to divide active class targets into.
 
     Returns:
         BatchSummary with per-niche counts and materialized view status.
@@ -3803,6 +3812,33 @@ async def run_batch_ingest(
 
     if niche_ids:
         niches = [n for n in niches if n["id"] in niche_ids]
+
+    if loop_mode == "class" and ingest_shift is not None:
+        try:
+            niches, shift_meta = split_ingest_targets_for_shift(
+                niches,
+                shift=ingest_shift,
+                shift_count=ingest_shift_count,
+            )
+        except ValueError as exc:
+            logger.error("[corpus] Invalid ingest shift: %s", exc)
+            raise
+        summary.ingest_shift = shift_meta.get("ingest_shift")
+        summary.ingest_shift_count = int(shift_meta.get("ingest_shift_count") or ingest_shift_count)
+        summary.content_class_ids_planned = list(shift_meta.get("content_class_ids_planned") or [])
+        logger.info(
+            "[corpus] ingest shift=%s count=%d — %d class targets planned (cc_ids=%s)",
+            summary.ingest_shift,
+            summary.ingest_shift_count,
+            len(niches),
+            summary.content_class_ids_planned[:8],
+        )
+    elif loop_mode == "class":
+        summary.content_class_ids_planned = [
+            int(n["_loop_content_class_id"])
+            for n in niches
+            if n.get("_loop_content_class_id") is not None
+        ]
 
     if not niches:
         logger.warning("[corpus] No niches to process")
@@ -3991,14 +4027,20 @@ async def run_batch_ingest(
                     niches_left = len(niches) - i
                     summary.aborted_early = True
                     summary.niches_remaining = niches_left
+                    summary.remaining_content_class_ids = [
+                        int(n["_loop_content_class_id"])
+                        for n in niches[i:]
+                        if n.get("_loop_content_class_id") is not None
+                    ]
                     logger.warning(
                         "[corpus] Wall-clock budget exhausted after %.0fs — stopping before "
-                        "niche batch %d/%d (%d niches remaining). "
-                        "Increase wall_clock_budget_s or reduce BATCH_VIDEOS_PER_NICHE.",
+                        "niche batch %d/%d (%d niches remaining, cc_ids=%s). "
+                        "Increase wall_clock_budget_s, add ingest shifts, or reduce per-class VPN.",
                         elapsed,
                         i // BATCH_CONCURRENCY + 1,
                         -(-len(niches) // BATCH_CONCURRENCY),
                         niches_left,
+                        summary.remaining_content_class_ids[:8],
                     )
                     break
             batch = niches[i : i + BATCH_CONCURRENCY]
@@ -4065,6 +4107,13 @@ async def run_batch_ingest(
                 "[corpus] Skipping post-processing (mv refresh, video_dang_hoc, "
                 "sound insights, weekly analytics) due to wall-clock budget."
             )
+        elif not _is_final_ingest_shift(ingest_shift, ingest_shift_count):
+            logger.info(
+                "[corpus] Skipping post-processing — shift %s is not final (%d shifts); "
+                "cron-batch-post-processing heals MV overnight.",
+                ingest_shift,
+                ingest_shift_count,
+            )
         else:
             pp = await run_ingest_post_processing(
                 client, run_weekly_analytics_if_sunday=True,
@@ -4104,6 +4153,80 @@ async def run_batch_ingest(
 def _corpus_ingest_loop_mode() -> str:
     mode = (_ingest_settings.corpus_ingest_loop or "niche").strip().lower()
     return mode if mode in ("niche", "class") else "niche"
+
+
+_INGEST_SHIFT_LETTERS = "abcdef"
+
+
+def _ingest_shift_index(shift: str) -> int | None:
+    letter = (shift or "").strip().lower()
+    if not letter or letter not in _INGEST_SHIFT_LETTERS:
+        return None
+    return _INGEST_SHIFT_LETTERS.index(letter)
+
+
+def _is_final_ingest_shift(shift: str | None, shift_count: int) -> bool:
+    """True when this run should run MV/post-processing (full run or last shift)."""
+    if shift is None:
+        return True
+    if shift_count < 1:
+        return True
+    final = _INGEST_SHIFT_LETTERS[min(shift_count, len(_INGEST_SHIFT_LETTERS)) - 1]
+    return shift.strip().lower() == final
+
+
+def split_ingest_targets_for_shift(
+    targets: list[dict[str, Any]],
+    *,
+    shift: str | None,
+    shift_count: int = 3,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Split active ingest targets into ``shift_count`` priority-ordered slices.
+
+    Targets must already be sorted by priority (desc). When ``shift`` is None,
+    returns the full list unchanged (manual / legacy cron body ``{}``).
+    """
+    meta: dict[str, Any] = {
+        "ingest_shift": shift,
+        "ingest_shift_count": shift_count,
+        "content_class_ids_planned": [],
+    }
+    cc_ids = [
+        int(t["_loop_content_class_id"])
+        for t in targets
+        if t.get("_loop_content_class_id") is not None
+    ]
+    if shift is None:
+        meta["content_class_ids_planned"] = cc_ids
+        return targets, meta
+
+    idx = _ingest_shift_index(shift)
+    if idx is None:
+        raise ValueError(f"invalid ingest_shift={shift!r} — use a–f")
+    if idx >= shift_count:
+        raise ValueError(
+            f"ingest_shift={shift!r} out of range for ingest_shift_count={shift_count}",
+        )
+
+    n = len(targets)
+    if n == 0:
+        return [], meta
+
+    base = n // shift_count
+    remainder = n % shift_count
+    start = 0
+    for i in range(shift_count):
+        size = base + (1 if i < remainder else 0)
+        if i == idx:
+            chunk = targets[start : start + size]
+            meta["content_class_ids_planned"] = [
+                int(t["_loop_content_class_id"])
+                for t in chunk
+                if t.get("_loop_content_class_id") is not None
+            ]
+            return chunk, meta
+        start += size
+    return [], meta
 
 
 def _load_existing_video_class_map_sync(client: Any) -> dict[str, int]:

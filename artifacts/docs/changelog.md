@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — Corpus ingest 3-shift cron (HI-13 throughput)
+
+- **`corpus_ingest`:** `ingest_shift` (a–f) + `ingest_shift_count` (default 3) split `content_class_ingest_targets` by priority; `remaining_content_class_ids` on wall-clock abort; MV/post-processing only on final shift (shift c) or full manual run.
+- **`BatchIngestRequest` / admin trigger:** new shift params; observability fields in `batch_job_runs.summary`.
+- **Migration `20260829000001`:** `cron-batch-ingest` → shift **a** (03:00 ICT); new **shift-b** 04:30 ICT, **shift-c** 06:00 ICT. `cron-batch-post-processing` (06:30 ICT) unchanged as MV heal fallback.
+
 ## 2026-05-24 — HI-13 Gemini Batch API promoted + admin observability
 
 - **`gemini.py`:** Batch JSONL REST shape (`generationConfig`, hoisted `safetySettings`); inline `$ref` in `responseJsonSchema`; preserve snake_case schema keys (no camelCase on schema body).

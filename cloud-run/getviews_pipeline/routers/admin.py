@@ -433,6 +433,8 @@ def _record_admin_action(
 class AdminTriggerIngestBody(StrictBody):
     niche_ids: list[int] | None = None
     deep_pool: bool = False
+    ingest_shift: str | None = None
+    ingest_shift_count: int = Field(default=3, ge=1, le=6)
 
 
 class AdminTriggerMorningRitualBody(StrictBody):
@@ -520,7 +522,12 @@ async def _admin_run_ingest(body: AdminTriggerIngestBody) -> dict[str, Any]:
     from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
 
     try:
-        summary = await run_batch_ingest(niche_ids=body.niche_ids, deep_pool=body.deep_pool)
+        summary = await run_batch_ingest(
+            niche_ids=body.niche_ids,
+            deep_pool=body.deep_pool,
+            ingest_shift=body.ingest_shift,
+            ingest_shift_count=body.ingest_shift_count,
+        )
     except EnsembleDailyBudgetExceeded as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"ensemble_daily_budget_exceeded: {exc}") from exc
     return {
@@ -1403,7 +1410,7 @@ async def admin_list_triggers(
     return JSONResponse({
         "ok": True,
         "jobs": [
-            {"id": "ingest", "label": "Corpus ingest (/batch/ingest)", "body_schema": {"niche_ids": "int[] | null", "deep_pool": "bool"}, "heavy": True},
+            {"id": "ingest", "label": "Corpus ingest (/batch/ingest)", "body_schema": {"niche_ids": "int[] | null", "deep_pool": "bool", "ingest_shift": "a–f | null", "ingest_shift_count": "int 1–6"}, "heavy": True},
             {
                 "id": "post_processing",
                 "label": "Post-ingest aggregates (/batch/post-processing) — MV, VĐH, Layer0B, Sunday weekly",
