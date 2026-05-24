@@ -29,9 +29,11 @@ export function pickRotatingBreakoutWindow<T extends { video_id: string }>(
   limit: number,
   nowMs: number,
   rotationMs: number,
+  /** Shifts rotation bucket so parallel surfaces (Home vs Trends) show different slices. */
+  bucketOffset = 0,
 ): T[] {
   if (rows.length <= limit) return rows.slice(0, limit);
-  const bucket = Math.floor(nowMs / rotationMs);
+  const bucket = Math.floor(nowMs / rotationMs) + bucketOffset;
   const maxStart = rows.length - limit;
   const start = maxStart === 0 ? 0 : bucket % (maxStart + 1);
   return rows.slice(start, start + limit);

@@ -110,7 +110,7 @@ Schema: `surface` · `persona` · `job` · `Q` · `value_today` · `activation` 
 | Home “Gợi ý hôm nay” | Minh | 1,5 | Q1,Q2 | **Tier I:** 3 ritual scripts · **II:** hook patterns · **III:** breakout grid | Pull | free | partial | `HomeSuggestionsToday.tsx`, `/home/daily-ritual` |
 | Home starter creators | Minh,Linh | 3 | Q1 | Seed accounts to study in niche | Pull | free | partial | `/home/starter-creators` |
 | Home composer | Minh | 1–3 | all | Routes query → answer/channel/compare | User-initiated | per intent | delivers | `intent-router.ts` |
-| `/app/trends` Explore | Minh | 1,2,4 | Q1,Q2 | Patterns, breakouts rail, trending sounds | Pull | free | partial | `ExploreScreen.tsx`, `useTrendsRailVideos.ts` |
+| `/app/trends` Explore | Minh | 1,2,4 | Q1,Q2 | Patterns, organic breakout rail (preview-first), trending sounds | Pull | free | **delivers** | `ExploreScreen.tsx`, `useTrendsRailVideos.ts`, `CorpusVideoPreviewDialog.tsx` |
 
 ### Core intelligence
 

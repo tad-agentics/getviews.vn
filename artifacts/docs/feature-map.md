@@ -235,7 +235,7 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
   2. **Kho video** (`II — KHO VIDEO`) — searchable `video_corpus` grid + `ExploreCorpusVideoModal`; filters via `applyVideoCorpusNicheFilter` (`content_class_id IN junction`)
 - **Auxiliary blocks (shipped, not V1 gate):**
   - **`CrossNicheBreakoutLane`** — `useCrossNicheBreakouts`: cap 3 tiles, `content_class_id NOT IN` user's junction, `breakout_multiplier ≥ 1.5`, 14d window (**cross-format** inspiration — distinct from Home tier III within-niche breakouts)
-  - **`TrendsRail`** (desktop, `lg+`) — `useTrendsRailVideos`: top 5 breakouts (30d, `ingest_loop_niche_id`) + top 5 virals; list layout with navigate-to-answer CTA
+  - **`TrendsRail`** (desktop sidebar + mobile inline) — `useTrendsRailVideos`: class-first or legacy niche; top 5 organic breakouts (14d `posted_at`, pool 20 + rotation); preview modal → “Phân tích (1 credit)”
   - **`TrendsNichePills`**, **`TrendingSoundsSection`**, **`TrendsDouyinCard`**
 - **Thin-corpus banner:** `useContentClassIntelligence` — sum junction `sample_size` from `content_class_intelligence` MV gates “dữ liệu chưa đầy đủ” copy
 - **BE (direct Supabase reads):** `video_corpus`, `creator_niche_content_classes`, `content_classifications`, MVs `content_class_intelligence`, `content_class_tier_intelligence`, `creator_niche_content_class_stats`

@@ -36,16 +36,12 @@ import { looksLikeNonVietnameseCaption } from "@/lib/nonVietnameseFilter";
 import {
   TrendingSoundsSection,
 } from "@/components/explore/TrendingSoundsSection";
-import { type ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CorpusVideoPreviewDialog,
+  type CorpusVideoPreviewItem,
+} from "@/components/explore/CorpusVideoPreviewDialog";
+import { type ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
-import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
 import {
   legacyNicheIdForCreatorNiche,
   profileCreatorNicheId,
@@ -151,107 +147,16 @@ function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
   };
 }
 
-function ExploreCorpusVideoModal({
-  video,
-  open,
-  onOpenChange,
-  onAnalyze,
-}: {
-  video: ExploreGridVideo | null;
-  open: boolean;
-  onOpenChange: (next: boolean) => void;
-  onAnalyze: (v: ExploreGridVideo) => void;
-}) {
-  const embedId = video ? tiktokAwemeIdForEmbed(video.video_id, video.tiktok_url) : null;
-  const thumbUrl =
-    video && video.img && video.img !== PLACEHOLDER_THUMB ? video.img : null;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="!max-w-[min(420px,calc(100%-2rem))] gap-0 overflow-hidden border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-0"
-      >
-        {video ? (
-          <>
-            <header className="flex items-start justify-between gap-3 border-b border-[color:var(--gv-rule)] px-4 py-3 min-[420px]:px-5">
-              <div className="min-w-0 flex-1">
-                <DialogTitle className="gv-tight m-0 text-left text-[17px] font-semibold leading-snug text-[color:var(--gv-ink)]">
-                  {video.text || video.caption}
-                </DialogTitle>
-                <p className="gv-mono mt-1 mb-0 text-[11px] text-[color:var(--gv-ink-3)]">
-                  {video.handle} · ↑ {video.views}
-                </p>
-              </div>
-              <DialogClose asChild>
-                <button
-                  type="button"
-                  aria-label="Đóng"
-                  className="-mr-1 -mt-0.5 shrink-0 rounded-md p-2 text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
-                >
-                  <X className="h-4 w-4" strokeWidth={2} aria-hidden />
-                </button>
-              </DialogClose>
-            </header>
-            <DialogDescription className="sr-only">
-              Xem video TikTok trong nền tảng trước khi mở phân tích
-            </DialogDescription>
-            <div className="px-4 pb-4 pt-4 min-[420px]:px-5">
-              {embedId ? (
-                <div
-                  className="relative mx-auto max-w-[280px] overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]"
-                  style={{ aspectRatio: "9 / 16" }}
-                >
-                  <iframe
-                    key={embedId}
-                    title={`TikTok video ${embedId}`}
-                    src={`https://www.tiktok.com/embed/v2/${embedId}`}
-                    className="absolute inset-0 h-full w-full border-0"
-                    allow="encrypted-media; fullscreen; autoplay; picture-in-picture"
-                  />
-                </div>
-              ) : (
-                <div
-                  className="relative mx-auto max-w-[280px] overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]"
-                  style={{ aspectRatio: "9 / 16" }}
-                >
-                  <VideoThumbnail
-                    thumbnailUrl={thumbUrl}
-                    videoId={video.video_id}
-                    className="absolute inset-0 h-full w-full"
-                    placeholderClassName=""
-                  />
-                  {video.tiktok_url ? (
-                    <a
-                      href={video.tiktok_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="gv-mono absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-ink)] shadow-sm hover:border-[color:var(--gv-ink)]"
-                    >
-                      Mở trên TikTok
-                    </a>
-                  ) : null}
-                </div>
-              )}
-            </div>
-            <div className="border-t border-[color:var(--gv-rule)] px-4 py-4 min-[420px]:px-5">
-              <Btn
-                variant="accent"
-                size="md"
-                type="button"
-                className="w-full justify-center"
-                onClick={() => onAnalyze(video)}
-              >
-                Phân tích video này
-              </Btn>
-            </div>
-          </>
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  );
+function exploreVideoPreviewItem(v: ExploreGridVideo): CorpusVideoPreviewItem {
+  const thumbUrl = v.img && v.img !== PLACEHOLDER_THUMB ? v.img : null;
+  return {
+    video_id: v.video_id,
+    title: v.text || v.caption,
+    subtitle: `${v.handle} · ↑ ${v.views}`,
+    thumbnail_url: thumbUrl,
+    tiktok_url: v.tiktok_url,
+  };
 }
-
 
 /* --- Video Thumbnail Card (UIUX `trends.jsx` `VideoTile`: one button, navigate) --- */
 function VideoCard({
@@ -1004,6 +909,17 @@ export default function ExploreScreen() {
             <CrossNicheBreakoutLane excludeClassIds={contentClassIds} />
           ) : null}
 
+          {selectedNicheId != null ? (
+            <div className="mb-8 min-[1100px]:hidden">
+              <TrendsRail
+                contentClassIds={contentClassIds}
+                legacyNicheId={selectedNicheId}
+                nicheScopeLabel={selectedNicheName}
+                layout="inline"
+              />
+            </div>
+          ) : null}
+
           {/* PR-T3/T4 — § I PATTERN grid + click-to-open modal. Renders
            * the 6 hot patterns for the niche as 2×2-collage cards. */}
           {selectedNicheId !== null ? (
@@ -1225,28 +1141,31 @@ export default function ExploreScreen() {
           </section>
           </div>
 
-          {/* PR-T6 — right rail: 2 sections (Đang nổi lên / Viral mọi
-           * thời) per design pack ``screens/trends.jsx`` lines 432-446.
-           * Sounds + Format rails were removed — sounds carousel still
-           * surfaces below the hero on < 1100px via the existing
-           * TrendingSoundsSection. */}
+          {/* PR-T6 — desktop sidebar: recent organic breakouts (class-first rail). */}
+          {selectedNicheId != null ? (
           <aside
-            className="w-full shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-4 pb-[60px] pt-6 sm:px-7 min-[1100px]:w-[320px] min-[1100px]:overflow-y-auto min-[1100px]:border-l min-[1100px]:border-t-0 min-[1100px]:px-[22px] min-[1100px]:py-6 min-[1100px]:pb-6"
+            className="hidden w-full shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-4 pb-[60px] pt-6 sm:px-7 min-[1100px]:block min-[1100px]:w-[320px] min-[1100px]:overflow-y-auto min-[1100px]:border-l min-[1100px]:border-t-0 min-[1100px]:px-[22px] min-[1100px]:py-6 min-[1100px]:pb-6"
             style={{ scrollbarWidth: "thin" }}
           >
-            <TrendsRail nicheId={selectedNicheId} />
+            <TrendsRail
+              contentClassIds={contentClassIds}
+              legacyNicheId={selectedNicheId}
+              nicheScopeLabel={selectedNicheName}
+              layout="sidebar"
+            />
           </aside>
+          ) : null}
         </div>
-        <ExploreCorpusVideoModal
-          video={corpusPreview}
+        <CorpusVideoPreviewDialog
+          video={corpusPreview ? exploreVideoPreviewItem(corpusPreview) : null}
           open={corpusPreview != null}
           onOpenChange={(next) => {
             if (!next) setCorpusPreview(null);
           }}
-          onAnalyze={(v) => {
+          onAnalyze={() => {
+            const v = corpusPreview;
+            if (!v) return;
             setCorpusPreview(null);
-            // ExploreGridVideo uses ``handle`` (not ``creator_handle``);
-            // strip leading ``@`` (it's stored as ``@x``).
             const cleanHandle = v.handle?.replace(/^@/, "") ?? "";
             const q = cleanHandle
               ? `https://www.tiktok.com/@${cleanHandle}/video/${v.video_id}`
@@ -1255,6 +1174,8 @@ export default function ExploreScreen() {
               `/app/answer?q=${encodeURIComponent(q)}&depth=basic&mode=win&from=trends`,
             );
           }}
+          showTikTokLinkButton={false}
+          description="Xem video TikTok trong nền tảng trước khi mở phân tích"
         />
       </div>
     </AppLayout>

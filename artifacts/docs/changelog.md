@@ -1,5 +1,18 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — Trends rail audit fixes
+
+- **`useTrendsRailVideos`:** Legacy `ingest_loop_niche_id` fallback when junction empty; 14d **`posted_at`** window (aligned with row age); pool 20 + 15m rotation with bucket offset vs Home; skip fallback query when eligible pool fills.
+- **`CorpusVideoPreviewDialog`:** Shared preview modal for Kho + Trends rail; Kho CTA now “Phân tích video này (1 credit)”.
+- **`TrendsRail`:** Format chip on rows; `legacyNicheId` prop; mobile + desktop when niche selected.
+- **Docs/QA:** `feature-map.md`, `product-value-audit.md`, `data-utilization-map-v1` §6.1; `trends-rail-redesign-baseline.json`.
+
+## 2026-05-23 — Trends rail complete redesign
+
+- **`useTrendsRailVideos`:** Single “breakout gần đây” pool — class-first junction, 14d `indexed_at`, `reference_eligible` first + fallback; removed misleading all-time viral rail.
+- **`TrendsRail`:** Honest copy, × multiplier on rows, preview modal → explicit “Phân tích (1 credit)”; mobile inline block + desktop sidebar.
+- **Docs:** `data-utilization-map-v1` §6.1 TrendsRail row updated.
+
 ## 2026-05-23 — §4 Video Intelligence closure (S4)
 
 - **S4-1:** On-demand basic→deep synthesis-only — persist `extract_json` in `cached_response`; `_try_on_demand_basic_upgrade_source` skips Gemini re-extract when fresh basic row exists.

@@ -1,15 +1,20 @@
-import { memo } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+
+import {
+  CorpusVideoPreviewDialog,
+  type CorpusVideoPreviewItem,
+} from "@/components/explore/CorpusVideoPreviewDialog";
+import { VideoThumbnail } from "@/components/VideoThumbnail";
+import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
 import { trendsVideoHandoffPath } from "@/lib/answerHandoff";
+import { formatRelativeSinceVi, formatViews } from "@/lib/formatters";
 
 import {
   useTrendsRailVideos,
-  type RailVideo,
+  type TrendsRailVideo,
 } from "@/hooks/useTrendsRailVideos";
-import { VideoThumbnail } from "@/components/VideoThumbnail";
-import { formatRelativeSinceVi, formatViews } from "@/lib/formatters";
 
-/** Stable per-video pick so placeholders don’t flicker on re-render. */
 function railThumbPlaceholderStyle(videoId: string): {
   wrapClass: string;
   placeholderClassName: string;
@@ -31,130 +36,183 @@ function railThumbPlaceholderStyle(videoId: string): {
   };
 }
 
-/**
- * Trends right rail (PR-T6).
- *
- * Replaces the previous 3-section rail (videos / sounds / format) with
- * the design pack's 2-section rail (``screens/trends.jsx`` lines
- * 432-446): VIDEO NÊN THAM KHẢO · Đang nổi lên (top 5 7d) and VIDEO
- * LEO ĐỈNH · Leo đỉnh (top 5 all-time).
- *
- * Each row is a clickable card: 9:16 vertical thumbnail (height 56) +
- * 2-line title (hook phrase or "Video N") + mono caption with
- * ``@handle · ↑views · age``. Click navigates to /app/video.
- *
- * Hidden when ``nicheId`` is null — the empty rail would just be two
- * stubs; better to give the column some breathing room until the
- * creator picks a niche.
- */
+function tiktokUrlForVideo(video: TrendsRailVideo): string {
+  if (video.tiktok_url?.trim()) return video.tiktok_url.trim();
+  const handle = video.creator_handle?.replace(/^@/, "") ?? "";
+  if (handle) {
+    return `https://www.tiktok.com/@${handle}/video/${video.video_id}`;
+  }
+  return video.video_id;
+}
 
+function rowTitle(video: TrendsRailVideo): string {
+  const hook = video.hook_phrase?.trim();
+  if (hook) return hook;
+  if (video.hook_type?.trim()) return video.hook_type.trim();
+  return "Video";
+}
+
+const MIN_DISPLAY_BREAKOUT = 1.0;
+
+function formatMultiplier(bm: number | null): string | null {
+  if (bm == null || !Number.isFinite(bm) || bm < MIN_DISPLAY_BREAKOUT) return null;
+  return `${bm.toFixed(1)}×`;
+}
+
+function previewItemForVideo(video: TrendsRailVideo): CorpusVideoPreviewItem {
+  const handle = video.creator_handle
+    ? video.creator_handle.startsWith("@")
+      ? video.creator_handle
+      : `@${video.creator_handle}`
+    : "—";
+  const bmLabel = formatMultiplier(video.breakout_multiplier);
+  const subtitle = [
+    handle,
+    video.views > 0 ? `↑${formatViews(video.views)}` : null,
+    bmLabel ? `${bmLabel} so với kênh` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return {
+    video_id: video.video_id,
+    title: rowTitle(video),
+    subtitle,
+    thumbnail_url: video.thumbnail_url,
+    tiktok_url: tiktokUrlForVideo(video),
+  };
+}
+
+/**
+ * Trends breakout rail — recent organic-shaped breakouts in the user's format
+ * junction. Desktop: right sidebar. Mobile: inline block in Explore main column.
+ */
 export const TrendsRail = memo(function TrendsRail({
-  nicheId,
+  contentClassIds,
+  legacyNicheId = null,
+  nicheScopeLabel,
+  layout = "sidebar",
 }: {
-  nicheId: number | null;
+  contentClassIds: number[];
+  legacyNicheId?: number | null;
+  nicheScopeLabel?: string | null;
+  /** sidebar = compact rows; inline = same content, used in mobile main flow */
+  layout?: "sidebar" | "inline";
 }) {
-  const { data, isPending } = useTrendsRailVideos(nicheId);
-  if (nicheId == null) return null;
+  const navigate = useNavigate();
+  const { data, isPending } = useTrendsRailVideos({ contentClassIds, legacyNicheId });
+  const [previewVideo, setPreviewVideo] = useState<TrendsRailVideo | null>(null);
+
+  const previewItem = useMemo(
+    () => (previewVideo ? previewItemForVideo(previewVideo) : null),
+    [previewVideo],
+  );
+
+  const openPreview = useCallback((video: TrendsRailVideo) => {
+    window.setTimeout(() => setPreviewVideo(video), 0);
+  }, []);
+
+  const handleAnalyze = useCallback(
+    (item: CorpusVideoPreviewItem) => {
+      setPreviewVideo(null);
+      navigate(trendsVideoHandoffPath(item.tiktok_url ?? item.video_id));
+    },
+    [navigate],
+  );
+
+  const hasScope = contentClassIds.length > 0 || legacyNicheId != null;
+  if (!hasScope) return null;
+
+  const videos = data?.videos ?? [];
+  const meta = data?.meta;
+  const scopeHint = nicheScopeLabel?.trim()
+    ? `format trong ${nicheScopeLabel.trim()}`
+    : "format bạn đang duyệt";
+
   return (
-    <div className="flex flex-col gap-7">
-      <RailSection
-        kicker="VIDEO NÊN THAM KHẢO"
-        title="Đang nổi lên"
-        sub="Top 5 view 7 ngày trong ngách bạn chọn — bấm để phân tích vì sao nổ"
-        videos={data?.breakouts7d ?? []}
-        isPending={isPending}
-        emptyText="Chưa đủ dữ liệu — quay lại sau."
+    <>
+      <section
+        aria-labelledby="trends-rail-breakouts"
+        className={layout === "inline" ? "mb-8" : undefined}
+        data-testid="trends-rail"
+      >
+        <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
+          BREAKOUT GẦN ĐÂY
+        </p>
+        <h3
+          id="trends-rail-breakouts"
+          className="gv-tight m-0 mb-1 border-b border-[color:var(--gv-ink)] pb-2 text-[22px] font-semibold leading-none tracking-[-0.02em] text-[color:var(--gv-ink)]"
+        >
+          Video organic đáng xem
+        </h3>
+        <p className="gv-mono mb-3 text-[11px] leading-relaxed text-[color:var(--gv-ink-3)]">
+          Top 5 breakout đăng trong 14 ngày ({scopeHint}) — xếp theo hệ số so với trung bình kênh,
+          ưu tiên mẫu organic. Luôn xem trước, phân tích khi cần.
+        </p>
+
+        {meta?.usedFallback && meta.eligibleCount < 5 ? (
+          <p
+            className="mb-3 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-[11px] leading-snug text-[color:var(--gv-ink-3)]"
+            data-testid="trends-rail-fallback-note"
+          >
+            Mẫu organic còn mỏng — một số video bổ sung chưa qua lọc boost. So format và hook, đừng
+            chỉ nhìn view tuyệt đối.
+          </p>
+        ) : null}
+
+        {isPending ? (
+          <div className="flex flex-col gap-2.5">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-16 animate-pulse rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
+              />
+            ))}
+          </div>
+        ) : videos.length === 0 ? (
+          <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-3 text-[12px] text-[color:var(--gv-ink-3)]">
+            Chưa đủ breakout đăng trong 14 ngày — thử lại sau khi cron cập nhật kho.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2.5">
+            {videos.map((v) => (
+              <RailRow key={v.video_id} video={v} onPreview={() => openPreview(v)} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <CorpusVideoPreviewDialog
+        video={previewItem}
+        open={previewVideo != null}
+        onOpenChange={(next) => {
+          if (!next) setPreviewVideo(null);
+        }}
+        onAnalyze={handleAnalyze}
       />
-      <RailSection
-        kicker="VIDEO LEO ĐỈNH"
-        title="Leo đỉnh"
-        sub="Top 5 view cao all-time trong ngách — khác rail 7 ngày phía trên"
-        videos={data?.virals ?? []}
-        isPending={isPending}
-        emptyText="Chưa có video phù hợp."
-      />
-    </div>
+    </>
   );
 });
 
-function RailSection({
-  kicker,
-  title,
-  sub,
-  videos,
-  isPending,
-  emptyText,
-}: {
-  kicker: string;
-  title: string;
-  sub: string;
-  videos: ReadonlyArray<RailVideo>;
-  isPending: boolean;
-  emptyText: string;
-}) {
-  return (
-    <section aria-labelledby={`rail-${slug(title)}`}>
-      <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
-        {kicker}
-      </p>
-      <h3
-        id={`rail-${slug(title)}`}
-        className="gv-tight m-0 mb-1 border-b border-[color:var(--gv-ink)] pb-2 text-[22px] font-semibold leading-none tracking-[-0.02em] text-[color:var(--gv-ink)]"
-      >
-        {title}
-      </h3>
-      <p className="gv-mono mb-3 text-[11px] text-[color:var(--gv-ink-3)]">
-        {sub}
-      </p>
-      {isPending ? (
-        <div className="flex flex-col gap-2.5">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
-            />
-          ))}
-        </div>
-      ) : videos.length === 0 ? (
-        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-3 text-[12px] text-[color:var(--gv-ink-3)]">
-          {emptyText}
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2.5">
-          {videos.map((v) => (
-            <RailRow key={v.video_id} video={v} />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function RailRow({ video }: { video: RailVideo }) {
-  const navigate = useNavigate();
-  const title =
-    video.hook_phrase?.trim() && video.hook_phrase.trim().length > 0
-      ? video.hook_phrase.trim()
-      : "Video";
+function RailRow({ video, onPreview }: { video: TrendsRailVideo; onPreview: () => void }) {
+  const title = rowTitle(video);
   const handle = video.creator_handle
     ? video.creator_handle.startsWith("@")
       ? video.creator_handle
       : `@${video.creator_handle}`
     : null;
   const ageLabel = video.posted_at
-    ? formatRelativeSinceVi(new Date(), new Date(video.posted_at))
+    ? `đăng ${formatRelativeSinceVi(new Date(), new Date(video.posted_at))}`
     : null;
+  const bmLabel = formatMultiplier(video.breakout_multiplier);
+  const formatLabel = contentFormatLabelVi(video.content_format);
   const thumbPh = railThumbPlaceholderStyle(video.video_id);
+
   return (
     <li>
       <button
         type="button"
-        onClick={() => {
-          const url = video.creator_handle
-            ? `https://www.tiktok.com/@${video.creator_handle.replace(/^@/, "")}/video/${video.video_id}`
-            : video.video_id;
-          navigate(trendsVideoHandoffPath(url));
-        }}
+        onClick={onPreview}
         className="grid w-full grid-cols-[44px_1fr] items-center gap-2.5 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-2 text-left transition-colors hover:border-[color:var(--gv-ink)]"
       >
         <span
@@ -169,10 +227,22 @@ function RailRow({ video }: { video: RailVideo }) {
             loading="lazy"
             placeholderClassName={thumbPh.placeholderClassName}
           />
+          {bmLabel ? (
+            <span className="gv-mono absolute bottom-0.5 left-0.5 rounded bg-[color:var(--gv-ink)]/85 px-1 py-px text-[9px] font-semibold text-[color:var(--gv-paper)]">
+              {bmLabel}
+            </span>
+          ) : null}
         </span>
         <span className="min-w-0">
-          <span className="m-0 line-clamp-2 text-[12px] leading-[1.3] text-[color:var(--gv-ink)]">
-            {title}
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="m-0 line-clamp-2 min-w-0 flex-1 text-[12px] leading-[1.3] text-[color:var(--gv-ink)]">
+              {title}
+            </span>
+            {formatLabel ? (
+              <span className="gv-mono shrink-0 rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-1.5 py-px text-[9px] font-semibold tracking-[0.04em] text-[color:var(--gv-ink-3)]">
+                {formatLabel}
+              </span>
+            ) : null}
           </span>
           <span className="gv-mono mt-1 block text-[11px] text-[color:var(--gv-ink-4)]">
             {[handle, video.views > 0 ? `↑${formatViews(video.views)}` : null, ageLabel]
@@ -183,12 +253,4 @@ function RailRow({ video }: { video: RailVideo }) {
       </button>
     </li>
   );
-}
-
-function slug(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-");
 }

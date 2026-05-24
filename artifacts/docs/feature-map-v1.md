@@ -201,7 +201,7 @@ Tab riêng — **không** gộp pill Studio. TopBar as-built: “Xu Hướng Tu�
 | `TrendsNichePills`, `TrendsPatternThesisHero` | ✅ Giữ |
 | `TrendingSoundsSection`, `TrendsDouyinCard` | ✅ Giữ — **không** bắt buộc QA segment Douyin |
 | `CrossNicheBreakoutLane` | ✅ Shipped (Wave 3b) — cap 3, `content_class_id NOT IN` junction; distinct from Home Tier III |
-| `TrendsRail` (desktop) | ✅ Giữ — `ingest_loop_niche_id` within-niche list; may overlap Home Tier III data |
+| `TrendsRail` (desktop + mobile inline) | ✅ Class-first 14d breakouts, `reference_eligible` first; preview → analyze (1 credit) — distinct from Home Tier III rotation |
 | Segment cấp 1 **TikTok \| Douyin** | ❌ **Không** ship requirement — Post-V1 |
 
 **Ritual “hôm nay quay gì”** chỉ ở **Studio §3.1.1** — không thêm block ritual trên Xu hướng cho V1.

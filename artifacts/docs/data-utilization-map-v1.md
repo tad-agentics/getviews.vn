@@ -239,7 +239,7 @@
 | **Home ticker** `_breakout_items` | `video_corpus` | `ingest_loop_niche_id`; **`reference_eligible=true` first** + fallback |
 | **F6 Kho video** `ExploreScreen` | `video_corpus` | `applyVideoCorpusNicheFilter` class-first; thin banner = sum junction `sample_size` |
 | **F6 Cross-niche** `CrossNicheBreakoutLane` | `video_corpus` | `content_class_id NOT IN` user junction; **`reference_eligible=true` first** + fallback |
-| **F6 TrendsRail** | `useTrendsRailVideos` | Within `ingest_loop_niche_id` — 7d + viral rails |
+| **F6 TrendsRail** | `useTrendsRailVideos` | Junction `content_class_id` or legacy `ingest_loop_niche_id`; 14d **`posted_at`**; **`reference_eligible=true` first** + fallback; pool 20 → rotate 5; preview → analyze |
 | **F1/F2 diagnosis** | `fetch_video_benchmark_with_axis` | tier MV → class MV → niche fallback |
 | **F4 channel peers** | `video_corpus` by handle | Class+tier fallback chain; `reference_eligible` filter + thin fallback |
 | **F5 Nhanh strip** | GET `/channel/quick-peek` | `channel_summary` + `niche_benchmarks` → `ChannelBenchmarkStrip` on Studio Home @ §6 |

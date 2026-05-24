@@ -1,0 +1,73 @@
+{
+  "task_id": "trends-rail-redesign",
+  "generated_at": "2026-05-23",
+  "baseline_commit": "uncommitted",
+  "verdict": "PASS",
+  "scope": "TrendsRail + useTrendsRailVideos redesign — organic breakouts, preview-first analyze, audit remediation",
+  "items": {
+    "HOOK_CLASS_FIRST": {
+      "status": "done",
+      "evidence": [
+        "src/hooks/useTrendsRailVideos.ts — junction content_class_id via applyVideoCorpusNicheFilter"
+      ]
+    },
+    "HOOK_LEGACY_FALLBACK": {
+      "status": "done",
+      "evidence": [
+        "src/hooks/useTrendsRailVideos.ts — ingest_loop_niche_id when junction empty",
+        "src/routes/_app/trends/ExploreScreen.tsx — legacyNicheId={selectedNicheId}"
+      ]
+    },
+    "HOOK_ELIGIBLE_FIRST": {
+      "status": "done",
+      "evidence": [
+        "src/hooks/useTrendsRailVideos.ts — reference_eligible pass + thin fallback",
+        "src/hooks/useTrendsRailVideos.test.ts"
+      ]
+    },
+    "HOOK_ROTATION": {
+      "status": "done",
+      "evidence": [
+        "src/hooks/useTrendsRailVideos.ts — pool 20, pickRotatingBreakoutWindow bucketOffset=3",
+        "src/hooks/useTopBreakouts.ts — bucketOffset param"
+      ]
+    },
+    "HOOK_POSTED_AT_WINDOW": {
+      "status": "done",
+      "evidence": [
+        "src/hooks/useTrendsRailVideos.ts — gte posted_at, row age uses posted_at"
+      ]
+    },
+    "FE_PREVIEW_FIRST": {
+      "status": "done",
+      "evidence": [
+        "src/components/explore/CorpusVideoPreviewDialog.tsx",
+        "src/routes/_app/trends/TrendsRail.tsx",
+        "src/routes/_app/trends/TrendsRail.test.tsx"
+      ]
+    },
+    "FE_FORMAT_CHIP": {
+      "status": "done",
+      "evidence": [
+        "src/lib/contentFormatLabels.ts",
+        "src/routes/_app/trends/TrendsRail.tsx"
+      ]
+    },
+    "FE_MOBILE_INLINE": {
+      "status": "done",
+      "evidence": [
+        "src/routes/_app/trends/ExploreScreen.tsx — layout=inline min-[1100px]:hidden"
+      ]
+    },
+    "DOCS_SYNC": {
+      "status": "done",
+      "evidence": [
+        "artifacts/docs/feature-map.md",
+        "artifacts/docs/data-utilization-map-v1.md",
+        "artifacts/docs/product-value-audit.md",
+        "artifacts/docs/changelog.md"
+      ]
+    }
+  },
+  "concerns": []
+}
