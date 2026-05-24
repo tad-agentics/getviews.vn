@@ -157,6 +157,32 @@ async def batch_ingest(
     })
 
 
+@router.post("/batch/hi13-pilot")
+async def batch_hi13_pilot(
+    limit: int = Query(10, ge=1, le=20),
+    niche_id: int | None = Query(None, description="Optional legacy ingest_loop niche id"),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """HI-13 pilot — Gemini Batch JSONL for ``limit`` videos; no corpus upsert."""
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.corpus_ingest import run_hi13_batch_pilot
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info("POST /batch/hi13-pilot limit=%d niche_id=%s", limit, niche_id)
+    client = get_service_client()
+    async with record_job_run(client, "batch/hi13-pilot") as obs_summary:
+        obs_summary["limit"] = limit
+        obs_summary["niche_id"] = niche_id
+        try:
+            result = await run_hi13_batch_pilot(limit=limit, niche_id=niche_id)
+        except Exception as exc:
+            logger.exception("HI-13 pilot failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(result)
+
+    return JSONResponse({"ok": result.get("ok", False), **result})
+
+
 @router.post("/batch/post-processing")
 async def batch_post_processing(
     request: Request,

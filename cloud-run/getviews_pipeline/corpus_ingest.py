@@ -2067,6 +2067,7 @@ async def _analyze_videos_gemini_batch_for_corpus(
         gemini_names.append(entry.gemini_upload_name)
 
     batch_map: dict[str, dict[str, Any]] = {}
+    batch_out: dict[str, Any] = {}
     if records:
         safe = re.sub(r"[^\w\-]+", "_", niche_name)[:40]
         display_name = f"corpus-{safe}-{int(time.time())}"
@@ -2192,7 +2193,90 @@ async def _analyze_videos_gemini_batch_for_corpus(
             )
         )
 
-    return results
+    return results, batch_out
+
+
+async def run_hi13_batch_pilot(
+    *,
+    limit: int = 10,
+    niche_id: int | None = None,
+) -> dict[str, Any]:
+    """HI-13 pilot — Batch JSONL extraction for ``limit`` videos; no corpus upsert."""
+    from getviews_pipeline.config import GEMINI_EXTRACTION_MODEL
+
+    limit = max(1, min(int(limit), 20))
+    client = _service_client()
+    niches = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: fetch_ingest_targets_sync(client),
+    )
+    if not niches:
+        niches = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _fetch_niches_sync(client),
+        )
+    if niche_id is not None:
+        niches = [n for n in niches if int(n["id"]) == int(niche_id)]
+    if not niches:
+        return {"ok": False, "error": "no_niche", "niche_id": niche_id}
+
+    niche = niches[0]
+    nid = int(niche["id"])
+    niche_name = niche.get("name_en") or niche.get("name_vn") or str(nid)
+
+    pool = await _fetch_niche_pool(niche, keyword_pages=1, client=client)
+    video_awemes: list[dict[str, Any]] = []
+    for aweme in pool:
+        if ensemble.detect_content_type(aweme) == "carousel":
+            continue
+        video_awemes.append(aweme)
+        if len(video_awemes) >= limit:
+            break
+
+    if not video_awemes:
+        return {
+            "ok": False,
+            "error": "no_video_candidates",
+            "niche_id": nid,
+            "niche_name": niche_name,
+            "pool_size": len(pool),
+        }
+
+    logger.info(
+        "[hi13-pilot] niche=%s id=%d — Batch API for %d videos (no upsert)",
+        niche_name,
+        nid,
+        len(video_awemes),
+    )
+    results, batch_out = await _analyze_videos_gemini_batch_for_corpus(
+        niche_name, video_awemes,
+    )
+
+    ok_count = sum(1 for r in results if isinstance(r, tuple))
+    err_count = sum(1 for r in results if isinstance(r, Exception))
+
+    batch_ok = bool(batch_out.get("ok"))
+    batch_map = batch_out.get("by_video_id") if isinstance(batch_out.get("by_video_id"), dict) else {}
+    batch_hits = sum(
+        1 for entry in batch_map.values()
+        if isinstance(entry, dict) and entry.get("ok")
+    )
+
+    return {
+        "ok": batch_ok and ok_count > 0,
+        "niche_id": nid,
+        "niche_name": niche_name,
+        "model": GEMINI_EXTRACTION_MODEL,
+        "requested": limit,
+        "candidates": len(video_awemes),
+        "batch_job_ok": batch_ok,
+        "batch_state": batch_out.get("state"),
+        "batch_error": batch_out.get("job_error"),
+        "batch_stats": batch_out.get("batch_stats"),
+        "batch_line_hits": batch_hits,
+        "analysis_ok": ok_count,
+        "analysis_errors": err_count,
+        "sync_fallback_count": max(0, ok_count - batch_hits),
+        "dry_run": True,
+    }
 
 
 async def _ingest_candidate_awemes(
@@ -2358,7 +2442,7 @@ async def _ingest_candidate_awemes(
                 niche_name,
                 len(vlist),
             )
-            vres = await _analyze_videos_gemini_batch_for_corpus(niche_name, vlist)
+            vres, _batch_meta = await _analyze_videos_gemini_batch_for_corpus(niche_name, vlist)
         else:
             vres = await asyncio.gather(
                 *[_analyze_one(candidates[i]) for i in video_indices],

@@ -41,6 +41,7 @@ _REQUIRED_ROUTES: list[tuple[str, str]] = [
     # ``/classify-intent`` removed L1.5 audit — zero FE callers.
     ("POST", "/stream"),
     ("POST", "/batch/ingest"),
+    ("POST", "/batch/hi13-pilot"),
     ("POST", "/batch/post-processing"),
     ("POST", "/batch/reingest-videos"),
     ("POST", "/batch/refresh"),
