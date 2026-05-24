@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — HooksTable thead layout fix
+
+- **FE:** `gv-kicker` on `<th>` broke `display: table-cell` — move kicker styles to inner `<span>`; drop `table-fixed`/`colgroup`.
+
 ## 2026-05-24 — HooksTable display + hook phrase sanitization
 
 - **FE:** `HooksTable` — `pickPatternFormula` / `pickPatternExample`; no quoted bucket labels; `table-fixed` layout; dedupe duplicate `display_name` rows in `useTopPatterns`.

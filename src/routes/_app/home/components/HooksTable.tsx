@@ -150,33 +150,25 @@ export const HooksTable = memo(function HooksTable({
         className={`hidden overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)] sm:block ${embedded ? "mt-0 sm:mt-0" : "mt-5 sm:mt-6"}`}
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] table-fixed text-sm">
-            <colgroup>
-              <col className="w-[52px]" />
-              <col className="w-[34%]" />
-              <col className="w-[92px]" />
-              <col className="w-[88px]" />
-              <col className="w-[88px]" />
-              <col />
-            </colgroup>
+          <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead className="bg-[color:var(--gv-canvas-2)]">
               <tr>
-                <Th className="text-center">#</Th>
-                <Th>MẪU HOOK</Th>
+                <Th className="w-[52px] text-center">#</Th>
+                <Th className="min-w-[200px]">MẪU HOOK</Th>
                 <Th
-                  className="text-center"
+                  className="w-[92px] text-center"
                   hint="So sánh lượt gắn pattern trên toàn hệ thống giữa 7 ngày vừa rồi và 7 ngày trước. «Mới» = tuần trước chưa có dữ liệu so sánh (pattern vừa xuất hiện trên bảng tổng)."
                 >
                   TĂNG
                 </Th>
                 <Th
-                  className="text-right"
+                  className="w-[88px] text-right"
                   hint="Số video trong ngách của bạn đã gắn pattern này. Khác với cột Tăng — đó là số liệu toàn hệ thống theo tuần."
                 >
                   LƯỢT DÙNG
                 </Th>
-                <Th className="text-right">VIEW TB</Th>
-                <Th>VÍ DỤ</Th>
+                <Th className="w-[88px] text-right">VIEW TB</Th>
+                <Th className="min-w-[180px]">VÍ DỤ</Th>
               </tr>
             </thead>
             <tbody>
@@ -185,8 +177,10 @@ export const HooksTable = memo(function HooksTable({
                   key={p.id}
                   className="border-t border-[color:var(--gv-rule-2)] first:border-t-0 hover:bg-[color:var(--gv-canvas-2)]/60"
                 >
-                  <td className="px-3 py-3 text-center gv-kicker text-[color:var(--gv-ink-4)]">
-                    {String(idx + 1).padStart(2, "0")}
+                  <td className="px-3 py-3 text-center">
+                    <span className="gv-kicker text-[color:var(--gv-ink-4)]">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
                   </td>
                   <td className="px-3 py-3 font-semibold leading-snug text-[color:var(--gv-ink)]">
                     <span className="line-clamp-2">{pickPatternFormula(p)}</span>
@@ -247,12 +241,11 @@ function Th({
     <th
       scope="col"
       title={hint}
-      className={[
-        "px-3 py-2.5 text-left gv-kicker text-[11px] tracking-wider text-[color:var(--gv-ink-4)] whitespace-nowrap",
-        className ?? "",
-      ].filter(Boolean).join(" ")}
+      className={["px-3 py-2.5 align-middle", className ?? ""].filter(Boolean).join(" ")}
     >
-      {children}
+      <span className="gv-kicker whitespace-nowrap text-[color:var(--gv-ink-4)]">
+        {children}
+      </span>
     </th>
   );
 }
