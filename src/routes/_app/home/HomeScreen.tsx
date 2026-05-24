@@ -272,28 +272,29 @@ export default function HomeScreen() {
               ) : null}
             </div>
 
-            <h1
-              className="gv-tight mt-0 w-full max-w-[880px] text-[clamp(36px,4.6vw,60px)] leading-[1.08] text-[color:var(--gv-ink)]"
-              style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.04em" }}
-            >
-              Chào {firstName}. Hôm nay{" "}
-              <span
-                className="inline-block rotate-[-1deg] rounded-[10px] px-2.5 text-white"
-                style={{ background: "var(--gv-accent)" }}
-              >
-                {nicheLabel}
-              </span>{" "}
-              {newHookCount > 0 ? (
-                <>
-                  có{" "}
-                  <span style={{ color: "var(--gv-accent-2-deep, var(--gv-accent-2))" }}>
-                    {newHookCount} hook
-                  </span>{" "}
-                  mới đang nổ.
-                </>
-              ) : (
-                "đang có gì mới."
-              )}
+            <h1 className="gv-home-greeting gv-tight mt-0 w-full max-w-[880px] leading-[1.08] text-[color:var(--gv-ink)]">
+              <span className="gv-home-greeting__line">
+                Chào {firstName}. Hôm nay{" "}
+                <span
+                  className="inline-block rotate-[-1deg] rounded-[10px] px-2.5 text-white"
+                  style={{ background: "var(--gv-accent)" }}
+                >
+                  {nicheLabel}
+                </span>
+              </span>
+              <span className="gv-home-greeting__line">
+                {newHookCount > 0 ? (
+                  <>
+                    có{" "}
+                    <span style={{ color: "var(--gv-accent-2-deep, var(--gv-accent-2))" }}>
+                      {newHookCount} hook
+                    </span>{" "}
+                    mới đang nổ.
+                  </>
+                ) : (
+                  "đang có gì mới."
+                )}
+              </span>
             </h1>
           </div>
 
