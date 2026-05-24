@@ -29,7 +29,7 @@ import {
  *     ships with a draft, so we always show the pill)
  *   • mono angle subtitle (hook_type_vi)
  *   • serif italicised quoted title (the actual hook text)
- *   • right column with ``▲ ~X%`` retention estimate + ``MỞ SCRIPT →``
+ *   • right column with ``▲ ~X%`` retention estimate + ``TẠO KỊCH BẢN →``
  *
  * Click routes to ``/app/answer?q=…`` (``scriptPrefillFromRitual``) so
  * ``shot_list`` opens a script answer session.
@@ -414,13 +414,13 @@ const StudioHeroRow = memo(function StudioHeroRow({
           ) : null}
           <SoundRecommendationStrip script={script} />
         </div>
-        <div className="col-span-2 flex flex-row items-center justify-between gap-3 min-[900px]:col-span-1 min-[900px]:flex-col min-[900px]:items-end min-[900px]:gap-1 min-[900px]:whitespace-nowrap">
+        <div className="col-span-2 flex min-w-0 flex-row flex-wrap items-center justify-end gap-x-3 gap-y-1 min-[900px]:col-span-1 min-[900px]:flex-col min-[900px]:items-end min-[900px]:gap-1 min-[900px]:whitespace-nowrap">
           <span className="gv-mono text-[14px] font-bold" style={{ color: "var(--gv-pos)" }}>
             ▲ ~{script.retention_est_pct}%
           </span>
           <span className="gv-kicker text-[color:var(--gv-ink-4)]">giữ chân</span>
-          <span className="gv-mono mt-1 inline-flex items-center gap-1 text-[11px] font-bold gv-kicker tracking-[0.1em] text-[color:var(--gv-accent)] group-hover:translate-x-0.5 transition-transform">
-            MỞ SCRIPT
+          <span className="gv-mono inline-flex items-center gap-1 text-[11px] font-bold gv-kicker tracking-[0.1em] text-[color:var(--gv-accent)] group-hover:translate-x-0.5 transition-transform">
+            TẠO KỊCH BẢN
             <ArrowRight className="h-3 w-3" strokeWidth={2.4} aria-hidden />
           </span>
         </div>

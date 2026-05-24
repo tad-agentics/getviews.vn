@@ -103,7 +103,7 @@ describe("StudioHero", () => {
     expect(getByText(/SCRIPT SẴN · 5 shot · 22s/)).toBeTruthy();
   });
 
-  it("renders the retention estimate + MỞ SCRIPT CTA", () => {
+  it("renders the retention estimate + TẠO KỊCH BẢN CTA", () => {
     mockUseDailyRitual.mockReturnValue({
       data: sampleRitual({
         scripts: [sampleScript({ retention_est_pct: 65 })],
@@ -116,7 +116,7 @@ describe("StudioHero", () => {
     });
     const { getByText } = wrap(<StudioHero nicheId={4} />);
     expect(getByText(/▲ ~65%/)).toBeTruthy();
-    expect(getByText(/MỞ SCRIPT/)).toBeTruthy();
+    expect(getByText(/TẠO KỊCH BẢN/)).toBeTruthy();
   });
 
   it("renders an empty stub when ritual data is null", () => {
