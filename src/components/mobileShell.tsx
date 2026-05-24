@@ -127,18 +127,3 @@ export function MobileFloatingBottomNav() {
     </nav>
   );
 }
-
-/** @deprecated Use ``MobileShellDrawerButton`` + ``MobileFloatingBottomNav``. */
-export function MobileShellBar({
-  placement = "below-topbar",
-}: {
-  placement?: "below-topbar" | "standalone";
-}) {
-  void placement;
-  return (
-    <>
-      <MobileShellDrawerButton />
-      <MobileFloatingBottomNav />
-    </>
-  );
-}

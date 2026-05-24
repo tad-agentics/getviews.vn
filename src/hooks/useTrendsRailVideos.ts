@@ -181,12 +181,3 @@ export function useTrendsRailVideos(scope: TrendsRailScope & { enabled?: boolean
     retry: false,
   });
 }
-
-/** @deprecated Use TrendsRailPayload — kept for gradual test migration. */
-export type RailVideo = TrendsRailVideo;
-
-/** @deprecated Use TrendsRailPayload.videos — legacy two-rail shape removed. */
-export type TrendsRailVideos = {
-  breakouts7d: TrendsRailVideo[];
-  virals: TrendsRailVideo[];
-};
