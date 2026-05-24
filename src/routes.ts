@@ -18,12 +18,11 @@ export default [
     route("app/history", "routes/_app/history/route.tsx"),
     route("app/trends", "routes/_app/trends/route.tsx"),
     route("app/douyin", "routes/_app/douyin/route.tsx"),
-    // /app/video deleted in the video-as-template migration (PR-3 of 3,
-    // 2026-04-28). The structured Win/Flop report is now rendered as
-    // ``VideoBody`` inside an /app/answer session — composer URL paste
-    // creates a video_diagnosis session there. Pre-launch, zero traffic
-    // → no shim or redirect handler.
-    route("app/compare", "routes/_app/compare/route.tsx"),
+    // /app/video and /app/compare both deleted in the video-as-template
+    // migration. The structured Win/Flop report renders as ``VideoBody`` and
+    // the side-by-side compare as ``CompareBody`` inside an /app/answer
+    // session — composer URL paste creates a ``video``/``compare`` session
+    // there. Pre-launch, zero traffic → no shim or redirect handler.
     route("app/channel", "routes/_app/channel/route.tsx"),
     // Legacy shims — redirect to /app/answer (Wave 2 script→Answer migration).
     route("app/script", "routes/_app/script/route.tsx"),

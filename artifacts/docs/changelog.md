@@ -1,5 +1,13 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — Compare as first-class answer-session format
+
+- **Migration off `/stream`:** Two-URL side-by-side diagnosis is now an `/app/answer` session (`format='compare'`) instead of the legacy `/app/compare` screen + `POST /stream compare_videos`. Deleted `CompareScreen.tsx` + `/app/compare` route; `planAnswerEntry` opens a `compare` session; `CompareBody` renders via `ReportV1` `kind='compare'`.
+- **Cost fix:** A compare turn runs two **deep** diagnoses and now charges **2 credits** (was 1 — the cost leak). `append_turn` `compare` builder + `credits_used=2`.
+- **BE:** New `report_compare.build_compare_report` sync bridge submits `run_compare_pipeline` onto the streaming loop via `run_coroutine_threadsafe` (run_video_diagnosis is bound to the main uvicorn loop). Single-side failure raises `compare_side_failed` (no single-video fallback). SSRF short-link helpers extracted to `url_resolve.py` (shared by `/stream` + compare).
+- **DB:** `20260828000000_answer_sessions_compare_format.sql` adds `'compare'` to the `answer_sessions.format` CHECK (applied to remote).
+- **Docs:** `system-design.md` §2/§3/§4.2 + `answer_sessions` format list.
+
 ## 2026-05-23 — Deep relax salience (§4.3)
 
 - **`GETVIEWS_DEEP_RELAX_SALIENCE`:** `section_emit_threshold(depth)` — deep analysis uses 0.45 vs 0.5 when enabled; **default on**.

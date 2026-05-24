@@ -42,43 +42,25 @@ class InsufficientCreditsError(Exception):
 CHANNEL_DIAGNOSE_CREDIT_COST = 3
 
 
-def _read_credits_remaining(user_sb: Any, *, user_id: str) -> int:
-    """Current ``profiles.credits_remaining`` for the authenticated user."""
-    res = (
-        user_sb.table("profiles")
-        .select("credits_remaining")
-        .eq("id", user_id)
-        .single()
-        .execute()
-    )
-    row = res.data if isinstance(res.data, dict) else {}
-    return int(row.get("credits_remaining") or 0)
-
-
 def _decrement_credit_or_raise(user_sb: Any, *, user_id: str) -> None:
-    """Decrement ``CHANNEL_DIAGNOSE_CREDIT_COST`` credits (3× RPC).
+    """Atomically deduct ``CHANNEL_DIAGNOSE_CREDIT_COST`` credits in one RPC.
 
-    Pre-checks balance **before** any RPC so API callers with 1–2 credits
-    are not partially charged (TD-1 adjacent — atomic single-credit RPC only).
+    Uses ``decrement_credit(p_user_id, p_amount)`` so all credits are spent in
+    a single guarded UPDATE — a transport error mid-deduction can no longer
+    leave the user partially charged (TD-1). NULL response = "no credits
+    remain" → ``InsufficientCreditsError``; transport / 5xx errors bubble up
+    untouched so the caller maps them to ``stream_failed`` rather than telling
+    the user "Hết credit" for what was actually a Supabase outage.
 
-    On NULL response (the RPC's signal for "no credits remain") raise
-    ``InsufficientCreditsError`` so the caller can surface
-    ``insufficient_credits`` to the user. Transport / 5xx errors bubble
-    up untouched so the caller's generic ``except Exception`` branch
-    can map them to ``stream_failed`` — the previous behaviour
-    rewrapped every error as ``InsufficientCreditsError`` and told the
-    user "Hết credit" for what was actually a Supabase outage.
-
-    Parity: ``answer_session.append_turn`` script path (3× loop); FE
-    ``ChannelScreen`` gates ``credits_remaining >= 3``.
+    Parity: ``answer_session.append_turn`` uses the same atomic ``p_amount``
+    call; FE ``ChannelScreen`` gates ``credits_remaining >= 3``.
     """
-    if _read_credits_remaining(user_sb, user_id=user_id) < CHANNEL_DIAGNOSE_CREDIT_COST:
+    rpc_resp = user_sb.rpc(
+        "decrement_credit",
+        {"p_user_id": user_id, "p_amount": CHANNEL_DIAGNOSE_CREDIT_COST},
+    ).execute()
+    if rpc_resp.data is None:
         raise InsufficientCreditsError()
-
-    for _ in range(CHANNEL_DIAGNOSE_CREDIT_COST):
-        rpc_resp = user_sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
-        if rpc_resp.data is None:
-            raise InsufficientCreditsError()
 
 
 def fetch_niche_benchmarks(

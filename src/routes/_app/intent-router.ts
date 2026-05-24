@@ -368,7 +368,8 @@ export type AnswerSessionFormat =
   | "lifecycle"
   | "diagnostic"
   | "video"
-  | "script";
+  | "script"
+  | "compare";
 
 /**
  * Studio → `/app/answer` entry: map `detectIntent` to either a non-answer redirect
@@ -392,21 +393,15 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
   const dest = INTENT_DESTINATIONS[intentType as FixedIntentId];
 
   if (dest === "compare") {
-    // Wave 4 PR #2 — pull the first two TikTok URLs (mirror of the
-    // server-side ≥2-URL classification) and pass both as query params.
+    // Compare is a first-class answer-session format: both TikTok URLs ride
+    // in the session `initial_q` (and the primary turn query); the Cloud Run
+    // turn handler extracts + resolves them. Requires ≥ 2 URLs.
     const matches = trimmed.match(TIKTOK_URL_GLOBAL_RE) ?? [];
-    const a = matches[0];
-    const b = matches[1];
-    if (a && b) {
-      return {
-        kind: "redirect",
-        to: `/app/compare?url_a=${encodeURIComponent(a)}&url_b=${encodeURIComponent(b)}`,
-      };
+    if (matches[0] && matches[1]) {
+      return { kind: "session", format: "compare", intent_type: "compare_videos" };
     }
-    // Defensive — should never happen because detectIntent only returns
-    // compare_videos when ≥ 2 URLs are present, but if the routing path
-    // gets called with just one URL we fall back to the single-URL
-    // video diagnosis session rather than a half-baked compare URL.
+    // Defensive — detectIntent only returns compare_videos when ≥ 2 URLs are
+    // present, but if called with one URL, fall back to single-video diagnosis.
     return { kind: "session", format: "video", intent_type: "video_diagnosis" };
   }
   if (dest === "channel") {

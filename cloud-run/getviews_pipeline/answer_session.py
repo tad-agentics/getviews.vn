@@ -126,6 +126,7 @@ def select_builder_for_turn(session_fmt: str, kind: str) -> str:
                 "diagnostic",
                 "video",
                 "script",
+                "compare",
             )
             else "pattern"
         )
@@ -149,7 +150,7 @@ _INTENT_CTA_BUILDER: dict[str, str] = {
     "trend_spike": "pattern",
     "content_directions": "pattern",
     "video_diagnosis": "video",
-    "compare_videos": "generic",
+    "compare_videos": "compare",
 }
 
 
@@ -422,6 +423,7 @@ def append_turn(
     analysis_depth: str | None = None,
     source_entry: str | None = None,
     step_queue: asyncio.Queue | None = None,
+    main_loop: asyncio.AbstractEventLoop | None = None,
 ) -> dict[str, Any]:
     """Append validated turn; primary kind deducts credit via user client (caller passes token).
 
@@ -508,9 +510,12 @@ def append_turn(
             sb_user = user_supabase(access_token)
         return sb_user
 
-    # Script turns cost 3 credits (B.4 parity); generic follow-ups stay free.
+    # Script turns cost 3 credits (B.4 parity); compare runs two deep
+    # diagnoses → 2 credits; generic follow-ups stay free.
     if builder_fmt == "script":
         _deduct_credits(_user_client(), 3)
+    elif builder_fmt == "compare":
+        _deduct_credits(_user_client(), 2)
     elif kind == "primary":
         charge = 2 if builder_fmt == "video" and resolved_video_depth == "deep" else 1
         _deduct_credits(_user_client(), charge)
@@ -615,6 +620,35 @@ def append_turn(
                 session_niche_id=niche_pk or None,
                 user_id=user_id,
             )
+        elif builder_fmt == "compare":
+            # Two-URL side-by-side diagnosis. Both URLs travel in the turn
+            # query; extract + SSRF-resolve them, then run the async compare
+            # orchestrator on the streaming loop (see ``build_compare_report``).
+            from getviews_pipeline.intents import extract_urls_and_handles
+            from getviews_pipeline.report_compare import build_compare_report
+            from getviews_pipeline.url_resolve import (
+                is_short_tiktok_url,
+                pick_two_video_urls,
+                resolve_short_url,
+            )
+
+            urls, _ = extract_urls_and_handles(query)
+            url_a, url_b = pick_two_video_urls(urls)
+            if not url_a or not url_b:
+                raise RuntimeError("missing_video_url")
+            if is_short_tiktok_url(url_a):
+                url_a = resolve_short_url(url_a)
+            if is_short_tiktok_url(url_b):
+                url_b = resolve_short_url(url_b)
+            # No session niche-name to seed — ``run_video_diagnosis`` resolves
+            # each video's niche from its own hashtags/corpus.
+            inner = build_compare_report(
+                url_a,
+                url_b,
+                user_message=query,
+                step_queue=step_queue,
+                main_loop=main_loop,
+            )
         elif builder_fmt == "script":
             inner = build_script_report(
                 service_sb=sb_srv,
@@ -646,6 +680,13 @@ def append_turn(
             "carousel_no_images": (
                 "Bài ảnh TikTok chưa hỗ trợ — EnsembleData không trả về ảnh slide. "
                 "Thử hỏi 'Carousel skincare đang trending?' để xem xu hướng ngách này."
+            ),
+            "missing_video_url": (
+                "Cần đúng 2 link video TikTok để so sánh. Dán 2 link rồi thử lại."
+            ),
+            "compare_side_failed": (
+                "Một trong hai video không đọc được — kiểm tra lại 2 link rồi thử lại. "
+                "Cả hai link đều phải là video TikTok hợp lệ."
             ),
         }
         if _code in _CAROUSEL_ERROR_MESSAGES and step_queue is not None:
@@ -700,6 +741,8 @@ def append_turn(
 
     if builder_fmt == "script":
         credits_used = 3
+    elif builder_fmt == "compare":
+        credits_used = 2
     elif kind == "primary":
         credits_used = 2 if builder_fmt == "video" and resolved_video_depth == "deep" else 1
     else:

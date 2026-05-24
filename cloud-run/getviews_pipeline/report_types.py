@@ -6,6 +6,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+# ``report_compare`` only pulls ``voice_lint`` (stdlib-only) at module load —
+# its diagnosis-pipeline imports are function-local — so this is cycle-safe.
+from getviews_pipeline.report_compare import ComparePayload
+
 
 class ConfidenceStrip(BaseModel):
     sample_size: int
@@ -625,10 +629,10 @@ class ScriptPayload(BaseModel):
 
 
 ReportKind = Literal[
-    "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video", "script",
+    "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video", "script", "compare",
 ]
 _REPORT_KINDS: frozenset[str] = frozenset(
-    {"pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video", "script"}
+    {"pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video", "script", "compare"}
 )
 
 
@@ -643,6 +647,7 @@ class ReportV1(BaseModel):
         | DiagnosticPayload
         | VideoPayload
         | ScriptPayload
+        | ComparePayload
     )
 
 
@@ -664,6 +669,8 @@ def validate_and_store_report(kind: str, report: dict[str, Any]) -> dict[str, An
         VideoPayload.model_validate(report)
     elif k == "script":
         ScriptPayload.model_validate(report)
+    elif k == "compare":
+        ComparePayload.model_validate(report)
     else:
         GenericPayload.model_validate(report)
     return {"kind": k, "report": report}

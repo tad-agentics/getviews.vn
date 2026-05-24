@@ -1279,7 +1279,8 @@ export type ReportV1 =
   | { kind: "diagnostic"; report: DiagnosticReportPayload }
   | { kind: "generic"; report: GenericReportPayload }
   | { kind: "video"; report: VideoReportPayload }
-  | { kind: "script"; report: ScriptReportPayload };
+  | { kind: "script"; report: ScriptReportPayload }
+  | { kind: "compare"; report: ComparePayload };
 
 /** §J names — same shapes as `*ReportPayload` (plan uses `PatternPayload`, …). */
 export type PatternPayload = PatternReportPayload;
@@ -1300,6 +1301,7 @@ export const ANSWER_SESSION_FORMATS = [
   "diagnostic",
   "video",
   "script",
+  "compare",
 ] as const;
 
 export type AnswerSessionFormat = (typeof ANSWER_SESSION_FORMATS)[number];

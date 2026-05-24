@@ -32,7 +32,7 @@ class AnswerSessionCreateBody(StrictBody):
     intent_type: str
     niche_id: int | None = None
     format: Literal[
-        "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video", "script",
+        "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video", "script", "compare",
     ] = "pattern"
 
 
@@ -110,6 +110,10 @@ async def answer_append_turn(
     async def event_generator() -> AsyncIterator[bytes]:
         stream_id = resume_stream_id or str(uuid.uuid4())
         seq = resume_from_seq or 0
+        # The ``compare`` builder runs its async orchestrator back on this
+        # loop via ``run_coroutine_threadsafe`` (append_turn itself runs in a
+        # worker thread), so hand it the running loop.
+        main_loop = asyncio.get_running_loop()
 
         if resume_stream_id and resume_from_seq is not None:
             cached = get_stream_chunks(resume_stream_id)
@@ -179,6 +183,7 @@ async def answer_append_turn(
                 analysis_depth=body.analysis_depth,
                 source_entry=body.source_entry,
                 step_queue=step_queue,
+                main_loop=main_loop,
             )
         )
         _HB = 10.0
