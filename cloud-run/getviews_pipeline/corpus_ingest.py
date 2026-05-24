@@ -3766,7 +3766,7 @@ async def run_batch_ingest(
     niche_ids: list[int] | None = None,
     *,
     deep_pool: bool = False,
-    wall_clock_budget_s: int = 3000,
+    wall_clock_budget_s: int = 3400,
 ) -> BatchSummary:
     """Run full batch ingest. Optionally restrict to specific niche_ids.
 
@@ -3774,8 +3774,8 @@ async def run_batch_ingest(
         niche_ids: If provided, only ingest these niche IDs. Otherwise all niches.
         deep_pool: When True, widen keyword pagination and per-niche caps so a follow-up
             run can overlap more of a prior candidate set (e.g. after a model outage).
-        wall_clock_budget_s: Stop processing niches after this many seconds (default 3000s
-            = 50 min). A 2-minute safety buffer is applied so the function returns before
+        wall_clock_budget_s: Stop processing niches after this many seconds (default 3400s
+            ≈57 min). A 2-minute safety buffer is applied so the function returns before
             the Cloud Run request timeout (3600s). Set to 0 to disable the guard.
 
     Returns:

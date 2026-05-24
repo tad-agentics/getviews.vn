@@ -45,7 +45,7 @@ class BatchIngestRequest(StrictBody):
         ),
     )
     wall_clock_budget_s: int = Field(
-        default=3000,
+        default=3400,
         ge=0,
         description=(
             "Stop processing niches after this many seconds to avoid the Cloud Run "

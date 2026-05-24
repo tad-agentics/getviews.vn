@@ -195,10 +195,10 @@ except (TypeError, ValueError):
     CORPUS_BATCH_POLL_INTERVAL_SEC = 30.0
 try:
     CORPUS_BATCH_POLL_MAX_SEC = float(
-        os.environ.get("CORPUS_BATCH_POLL_MAX_SEC", "2400") or "2400"
+        os.environ.get("CORPUS_BATCH_POLL_MAX_SEC", "900") or "900"
     )
 except (TypeError, ValueError):
-    CORPUS_BATCH_POLL_MAX_SEC = 2400.0
+    CORPUS_BATCH_POLL_MAX_SEC = 900.0
 
 # ── HI-11 — two-axis niche resolution (batch corpus ingest) ──────────────────
 # shadow (default): hashtag resolver sets niche_id + ladder ``content_class_id``;

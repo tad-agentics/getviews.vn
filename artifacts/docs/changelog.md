@@ -7,6 +7,12 @@
 - **Admin:** `GET /admin/hi13-batch-health`; `Hi13BatchHealthPanel` — batch line OK/fail, sync fallback, gemini_calls batch tier cost, recent ingest/pilot runs.
 - **Ops:** `CORPUS_INGEST_USE_GEMINI_BATCH=true` on batch pod after pilot 10/10 PASS.
 
+## 2026-05-24 — HI-13 ingest wall-clock + batch poll tuning
+
+- **`wall_clock_budget_s` default:** 3000 → **3400** (≈57 min niche processing under 3600s Cloud Run cap).
+- **`CORPUS_BATCH_POLL_MAX_SEC` default:** 2400 → **900** (15 min) — slow batch polls fall back to sync instead of blocking a whole concurrency wave.
+- **Migration `20260828000003`:** pg_cron `cron-batch-ingest` pg_net timeout 3120000 → **3540000** (59 min).
+
 ## 2026-05-24 — ACQE assignment tier backfill + Admin content class health
 
 - **`class_quality_engine`:** TD-6 junction gate on `validated` tier (`_resolve_assignment_tier`); shared `_build_assignment_patch`; `run_assignment_tier_backfill` for legacy NULL tiers + validated junction repair.
