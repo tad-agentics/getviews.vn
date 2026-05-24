@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { normalizeHookPhrase } from "@/lib/patternDisplay";
 
 /** Top-K example videos in a pattern — drives the PatternCard collage strip. */
 export type PatternVideo = {
@@ -38,6 +39,8 @@ export type TopPattern = {
   lift_vs_niche: number | null;
   /** Hook phrase from the most-viewed video in this pattern (display example). */
   sample_hook: string | null;
+  /** Creator on the highest-view scoped video — for VÍ DỤ when hook_phrase missing. */
+  sample_creator_handle?: string | null;
   /** Top videos in this pattern by view count, scope-scoped. Empty array when
    * no corpus rows tagged with the pattern exist in the caller's scope. */
   videos: PatternVideo[];
@@ -217,7 +220,10 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
         totalViews: number;
         n: number;
         topViews: number;
-        topHook: string | null;
+        topHookViews: number;
+        sampleHook: string | null;
+        topCreatorViews: number;
+        topCreatorHandle: string | null;
         rows: PatternVideo[];
       };
       const byPattern = new Map<string, RowAcc>();
@@ -225,19 +231,32 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
         const pid = (row as { pattern_id?: string | null }).pattern_id;
         if (!pid) continue;
         const views = Number((row as { views?: number | null }).views ?? 0);
-        const hook = (row as { hook_phrase?: string | null }).hook_phrase ?? null;
+        const hook = normalizeHookPhrase((row as { hook_phrase?: string | null }).hook_phrase);
         const videoId = String((row as { video_id?: string | null }).video_id ?? "");
         const thumbnail = (row as { thumbnail_url?: string | null }).thumbnail_url ?? null;
         const handle = (row as { creator_handle?: string | null }).creator_handle ?? null;
         const tiktokUrl = (row as { tiktok_url?: string | null }).tiktok_url ?? null;
         const acc = byPattern.get(pid) ?? {
-          totalViews: 0, n: 0, topViews: 0, topHook: null, rows: [],
+          totalViews: 0,
+          n: 0,
+          topViews: 0,
+          topHookViews: -1,
+          sampleHook: null,
+          topCreatorViews: -1,
+          topCreatorHandle: null,
+          rows: [],
         };
         acc.totalViews += views;
         acc.n += 1;
-        if (views > acc.topViews) {
-          acc.topViews = views;
-          acc.topHook = hook;
+        if (views > acc.topViews) acc.topViews = views;
+        if (hook && views >= acc.topHookViews) {
+          acc.topHookViews = views;
+          acc.sampleHook = hook;
+        }
+        const cleanHandle = handle?.trim();
+        if (cleanHandle && views >= acc.topCreatorViews) {
+          acc.topCreatorViews = views;
+          acc.topCreatorHandle = cleanHandle;
         }
         if (videoId && thumbnail?.trim()) {
           acc.rows.push({
@@ -277,7 +296,8 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
           niche_video_count: n,
           avg_views: avgViews,
           lift_vs_niche: lift,
-          sample_hook: stat?.topHook ?? null,
+          sample_hook: stat?.sampleHook ?? null,
+          sample_creator_handle: stat?.topCreatorHandle ?? null,
           videos,
           tier,
           structure: (p as { structure?: string[] | null }).structure ?? null,
@@ -295,7 +315,17 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
         return b.niche_video_count - a.niche_video_count;
       });
 
-      return enriched.slice(0, limit);
+      const deduped: TopPattern[] = [];
+      const seenFormulas = new Set<string>();
+      for (const p of enriched) {
+        const key = (p.display_name?.trim() || p.id).toLowerCase();
+        if (seenFormulas.has(key)) continue;
+        seenFormulas.add(key);
+        deduped.push(p);
+        if (deduped.length >= limit) break;
+      }
+
+      return deduped;
     },
     enabled:
       scope != null &&

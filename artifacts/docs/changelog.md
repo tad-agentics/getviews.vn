@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — HooksTable display + hook phrase sanitization
+
+- **FE:** `HooksTable` — `pickPatternFormula` / `pickPatternExample`; no quoted bucket labels; `table-fixed` layout; dedupe duplicate `display_name` rows in `useTopPatterns`.
+- **FE:** Filter corpus `hook_phrase` placeholders (`none`, `n/a`); fallback VÍ DỤ to `Video @creator` via `sample_creator_handle`.
+
 ## 2026-05-23 — §6 channel diagnosis on Studio Home (F4/F5)
 
 - **FE:** `HomeMyChannelSection` embeds `ChannelStudioPanel` on `/app` — Nhanh quick-peek + Sâu SSE memo; `/app/channel` redirects with query preserved; bottom/sidebar **Khám kênh** tab removed.

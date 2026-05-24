@@ -2,6 +2,7 @@ import { memo } from "react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { useTopPatterns, STUDIO_HOME_TOP_PATTERNS_LIMIT, type TopPattern, type TopPatternsScope } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
+import { pickPatternExample, pickPatternFormula } from "@/lib/patternDisplay";
 
 /**
  * HooksTable — 6-col table matching the design's Home block:
@@ -82,7 +83,9 @@ export const HooksTable = memo(function HooksTable({
           forcing it would either overflow horizontally (looks broken) or
           collapse the MẪU HOOK column to one-character-per-line. */}
       <ul className={`space-y-3 sm:hidden ${embedded ? "mt-0" : "mt-5"}`}>
-        {patterns.map((p: TopPattern, idx: number) => (
+        {patterns.map((p: TopPattern, idx: number) => {
+          const example = pickPatternExample(p);
+          return (
           <li
             key={p.id}
             className="rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-3"
@@ -92,8 +95,8 @@ export const HooksTable = memo(function HooksTable({
                 <div className="gv-kicker text-[color:var(--gv-ink-4)]">
                   #{String(idx + 1).padStart(2, "0")} · MẪU HOOK
                 </div>
-                <p className="gv-tight mt-1 text-[17px] font-semibold leading-snug text-[color:var(--gv-ink)]">
-                  "{p.display_name || "Pattern"}"
+                <p className="gv-tight mt-1 text-base font-semibold leading-snug text-[color:var(--gv-ink)] line-clamp-3">
+                  {pickPatternFormula(p)}
                 </p>
               </div>
               <div className="shrink-0">
@@ -126,18 +129,19 @@ export const HooksTable = memo(function HooksTable({
               </div>
             </dl>
 
-            {p.sample_hook ? (
+            {example ? (
               <div className="mt-3 border-t border-[color:var(--gv-rule-2)] pt-3">
                 <div className="gv-kicker text-[color:var(--gv-ink-4)]">
                   Ví dụ
                 </div>
-                <p className="mt-1 text-sm italic leading-snug text-[color:var(--gv-ink-3)]">
-                  "{p.sample_hook}"
+                <p className="mt-1 text-sm leading-snug text-[color:var(--gv-ink-3)] line-clamp-3">
+                  {example}
                 </p>
               </div>
             ) : null}
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       {/* Desktop / tablet: table. Horizontally scrollable so wider screens
@@ -146,24 +150,32 @@ export const HooksTable = memo(function HooksTable({
         className={`hidden overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)] sm:block ${embedded ? "mt-0 sm:mt-0" : "mt-5 sm:mt-6"}`}
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[720px] table-fixed text-sm">
+            <colgroup>
+              <col className="w-[52px]" />
+              <col className="w-[34%]" />
+              <col className="w-[92px]" />
+              <col className="w-[88px]" />
+              <col className="w-[88px]" />
+              <col />
+            </colgroup>
             <thead className="bg-[color:var(--gv-canvas-2)]">
               <tr>
-                <Th className="w-[60px] text-center">#</Th>
+                <Th className="text-center">#</Th>
                 <Th>MẪU HOOK</Th>
                 <Th
-                  className="w-[100px]"
+                  className="text-center"
                   hint="So sánh lượt gắn pattern trên toàn hệ thống giữa 7 ngày vừa rồi và 7 ngày trước. «Mới» = tuần trước chưa có dữ liệu so sánh (pattern vừa xuất hiện trên bảng tổng)."
                 >
                   TĂNG
                 </Th>
                 <Th
-                  className="w-[90px] text-right"
+                  className="text-right"
                   hint="Số video trong ngách của bạn đã gắn pattern này. Khác với cột Tăng — đó là số liệu toàn hệ thống theo tuần."
                 >
                   LƯỢT DÙNG
                 </Th>
-                <Th className="w-[100px] text-right">VIEW TB</Th>
+                <Th className="text-right">VIEW TB</Th>
                 <Th>VÍ DỤ</Th>
               </tr>
             </thead>
@@ -176,10 +188,10 @@ export const HooksTable = memo(function HooksTable({
                   <td className="px-3 py-3 text-center gv-kicker text-[color:var(--gv-ink-4)]">
                     {String(idx + 1).padStart(2, "0")}
                   </td>
-                  <td className="px-3 py-3 gv-tight text-[17px] font-semibold text-[color:var(--gv-ink)]">
-                    "{p.display_name || "Pattern"}"
+                  <td className="px-3 py-3 font-semibold leading-snug text-[color:var(--gv-ink)]">
+                    <span className="line-clamp-2">{pickPatternFormula(p)}</span>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3 text-center">
                     {deltaCell(p.weekly_instance_count, p.weekly_instance_count_prev)}
                   </td>
                   <td
@@ -191,8 +203,10 @@ export const HooksTable = memo(function HooksTable({
                   <td className="px-3 py-3 text-right gv-mono text-xs text-[color:var(--gv-ink)]">
                     {p.avg_views == null ? "—" : formatViews(p.avg_views)}
                   </td>
-                  <td className="px-3 py-3 text-xs text-[color:var(--gv-ink-3)] italic truncate max-w-[260px]">
-                    {p.sample_hook ? `"${p.sample_hook}"` : "—"}
+                  <td className="px-3 py-3 text-xs leading-snug text-[color:var(--gv-ink-3)]">
+                    <span className="line-clamp-2">
+                      {pickPatternExample(p) ?? "—"}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -234,7 +248,7 @@ function Th({
       scope="col"
       title={hint}
       className={[
-        "px-3 py-2 text-left gv-kicker text-[color:var(--gv-ink-4)]",
+        "px-3 py-2.5 text-left gv-kicker text-[11px] tracking-wider text-[color:var(--gv-ink-4)] whitespace-nowrap",
         className ?? "",
       ].filter(Boolean).join(" ")}
     >
