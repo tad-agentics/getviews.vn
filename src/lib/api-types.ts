@@ -1213,6 +1213,8 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   niche_posting_context?: DiagnosisPostingContextPayload;
   /** §4.11.3 — echo billing tier on persisted video report. */
   analysis_depth?: "basic" | "deep";
+  /** §4.6 — turn-1 handoff attribution (trends / composer / evidence / …). */
+  source_entry?: "trends" | "trends_douyin" | "composer" | "evidence" | "intent_cta";
   /** §4.11.3 — deep-only sections available in manifest but not synthesized at basic depth. */
   locked_sections?: {
     section_id: string;

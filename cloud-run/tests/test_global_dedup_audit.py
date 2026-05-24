@@ -69,42 +69,98 @@ def test_upsert_rows_sync_adds_provenance():
     assert "last_refreshed_at" in source, "_upsert_rows_sync must set last_refreshed_at"
 
 
-def test_upsert_rows_sync_routes_through_rpc():
-    """The provenance-safe RPC must be called first; the plain upsert
-    path is the fallback for environments where the migration hasn't
-    propagated yet. Regression for "RPC shipped but uncalled" — Phase
-    6.2 was defeated until this wiring landed."""
+def test_upsert_rows_sync_merges_provenance_and_full_upserts():
+    """Provenance merge + full PostgREST upsert (not subset RPC)."""
     from unittest.mock import MagicMock
 
     from getviews_pipeline.corpus_ingest import _upsert_rows_sync
 
     client = MagicMock()
-    _upsert_rows_sync(client, [{"video_id": "v1"}])
+    select_chain = MagicMock()
+    select_chain.in_.return_value = select_chain
+    select_chain.execute.return_value = MagicMock(
+        data=[
+            {
+                "video_id": "v1",
+                "ingest_source": "user_diagnosis",
+                "first_seen_at": "2026-05-01T00:00:00+00:00",
+                "quality_tier": "high",
+                "stats_history": [{"phase": "t0", "views": 1}],
+            }
+        ]
+    )
+    table_mock = MagicMock()
+    table_mock.select.return_value = select_chain
+    upsert_mock = MagicMock()
+    table_mock.upsert.return_value = upsert_mock
+    upsert_mock.execute.return_value = MagicMock(data=[])
+    client.table.return_value = table_mock
 
-    # Happy path: RPC called exactly once with the enriched batch.
-    client.rpc.assert_called_once()
-    rpc_args = client.rpc.call_args
-    assert rpc_args[0][0] == "upsert_video_corpus_batch"
-    sent_rows = rpc_args[0][1]["p_rows"]
-    assert len(sent_rows) == 1
-    sent = sent_rows[0]
-    assert sent["video_id"] == "v1"
-    assert sent["ingest_source"] == "batch_nightly"
-    assert sent["quality_tier"] == "high"
-    assert "first_seen_at" in sent and "last_refreshed_at" in sent
-    # Direct upsert should NOT fire when the RPC succeeds.
-    client.table.assert_not_called()
+    _upsert_rows_sync(
+        client,
+        [
+            {
+                "video_id": "v1",
+                "boost_attribution": "organic_confident",
+                "stats_history": [{"phase": "t0", "views": 99}],
+            }
+        ],
+    )
+
+    client.rpc.assert_not_called()
+    client.table.assert_called_with("video_corpus")
+    sent_rows = table_mock.upsert.call_args[0][0]
+    assert sent_rows[0]["ingest_source"] == "user_diagnosis"
+    assert sent_rows[0]["first_seen_at"] == "2026-05-01T00:00:00+00:00"
+    assert sent_rows[0]["stats_history"] == [{"phase": "t0", "views": 1}]
+    assert sent_rows[0]["boost_attribution"] == "organic_confident"
+    assert table_mock.upsert.call_args[1]["on_conflict"] == "video_id"
 
 
 def test_upsert_rows_sync_falls_back_when_rpc_unavailable():
-    """If the RPC throws (migration not yet propagated), the plain
-    upsert path runs so corpus ingest keeps making progress."""
+    """Legacy name — full upsert always runs; no RPC attempt."""
     from unittest.mock import MagicMock
 
     from getviews_pipeline.corpus_ingest import _upsert_rows_sync
 
     client = MagicMock()
-    client.rpc.return_value.execute.side_effect = RuntimeError("rpc not found")
+    select_chain = MagicMock()
+    select_chain.in_.return_value = select_chain
+    select_chain.execute.return_value = MagicMock(data=[])
+    table_mock = MagicMock()
+    table_mock.select.return_value = select_chain
+    upsert_mock = MagicMock()
+    table_mock.upsert.return_value = upsert_mock
+    upsert_mock.execute.return_value = MagicMock(data=[])
+    client.table.return_value = table_mock
+
     _upsert_rows_sync(client, [{"video_id": "v1"}])
-    client.rpc.assert_called_once()
-    client.table.assert_called_once_with("video_corpus")
+    client.rpc.assert_not_called()
+    client.table.assert_called_with("video_corpus")
+
+
+def test_enrich_breakout_ratio_uses_cohort_p50_when_no_author_median():
+    """R3 proxy — persist breakout_ratio from niche/class p50 when ED median missing."""
+    from getviews_pipeline.corpus_instructiveness import IngestBatchContext, NicheViewStats
+    from getviews_pipeline.corpus_ingest import _enrich_breakout_ratio_for_row
+
+    ctx = IngestBatchContext(
+        niche_stats={
+            3: NicheViewStats(niche_id=3, p50_views=10_000, p75_views=20_000, corpus_count=200),
+        },
+    )
+    aweme = {
+        "author": {"unique_id": "creator_x"},
+        "statistics": {"play_count": 50_000},
+    }
+    row: dict = {"video_id": "v1", "views": 50_000}
+
+    _enrich_breakout_ratio_for_row(
+        row,
+        aweme,
+        niche_id=3,
+        ingest_batch_ctx=ctx,
+        content_class_id=None,
+    )
+
+    assert row["breakout_ratio"] == 5.0

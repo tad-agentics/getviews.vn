@@ -6,6 +6,18 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+SourceEntry = Literal["trends", "trends_douyin", "composer", "evidence", "intent_cta"]
+_SOURCE_ENTRIES: frozenset[str] = frozenset(
+    {"trends", "trends_douyin", "composer", "evidence", "intent_cta"}
+)
+
+
+def normalize_source_entry(value: str | None) -> SourceEntry | None:
+    """§4.6 — allowlisted handoff attribution for turn-1 video payloads."""
+    if value and value in _SOURCE_ENTRIES:
+        return value  # type: ignore[return-value]
+    return None
+
 # ``report_compare`` only pulls ``voice_lint`` (stdlib-only) at module load —
 # its diagnosis-pipeline imports are function-local — so this is cycle-safe.
 from getviews_pipeline.report_compare import ComparePayload
@@ -608,6 +620,8 @@ class VideoPayload(BaseModel):
     channel_context: dict[str, Any] | None = None
     reference_videos: list[dict[str, Any]] | None = None
     diagnosis: str | None = None
+    # §4.6 — turn-1 handoff attribution (trends / composer / evidence / …).
+    source_entry: SourceEntry | None = None
 
     model_config = {"extra": "allow"}
 

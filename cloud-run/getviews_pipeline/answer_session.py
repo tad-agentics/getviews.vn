@@ -22,7 +22,11 @@ from getviews_pipeline.report_lifecycle import build_lifecycle_report
 from getviews_pipeline.report_pattern import build_pattern_report
 from getviews_pipeline.report_script import build_script_report
 from getviews_pipeline.report_timing import build_timing_report
-from getviews_pipeline.report_types import LifecycleMode, validate_and_store_report
+from getviews_pipeline.report_types import (
+    LifecycleMode,
+    normalize_source_entry,
+    validate_and_store_report,
+)
 from getviews_pipeline.step_events import emit, emit_sentinel, step_error
 from getviews_pipeline.supabase_client import get_service_client
 
@@ -727,6 +731,15 @@ def append_turn(
     finally:
         if step_queue is not None:
             emit_sentinel(step_queue)
+
+    if (
+        kind == "primary"
+        and builder_fmt == "video"
+        and isinstance(inner, dict)
+    ):
+        normalized_entry = normalize_source_entry(source_entry)
+        if normalized_entry:
+            inner["source_entry"] = normalized_entry
 
     try:
         payload_dict = validate_and_store_report(builder_fmt, inner)

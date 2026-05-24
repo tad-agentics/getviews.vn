@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — Corpus ingest audit fixes (§4.7 M1/M4 + R3 breakout)
+
+- **`corpus_ingest`:** `_enrich_breakout_ratio_for_row` persists `breakout_ratio` via cohort p50 when ED author median missing; `_merge_existing_provenance_sync` COALESCEs `ingest_source` / `first_seen_at` / `quality_tier` / non-empty `stats_history` before upsert; canonical path is full PostgREST upsert (M4 RPC had regressed to subset columns).
+- **Migration `20260828000001`:** Unified `upsert_video_corpus_batch` — M4 `stats_history` + M1 `boost_attribution`/`reference_eligible`/`ingest_relaxation_tier` + breakout columns; backfill t0 `stats_history` for recent batch rows missing snapshot.
+- **Tests:** `test_global_dedup_audit` updated for provenance merge + breakout enrich.
+
 ## 2026-05-24 — Remove user-facing ConfidenceStrip; mark §4.2/§4.3 done
 
 - **UX:** Gỡ `ConfidenceStrip` + `HumilityBanner` khỏi Pattern/Ideas/Timing/Diagnostic/Lifecycle/Generic + Xu hướng (Kho/Pattern grid). `claim_tiers` vẫn gate synthesis BE — không expose metadata mẫu cho user.

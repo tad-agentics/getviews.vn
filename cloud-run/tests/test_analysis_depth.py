@@ -278,3 +278,176 @@ def test_deep_relax_salience_emits_borderline_metadata_section(monkeypatch) -> N
     assert "metadata" not in select_sections_to_emit(manifest, ctx, depth="basic")
     monkeypatch.setattr(settings_mod.settings, "getviews_deep_relax_salience", False)
     assert "metadata" not in select_sections_to_emit(manifest, ctx, depth="deep")
+
+
+def test_normalize_source_entry_allowlist() -> None:
+    from getviews_pipeline.report_types import normalize_source_entry
+
+    assert normalize_source_entry("trends") == "trends"
+    assert normalize_source_entry("composer") == "composer"
+    assert normalize_source_entry("intent_cta") == "intent_cta"
+    assert normalize_source_entry("ideas") is None
+    assert normalize_source_entry(None) is None
+    assert normalize_source_entry("") is None
+
+
+def test_append_turn_persists_source_entry_on_primary_video(monkeypatch) -> None:
+    """§4.6 — turn-1 video payload echoes allowlisted source_entry."""
+    from unittest.mock import MagicMock
+
+    import getviews_pipeline.answer_session as mod
+    from getviews_pipeline.report_types import VideoPayload
+
+    video_inner = {
+        "video_id": "7630766288574369045",
+        "mode": "win",
+        "meta": {
+            "creator": "creatorx",
+            "views": 250_000,
+            "likes": 18_000,
+            "comments": 800,
+            "shares": 1_200,
+            "save_rate": 0.04,
+            "duration_sec": 28.5,
+            "thumbnail_url": "https://r2.test/thumbnails/x.png",
+            "date_posted": "2026-04-15",
+            "title": "Đây là cách",
+            "niche_label": "Làm đẹp",
+            "retention_source": "modeled",
+        },
+        "kpis": [],
+        "segments": [],
+        "hook_phases": [],
+        "errors": [],
+        "retention_curve": [],
+        "niche_benchmark_curve": [],
+        "niche_meta": {
+            "avg_views": 100_000,
+            "avg_retention": 0.55,
+            "avg_ctr": 0.04,
+            "sample_size": 200,
+            "winners_sample_size": 30,
+        },
+    }
+
+    def fake_build_video_report(**_kwargs: object) -> dict:
+        return dict(video_inner)
+
+    monkeypatch.setattr(
+        "getviews_pipeline.report_video.build_video_report",
+        fake_build_video_report,
+    )
+
+    user_sb = MagicMock()
+    user_sb.rpc.return_value.execute.return_value = MagicMock(data=0)
+
+    srv = MagicMock()
+
+    def table(name: str) -> MagicMock:
+        m = MagicMock()
+        if name == "answer_sessions":
+            chain = m.select.return_value.eq.return_value.single.return_value
+            chain.execute.return_value = MagicMock(
+                data={
+                    "id": "sess-1",
+                    "user_id": "u-1",
+                    "format": "video",
+                    "niche_id": 1,
+                    "title": "t",
+                    "initial_q": "q",
+                    "intent_type": "trend_spike",
+                }
+            )
+            m.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        elif name == "answer_turns":
+            m.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            m.insert.return_value.execute.return_value = MagicMock(
+                data=[{"id": "turn-1", "turn_index": 0, "kind": "primary"}]
+            )
+        elif name == "usage_events":
+            m.insert.return_value.execute.return_value = MagicMock(data=[])
+        else:
+            raise AssertionError(f"unexpected table {name!r}")
+        return m
+
+    srv.table.side_effect = table
+    monkeypatch.setattr(mod, "get_service_client", lambda: srv)
+    monkeypatch.setattr(
+        "getviews_pipeline.supabase_client.user_supabase",
+        lambda _token: user_sb,
+    )
+
+    out = mod.append_turn(
+        "u-1",
+        "token",
+        "sess-1",
+        query="https://www.tiktok.com/@x/video/1",
+        kind="primary",
+        source_entry="trends",
+    )
+
+    assert out["payload"]["kind"] == "video"
+    assert out["payload"]["report"]["source_entry"] == "trends"
+    VideoPayload.model_validate(out["payload"]["report"])
+
+
+def test_append_turn_skips_source_entry_on_follow_up(monkeypatch) -> None:
+    from unittest.mock import MagicMock
+
+    import getviews_pipeline.answer_session as mod
+
+    def fake_build_timing_report(*_args: object, **_kwargs: object) -> dict:
+        from getviews_pipeline.report_timing import build_fixture_timing_report
+
+        return build_fixture_timing_report()
+
+    monkeypatch.setattr(mod, "build_timing_report", fake_build_timing_report)
+
+    user_sb = MagicMock()
+    srv = MagicMock()
+
+    def table(name: str) -> MagicMock:
+        m = MagicMock()
+        if name == "answer_sessions":
+            chain = m.select.return_value.eq.return_value.single.return_value
+            chain.execute.return_value = MagicMock(
+                data={
+                    "id": "sess-1",
+                    "user_id": "u-1",
+                    "format": "pattern",
+                    "niche_id": 1,
+                    "intent_type": "trend_spike",
+                }
+            )
+            m.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        elif name == "answer_turns":
+            m.select.return_value.eq.return_value.execute.return_value = MagicMock(
+                data=[{"turn_index": 0}]
+            )
+            m.insert.return_value.execute.return_value = MagicMock(
+                data=[{"id": "turn-2", "turn_index": 1, "kind": "timing"}]
+            )
+        elif name == "usage_events":
+            m.insert.return_value.execute.return_value = MagicMock(data=[])
+        else:
+            raise AssertionError(f"unexpected table {name!r}")
+        return m
+
+    srv.table.side_effect = table
+    monkeypatch.setattr(mod, "get_service_client", lambda: srv)
+    monkeypatch.setattr(
+        "getviews_pipeline.supabase_client.user_supabase",
+        lambda _token: user_sb,
+    )
+
+    out = mod.append_turn(
+        "u-1",
+        "token",
+        "sess-1",
+        query="khi nào nên post?",
+        kind="timing",
+        source_entry="intent_cta",
+    )
+
+    assert out["payload"]["kind"] == "timing"
+    assert "source_entry" not in out["payload"]["report"]

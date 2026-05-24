@@ -335,7 +335,9 @@ def select_sections_to_emit(manifest, ctx, *, depth: str = "basic") -> list[str]
 | **F1** | Phân tích video Chuyên sâu | Deep | ✅ W3 | `analysis_depth=deep`; cap 5/section; `boost_attribution` F1-only @ W4-2 |
 | **F2** | Phân tích video Cơ bản | Basic | ✅ W1+W3 | Whitelist §4.2 + cache `(video_id, analysis_depth)` + Win handoff §4.10 |
 
-### 4.5 Luồng người dùng
+### 4.5 Luồng người dùng ✅
+
+**Trạng thái:** ✅ **Done** — W1+W3 entry/depth + W5-1 CTA rail + §4.11.3 upsell; QA `AnswerScreen.test.tsx`, `VideoDeepUpsell`, `intentCtaSuggestions`.
 
 Chi tiết entry, query params, UI: **§4.10–§4.11**.
 
@@ -350,34 +352,57 @@ flowchart TD
   upsell -->|2x_credit| deepReport[Bao_cao_Chuyen_sau]
 ```
 
-1. **Tab Xu hướng** (TikTok) → CTA card → Answer `basic` + `win` (§4.11.4).  
-2. **Tab Studio** → pill flop/win/kênh + nút **Cơ bản** / **Chuyên sâu** trong composer trước submit.  
-3. **Cơ bản** → V6 whitelist; CTA “Phân tích chuyên sâu” + teaser manifest (§4.2).  
-4. **Chuyên sâu** → cùng `AnswerScreen` / `VideoBody`, full pool — **phiên mới** cùng URL (`depth=deep`), không phải follow-up turn.
+1. **Tab Xu hướng** (TikTok) → CTA card → Answer `basic` + `win` (§4.11.4). ✅ [`ExploreScreen`](../../src/routes/_app/trends/ExploreScreen.tsx), [`TrendsRail`](../../src/routes/_app/trends/TrendsRail.tsx), [`answerHandoff.ts`](../../src/lib/answerHandoff.ts).
+2. **Tab Studio** → pill flop/win/kênh/script + nút **Cơ bản** / **Chuyên sâu** trong [`QueryComposer`](../../src/components/v2/QueryComposer.tsx) trước submit. ✅ [`HomeScreen`](../../src/routes/_app/home/HomeScreen.tsx) + `planStudioComposerSubmit`; Khám Kênh → `/app/channel` (§4.10).
+3. **Cơ bản** → V6 whitelist; [`VideoDeepUpsell`](../../src/components/v2/answer/video/VideoDeepUpsell.tsx) teaser + [`IntentCtaRail`](../../src/components/v2/answer/IntentCtaRail.tsx) “Phân tích chuyên sâu (2 credit)” (§4.2).
+4. **Chuyên sâu** → cùng `AnswerScreen` / `VideoBody`, full pool — **phiên mới** qua `navigate(buildAnswerHandoffPath({ depth: "deep" }))` (`replace: true`), không `append_turn` (§4.12 on-demand synthesis-only khi cache basic có).
 
-**Multi-turn:** Giữ `TimelineRail` + `append_turn` — turn 2+ chỉ qua **CTA intent pill**, không free-text follow-up — §4.10.1.
+**Multi-turn:** ✅ `TimelineRail` + `append_turn` — turn 2+ chỉ qua **CTA intent pill** (`showIntentCtaRail` khi `turnCount > 0`); `FollowUpComposer` chỉ turn 0 chưa có báo cáo — §4.10.1.
 
-### 4.6 Data contract (Trụ 5)
+**Acceptance (§4.5):**
 
-| Field / aggregate | Cơ bản | Chuyên sâu |
-|-------------------|--------|------------|
-| `build_signal_manifest` (full) | ✓ tính; prompt cap 3/section | ✓ tính + emit full; cap 5/section (§4.8) |
-| `analysis_depth` | `basic` | `deep` |
-| `source_entry` | `trends` \| `trends_douyin` \| `composer` \| `evidence` \| `intent_cta` | echo trong `answer_turns.payload` |
-| `hook_effectiveness`, refs, `performance_tier` | ✓ trong whitelist sections | ✓ |
-| `embedded_tiles` | ✓ trong `niche_pattern` khi có refs | ✓ + section khác |
-| Sections: sound, editing, commerce, douyin, … | manifest có, **không synthesize** | synthesize khi `applies` |
-| On-demand extract | khi chưa corpus | khi chưa corpus |
-| Đổi depth (basic→deep) | **không** re-extract; cache miss deep → **synthesis-only** (manifest đã có) | |
-| Cache `video_diagnostics` | row `(video_id, basic)` | row `(video_id, deep)` — §4.12 |
-| `boost_attribution`, `reference_eligible` | đọc khi có; không section riêng | section + lọc ref (§4.7) |
-| Win signals (§4.8.3) | salience cao khi `tier=hit`; vẫn tính trong manifest | synthesize nếu section emit |
+- [x] Xu hướng handoff `depth=basic&mode=win&from=trends`
+- [x] Studio composer depth pills + 4 pill entry
+- [x] Basic report → locked-section teasers + deep CTA (2 credit)
+- [x] Deep upgrade = new handoff session (`depth=deep`), not follow-up turn
+- [x] Turn 2+ → `IntentCtaRail`, no free-text follow-up
 
-### 4.7 Boost attribution & corpus reference hygiene (V5 §1.8)
+### 4.6 Data contract (Trụ 5) ✅
 
-**Vấn đề:** Báo cáo flop V5 mô tả Seeding / Spark Ads / seeding mồi là “con dao hai lưỡi”. Pipeline hiện tại **không** phân biệt view organic vs view đẩy trả phí → benchmark và chẩn đoán có thể lệch.
+**Trạng thái:** ✅ **Done** — depth-split cache + manifest caps + on-demand upgrade @ S4-1; QA `test_analysis_depth.py`, `test_on_demand_depth_upgrade.py`, §4.12.2.
 
-**Ràng buộc V1 (đã chốt):**
+| Field / aggregate | Cơ bản | Chuyên sâu | As-built |
+|-------------------|--------|------------|----------|
+| `build_signal_manifest` (full) | ✓ tính; prompt cap **3**/section | ✓ tính + emit full; cap **5**/section (§4.8) | ✅ [`registry.py`](../../cloud-run/getviews_pipeline/signals/registry.py) `manifest_for_prompt` |
+| `analysis_depth` | `basic` | `deep` | ✅ echo on `VideoPayload` + cache key |
+| `source_entry` | `trends` \| `trends_douyin` \| `composer` \| `evidence` \| `intent_cta` | same | ✅ turn-1 [`VideoPayload`](../../cloud-run/getviews_pipeline/report_types.py) via [`append_turn`](../../cloud-run/getviews_pipeline/answer_session.py) + URL `from` handoff |
+| `locked_sections` | deep-only teasers from manifest | — | ✅ basic only — [`upsell_locked_sections`](../../cloud-run/getviews_pipeline/diagnose_sections.py) |
+| `hook_effectiveness`, refs, `performance_tier` | ✓ whitelist sections | ✓ full pool | ✅ |
+| `embedded_tiles` | ✓ `niche_pattern` khi có refs | ✓ + sections khác | ✅ embed repair + tile contract |
+| Sections: sound, editing, commerce, douyin, … | manifest có, **không synthesize** | synthesize khi `applies` | ✅ §4.2 whitelist |
+| On-demand extract | khi chưa corpus | khi chưa corpus | ✅ `run_video_analyze_on_demand` |
+| Đổi depth (basic→deep) | **không** re-extract; synthesis-only khi basic cache có `extract_json` | — | ✅ `_try_on_demand_basic_upgrade_source` (§4.12.2) |
+| Cache `video_diagnostics` | `(video_id, basic)` | `(video_id, deep)` | ✅ composite PK — §4.12 |
+| `boost_attribution`, `reference_eligible` | đọc khi có; không section riêng | section + lọc ref (§4.7) | ✅ W4-2 |
+| Win signals (§4.8.3) | tính trong manifest; salience khi `tier=hit` | synthesize nếu section emit | ✅ [`signals/win.py`](../../cloud-run/getviews_pipeline/signals/win.py) |
+
+**Acceptance (§4.6):**
+
+- [x] Full manifest always built; depth controls **emit** + prompt cap (3/5)
+- [x] Separate `video_diagnostics` rows per `analysis_depth`
+- [x] Basic→deep on-demand skips re-extract when fresh basic row has `extract_json`
+- [x] Deep-only sections excluded from basic synthesis; `locked_sections` teasers on basic payload
+- [x] `source_entry` persisted on turn-1 `VideoPayload` inside `answer_turns.payload`
+
+### 4.7 Boost attribution & corpus reference hygiene (V5 §1.8) ✅
+
+**Trạng thái:** ✅ **Done** — P0 M1+M2 @ W0-5a/W4-4; P1 M3+M4 @ W4-2 + Phase 2b; P2 M5 @ S4-2; FE `BoostAttributionBlock` + `StatsHistoryStrip` (F1 deep only). QA `test_corpus_boost_w0.py`, `test_stats_history_m4.py`, `test_seeding_comment_signal.py`, §4.7.7.
+
+**Vấn đề (pre-V1):** Báo cáo flop V5 mô tả Seeding / Spark Ads / seeding mồi là “con dao hai lưỡi”. Trước §4.7 pipeline **không** phân biệt view organic vs view đẩy trả phí → benchmark và chẩn đoán có thể lệch.
+
+**As-built:** inference **tự động** từ dữ liệu công khai — cohort percentiles (M1 batch + M3 live), `reference_eligible` ref hygiene (M2), `stats_history` + `distribution_shape` (M4), comment-radar seeding pattern (M5). Copy contract *“có dấu hiệu”* + số đo; **không** OAuth / user declare / khẳng định 100%.
+
+**Ràng buộc V1 (đã chốt — vẫn enforce):**
 
 | Không làm | Lý do |
 |-----------|--------|
@@ -385,7 +410,15 @@ flowchart TD
 | UI khai báo “đã chạy ads/seeding” | Không đưa trách nhiệm lên user |
 | Khẳng định **100%** (“chắc chắn đã chạy ads”, “đã seeding”) | Không có cờ promoted; inference có thể sai |
 
-**Chỉ làm:** inference **tự động** từ dữ liệu đã có hoặc sẽ thu thập thêm trong batch (EnsembleData stats, corpus phân vị, optional time-series snapshot).
+**Phạm vi ship (M1–M5):**
+
+| Method | As-built |
+|--------|----------|
+| **M1** batch heuristic | ✅ [`corpus_boost_suspect.py`](../../cloud-run/getviews_pipeline/corpus_boost_suspect.py) → `video_corpus.boost_attribution` |
+| **M2** ref hygiene | ✅ [`corpus_context.py`](../../cloud-run/getviews_pipeline/corpus_context.py) `.eq("reference_eligible", true)` + channel peers W4-4 |
+| **M3** live diagnose | ✅ [`signals/distribution.py`](../../cloud-run/getviews_pipeline/signals/distribution.py) `extract_live_boost_attribution_signals` |
+| **M4** stats time-series | ✅ [`stats_history_m4.py`](../../cloud-run/getviews_pipeline/stats_history_m4.py) + cron `20260827000003` |
+| **M5** comment shape | ✅ `seeding_comment_pattern` @ S4-2 (optional; fires when `comment_radar` present) |
 
 #### 4.7.0 Ngôn ngữ nhận định (copy contract)
 
@@ -419,11 +452,11 @@ Mỗi signal `boost_*` export `evidence_strength` + `claim`; synthesis **bắt b
 
 | # | Phương pháp | Input (đã có / thêm) | Output | Phase |
 |---|-------------|----------------------|--------|-------|
-| **M1** | **Cross-section heuristic** | `views`, `likes`, `comments`, `engagement_rate`, `breakout_multiplier` vs phân vị cohort (post-pivot: **`content_class_intelligence`** / class-tier where available; legacy `niche_intelligence` bridge until M1 migrates) | `boost_attribution`: `organic_confident` · `suspect_low` · `suspect_medium` | **P0** |
-| **M2** | **Reference hygiene** | `reference_eligible = false` khi `suspect_medium`; sort ref: proximity → ER **nếu** ER ≥ median ngách; breakout chỉ khi pass ER guard | G2 | **P0** |
-| **M3** | **Live video (on diagnose)** | Cùng rule M1 trên `user_stats` + `niche_meta` percentiles | Signal vào manifest; có thể emit `boost_attribution` | **P1** |
-| **M4** | **Stats time-series** | `video_corpus.stats_history` JSONB: snapshot lúc ingest + batch re-fetch T+6h, T+24h (ED `fetch_post_info`) | `distribution_shape`: `spike_then_flat` → tăng salience suspect (gợi ý seeding/ads backfire **pattern**) | **P1** |
-| **M5** | **Comment shape** (optional) | Sample comments qua ED ([`comment-sentiment.md`](features/comment-sentiment.md)) — công thức, spike 1h đầu | `seeding_pattern_suspect` — chỉ khi M5 ship | **P2** |
+| **M1** | **Cross-section heuristic** | `views`, `likes`, `comments`, `engagement_rate`, `breakout_multiplier` vs phân vị cohort (post-pivot: **`content_class_intelligence`** / class-tier where available; legacy `niche_intelligence` bridge until M1 migrates) | `boost_attribution`: `organic_confident` · `suspect_low` · `suspect_medium` | **P0** ✅ |
+| **M2** | **Reference hygiene** | `reference_eligible = false` khi `suspect_medium`; sort ref: proximity → ER **nếu** ER ≥ median ngách; breakout chỉ khi pass ER guard | G2 | **P0** ✅ |
+| **M3** | **Live video (on diagnose)** | Cùng rule M1 trên `user_stats` + `niche_meta` percentiles | Signal vào manifest; có thể emit `boost_attribution` | **P1** ✅ |
+| **M4** | **Stats time-series** | `video_corpus.stats_history` JSONB: snapshot lúc ingest + batch re-fetch T+6h, T+24h (ED `fetch_post_info`) | `distribution_shape`: `spike_then_flat` → tăng salience suspect (gợi ý seeding/ads backfire **pattern**) | **P1** ✅ |
+| **M5** | **Comment shape** (optional) | Sample comments qua ED ([`comment-sentiment.md`](features/comment-sentiment.md)) — công thức, spike 1h đầu | `seeding_pattern_suspect` — chỉ khi M5 ship | **P2** ✅ |
 
 **M1 — quy tắc batch (sau `/batch/analytics`, Chủ nhật):**
 
@@ -481,11 +514,11 @@ Video user `suspect_medium`: narrative nói refs là **corpus organic-shaped**; 
 
 #### 4.7.6 Thứ tự build
 
-| Phase | Scope |
-|-------|--------|
-| **P0** | M1 + M2: columns, nightly job, ref pool + channel sort |
-| **P1** | M3 + M4: `stats_history` cron re-fetch, `boost_attribution` section + signals |
-| **P2** | M5 nếu comment-sentiment ship |
+| Phase | Scope | Trạng thái |
+|-------|--------|------------|
+| **P0** | M1 + M2: columns, nightly job, ref pool + channel sort | ✅ W0-5a/W4-4 |
+| **P1** | M3 + M4: `stats_history` cron re-fetch, `boost_attribution` section + signals | ✅ W4-2 + Phase 2b |
+| **P2** | M5 nếu comment-sentiment ship | ✅ S4-2 |
 
 #### 4.7.7 Acceptance (bổ sung §13)
 

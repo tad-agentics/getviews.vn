@@ -2439,6 +2439,14 @@ async def _ingest_candidate_awemes(
                 (str(err)[:400] if err is not None else None),
             )
         else:
+            _enrich_breakout_ratio_for_row(
+                row,
+                aweme,
+                niche_id=route_nid,
+                ingest_batch_ctx=ingest_batch_ctx,
+                content_class_id=cc_override
+                or aweme.get("_ingest_loop_content_class_id"),
+            )
             br = row.get("breakout_ratio")
             reject, reason = post_extract_should_reject(
                 row,
@@ -3056,16 +3064,76 @@ def _existing_video_ids_sync(client: Any, niche_id: int) -> set[str]:
     return _load_all_existing_video_ids_sync(client)
 
 
-def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
-    """Phase 6.2 — provenance-safe batch upsert via the RPC.
+def _enrich_breakout_ratio_for_row(
+    row: dict[str, Any],
+    aweme: dict[str, Any],
+    *,
+    niche_id: int,
+    ingest_batch_ctx: Any | None,
+    content_class_id: int | None,
+) -> None:
+    """§corpus-ingest R3 — persist breakout_ratio via cohort p50 when author median missing."""
+    if row.get("breakout_ratio") is not None or ingest_batch_ctx is None:
+        return
+    views = int(row.get("views") or 0)
+    if views <= 0:
+        return
+    from getviews_pipeline.corpus_instructiveness import _breakout_for_aweme
 
-    Routes through the ``upsert_video_corpus_batch`` Postgres function
-    (migration 20260713000001), which COALESCEs ``ingest_source``,
-    ``quality_tier``, and ``first_seen_at`` so the nightly batch never
-    overwrites a row that a user diagnosis added. Falls back to the
-    plain PostgREST upsert if the RPC isn't available (e.g. a fresh
-    Supabase project still propagating the migration) so corpus ingest
-    keeps making progress.
+    br, _src = _breakout_for_aweme(
+        aweme,
+        views,
+        niche_id,
+        ingest_batch_ctx,
+        content_class_id=content_class_id,
+    )
+    if br > 0:
+        row["breakout_ratio"] = br
+
+
+def _merge_existing_provenance_sync(
+    client: Any,
+    rows: list[dict[str, Any]],
+) -> None:
+    """COALESCE ingest provenance + stats_history like upsert_video_corpus_batch RPC."""
+    ids = [str(r.get("video_id") or "") for r in rows if r.get("video_id")]
+    if not ids:
+        return
+    existing: dict[str, dict[str, Any]] = {}
+    chunk_size = 200
+    for start in range(0, len(ids), chunk_size):
+        chunk = ids[start : start + chunk_size]
+        res = (
+            client.table("video_corpus")
+            .select("video_id, ingest_source, first_seen_at, quality_tier, stats_history")
+            .in_("video_id", chunk)
+            .execute()
+        )
+        for item in res.data or []:
+            existing[str(item["video_id"])] = item
+
+    for row in rows:
+        vid = str(row.get("video_id") or "")
+        prior = existing.get(vid)
+        if not prior:
+            continue
+        if prior.get("ingest_source"):
+            row["ingest_source"] = prior["ingest_source"]
+        if prior.get("first_seen_at"):
+            row["first_seen_at"] = prior["first_seen_at"]
+        if prior.get("quality_tier"):
+            row["quality_tier"] = prior["quality_tier"]
+        prior_sh = prior.get("stats_history")
+        if isinstance(prior_sh, list) and len(prior_sh) > 0:
+            row["stats_history"] = prior_sh
+
+
+def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
+    """Provenance-safe batch upsert — full row dict via PostgREST.
+
+    M4 migration regressed ``upsert_video_corpus_batch`` (subset columns only).
+    Canonical path: merge existing provenance in Python, then upsert all fields
+    Python sends (boost, relax tier, stats_history t0, breakout_ratio, …).
     """
     from datetime import UTC
     from datetime import datetime as _dt
@@ -3081,20 +3149,8 @@ def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
         r["last_refreshed_at"] = now_iso
         enriched.append(r)
 
-    try:
-        client.rpc("upsert_video_corpus_batch", {"p_rows": enriched}).execute()
-        return
-    except Exception as exc:
-        # Surface once at WARNING then fall back. Production should
-        # already have the RPC; this branch covers fresh-project
-        # migration order or a temporary remove.
-        logger.warning(
-            "[corpus_ingest] upsert_video_corpus_batch RPC failed (%s); "
-            "falling back to direct upsert — provenance may regress if "
-            "the row is owned by 'user_diagnosis'.",
-            exc,
-        )
-        client.table("video_corpus").upsert(enriched, on_conflict="video_id").execute()
+    _merge_existing_provenance_sync(client, enriched)
+    client.table("video_corpus").upsert(enriched, on_conflict="video_id").execute()
 
 
 # ── Materialized view refresh ────────────────────────────────────────────────────
