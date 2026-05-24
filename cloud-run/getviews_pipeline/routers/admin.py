@@ -471,6 +471,14 @@ class AdminBackfillClassificationBody(StrictBody):
     dry_run: bool = False
 
 
+class AdminAssignmentTierBackfillBody(StrictBody):
+    """ACQE — backfill ``class_assignment_tier`` on legacy rows + junction repair."""
+
+    batch_size: int = Field(default=500, ge=50, le=2000)
+    max_rows: int = Field(default=15_000, ge=100, le=50_000)
+    repair_validated_junction: bool = True
+
+
 class AdminTriggerRefreshBody(StrictBody):
     """Corpus freshness refresh — metadata-only re-pull from EnsembleData."""
     limit: int | None = None         # defaults to REFRESH_BATCH_LIMIT (200)
@@ -593,6 +601,21 @@ async def _admin_run_backfill_classification(body: AdminBackfillClassificationBo
         batch_size=body.batch_size,
         max_runtime_s=float(body.max_runtime_s),
         dry_run=body.dry_run,
+    )
+
+
+async def _admin_run_assignment_tier_backfill(
+    body: AdminAssignmentTierBackfillBody,
+) -> dict[str, Any]:
+    from getviews_pipeline.class_quality_engine import run_assignment_tier_backfill
+    from getviews_pipeline.supabase_client import get_service_client
+
+    return await run_sync(
+        run_assignment_tier_backfill,
+        get_service_client(),
+        batch_size=body.batch_size,
+        max_rows=body.max_rows,
+        repair_validated_junction=body.repair_validated_junction,
     )
 
 
@@ -876,6 +899,160 @@ async def admin_corpus_health(
     return JSONResponse({"ok": True, "as_of": now.isoformat(), "summary": summary, "niches": per_niche})
 
 
+@router.get("/admin/corpus-class-health")
+async def admin_corpus_class_health(
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    """Per-content_class corpus snapshot — assignment tiers + junction alignment."""
+    from getviews_pipeline.supabase_client import get_service_client
+
+    client = get_service_client()
+    now = datetime.now(UTC)
+    cutoff_7d = now - timedelta(days=7)
+    cutoff_30d = now - timedelta(days=30)
+    cutoff_90d = now - timedelta(days=90)
+
+    try:
+        classes_res = (
+            client.table("content_classifications")
+            .select("id, slug, name_vn, format_axis, active")
+            .eq("active", True)
+            .execute()
+        )
+        classes = classes_res.data or []
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"content_classifications: {exc}") from exc
+
+    try:
+        corpus_res = (
+            client.table("video_corpus")
+            .select(
+                "content_class_id, indexed_at, class_assignment_tier, "
+                "inferred_creator_niche_id"
+            )
+            .eq("language", "vi")
+            .gte("indexed_at", cutoff_90d.isoformat())
+            .not_.is_("content_class_id", "null")
+            .execute()
+        )
+        corpus_rows = corpus_res.data or []
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"video_corpus: {exc}") from exc
+
+    try:
+        junction_res = (
+            client.table("creator_niche_content_classes")
+            .select("creator_niche_id, content_class_id")
+            .execute()
+        )
+        junction_pairs = {
+            (int(r["creator_niche_id"]), int(r["content_class_id"]))
+            for r in (junction_res.data or [])
+            if r.get("creator_niche_id") is not None and r.get("content_class_id") is not None
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"junction: {exc}") from exc
+
+    targets_by_cc: dict[int, dict[str, Any]] = {}
+    try:
+        targets_res = (
+            client.table("content_class_ingest_targets")
+            .select("content_class_id, viability_tier, daily_vpn, active")
+            .execute()
+        )
+        for t in targets_res.data or []:
+            cc = t.get("content_class_id")
+            if cc is not None:
+                targets_by_cc[int(cc)] = t
+    except Exception as exc:
+        logger.warning("[corpus-class-health] ingest targets fetch failed: %s", exc)
+
+    counts_7d: dict[int, int] = {}
+    counts_30d: dict[int, int] = {}
+    counts_90d: dict[int, int] = {}
+    tier_hist: dict[str, int] = {"validated": 0, "low_conf": 0, "flagged": 0, "null": 0}
+    junction_miss_30d = 0
+    corpus_30d_total = 0
+
+    for row in corpus_rows:
+        cc = row.get("content_class_id")
+        indexed = row.get("indexed_at")
+        if cc is None or not indexed:
+            continue
+        cc_id = int(cc)
+        try:
+            indexed_dt = datetime.fromisoformat(str(indexed).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        counts_90d[cc_id] = counts_90d.get(cc_id, 0) + 1
+        if indexed_dt >= cutoff_30d:
+            counts_30d[cc_id] = counts_30d.get(cc_id, 0) + 1
+            corpus_30d_total += 1
+            tier = row.get("class_assignment_tier")
+            tier_key = str(tier) if tier in ("validated", "low_conf", "flagged") else "null"
+            tier_hist[tier_key] = tier_hist.get(tier_key, 0) + 1
+            cn = row.get("inferred_creator_niche_id")
+            stored_cc = row.get("content_class_id")
+            if cn is not None and stored_cc is not None:
+                pair = (int(cn), int(stored_cc))
+                if pair not in junction_pairs:
+                    junction_miss_30d += 1
+        if indexed_dt >= cutoff_7d:
+            counts_7d[cc_id] = counts_7d.get(cc_id, 0) + 1
+
+    viability_hist: dict[str, int] = {"Healthy": 0, "Thin": 0, "Dormant": 0, "unknown": 0}
+    per_class: list[dict[str, Any]] = []
+    classes_with_corpus_30d = 0
+    thin_under_20 = 0
+
+    for c in classes:
+        cc_id = c.get("id")
+        if cc_id is None:
+            continue
+        cc_id = int(cc_id)
+        v30 = counts_30d.get(cc_id, 0)
+        if v30 > 0:
+            classes_with_corpus_30d += 1
+        if 0 < v30 < 20:
+            thin_under_20 += 1
+        target = targets_by_cc.get(cc_id, {})
+        viability = str(target.get("viability_tier") or "unknown")
+        viability_hist[viability] = viability_hist.get(viability, 0) + 1
+        per_class.append({
+            "content_class_id": cc_id,
+            "slug": c.get("slug"),
+            "name_vn": c.get("name_vn"),
+            "format_axis": c.get("format_axis"),
+            "videos_7d": counts_7d.get(cc_id, 0),
+            "videos_30d": v30,
+            "videos_90d": counts_90d.get(cc_id, 0),
+            "viability_tier": target.get("viability_tier"),
+            "daily_vpn": target.get("daily_vpn"),
+            "ingest_active": target.get("active"),
+        })
+
+    per_class.sort(key=lambda r: (-r["videos_30d"], r["content_class_id"]))
+    summary = {
+        "classes_total": len(classes),
+        "classes_with_corpus_30d": classes_with_corpus_30d,
+        "classes_zero_corpus_30d": len(classes) - classes_with_corpus_30d,
+        "classes_thin_under_20": thin_under_20,
+        "videos_7d_total": sum(counts_7d.values()),
+        "videos_30d_total": corpus_30d_total,
+        "videos_90d_total": sum(counts_90d.values()),
+        "assignment_tier_histogram_30d": tier_hist,
+        "junction_miss_30d": junction_miss_30d,
+        "junction_miss_rate_30d": round(junction_miss_30d / max(corpus_30d_total, 1), 4),
+        "viability_histogram": viability_hist,
+    }
+    return JSONResponse({
+        "ok": True,
+        "as_of": now.isoformat(),
+        "summary": summary,
+        "content_classes": per_class,
+    })
+
+
 @router.get("/admin/ensemble-credits")
 async def admin_ensemble_credits(
     _admin: dict[str, Any] = Depends(require_admin),
@@ -1095,6 +1272,16 @@ async def admin_list_triggers(
                 "heavy": True,
             },
             {"id": "layer0", "label": "Layer 0 insights (/batch/layer0)", "body_schema": {}, "heavy": True},
+            {
+                "id": "assignment_tier_backfill",
+                "label": "ACQE assignment tier backfill — legacy NULL tiers + junction repair",
+                "body_schema": {
+                    "batch_size": "int — default 500",
+                    "max_rows": "int — default 15000",
+                    "repair_validated_junction": "bool — downgrade validated when junction miss",
+                },
+                "heavy": True,
+            },
         ],
     })
 
@@ -1198,6 +1385,23 @@ async def admin_trigger_backfill_classification(
             "dry_run": body.dry_run,
         },
         runner=lambda: _admin_run_backfill_classification(body),
+    )
+
+
+@router.post("/admin/trigger/assignment_tier_backfill")
+async def admin_trigger_assignment_tier_backfill(
+    body: AdminAssignmentTierBackfillBody = AdminAssignmentTierBackfillBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="backfill.assignment_tier",
+        params={
+            "batch_size": body.batch_size,
+            "max_rows": body.max_rows,
+            "repair_validated_junction": body.repair_validated_junction,
+        },
+        runner=lambda: _admin_run_assignment_tier_backfill(body),
     )
 
 

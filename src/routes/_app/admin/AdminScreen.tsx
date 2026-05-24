@@ -25,6 +25,7 @@ import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TopBar } from "@/components/v2/TopBar";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
+import { CorpusClassHealthPanel } from "./CorpusClassHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
 import { LogsPanel } from "./LogsPanel";
 import { TriggersPanel } from "./TriggersPanel";
@@ -76,6 +77,17 @@ export default function AdminScreen() {
 
           <section className="gv-fade-up gv-fade-up-delay-1">
             <SectionHeader
+              kicker="CORPUS · CONTENT CLASS + JUNCTION"
+              title="Sức khỏe content class"
+              caption="Theo từng content_class (trục pivot). Lượng video 7/30/90 ngày, ACQE viability tier, assignment tier histogram, và tỷ lệ junction miss (niche × class không có edge)."
+            />
+            <CorpusClassHealthPanel />
+          </section>
+
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
+          <section className="gv-fade-up gv-fade-up-delay-2">
+            <SectionHeader
               kicker="ENSEMBLEDATA · USED UNITS"
               title="Quỹ tín dụng"
               caption="Units đã dùng mỗi UTC-day và projection 30 ngày — canh trần chi phí ~$80–90/tháng."
@@ -85,7 +97,7 @@ export default function AdminScreen() {
 
           <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
 
-          <section className="gv-fade-up gv-fade-up-delay-2">
+          <section className="gv-fade-up gv-fade-up-delay-3">
             <SectionHeader
               kicker="CLOUD RUN · STDOUT TAIL"
               title="Nhật ký"
@@ -97,7 +109,7 @@ export default function AdminScreen() {
 
           <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
 
-          <section className="gv-fade-up gv-fade-up-delay-3">
+          <section className="gv-fade-up gv-fade-up-delay-4">
             <SectionHeader
               kicker="MANUAL RUN · NIGHTLY PIPELINE"
               title="Chạy thủ công"

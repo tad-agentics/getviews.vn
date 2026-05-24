@@ -129,6 +129,7 @@ export function useAdminJobPoll(jobId: string | null) {
       // summary strip refreshes with the just-ingested rows.
       if (data.job.result_status === "ok") {
         void qc.invalidateQueries({ queryKey: ["admin", "corpus-health"] });
+        void qc.invalidateQueries({ queryKey: ["admin", "corpus-class-health"] });
         void qc.invalidateQueries({ queryKey: ["admin", "action-log"] });
       }
       return data;

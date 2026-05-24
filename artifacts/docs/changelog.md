@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — ACQE assignment tier backfill + Admin content class health
+
+- **`class_quality_engine`:** TD-6 junction gate on `validated` tier (`_resolve_assignment_tier`); shared `_build_assignment_patch`; `run_assignment_tier_backfill` for legacy NULL tiers + validated junction repair.
+- **Admin API:** `GET /admin/corpus-class-health`; `POST /admin/trigger/assignment_tier_backfill` in trigger catalog.
+- **Admin UI:** `CorpusClassHealthPanel` — content class volume, assignment tier histogram, junction miss rate 30d.
+- **Prod data:** One-off SQL backfill applied — 0 `tier_null`, 0 `validated` + junction miss (1,656 junction-miss rows remain `low_conf`).
+
 ## 2026-05-23 — Corpus ingest audit fixes (§4.7 M1/M4 + R3 breakout)
 
 - **`corpus_ingest`:** `_enrich_breakout_ratio_for_row` persists `breakout_ratio` via cohort p50 when ED author median missing; `_merge_existing_provenance_sync` COALESCEs `ingest_source` / `first_seen_at` / `quality_tier` / non-empty `stats_history` before upsert; canonical path is full PostgREST upsert (M4 RPC had regressed to subset columns).

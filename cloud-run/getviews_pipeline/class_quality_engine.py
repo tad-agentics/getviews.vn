@@ -52,6 +52,19 @@ def _assignment_tier(conf: float | None, disagreement: float | None) -> str | No
     return "flagged"
 
 
+def _resolve_assignment_tier(
+    conf: float | None,
+    disagreement: float | None,
+    *,
+    junction_ok: bool,
+) -> str | None:
+    """TD-6: ``validated`` requires junction (creator_niche × content_class) edge."""
+    tier = _assignment_tier(conf, disagreement)
+    if tier == "validated" and not junction_ok:
+        return "low_conf"
+    return tier
+
+
 def _disagreement_score(
     loop_cc: int | None,
     stored_cc: int | None,
@@ -96,6 +109,48 @@ def _fetch_class_metrics(client: Any, since_30d: str, since_7d: str) -> dict[int
     return out
 
 
+def _parse_confidence(raw: Any) -> float | None:
+    try:
+        return float(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_int_id(raw: Any) -> int | None:
+    try:
+        return int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _junction_ok_for_row(
+    creator_niche_id: int | None,
+    content_class_id: int | None,
+) -> bool:
+    if creator_niche_id is None or content_class_id is None:
+        return False
+    from getviews_pipeline.junction_content_class import creator_niche_has_content_class
+
+    return creator_niche_has_content_class(creator_niche_id, content_class_id)
+
+
+def _build_assignment_patch(row: dict[str, Any]) -> dict[str, Any]:
+    conf = _parse_confidence(row.get("niche_resolution_confidence"))
+    loop_i = _parse_int_id(row.get("ingest_loop_content_class_id"))
+    stored_i = _parse_int_id(row.get("content_class_id"))
+    cn_i = _parse_int_id(row.get("inferred_creator_niche_id"))
+    disagree = _disagreement_score(loop_i, stored_i, conf)
+    junction_ok = _junction_ok_for_row(cn_i, stored_i)
+    tier = _resolve_assignment_tier(conf, disagree, junction_ok=junction_ok)
+    patch: dict[str, Any] = {
+        "class_assignment_tier": tier,
+        "class_assignment_disagreement": disagree,
+    }
+    if loop_i is not None and stored_i is not None and loop_i != stored_i:
+        patch["score_cohort_mismatch"] = True
+    return patch
+
+
 def _update_recent_assignment_flags(
     client: Any,
     *,
@@ -106,7 +161,7 @@ def _update_recent_assignment_flags(
         client.table("video_corpus")
         .select(
             "video_id, content_class_id, ingest_loop_content_class_id, "
-            "niche_resolution_confidence, hook_type"
+            "inferred_creator_niche_id, niche_resolution_confidence, hook_type"
         )
         .gte("indexed_at", since_7d)
         .limit(5000)
@@ -119,32 +174,125 @@ def _update_recent_assignment_flags(
         vid = row.get("video_id")
         if not vid:
             continue
-        conf_raw = row.get("niche_resolution_confidence")
-        try:
-            conf = float(conf_raw) if conf_raw is not None else None
-        except (TypeError, ValueError):
-            conf = None
-        loop_cc = row.get("ingest_loop_content_class_id")
-        stored_cc = row.get("content_class_id")
-        try:
-            loop_i = int(loop_cc) if loop_cc is not None else None
-            stored_i = int(stored_cc) if stored_cc is not None else None
-        except (TypeError, ValueError):
-            loop_i, stored_i = None, None
-        disagree = _disagreement_score(loop_i, stored_i, conf)
-        tier = _assignment_tier(conf, disagree)
-        patch: dict[str, Any] = {
-            "class_assignment_tier": tier,
-            "class_assignment_disagreement": disagree,
-        }
-        if loop_i is not None and stored_i is not None and loop_i != stored_i:
-            patch["score_cohort_mismatch"] = True
+        patch = _build_assignment_patch(row)
         try:
             client.table("video_corpus").update(patch).eq("video_id", vid).execute()
             updated += 1
         except Exception as exc:
             logger.warning("[acqe] assignment patch failed video_id=%s: %s", vid, exc)
     return updated
+
+
+def run_assignment_tier_backfill(
+    client: Any,
+    *,
+    batch_size: int = 500,
+    max_rows: int = 15_000,
+    repair_validated_junction: bool = True,
+) -> dict[str, Any]:
+    """Backfill ``class_assignment_tier`` for legacy rows + repair validated junction misses."""
+    null_patched = 0
+    null_scanned = 0
+    offset = 0
+    while null_scanned < max_rows:
+        resp = (
+            client.table("video_corpus")
+            .select(
+                "video_id, content_class_id, ingest_loop_content_class_id, "
+                "inferred_creator_niche_id, niche_resolution_confidence"
+            )
+            .eq("language", "vi")
+            .is_("class_assignment_tier", "null")
+            .order("indexed_at", desc=True)
+            .range(offset, offset + batch_size - 1)
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            break
+        null_scanned += len(rows)
+        for row in rows:
+            vid = row.get("video_id")
+            if not vid:
+                continue
+            patch = _build_assignment_patch(row)
+            try:
+                client.table("video_corpus").update(patch).eq("video_id", vid).execute()
+                null_patched += 1
+            except Exception as exc:
+                logger.warning("[acqe/backfill] patch failed video_id=%s: %s", vid, exc)
+        if len(rows) < batch_size:
+            break
+        offset += batch_size
+
+    junction_repaired = 0
+    junction_scanned = 0
+    if repair_validated_junction:
+        offset = 0
+        while junction_scanned < max_rows:
+            resp = (
+                client.table("video_corpus")
+                .select(
+                    "video_id, content_class_id, ingest_loop_content_class_id, "
+                    "inferred_creator_niche_id, niche_resolution_confidence, "
+                    "class_assignment_tier"
+                )
+                .eq("language", "vi")
+                .eq("class_assignment_tier", "validated")
+                .order("indexed_at", desc=True)
+                .range(offset, offset + batch_size - 1)
+                .execute()
+            )
+            rows = resp.data or []
+            if not rows:
+                break
+            junction_scanned += len(rows)
+            for row in rows:
+                patch = _build_assignment_patch(row)
+                if patch.get("class_assignment_tier") == row.get("class_assignment_tier"):
+                    continue
+                vid = row.get("video_id")
+                if not vid:
+                    continue
+                try:
+                    client.table("video_corpus").update({
+                        "class_assignment_tier": patch["class_assignment_tier"],
+                        "class_assignment_disagreement": patch.get("class_assignment_disagreement"),
+                    }).eq("video_id", vid).execute()
+                    junction_repaired += 1
+                except Exception as exc:
+                    logger.warning(
+                        "[acqe/backfill] junction repair failed video_id=%s: %s", vid, exc,
+                    )
+            if len(rows) < batch_size:
+                break
+            offset += batch_size
+
+    remaining_null = (
+        client.table("video_corpus")
+        .select("video_id", count="exact")
+        .eq("language", "vi")
+        .is_("class_assignment_tier", "null")
+        .execute()
+    )
+    remaining_validated_junction_miss = (
+        client.table("video_corpus")
+        .select("video_id", count="exact")
+        .eq("language", "vi")
+        .eq("class_assignment_tier", "validated")
+        .execute()
+    )
+    # PostgREST count-only; junction miss count requires RPC — approximate via repair delta.
+    summary = {
+        "null_tier_patched": null_patched,
+        "null_tier_scanned": null_scanned,
+        "junction_validated_repaired": junction_repaired,
+        "junction_validated_scanned": junction_scanned,
+        "remaining_tier_null": getattr(remaining_null, "count", None),
+        "remaining_validated": getattr(remaining_validated_junction_miss, "count", None),
+    }
+    logger.info("[acqe/backfill] complete %s", summary)
+    return summary
 
 
 def _flag_cohort_outliers(client: Any, *, since_7d: str) -> int:
