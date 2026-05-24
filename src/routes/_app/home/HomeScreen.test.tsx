@@ -245,19 +245,10 @@ describe("HomeScreen", () => {
     expect(screen.queryByText(/\+ video/)).toBeNull();
   });
 
-  it("Phím tắt: selects pill and clears composer without filling free-text prompt", () => {
+  it("does not show duplicate pill row below composer", () => {
     renderHome();
-    expect(screen.getByText("Phím tắt")).toBeTruthy();
-    const ta = screen.getByRole("textbox") as HTMLTextAreaElement;
-    fireEvent.change(ta, { target: { value: "https://www.tiktok.com/@x/video/123" } });
-    expect(ta.value).toBeTruthy();
-
-    const channelShortcut = screen.getByRole("button", {
-      name: "Chọn kênh — nhập @handle rồi bấm Gửi",
-    });
-    fireEvent.click(channelShortcut);
-    expect(ta.value).toBe("");
-    expect(channelShortcut.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.queryByText("Phím tắt")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Khám Video flop" })).toHaveLength(1);
   });
 
   it("does not downgrade Chuyên sâu while profile credits are still loading", () => {

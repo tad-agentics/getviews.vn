@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
-import { TooltipContent, TooltipRoot, TooltipTrigger } from "@/components/ui/tooltip";
 import { Btn } from "@/components/v2/Btn";
 import { QueryComposer } from "@/components/v2/QueryComposer";
 import { TopBar } from "@/components/v2/TopBar";
@@ -22,9 +21,7 @@ import { profileFirstNicheId, profileCreatorNicheId } from "@/lib/profileNiches"
 import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
 import {
   planStudioComposerSubmit,
-  STUDIO_COMPOSER_PILLS,
   studioComposerPlaceholder,
-  studioComposerShortcutHint,
   type StudioComposerPill,
 } from "@/lib/studioComposer";
 import { TickerMarquee } from "./components/TickerMarquee";
@@ -41,7 +38,7 @@ import { scrollToSuggestionsTier, type SuggestionsTier } from "./components/scro
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
  *
- * Order: ticker → greeting → composer (4 pills + depth) → phím tắt (4 pill) → GỢI Ý HÔM NAY.
+ * Order: ticker → greeting → composer (4 pills + depth) → GỢI Ý HÔM NAY.
  */
 
 /** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */
@@ -191,14 +188,6 @@ export default function HomeScreen() {
     }
   }, [studioPill, analysisDepth, creditsRemaining, profilePending]);
 
-  const activateComposerShortcut = (pill: StudioComposerPill) => {
-    setStudioPill(pill);
-    setComposerText("");
-    setPlaceholderHint(null);
-    logUsage("studio_composer_shortcut", { studio_pill: pill });
-    queueMicrotask(() => composerRef.current?.focus());
-  };
-
   const launchChat = (text: string) => {
     logUsage("studio_composer_submit", {
       surface: "home",
@@ -341,54 +330,7 @@ export default function HomeScreen() {
             ) : null}
           </div>
 
-          {/* Phím tắt — mirror 4 composer pills (§3.1.2); không điền câu hỏi text tự do. */}
-          <div className="gv-fade-up gv-fade-up-delay-2 mt-7 mb-14 w-full">
-            <div className="mb-3 flex items-center gap-2">
-              <span
-                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--gv-ink-4)]"
-                aria-hidden
-              />
-              <p className="gv-kicker text-[color:var(--gv-ink-3)]">
-                Phím tắt
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {STUDIO_COMPOSER_PILLS.map((pill) => {
-                const active = studioPill === pill.id;
-                const hint = studioComposerShortcutHint(pill.id);
-                return (
-                  <TooltipRoot key={pill.id}>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={hint}
-                        aria-pressed={active}
-                        onClick={() => activateComposerShortcut(pill.id)}
-                        className={
-                          "inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-left text-xs leading-snug transition-colors " +
-                          (active
-                            ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-canvas-2)] font-medium text-[color:var(--gv-ink)]"
-                            : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] font-normal text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)]")
-                        }
-                      >
-                        <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
-                        <span className="min-w-0">{pill.label}</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      sideOffset={6}
-                      className="max-w-[min(22rem,calc(100vw-2rem))] px-3 py-2 text-left leading-snug"
-                    >
-                      {hint}
-                    </TooltipContent>
-                  </TooltipRoot>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
+          <div className="gv-fade-up gv-fade-up-delay-2 mt-7 mb-12">
             <HomeSuggestionsToday
                 patternScope={patternScope}
                 creatorNicheId={profile?.creator_niche_id ?? null}

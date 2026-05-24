@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — Gỡ hàng Phím tắt trùng composer pill
+
+- **FE:** Xóa khối **Phím tắt** dưới composer — 4 pill chỉ còn trong `QueryComposer` (tránh lặp UI).
+- **Cleanup:** Gỡ `studioComposerShortcutHint`; Playwright chờ pill composer thay vì kicker Phím tắt.
+
 ## 2026-05-24 — Studio Phím tắt + profile credit guard
 
 - **FE:** Gỡ chip **Bắt đầu nhanh** (text tự do); **Phím tắt** mirror 4 composer pill — click đổi pill + clear textarea, không fill prompt.

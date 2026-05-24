@@ -32,19 +32,6 @@ export function studioComposerPlaceholder(pill: StudioComposerPill, nicheLabel: 
   }
 }
 
-export function studioComposerShortcutHint(pill: StudioComposerPill): string {
-  switch (pill) {
-    case "video_flop":
-      return "Chọn flop — dán URL TikTok rồi bấm Gửi";
-    case "video_win":
-      return "Chọn video win — dán URL TikTok rồi bấm Gửi";
-    case "channel":
-      return "Chọn kênh — nhập @handle rồi bấm Gửi";
-    case "script":
-      return "Chọn kịch bản — mô tả video rồi bấm Gửi";
-  }
-}
-
 export type StudioComposerSubmitPlan =
   | { kind: "navigate"; to: string }
   | { kind: "blocked"; reason: "empty" };
