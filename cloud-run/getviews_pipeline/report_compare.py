@@ -1,9 +1,20 @@
-"""Wave 4 PR #2 — Compare-videos pipeline + delta synthesis.
+"""Compare-videos pipeline + delta synthesis.
+
+Compare is a first-class ``/answer`` session format (``answer_sessions.format
+= 'compare'``). The primary turn carries both TikTok URLs in its query; the
+turn handler extracts + resolves them and calls ``build_compare_report``,
+which runs the async orchestrator on the streaming event loop. A compare
+turn charges 2 credits (two deep diagnoses).
 
 Public surface:
 
+    build_compare_report(url_a, url_b, *, main_loop, ...) -> dict
+        Sync bridge used by ``answer_session.append_turn``. Submits
+        ``run_compare_pipeline`` onto the main event loop (see its docstring
+        for why) and blocks the worker thread for the result.
+
     run_compare_pipeline(url_a, url_b, session, *, ...) -> dict
-        Top-level orchestrator: runs ``run_video_diagnosis`` on each URL
+        Async orchestrator: runs ``run_video_diagnosis`` on each URL
         in parallel via ``asyncio.gather`` (each with its own shallow
         session copy so cache state can't trample), assembles a
         ``ComparePayload`` with both diagnoses + a Gemini-generated
@@ -17,12 +28,11 @@ Public surface:
 
 Design notes:
 
-- **Bundle streaming, not progressive.** The outer ``/stream`` SSE
-  handler emits one envelope (start → done) around the whole compare
-  call. Per-side step events would double the FE complexity (skeleton-
-  fill-replace) for marginal UX gain — total latency is bounded by
-  the slower of the two diagnoses anyway. Trade-off documented in
-  the Wave 4 design discussion (PR #2 kickoff).
+- **Bundle streaming, not progressive.** The turn handler emits one
+  envelope (start → done) around the whole compare call. Per-side step
+  events would double the FE complexity (skeleton-fill-replace) for
+  marginal UX gain — total latency is bounded by the slower of the two
+  diagnoses anyway.
 - **Independent session copies.** ``run_video_diagnosis`` mutates
   ``session["full_analyses"]`` and other caches; running two
   in parallel against the same dict would race. Each side gets
@@ -34,9 +44,9 @@ Design notes:
   deterministic templated sentence built from the numeric deltas —
   the worst case is "boring but factually correct copy", never
   forbidden-word leakage.
-- **No new credit deduction.** /stream already charges one credit at
-  entry; compare costs ~3× the Gemini spend of a single diagnosis but
-  the charge stays at 1. If abuse surfaces in dogfood we'll revisit.
+- **2-credit charge.** A compare turn runs two deep diagnoses, so the
+  ``compare`` builder in ``append_turn`` deducts 2 credits (one per
+  video) — distinct from the single-credit basic-video turn.
 """
 
 from __future__ import annotations
@@ -383,23 +393,18 @@ async def run_compare_pipeline(
     )
     left_res, right_res = results
 
-    # Partial-failure path: if exactly one side raised, surface the
-    # other as a single-video fallback rather than aborting. Both-side
-    # failure re-raises so /stream can emit its standard error envelope.
+    # A ``compare`` answer-turn payload requires both sides — there is no
+    # single-video render path in the answer shell (``CompareBody`` expects
+    # ``left`` + ``right`` + ``delta``). Any side failure raises a typed
+    # error the turn handler maps to a Vietnamese ``step_error``.
     if isinstance(left_res, Exception) and isinstance(right_res, Exception):
         raise left_res
     if isinstance(left_res, Exception):
-        logger.warning("[compare] left side failed, returning single-video right: %s", left_res)
-        if step_queue is not None:
-            await step_queue.put(step_done("Một video lỗi — chỉ trả kết quả video còn lại."))
-            emit_sentinel(step_queue)
-        return right_res
+        logger.warning("[compare] left side failed: %s", left_res)
+        raise RuntimeError("compare_side_failed")
     if isinstance(right_res, Exception):
-        logger.warning("[compare] right side failed, returning single-video left: %s", right_res)
-        if step_queue is not None:
-            await step_queue.put(step_done("Một video lỗi — chỉ trả kết quả video còn lại."))
-            emit_sentinel(step_queue)
-        return left_res
+        logger.warning("[compare] right side failed: %s", right_res)
+        raise RuntimeError("compare_side_failed")
 
     niche = None
     if isinstance(left_res, dict):
@@ -414,3 +419,37 @@ async def run_compare_pipeline(
         emit_sentinel(step_queue)
 
     return payload.model_dump()
+
+
+def build_compare_report(
+    url_a: str,
+    url_b: str,
+    *,
+    session: dict[str, Any] | None = None,
+    user_message: str = "",
+    step_queue: asyncio.Queue | None = None,
+    main_loop: asyncio.AbstractEventLoop | None = None,
+) -> dict[str, Any]:
+    """Sync bridge for the ``compare`` answer-session format.
+
+    ``run_compare_pipeline`` drives two ``run_video_diagnosis`` calls, which
+    deep-use module-level httpx/Supabase clients + the analysis semaphore —
+    all bound to the main uvicorn event loop. Running them under a fresh
+    ``asyncio.run`` (the way ``build_video_report`` drives its narrow,
+    fresh-client helper) would raise "event loop is closed". Instead we
+    submit the coroutine back onto ``main_loop`` and block this worker
+    thread until it resolves, so the diagnoses run on L1 with the correct
+    clients and the L1-bound ``step_queue`` is awaited natively.
+
+    ``main_loop`` is the running loop captured by the SSE handler. Compare
+    is only reachable through that streaming path, so a missing loop is a
+    programming error rather than a recoverable state.
+    """
+    if main_loop is None:
+        raise RuntimeError("compare requires the streaming event loop")
+    sess = dict(session or {})
+    coro = run_compare_pipeline(
+        url_a, url_b, sess, user_message=user_message, step_queue=step_queue,
+    )
+    fut = asyncio.run_coroutine_threadsafe(coro, main_loop)
+    return fut.result()

@@ -193,6 +193,8 @@ const MATRIX: Record<AnswerSessionFormat, MatrixRow[]> = {
       action: "compare_navigate",
     },
   ],
+  // Compare turns already show both videos side-by-side; no follow-up pills.
+  compare: [],
 };
 
 function applyPrerequisites(row: MatrixRow, ctx: IntentCtaContext): IntentCtaSuggestion {

@@ -8,7 +8,6 @@ import logging
 import re
 from collections.abc import AsyncIterator
 from typing import Any
-from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, Request, status
@@ -16,7 +15,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import AliasChoices, Field
 
 from getviews_pipeline.api_models import StrictBody
-from getviews_pipeline.config import TIKTOK_ALLOWED_HOSTS
 from getviews_pipeline.deps import require_user
 from getviews_pipeline.gemini import classify_intent_gemini, gemini_text_only
 from getviews_pipeline.helpers import infer_niche_from_hashtags
@@ -34,7 +32,6 @@ from getviews_pipeline.pipelines import (
     run_trend_spike,
     run_video_diagnosis,
 )
-from getviews_pipeline.report_compare import run_compare_pipeline
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.session_store import (
     build_session_context_from_db,
@@ -42,6 +39,7 @@ from getviews_pipeline.session_store import (
     put_stream_chunks,
 )
 from getviews_pipeline.supabase_client import user_supabase
+from getviews_pipeline.url_resolve import is_short_tiktok_url, resolve_short_url
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +50,6 @@ FREE_DAILY_LIMIT = 100
 _FREE_GATED_INTENTS = frozenset({"trend_spike", "creator_search"})
 
 _PROFILE_HANDLE_RE = re.compile(r"tiktok\.com/@([a-zA-Z0-9_.]+)", re.IGNORECASE)
-_SHORT_TIKTOK_HOSTS = {"vm.tiktok.com", "vt.tiktok.com", "m.tiktok.com"}
-# Hosts the resolved (post-redirect) URL must land on. Superset of
-# ``TIKTOK_ALLOWED_HOSTS`` plus the short-link hosts, since some
-# resolves stay on the short host (rare). Anything else = SSRF guard
-# trips.
-_RESOLVED_TIKTOK_HOSTS = TIKTOK_ALLOWED_HOSTS | _SHORT_TIKTOK_HOSTS
 
 
 def _normalize_intent_name(raw: str | None) -> str | None:
@@ -90,77 +82,12 @@ def is_free_intent(intent: str) -> bool:
     return intent in ("trend_spike", "creator_search")
 
 
-def _is_short_tiktok_url(url: str) -> bool:
-    try:
-        return urlparse(url).netloc.lower() in _SHORT_TIKTOK_HOSTS
-    except Exception:
-        return False
-
-
-def _resolve_short_url(url: str, timeout: float = 8.0) -> str:
-    """Follow redirects on a short TikTok URL and return the final URL.
-
-    SSRF guard: ``follow_redirects=True`` would otherwise let an
-    attacker craft a short link whose final ``Location`` points at
-    ``169.254.169.254`` (cloud metadata) or any internal hostname.
-    Every hop in the chain — including the terminal one — must
-    resolve to a host in ``_RESOLVED_TIKTOK_HOSTS``; otherwise we
-    abort and return the original short URL (downstream pipelines
-    will surface a "không phải TikTok URL" error).
-    """
-    try:
-        with httpx.Client(timeout=timeout, follow_redirects=False) as client:
-            current = url
-            for _ in range(5):
-                resp = client.head(current, headers={"User-Agent": "Mozilla/5.0"})
-                if resp.status_code in (301, 302, 303, 307, 308):
-                    location = resp.headers.get("location")
-                    if not location:
-                        break
-                    nxt = str(httpx.URL(current).join(location))
-                    nxt_host = urlparse(nxt).netloc.lower()
-                    if nxt_host not in _RESOLVED_TIKTOK_HOSTS:
-                        logger.warning(
-                            "[short_url] redirect target %s rejected (host=%s) — using original",
-                            nxt,
-                            nxt_host,
-                        )
-                        return url
-                    current = nxt
-                    continue
-                break
-            logger.info("[short_url] resolved %s → %s", url, current)
-            return current
-    except Exception as exc:
-        logger.warning("[short_url] could not resolve %s: %s — using original", url, exc)
-        return url
-
-
 def _pick_video_url(urls: list[str]) -> str | None:
     for u in urls:
         ul = u.lower()
-        if "/video/" in ul or "/photo/" in ul or _is_short_tiktok_url(u):
+        if "/video/" in ul or "/photo/" in ul or is_short_tiktok_url(u):
             return u
     return urls[0] if urls else None
-
-
-def _pick_two_video_urls(urls: list[str]) -> tuple[str | None, str | None]:
-    """Wave 4 PR #2 — pick the first two video-style URLs, in source
-    order, for the compare pipeline. Falls back to the first two of
-    any ordering when fewer than two video-style matches are found —
-    the orchestrator will surface a "missing_video_url"-style error
-    if either side fails to resolve. Mirrors ``_pick_video_url``'s
-    "video > photo > short-link > anything" precedence per slot."""
-    video_like = [
-        u for u in urls
-        if "/video/" in u.lower()
-        or "/photo/" in u.lower()
-        or _is_short_tiktok_url(u)
-    ]
-    pool = video_like if len(video_like) >= 2 else urls
-    a = pool[0] if len(pool) >= 1 else None
-    b = pool[1] if len(pool) >= 2 else None
-    return a, b
 
 
 def _resolve_profile_handle(urls: list[str], handles: list[str]) -> str:
@@ -374,33 +301,9 @@ async def stream(
                     yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "missing_video_url"})
                     sb.rpc("end_processing", {"p_user_id": user_id}).execute()
                     return
-                if _is_short_tiktok_url(url):
-                    url = await run_sync(_resolve_short_url, url)
+                if is_short_tiktok_url(url):
+                    url = await run_sync(resolve_short_url, url)
                 pipeline_coro = run_video_diagnosis(url, session, questions=questions, user_message=body.query, step_queue=step_q)
-            elif normalized == "compare_videos":
-                # Wave 4 PR #2 — two URLs in one /stream call. Bundle
-                # streaming: one start/done envelope around the pair;
-                # per-side step events are suppressed inside
-                # run_compare_pipeline so the FE doesn't have to
-                # multiplex two parallel progress streams.
-                url_a, url_b = _pick_two_video_urls(urls)
-                if not url_a or not url_b:
-                    seq += 1
-                    yield _sse_line({
-                        "stream_id": stream_id, "seq": seq,
-                        "delta": "", "done": True,
-                        "error": "missing_video_url",
-                    })
-                    sb.rpc("end_processing", {"p_user_id": user_id}).execute()
-                    return
-                if _is_short_tiktok_url(url_a):
-                    url_a = await run_sync(_resolve_short_url, url_a)
-                if _is_short_tiktok_url(url_b):
-                    url_b = await run_sync(_resolve_short_url, url_b)
-                pipeline_coro = run_compare_pipeline(
-                    url_a, url_b, session,
-                    user_message=body.query, step_queue=step_q,
-                )
             elif normalized == "competitor_profile":
                 handle = _resolve_profile_handle(urls, handles)
                 pipeline_coro = run_competitor_profile(handle, session, questions, step_queue=step_q)

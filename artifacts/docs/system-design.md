@@ -91,7 +91,6 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/app/history/chat/:sessionId` | History | Read-only legacy chat transcript. |
 | `/app/trends` | Trends | Niche intelligence + hook effectiveness. |
 | `/app/douyin` | Douyin | Douyin trend analysis. |
-| `/app/compare` | Compare | Two URLs → `POST /stream` `compare_videos`. |
 | `/app/channel` | Khám kênh | Full page `ChannelStudioPanel`. Query `?handle=`, `?depth=basic\|deep`. Legacy `/app?handle=` redirects here. Nhanh → GET `/channel/quick-peek`; Sâu → POST `/channel/diagnose`. |
 | `/app/script` | *(legacy shim)* | Redirects to `/app/answer` with composer `?q=` prefill. |
 | `/app/script/shoot/:draftId` | *(legacy shim)* | Redirects to `/app/answer?shoot=:draftId`. |
@@ -100,7 +99,7 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/app/pricing` `/app/checkout` `/app/payment-success` | Billing | PayOS **one-time** credit packs (`create-payment` Edge Function). |
 | `/app/admin` | Admin | Gated by `profiles.is_admin`. Observability + manual batch triggers. |
 
-**Deleted:** `/app/video` (2026-04-28) — `VideoBody` renders inside `/app/answer` sessions only.
+**Deleted:** `/app/video` (2026-04-28) — `VideoBody` renders inside `/app/answer` sessions only. `/app/compare` — `CompareBody` renders inside `/app/answer` `compare`-format sessions only.
 
 Every `/app/*` leaf route is code-split with `React.lazy` + `Suspense`.  
 Do not use React Router `clientLoader` — TanStack Query is the data layer.
@@ -109,13 +108,13 @@ Do not use React Router `clientLoader` — TanStack Query is the data layer.
 
 ## 3. Intent Routing
 
-`src/routes/_app/intent-router.ts` — `detectIntent(query)` classifies input; `resolveDestination()` maps intent → **screen** (`answer:video`, `answer:pattern`, `/app/compare`, `/app?handle=…`, …). **Transport** (which HTTP endpoint) is chosen separately by the screen/hook — see §4.
+`src/routes/_app/intent-router.ts` — `detectIntent(query)` classifies input; `resolveDestination()` maps intent → **screen** (`answer:video`, `answer:pattern`, `/app?handle=…`, …). **Transport** (which HTTP endpoint) is chosen separately by the screen/hook — see §4.
 
 ```
 User message
      │
      ├─ Two TikTok URLs?
-     │      └─ YES → compare_videos → /app/compare → POST /stream
+     │      └─ YES → compare_videos → /app/answer (format=compare) → POST /answer/sessions/{id}/turns
      │
      ├─ One TikTok URL?
      │      └─ YES → video_diagnosis → /app/answer → POST /answer/sessions/{id}/turns
@@ -138,8 +137,8 @@ User message
 
 | Mode | Endpoint | Typical surfaces |
 |------|----------|------------------|
-| `answer_turn` | `POST /answer/sessions/{id}/turns` | `/app/answer` (video + structured follow-ups) |
-| default (`chat`) | `POST /stream` (`intent.py:265`) | `/app/compare`, legacy chat-era `video_diagnosis` |
+| `answer_turn` | `POST /answer/sessions/{id}/turns` | `/app/answer` (video + compare + structured follow-ups) |
+| default (`chat`) | `POST /stream` (`intent.py:265`) | legacy chat-era `video_diagnosis` + other chat intents |
 | chat → Vercel | `POST /api/chat` | Free/cheap text intents ⑤⑥⑦ |
 
 Both Cloud Run SSE paths use `stream_id` + `seq` and a **60s** in-memory replay buffer (TD-4). Answer turns also emit **heartbeat** frames every 10s during long Gemini work to avoid client idle timeout.
@@ -190,19 +189,31 @@ This is the default path when a creator pastes a TikTok URL in Home or Answer.
 **Cold:** ~20–30s. **Warm** (diagnostics + narrative cache): ~2s.  
 **Not used on this path:** `POST /video`, `pipelines.run_video_diagnosis()` as the top-level orchestrator.
 
-### 4.2 Secondary — `/stream` (compare + legacy chat video)
+### 4.2 Secondary — `/stream` (legacy chat video + other chat intents)
 
 ```
 1. FE: useSessionStream() default mode → POST /stream (intent.py)
 2. intent normalized:
-   ├─ compare_videos → run_compare_pipeline() → run_video_diagnosis() per URL + delta
    └─ video_diagnosis → run_video_diagnosis() directly (chat session_store context)
+      (+ competitor_profile / content_directions / trend_spike / shot_list / creator_search)
 3. Uses pipelines.py orchestration + run_video_diagnosis_core inside the diagnosis stack
 4. TD-3: profiles.is_processing guard on /stream path
-5. Compare single-side failure → FE redirects to /app/answer with prefillUrl
 ```
 
-`/app/compare` is the main live caller. New Studio work should stay on §4.1 unless explicitly adding a `/stream` consumer.
+New Studio work should stay on §4.1 unless explicitly adding a `/stream` consumer.
+
+#### Compare (answer-session format)
+
+Two-URL side-by-side diagnosis is a first-class `/app/answer` session (`format='compare'`),
+**not** a `/stream` consumer. Both URLs ride in the session `initial_q`; the primary turn's
+`compare` builder (`answer_session.append_turn`) extracts + SSRF-resolves them and calls
+`report_compare.build_compare_report`. Because `run_video_diagnosis` deep-uses module-level
+httpx/Supabase clients + the analysis semaphore bound to the main uvicorn loop, the sync builder
+(running in a `run_sync` worker thread) submits `run_compare_pipeline` back onto that loop via
+`asyncio.run_coroutine_threadsafe(coro, main_loop)` rather than a fresh `asyncio.run`. A compare
+turn runs **two deep diagnoses** and charges **2 credits**; either side failing raises
+`compare_side_failed` (no single-video fallback — `CompareBody` needs both sides). Rendered by
+`CompareBody` via `ReportV1` `kind='compare'`.
 
 ### 4.3 Embedded reference tiles (answer path)
 
@@ -598,7 +609,7 @@ When adding a new pipeline (e.g., `instagram_ingest.py`):
 
 | Table | Purpose |
 |-------|---------|
-| `answer_sessions` | One row per research session. `format ∈ 'pattern' | 'ideas' | 'timing' | 'generic' | 'video_diagnosis'` |
+| `answer_sessions` | One row per research session. `format ∈ 'pattern' | 'ideas' | 'timing' | 'generic' | 'lifecycle' | 'diagnostic' | 'video' | 'script' | 'compare'` |
 | `answer_turns` | Append-only. `payload` is a validated `ReportV1` JSON inserted with service role (bypasses RLS). Authenticated users SELECT only. |
 
 ### Credit rules (`append_turn`)

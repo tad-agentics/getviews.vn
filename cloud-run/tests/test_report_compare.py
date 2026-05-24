@@ -352,10 +352,11 @@ async def test_orchestrator_passes_independent_session_copies() -> None:
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_left_failure_returns_right_only() -> None:
-    """Partial failure: one side raises → return the other side's
-    diagnosis as a single-video fallback. Better than an SSE error
-    when the user can still get half of what they paid for."""
+async def test_orchestrator_left_failure_raises() -> None:
+    """Partial failure: a ``compare`` answer-turn payload requires both
+    sides (``CompareBody`` has no single-video render path), so one side
+    raising surfaces a typed ``compare_side_failed`` error the turn handler
+    maps to a Vietnamese ``step_error``."""
     right = _diagnosis(handle="b")
 
     async def _fake_diag(url: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
@@ -366,24 +367,19 @@ async def test_orchestrator_left_failure_returns_right_only() -> None:
     with patch(
         "getviews_pipeline.pipelines.run_video_diagnosis",
         side_effect=_fake_diag,
-    ), patch(
-        "getviews_pipeline.report_compare._call_delta_gemini",
-        return_value="N/A.",
     ):
-        out = await run_compare_pipeline(
-            "https://www.tiktok.com/@a/video/1",
-            "https://www.tiktok.com/@b/video/2",
-            session={},
-        )
-    # Single-video fallback shape, not the compare shape.
-    assert out["intent"] == "video_diagnosis"
-    assert out["metadata"]["author"]["username"] == "b"
+        with pytest.raises(RuntimeError, match="compare_side_failed"):
+            await run_compare_pipeline(
+                "https://www.tiktok.com/@a/video/1",
+                "https://www.tiktok.com/@b/video/2",
+                session={},
+            )
 
 
 @pytest.mark.asyncio
 async def test_orchestrator_both_failures_propagate() -> None:
-    """If both sides raise, surface the failure so /stream emits its
-    standard error envelope rather than silently dropping the request."""
+    """If both sides raise, surface the original failure rather than
+    silently dropping the request."""
     async def _fake_diag(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise RuntimeError("both sides down")
 
@@ -393,3 +389,12 @@ async def test_orchestrator_both_failures_propagate() -> None:
     ):
         with pytest.raises(RuntimeError, match="both sides down"):
             await run_compare_pipeline("u1", "u2", session={})
+
+
+def test_build_compare_report_requires_main_loop() -> None:
+    """The sync bridge must be handed the streaming loop — compare is only
+    reachable through the SSE turn handler, so a missing loop is a bug."""
+    from getviews_pipeline.report_compare import build_compare_report
+
+    with pytest.raises(RuntimeError, match="streaming event loop"):
+        build_compare_report("u1", "u2", main_loop=None)

@@ -21,7 +21,7 @@ describe("Answer session format contract parity", () => {
     const pyPath = path.join(root, "cloud-run/getviews_pipeline/routers/answer.py");
     const sqlPath = path.join(
       root,
-      "supabase/migrations/20260512000003_answer_sessions_script_format.sql",
+      "supabase/migrations/20260828000000_answer_sessions_compare_format.sql",
     );
 
     const py = readFileSync(pyPath, "utf8");

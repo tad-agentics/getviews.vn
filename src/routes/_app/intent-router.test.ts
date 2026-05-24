@@ -495,15 +495,13 @@ describe("resolveDestination — follow_up_classifiable subject union", () => {
   });
 });
 
-// ── Wave 4 PR #1+#2 — compare_videos routing ─────────────────────────────
+// ── compare_videos routing ───────────────────────────────────────────────
 //
 // Two TikTok URLs in one message → `compare_videos` intent → top-level
-// `compare` destination → /app/compare?url_a=…&url_b=… redirect.
+// `compare` destination → a first-class `compare` answer-session (both URLs
+// ride in `initial_q`; the Cloud Run turn handler extracts + resolves them).
 // Mirrors the server-side classification in `classify_intent` (see
-// `test_intent_routing.py`). The two routers must agree on the boundary
-// — a message that classifies server-side as COMPARE_VIDEOS must also
-// plan as such client-side so the frontend dispatches to the Cloud Run
-// /stream endpoint with the right intent.
+// `test_intent_routing.py`). The two routers must agree on the boundary.
 
 describe("detectIntent — compare_videos (≥ 2 TikTok URLs)", () => {
   const URL_A = "https://www.tiktok.com/@a/video/1";
@@ -553,21 +551,20 @@ describe("detectIntent — compare_videos (≥ 2 TikTok URLs)", () => {
     expect(resolveDestination({ id: "compare_videos" })).toBe("compare");
   });
 
-  it("planAnswerEntry redirects to /app/compare with both URLs as params", () => {
+  it("planAnswerEntry opens a compare answer-session for two URLs", () => {
     const result = planAnswerEntry(`${URL_A} ${URL_B}`, false);
-    expect(result.kind).toBe("redirect");
-    if (result.kind !== "redirect") return;
-    expect(result.to).toContain("/app/compare");
-    expect(result.to).toContain(`url_a=${encodeURIComponent(URL_A)}`);
-    expect(result.to).toContain(`url_b=${encodeURIComponent(URL_B)}`);
+    expect(result.kind).toBe("session");
+    if (result.kind !== "session") return;
+    expect(result.format).toBe("compare");
+    expect(result.intent_type).toBe("compare_videos");
   });
 
-  it("planAnswerEntry preserves URL order from the message", () => {
-    // Reverse the URLs in the message — first match (URL_B) becomes url_a.
-    const result = planAnswerEntry(`${URL_B} so sánh với ${URL_A}`, false);
-    if (result.kind !== "redirect") throw new Error("expected redirect");
-    expect(result.to).toContain(`url_a=${encodeURIComponent(URL_B)}`);
-    expect(result.to).toContain(`url_b=${encodeURIComponent(URL_A)}`);
+  it("planAnswerEntry falls back to video_diagnosis when only one URL is present", () => {
+    const result = planAnswerEntry(`${URL_A} tại sao flop`, false);
+    expect(result.kind).toBe("session");
+    if (result.kind !== "session") return;
+    expect(result.format).toBe("video");
+    expect(result.intent_type).toBe("video_diagnosis");
   });
 });
 

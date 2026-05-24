@@ -483,9 +483,11 @@ export default function AnswerScreen() {
             credits_used:
               sessionFormat === "script"
                 ? 3
-                : sessionFormat === "video" && handoff.depth === "deep"
+                : sessionFormat === "compare"
                   ? 2
-                  : 1,
+                  : sessionFormat === "video" && handoff.depth === "deep"
+                    ? 2
+                    : 1,
             created_at: new Date().toISOString(),
           };
           queryClient.setQueryData<AnswerDetailCache>(
@@ -681,8 +683,15 @@ export default function AnswerScreen() {
           }) ?? "";
         const urlB = query.trim();
         if (!urlA || !urlB) return;
+        // Compare is now an answer-session format: hand both URLs to
+        // ``/app/answer`` as the query; ``planAnswerEntry`` detects the
+        // ≥2-URL compare intent and opens a ``compare`` session.
         navigate(
-          `/app/compare?url_a=${encodeURIComponent(urlA)}&url_b=${encodeURIComponent(urlB)}`,
+          buildAnswerHandoffPath({
+            q: `${urlA} ${urlB}`,
+            depth: handoff.depth,
+            ...(handoff.from ? { from: handoff.from } : {}),
+          }),
         );
         return;
       }

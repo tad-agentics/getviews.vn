@@ -1,4 +1,4 @@
-"""SSRF guard for ``_resolve_short_url``.
+"""SSRF guard for ``resolve_short_url``.
 
 The short-link resolver must never follow a redirect chain to an
 internal / metadata host. Each hop's ``Location`` is checked against
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 
-from getviews_pipeline.routers.intent import _resolve_short_url
+from getviews_pipeline.url_resolve import resolve_short_url
 
 
 def _redirect_response(location: str, status_code: int = 302) -> MagicMock:
@@ -38,8 +38,8 @@ def test_resolve_short_url_accepts_tiktok_redirect():
     fake_client.__exit__.return_value = False
     fake_client.head.side_effect = head_responses
 
-    with patch("getviews_pipeline.routers.intent.httpx.Client", return_value=fake_client):
-        result = _resolve_short_url("https://vm.tiktok.com/abc123/")
+    with patch("getviews_pipeline.url_resolve.httpx.Client", return_value=fake_client):
+        result = resolve_short_url("https://vm.tiktok.com/abc123/")
 
     assert result == final_url
 
@@ -52,8 +52,8 @@ def test_resolve_short_url_blocks_metadata_redirect():
     fake_client.head.return_value = _redirect_response("http://169.254.169.254/latest/meta-data/")
 
     short_url = "https://vm.tiktok.com/abc123/"
-    with patch("getviews_pipeline.routers.intent.httpx.Client", return_value=fake_client):
-        result = _resolve_short_url(short_url)
+    with patch("getviews_pipeline.url_resolve.httpx.Client", return_value=fake_client):
+        result = resolve_short_url(short_url)
 
     # Returns original input unchanged → downstream pipelines reject as
     # non-TikTok URL with the standard "Thiếu URL TikTok hợp lệ" error.
@@ -68,8 +68,8 @@ def test_resolve_short_url_blocks_internal_host_redirect():
     fake_client.head.return_value = _redirect_response("http://10.0.0.5:8080/admin")
 
     short_url = "https://vm.tiktok.com/abc123/"
-    with patch("getviews_pipeline.routers.intent.httpx.Client", return_value=fake_client):
-        result = _resolve_short_url(short_url)
+    with patch("getviews_pipeline.url_resolve.httpx.Client", return_value=fake_client):
+        result = resolve_short_url(short_url)
 
     assert result == short_url
 
@@ -82,8 +82,8 @@ def test_resolve_short_url_blocks_arbitrary_external_host():
     fake_client.head.return_value = _redirect_response("https://evil.example.com/x")
 
     short_url = "https://vm.tiktok.com/abc123/"
-    with patch("getviews_pipeline.routers.intent.httpx.Client", return_value=fake_client):
-        result = _resolve_short_url(short_url)
+    with patch("getviews_pipeline.url_resolve.httpx.Client", return_value=fake_client):
+        result = resolve_short_url(short_url)
 
     assert result == short_url
 
@@ -96,7 +96,7 @@ def test_resolve_short_url_no_redirect_returns_original():
     fake_client.__exit__.return_value = False
     fake_client.head.return_value = _terminal_response(short_url)
 
-    with patch("getviews_pipeline.routers.intent.httpx.Client", return_value=fake_client):
-        result = _resolve_short_url(short_url)
+    with patch("getviews_pipeline.url_resolve.httpx.Client", return_value=fake_client):
+        result = resolve_short_url(short_url)
 
     assert result == short_url

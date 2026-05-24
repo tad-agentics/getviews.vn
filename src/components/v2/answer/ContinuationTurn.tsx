@@ -21,6 +21,7 @@ import { DiagnosticBody } from "@/components/v2/answer/diagnostic/DiagnosticBody
 import { GenericBody } from "@/components/v2/answer/generic/GenericBody";
 import { VideoBody } from "@/components/v2/answer/video/VideoBody";
 import { ScriptBody } from "@/components/v2/answer/script/ScriptBody";
+import { CompareBody } from "@/components/v2/answer/compare/CompareBody";
 import { AnswerBlock } from "@/components/v2/answer/AnswerBlock";
 import {
   ideasAnswerBlockKicker,
@@ -222,6 +223,12 @@ function ReportPayloadBody({
             sessionId={sessionId ?? null}
             onOpenShoot={onOpenScriptShoot}
           />
+        </AnswerBlock>
+      );
+    case "compare":
+      return (
+        <AnswerBlock kicker="So sánh 2 video" bare>
+          <CompareBody payload={payload.report} />
         </AnswerBlock>
       );
     default:
