@@ -77,7 +77,8 @@ const HomeScreen = (await import("./HomeScreen")).default;
 
 function setHooksDefaults() {
   mockUseProfile.mockReturnValue({
-    data: { id: "u", display_name: "An Do", creator_niche_id: 3 },
+    data: { id: "u", display_name: "An Do", creator_niche_id: 3, credits_remaining: 10 },
+    isPending: false,
   });
   mockUseNicheTaxonomy.mockReturnValue({
     data: [{ id: 4, name: "Ẩm thực" }],
@@ -244,14 +245,31 @@ describe("HomeScreen", () => {
     expect(screen.queryByText(/\+ video/)).toBeNull();
   });
 
-  it("Bắt đầu nhanh: short chip label fills composer with full prompt", () => {
+  it("Phím tắt: selects pill and clears composer without filling free-text prompt", () => {
     renderHome();
-    expect(screen.getByText("Xu hướng tuần này")).toBeTruthy();
-    const full =
-      "Xu hướng và chủ đề nào đang nổi trong ngách Ẩm thực tuần này?";
-    const chip = screen.getByRole("button", { name: full });
-    fireEvent.click(chip);
+    expect(screen.getByText("Phím tắt")).toBeTruthy();
     const ta = screen.getByRole("textbox") as HTMLTextAreaElement;
-    expect(ta.value).toBe(full);
+    fireEvent.change(ta, { target: { value: "https://www.tiktok.com/@x/video/123" } });
+    expect(ta.value).toBeTruthy();
+
+    const channelShortcut = screen.getByRole("button", {
+      name: "Chọn kênh — nhập @handle rồi bấm Gửi",
+    });
+    fireEvent.click(channelShortcut);
+    expect(ta.value).toBe("");
+    expect(channelShortcut.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("does not downgrade Chuyên sâu while profile credits are still loading", () => {
+    mockUseProfile.mockReturnValue({
+      data: undefined,
+      isPending: true,
+    });
+    renderHome();
+    fireEvent.click(screen.getByRole("button", { name: "Khám Kênh" }));
+    fireEvent.click(screen.getByRole("button", { name: "Chuyên sâu" }));
+    expect(screen.getByRole("button", { name: "Chuyên sâu" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
   });
 });

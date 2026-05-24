@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — Studio Phím tắt + profile credit guard
+
+- **FE:** Gỡ chip **Bắt đầu nhanh** (text tự do); **Phím tắt** mirror 4 composer pill — click đổi pill + clear textarea, không fill prompt.
+- **Fix:** Chờ `useProfile` load trước khi downgrade Chuyên sâu / disable credit; tránh flicker khi `creditsRemaining` tạm = 0.
+- **Docs:** `feature-map-v1` §3.1.2 — intent knowledge → Answer follow-up CTA §4.10.2.
+
 ## 2026-05-24 — Studio composer pill channel (Option A)
 
 - **FE:** 4 pill trên `QueryComposer` (flop / win / **Khám Kênh** / kịch bản); submit qua `planStudioComposerSubmit`; Cơ bản/Chuyên sâu map depth kênh (`basic`/`deep` URL).

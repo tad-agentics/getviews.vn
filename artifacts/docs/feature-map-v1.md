@@ -152,9 +152,9 @@ Giữ shell composer hiện tại; đổi **pill** thành **4 mục** (thay chip
 - Pill **Khám Kênh:** placeholder `@handle`; `analysisDepth` → `?depth=basic|deep` (Cơ bản = Nhanh, Chuyên sâu = Sâu).
 - Handoffs: [`answerHandoff.ts`](../../src/lib/answerHandoff.ts); kênh: [`channelStudioHandoff.ts`](../../src/lib/channelStudioHandoff.ts) → `/app/channel`.
 
-**As-built (2026-05-24):** ✅ 4 pill trên [`QueryComposer`](../../src/components/v2/QueryComposer.tsx); [`HomeScreen`](../../src/routes/_app/home/HomeScreen.tsx) submit qua `planStudioComposerSubmit`; **không** mount `HomeMyChannelSection`.
+**As-built (2026-05-24):** ✅ 4 pill trên [`QueryComposer`](../../src/components/v2/QueryComposer.tsx); [`HomeScreen`](../../src/routes/_app/home/HomeScreen.tsx) submit qua `planStudioComposerSubmit`; **Phím tắt** mirror 4 pill (không chip text tự do). Intent knowledge (xu hướng, format, ngách con…) → **follow-up CTA pill** trên Answer §4.10.2 — không duplicate trên Studio.
 
-**Follow-up trong Answer:** sau mỗi báo cáo → **CTA intent pill** (2–3 nút / format), không mở lại composer chat tự do — §4.10.1–§4.10.2.
+**Follow-up trong Answer:** sau mỗi báo cáo → **CTA intent pill** (2–3 nút / format): xu hướng tuần, format đang chạy, ngách con, brief… — không mở lại composer chat tự do — §4.10.1–§4.10.2.
 
 #### 3.1.3 Channel — composer pill only
 

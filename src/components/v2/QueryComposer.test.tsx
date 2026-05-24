@@ -133,6 +133,20 @@ describe("QueryComposer (C.1.0)", () => {
     expect(screen.getByRole("button", { name: "Khám Video flop" })).toBeTruthy();
   });
 
+  it("does not disable Chuyên sâu on Khám Kênh while credits are unknown", () => {
+    render(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        studioPill="channel"
+        onStudioPillChange={vi.fn()}
+      />,
+    );
+    const deep = screen.getByRole("button", { name: "Chuyên sâu" }) as HTMLButtonElement;
+    expect(deep.disabled).toBe(false);
+  });
+
   it("disables Chuyên sâu on Khám Kênh when credits are below channel cost", () => {
     render(
       <QueryComposer

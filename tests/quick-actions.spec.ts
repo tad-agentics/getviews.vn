@@ -707,7 +707,7 @@ test("home: Tìm KOL quick action navigates to /app/kol (B.2.3)", async ({ page 
     await page.goto("/app");
     await page.waitForLoadState("domcontentloaded");
   }
-  await expect(page.getByText(/Bắt đầu nhanh|Sảnh Sáng Tạo/i).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Phím tắt|Sảnh Sáng Tạo/i).first()).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: /^Tìm KOL$/ }).first().click();
   await expect(page).toHaveURL(/\/app\/kol(\/?|\?|$)/);
 });

@@ -78,7 +78,7 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
       onAnalysisDepthChange,
       studioPill,
       onStudioPillChange,
-      creditsRemaining = 0,
+      creditsRemaining,
       channelDeepCreditCost = 3,
       showDepthPicker,
       followUpSlot,
@@ -94,7 +94,9 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
     const depthTitles = composerDepthTitles(studioPill ?? "video_flop");
     const showStudioPills = studioPill != null && onStudioPillChange != null && !followUpSlot;
     const channelDeepDisabled =
-      studioPill === "channel" && creditsRemaining < channelDeepCreditCost;
+      studioPill === "channel" &&
+      creditsRemaining != null &&
+      creditsRemaining < channelDeepCreditCost;
     const channelDeepTitle = channelDeepDisabled
       ? `Cần ${channelDeepCreditCost} credit — bạn còn ${creditsRemaining}`
       : depthTitles.deep;

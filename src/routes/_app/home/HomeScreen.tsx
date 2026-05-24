@@ -22,7 +22,9 @@ import { profileFirstNicheId, profileCreatorNicheId } from "@/lib/profileNiches"
 import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
 import {
   planStudioComposerSubmit,
+  STUDIO_COMPOSER_PILLS,
   studioComposerPlaceholder,
+  studioComposerShortcutHint,
   type StudioComposerPill,
 } from "@/lib/studioComposer";
 import { TickerMarquee } from "./components/TickerMarquee";
@@ -39,7 +41,7 @@ import { scrollToSuggestionsTier, type SuggestionsTier } from "./components/scro
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
  *
- * Order: ticker → greeting → composer (4 pills + depth) → suggested chips → GỢI Ý HÔM NAY.
+ * Order: ticker → greeting → composer (4 pills + depth) → phím tắt (4 pill) → GỢI Ý HÔM NAY.
  */
 
 /** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */
@@ -76,7 +78,7 @@ export default function HomeScreen() {
   // L1.5 audit follow-up — surfaces a Vietnamese hint when the user
   // submits an unfilled paste-template chip (legacy template text in composer).
   const [placeholderHint, setPlaceholderHint] = useState<string | null>(null);
-  const { data: profile } = useProfile();
+  const { data: profile, isPending: profilePending } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
 
   // Single niche per user — Home anchors to ``profileFirstNicheId(profile)`` (creator_niche_id → legacy niche_taxonomy row).
@@ -179,6 +181,7 @@ export default function HomeScreen() {
     (profile as { credits_remaining?: number } | null | undefined)?.credits_remaining ?? 0;
 
   useEffect(() => {
+    if (profilePending) return;
     if (
       studioPill === "channel" &&
       analysisDepth === "deep" &&
@@ -186,41 +189,15 @@ export default function HomeScreen() {
     ) {
       setAnalysisDepth("basic");
     }
-  }, [studioPill, analysisDepth, creditsRemaining]);
+  }, [studioPill, analysisDepth, creditsRemaining, profilePending]);
 
-  // Bắt đầu nhanh — ``prompt`` đủ dài để ``detectIntent`` khớp đúng intent;
-  // ``label`` ngắn cho nút; hover/aria dùng câu đầy đủ.
-  const suggestedPrompts = useMemo(
-    () =>
-      [
-        {
-          id: "flop-why",
-          label: "Video flop — vì sao?",
-          prompt: `Video của mình flop — phân tích nguyên nhân và nên chỉnh gì?`,
-        },
-        {
-          id: "trend-week",
-          label: "Xu hướng tuần này",
-          prompt: `Xu hướng và chủ đề nào đang nổi trong ngách ${nicheLabel} tuần này?`,
-        },
-        {
-          id: "content-format",
-          label: "Format đang chạy tốt",
-          prompt: `Hướng nội dung và format nào đang chạy tốt nhất trong ngách ${nicheLabel}?`,
-        },
-        {
-          id: "subniche",
-          label: "Ngách con tiềm năng",
-          prompt: `Trong ngách ${nicheLabel}, ngách con nào đáng khai thác hoặc mở rộng thêm?`,
-        },
-        {
-          id: "brief-week",
-          label: "Brief tuần này",
-          prompt: `Viết brief sản xuất nội dung tuần này cho ngách ${nicheLabel}.`,
-        },
-      ] as const,
-    [nicheLabel],
-  );
+  const activateComposerShortcut = (pill: StudioComposerPill) => {
+    setStudioPill(pill);
+    setComposerText("");
+    setPlaceholderHint(null);
+    logUsage("studio_composer_shortcut", { studio_pill: pill });
+    queueMicrotask(() => composerRef.current?.focus());
+  };
 
   const launchChat = (text: string) => {
     logUsage("studio_composer_submit", {
@@ -234,15 +211,6 @@ export default function HomeScreen() {
     navigate(plan.to);
   };
 
-  const fillComposer = (text: string) => {
-    setComposerText(text);
-    setPlaceholderHint(null);
-    queueMicrotask(() => composerRef.current?.focus());
-  };
-
-  // Clear the placeholder hint when the user edits the textarea —
-  // typing a real URL/handle or any other change should dismiss the
-  // inline nudge so it doesn't linger across submissions.
   const handleComposerChange = (v: string) => {
     setComposerText(v);
     if (placeholderHint) setPlaceholderHint(null);
@@ -360,7 +328,7 @@ export default function HomeScreen() {
               onAnalysisDepthChange={setAnalysisDepth}
               studioPill={studioPill}
               onStudioPillChange={setStudioPill}
-              creditsRemaining={creditsRemaining}
+              creditsRemaining={profilePending ? undefined : creditsRemaining}
               channelDeepCreditCost={CHANNEL_SAU_CREDIT_COST}
             />
             {placeholderHint ? (
@@ -373,10 +341,7 @@ export default function HomeScreen() {
             ) : null}
           </div>
 
-          {/* PR-cleanup-A — "BẮT ĐẦU NHANH" prompt-shortcut chips only.
-           * Design pack QuickStartChips (home.jsx:404-426) — composer-fill
-           * chips with no navigation grid; the earlier QuickActions component
-           * was deleted because the design pivoted to a single chip row. */}
+          {/* Phím tắt — mirror 4 composer pills (§3.1.2); không điền câu hỏi text tự do. */}
           <div className="gv-fade-up gv-fade-up-delay-2 mt-7 mb-14 w-full">
             <div className="mb-3 flex items-center gap-2">
               <span
@@ -384,32 +349,42 @@ export default function HomeScreen() {
                 aria-hidden
               />
               <p className="gv-kicker text-[color:var(--gv-ink-3)]">
-                Bắt đầu nhanh
+                Phím tắt
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {suggestedPrompts.map((row) => (
-                <TooltipRoot key={row.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label={row.prompt}
-                      onClick={() => fillComposer(row.prompt)}
-                      className="inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-left text-xs font-normal leading-snug text-[color:var(--gv-ink)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)]"
+              {STUDIO_COMPOSER_PILLS.map((pill) => {
+                const active = studioPill === pill.id;
+                const hint = studioComposerShortcutHint(pill.id);
+                return (
+                  <TooltipRoot key={pill.id}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={hint}
+                        aria-pressed={active}
+                        onClick={() => activateComposerShortcut(pill.id)}
+                        className={
+                          "inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-left text-xs leading-snug transition-colors " +
+                          (active
+                            ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-canvas-2)] font-medium text-[color:var(--gv-ink)]"
+                            : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] font-normal text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)]")
+                        }
+                      >
+                        <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
+                        <span className="min-w-0">{pill.label}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      sideOffset={6}
+                      className="max-w-[min(22rem,calc(100vw-2rem))] px-3 py-2 text-left leading-snug"
                     >
-                      <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
-                      <span className="min-w-0">{row.label}</span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    sideOffset={6}
-                    className="max-w-[min(22rem,calc(100vw-2rem))] px-3 py-2 text-left leading-snug"
-                  >
-                    {row.prompt}
-                  </TooltipContent>
-                </TooltipRoot>
-              ))}
+                      {hint}
+                    </TooltipContent>
+                  </TooltipRoot>
+                );
+              })}
             </div>
           </div>
 

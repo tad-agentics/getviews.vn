@@ -160,7 +160,7 @@ describe("detectIntent — non-handle branches still work", () => {
   });
 });
 
-describe("Studio Home — Bắt đầu nhanh chip intents", () => {
+describe("Studio Home — legacy quick-start prompts (detectIntent for Answer follow-up)", () => {
   const niche = "Gym / Fitness";
 
   it("trend_spike", () => {
