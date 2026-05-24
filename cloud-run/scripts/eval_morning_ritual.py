@@ -16,7 +16,6 @@ Rubric (heuristic, deterministic — no LLM judge):
   - title_has_niche_anchor: title contains a token also present in any
     grounding ``hook_phrase`` or ``creator_handle`` (proxy for "niche-specific")
   - no_forbidden_clichés: title + why_works clean of the banned phrase list
-  - retention_in_band: retention_est_pct inside the adequacy band
   - shot_count_near_median: |shot_count - median| ≤ 2
   - length_near_median: |length_sec - median| ≤ 10
 
@@ -66,21 +65,12 @@ _FORBIDDEN = (
     "triệu view", "bùng nổ", "công thức vàng",
 )
 
-_ADEQUACY_BANDS: dict[str, tuple[int, int]] = {
-    "none":           (40, 55),
-    "thin":           (45, 60),
-    "reference_pool": (50, 70),
-    "basic_citation": (55, 72),
-    "niche_norms":    (60, 75),
-}
-
 
 def _score_script(
     s: dict[str, Any],
     grounding: list[dict[str, Any]],
     median_shot_count: int,
     median_length_sec: int,
-    adequacy: str,
 ) -> dict[str, Any]:
     title = s.get("title_vi") or ""
     why = s.get("why_works") or ""
@@ -100,9 +90,6 @@ def _score_script(
 
     no_forbidden = not any(p in blob for p in _FORBIDDEN)
 
-    rt_lo, rt_hi = _ADEQUACY_BANDS.get(adequacy, _ADEQUACY_BANDS["thin"])
-    retention_in_band = rt_lo <= int(s.get("retention_est_pct") or 0) <= rt_hi
-
     shot_diff = abs(int(s.get("shot_count") or 0) - median_shot_count)
     len_diff = abs(int(s.get("length_sec") or 0) - median_length_sec)
 
@@ -111,7 +98,6 @@ def _score_script(
         "title_length_ok": 30 <= len(title) <= 90,
         "title_has_niche_anchor": title_has_niche_anchor,
         "no_forbidden": no_forbidden,
-        "retention_in_band": retention_in_band,
         "shot_count_near_median": shot_diff <= 2,
         "length_near_median": len_diff <= 10,
         "shot_diff": shot_diff,
@@ -182,7 +168,7 @@ def _eval_one_niche(client: Any, niche_id: int) -> dict[str, Any]:
     diversity = len(set(hook_types))
 
     per_script = [
-        _score_script(s, videos, med_shot, med_len, adequacy)
+        _score_script(s, videos, med_shot, med_len)
         for s in scripts
     ]
 
@@ -200,7 +186,6 @@ def _eval_one_niche(client: Any, niche_id: int) -> dict[str, Any]:
             "all_three_pass_mechanism": sum(s["mechanism_named"] for s in per_script) == 3,
             "all_three_pass_anchor": sum(s["title_has_niche_anchor"] for s in per_script) == 3,
             "all_three_pass_no_forbidden": sum(s["no_forbidden"] for s in per_script) == 3,
-            "all_three_pass_retention_band": sum(s["retention_in_band"] for s in per_script) == 3,
         },
     }
 
@@ -220,16 +205,14 @@ def _format_md(results: list[dict[str, Any]]) -> str:
         lines.append(f"- hook_diversity: {s['hook_diversity']}/3")
         lines.append(f"- 3/3 mechanism_named: {'✓' if s['all_three_pass_mechanism'] else '✗'}")
         lines.append(f"- 3/3 niche_anchor: {'✓' if s['all_three_pass_anchor'] else '✗'}")
-        lines.append(f"- 3/3 no_forbidden: {'✓' if s['all_three_pass_no_forbidden'] else '✗'}")
-        lines.append(f"- 3/3 retention_in_band: {'✓' if s['all_three_pass_retention_band'] else '✗'}\n")
+        lines.append(f"- 3/3 no_forbidden: {'✓' if s['all_three_pass_no_forbidden'] else '✗'}\n")
         for i, sc in enumerate(r["scripts"], 1):
             ps = s["per_script"][i - 1]
             lines.append(f"### Script {i} — `{sc.get('hook_type_en')}`")
             lines.append(f"> {sc.get('title_vi')}\n")
             lines.append(f"_{sc.get('why_works')}_\n")
             lines.append(
-                f"meta: retention {sc.get('retention_est_pct')}% · "
-                f"{sc.get('shot_count')} shot ({'±' + str(ps['shot_diff'])}) · "
+                f"meta: {sc.get('shot_count')} shot ({'±' + str(ps['shot_diff'])}) · "
                 f"{sc.get('length_sec')}s ({'±' + str(ps['length_diff'])})"
             )
             checks = [
@@ -237,7 +220,6 @@ def _format_md(results: list[dict[str, Any]]) -> str:
                 ("title_length_ok", ps["title_length_ok"]),
                 ("title_has_niche_anchor", ps["title_has_niche_anchor"]),
                 ("no_forbidden", ps["no_forbidden"]),
-                ("retention_in_band", ps["retention_in_band"]),
                 ("shot_count_near_median", ps["shot_count_near_median"]),
                 ("length_near_median", ps["length_near_median"]),
             ]

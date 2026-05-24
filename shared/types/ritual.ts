@@ -16,7 +16,6 @@ export type RitualScript = {
   hook_type_vi: string;
   title_vi: string;
   why_works: string;
-  retention_est_pct: number;
   shot_count: number;
   length_sec: number;
   /** Sound Radar enrichment (L2.2 Sprint 3). All five fields are

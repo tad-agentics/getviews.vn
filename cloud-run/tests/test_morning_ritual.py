@@ -197,9 +197,8 @@ def test_prompt_v2_anchors_shot_count_and_length_to_grounding_median() -> None:
 
 
 def test_prompt_v2_adequacy_note_changes_with_tier() -> None:
-    """The adequacy-conditional retention guidance must propagate into
-    the prompt so Gemini calibrates retention claims to grounding
-    confidence (thin pool → conservative; niche_norms → can claim more)."""
+    """Adequacy tier guidance must propagate into the prompt so Gemini
+    calibrates hook confidence to grounding depth."""
     try:
         from getviews_pipeline.morning_ritual import _build_prompt
     except ModuleNotFoundError:
@@ -210,8 +209,8 @@ def test_prompt_v2_adequacy_note_changes_with_tier() -> None:
     norms_prompt = _build_prompt("Tech", videos, [], adequacy="niche_norms")
     assert "Adequacy tier**: thin" in thin_prompt
     assert "Adequacy tier**: niche_norms" in norms_prompt
-    assert "≤55%" in thin_prompt or "45-60%" in thin_prompt
-    assert "60-75%" in norms_prompt
+    assert "tránh promise mạnh" in thin_prompt
+    assert "pattern hot" in norms_prompt
 
 
 def test_prompt_v2_includes_few_shot_example() -> None:

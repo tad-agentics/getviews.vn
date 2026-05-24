@@ -15,7 +15,6 @@ const ritualSample = {
   hook_type_vi: "So sánh",
   title_vi: "Test tiêu đề",
   why_works: "vì sao",
-  retention_est_pct: 40,
   shot_count: 5,
   length_sec: 45,
 };

@@ -75,7 +75,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           tag="CÔNG THỨC NỀN"
           tagTone="pos"
           title={tier02Title}
-          caption="Đây là các pattern đang ăn nhất tuần qua — các ý tưởng phía trên được sinh ra từ chúng. Lấy công thức trống, điền nội dung khác của bạn vào để mở rộng."
+          caption="Khung hook thắng 7 ngày qua — ba gợi ý phía trên bám theo các công thức này. Giữ cấu trúc, thay chủ đề theo phong cách kênh bạn."
         />
         <HooksTable embedded patternScope={patternScope} />
       </div>

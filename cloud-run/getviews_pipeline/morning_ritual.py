@@ -79,8 +79,8 @@ HookTypeEn = Literal[
 class RitualScript(BaseModel):
     """One of three ready-to-shoot script kernels.
 
-    Fields map 1:1 to what the design's MorningRitual card renders:
-    hook-type badge, quoted title line, why-it-works caption, retention %,
+    Fields map 1:1 to what StudioHero renders:
+    hook-type badge, quoted title line, why-it-works caption,
     shot count, length in seconds.
     """
 
@@ -95,10 +95,6 @@ class RitualScript(BaseModel):
     why_works: str = Field(
         min_length=20, max_length=140,
         description="1 câu Vietnamese giải thích cơ chế psychology đằng sau hook.",
-    )
-    retention_est_pct: int = Field(
-        ge=30, le=90,
-        description="Ước lượng retention % realistic dựa trên dữ liệu grounding.",
     )
     shot_count: int = Field(
         ge=2, le=8,
@@ -313,14 +309,13 @@ Mỗi video có thể kèm `subject_matter` (một dòng tóm tắt chủ đề 
 - `fomo_loss`: nguy cơ bỏ lỡ / thiệt hại nếu không hành động
 why_works phải giải thích MECHANISM = [tên cơ chế] HOẠT ĐỘNG NHƯ NÀO trong 1 câu, không generic ("tạo sự tò mò").
 
-**Bước 3 — Chốt số liệu thực tế.** retention_est_pct, shot_count, length_sec phải bám median grounding. Nếu adequacy là "thin" / "none", retention_est_pct giữ trong 40-55% (không tự tin được). Nếu adequacy là "basic_citation" hoặc cao hơn, có thể lên 60-75% nếu pattern có lịch sử mạnh.
+**Bước 3 — Chốt số liệu thực tế.** shot_count, length_sec phải bám median grounding.
 
 ## Schema mỗi kịch bản
 
 - `hook_type_en`: 1 literal trong enum cho phép.
 - `title_vi`: câu hook creator đọc trực tiếp vào camera, trong "dấu ngoặc kép". ≤ 90 ký tự. Phải có **ít nhất 1 noun cụ thể từ ngách** (sản phẩm, địa danh, brand, action verb đặc trưng — KHÔNG generic).
 - `why_works`: 1 câu Vietnamese, ≤ 140 ký tự. Format: "[mechanism_name] — [giải thích cụ thể trong 1 câu]". Ví dụ: "curiosity_gap — số 67% trong câu hook khiến viewer cần lý do, retention spike ở giây 3-5."
-- `retention_est_pct`: integer 40-75. Bám adequacy tier như nói trên.
 - `shot_count`: integer 2-8. Bám median grounding ± 1.
 - `length_sec`: integer 15-90. Bám median grounding ± 5.
 
@@ -352,11 +347,11 @@ def _median(values: list[int]) -> int | None:
 
 
 _ADEQUACY_NOTES: dict[str, str] = {
-    "none": "grounding rất mỏng, retention_est_pct giữ ≤55%; pattern còn unreliable, viết hook conservative.",
-    "thin": "grounding mỏng, retention_est_pct giữ 45-60%; tránh promise mạnh.",
-    "reference_pool": "grounding ok từ kênh tham chiếu, retention 50-70% là realistic.",
-    "basic_citation": "grounding tốt, retention 55-72% nếu pattern lặp ≥3 video.",
-    "niche_norms": "grounding mạnh + đủ sample, retention 60-75% cho pattern hot.",
+    "none": "grounding rất mỏng; pattern còn unreliable — viết hook conservative, tránh số liệu mạnh.",
+    "thin": "grounding mỏng — tránh promise mạnh; neo noun cụ thể từ grounding khi có.",
+    "reference_pool": "grounding ok từ kênh tham chiếu — ưu tiên giọng kênh tham chiếu.",
+    "basic_citation": "grounding tốt — pattern lặp ≥3 video có thể dùng số liệu cụ thể.",
+    "niche_norms": "grounding mạnh + đủ sample — pattern hot trong ngách.",
 }
 
 
@@ -368,7 +363,6 @@ def _dynamic_few_shot_json(videos: list[dict[str, Any]], niche_name: str) -> str
                 "hook_type_en": "before_after",
                 "title_vi": '"30 ngày dùng tretinoin 0.025% — đây là khuôn mặt tôi mỗi tuần"',
                 "why_works": "before_after_promise — promise transformation đo được theo tuần buộc viewer xem hết để thấy kết quả tuần 4.",
-                "retention_est_pct": 62,
                 "shot_count": 5,
                 "length_sec": 30,
             },
@@ -386,12 +380,6 @@ def _dynamic_few_shot_json(videos: list[dict[str, Any]], niche_name: str) -> str
         raw_phrase = f"Neo cụ thể từ ngách {niche_name} — không copy nguyên hook."
     if len(raw_phrase) > 88:
         raw_phrase = raw_phrase[:85] + "…"
-
-    try:
-        er = float(top.get("engagement_rate") or 0)
-    except (TypeError, ValueError):
-        er = 0.0
-    retention_est_pct = int(max(40, min(75, round(52 + min(23, er * 400)))))
 
     shots = top.get("scene_count")
     try:
@@ -420,7 +408,6 @@ def _dynamic_few_shot_json(videos: list[dict[str, Any]], niche_name: str) -> str
         "hook_type_en": hook_type_en,
         "title_vi": f'"{raw_phrase}"',
         "why_works": why,
-        "retention_est_pct": retention_est_pct,
         "shot_count": shot_count,
         "length_sec": length_sec,
     }

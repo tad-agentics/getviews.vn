@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from getviews_pipeline.signals.base import Signal
-from getviews_pipeline.signals.salience import SECTION_EMIT_THRESHOLD
+from getviews_pipeline.signals.salience import SECTION_EMIT_THRESHOLD, section_emit_threshold
+
+_CTX_SECTION_EMIT_THRESHOLD = "__section_emit_threshold"
 
 # Diagnosis-first Sprint 2 §3: emit ``hook_analysis`` only when at least one hook
 # signal in that section meets this bar (plan: type mismatch / contract / layering).
@@ -52,8 +54,16 @@ class SectionSpec:
     applies: AppliesFn
 
 
-def _has_gate(manifest: Manifest, section_id: str) -> bool:
-    return any(s.salience >= SECTION_EMIT_THRESHOLD for s in manifest.get(section_id, []))
+def _emit_threshold_from_ctx(ctx: dict) -> float:
+    raw = ctx.get(_CTX_SECTION_EMIT_THRESHOLD)
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    return SECTION_EMIT_THRESHOLD
+
+
+def _has_gate(manifest: Manifest, section_id: str, ctx: dict) -> bool:
+    threshold = _emit_threshold_from_ctx(ctx)
+    return any(s.salience >= threshold for s in manifest.get(section_id, []))
 
 
 def _applies_compliance(ctx: dict, manifest: Manifest) -> bool:
@@ -62,8 +72,8 @@ def _applies_compliance(ctx: dict, manifest: Manifest) -> bool:
     return bool(manifest.get("compliance"))
 
 
-def _applies_distribution(_ctx: dict, manifest: Manifest) -> bool:
-    return _has_gate(manifest, "distribution")
+def _applies_distribution(ctx: dict, manifest: Manifest) -> bool:
+    return _has_gate(manifest, "distribution", ctx)
 
 
 def _applies_niche_pattern(ctx: dict, _manifest: Manifest) -> bool:
@@ -109,8 +119,8 @@ def _applies_commerce(ctx: dict, manifest: Manifest) -> bool:
     return account_type in ("business", "brand", "creator_marketplace")
 
 
-def _applies_metadata(_ctx: dict, manifest: Manifest) -> bool:
-    return _has_gate(manifest, "metadata")
+def _applies_metadata(ctx: dict, manifest: Manifest) -> bool:
+    return _has_gate(manifest, "metadata", ctx)
 
 
 def _applies_editing(_ctx: dict, manifest: Manifest) -> bool:
@@ -145,11 +155,11 @@ def _video_has_audible_sound_track(ctx: dict) -> bool:
 def _applies_sound(ctx: dict, manifest: Manifest) -> bool:
     if not _video_has_audible_sound_track(ctx):
         return False
-    return _has_gate(manifest, "sound")
+    return _has_gate(manifest, "sound", ctx)
 
 
-def _applies_script_structure(_ctx: dict, manifest: Manifest) -> bool:
-    return _has_gate(manifest, "script_structure")
+def _applies_script_structure(ctx: dict, manifest: Manifest) -> bool:
+    return _has_gate(manifest, "script_structure", ctx)
 
 
 def _applies_hook_analysis(_ctx: dict, manifest: Manifest) -> bool:
@@ -159,8 +169,8 @@ def _applies_hook_analysis(_ctx: dict, manifest: Manifest) -> bool:
     )
 
 
-def _applies_boost_attribution(_ctx: dict, manifest: Manifest) -> bool:
-    return _has_gate(manifest, "boost_attribution")
+def _applies_boost_attribution(ctx: dict, manifest: Manifest) -> bool:
+    return _has_gate(manifest, "boost_attribution", ctx)
 
 
 SECTION_POOL: tuple[SectionSpec, ...] = (
@@ -289,6 +299,12 @@ def _select_sections_full(manifest: Manifest, ctx: dict) -> list[str]:
     return out
 
 
+def _ctx_with_emit_threshold(ctx: dict, *, depth: str) -> dict:
+    gated = dict(ctx)
+    gated[_CTX_SECTION_EMIT_THRESHOLD] = section_emit_threshold(depth=depth)
+    return gated
+
+
 def select_sections_to_emit(
     manifest: Manifest,
     ctx: dict,
@@ -300,7 +316,7 @@ def select_sections_to_emit(
     ``depth=basic`` applies §4.2 whitelist; ``depth=deep`` keeps full salience pool.
     Default ``basic`` matches Answer-session product default (explicit ``deep`` when billed 2×).
     """
-    full = _select_sections_full(manifest, ctx)
+    full = _select_sections_full(manifest, _ctx_with_emit_threshold(ctx, depth=depth))
     if depth == "basic":
         return [s for s in full if s in BASIC_SECTION_ALLOWLIST]
     return full

@@ -222,6 +222,10 @@ class _PipelineSettings(BaseSettings):
     nicheless_flop_views_floor: int = Field(default=5000, ge=0)
     nicheless_flop_views_loose: int = Field(default=20000, ge=0)
     nicheless_flop_er_floor: float = Field(default=1.5, ge=0.0)
+    getviews_deep_relax_salience: bool = Field(
+        default=True,
+        description="§4.3 — when true, SECTION_EMIT_THRESHOLD 0.5→0.45 for analysis_depth=deep only",
+    )
 
     # ── FFmpeg ─────────────────────────────────────────────────────────────
     ffmpeg_frame_timeout_sec: int = Field(default=120, ge=30)
