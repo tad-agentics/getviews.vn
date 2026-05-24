@@ -12,13 +12,12 @@
 --     "hook_type_vi":      "POV",               // HOOK_TYPE_VI[en]
 --     "title_vi":          "...",               // the actual hook line, ≤90 chars
 --     "why_works":         "...",               // 1 Vietnamese sentence, ≤140 chars
---     "retention_est_pct": 68,
 --     "shot_count":        4,
 --     "length_sec":        34
 --   }
 --
 -- `adequacy` carries the claim_tiers tier name of the grounding corpus slice
--- so the UI can soften retention claims on thin niches.
+-- so the UI can soften claims on thin niches.
 --
 -- `grounded_video_ids` is the audit trail — which videos fed this generation
 -- — so we can debug "why did Gemini write this" offline.

@@ -42,7 +42,6 @@ const sampleScript = (overrides: Partial<RitualScript> = {}): RitualScript => ({
   hook_type_vi: "So sánh",
   title_vi: "Mình vừa test tai 2 triệu và thật sự…",
   why_works: "Pattern so sánh giá đang ăn nhất tuần qua trong ngách Tech.",
-  retention_est_pct: 72,
   shot_count: 6,
   length_sec: 32,
   ...overrides,
@@ -103,10 +102,10 @@ describe("StudioHero", () => {
     expect(getByText(/SCRIPT SẴN · 5 shot · 22s/)).toBeTruthy();
   });
 
-  it("renders the retention estimate + TẠO KỊCH BẢN CTA", () => {
+  it("renders the TẠO KỊCH BẢN CTA", () => {
     mockUseDailyRitual.mockReturnValue({
       data: sampleRitual({
-        scripts: [sampleScript({ retention_est_pct: 65 })],
+        scripts: [sampleScript()],
       }),
       emptyReason: null,
       isPending: false,
@@ -114,9 +113,9 @@ describe("StudioHero", () => {
       error: undefined,
       refetch: vi.fn(),
     });
-    const { getByText } = wrap(<StudioHero nicheId={4} />);
-    expect(getByText(/▲ ~65%/)).toBeTruthy();
+    const { getByText, queryByText } = wrap(<StudioHero nicheId={4} />);
     expect(getByText(/TẠO KỊCH BẢN/)).toBeTruthy();
+    expect(queryByText(/giữ chân/)).toBeNull();
   });
 
   it("renders an empty stub when ritual data is null", () => {
