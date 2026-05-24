@@ -49,19 +49,9 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
     <section className="mb-12">
       <SectionHeader
         kicker="GỢI Ý HÔM NAY"
-        kickerSparkles
+        kickerTone="accent"
         title="Từ sẵn-quay đến cảm-hứng"
-        caption={
-          <>
-            <span className="sm:hidden">
-              3 tầng: quay ngay → công thức hook để remix → case study kênh khác.
-            </span>
-            <span className="hidden sm:inline">
-              Gợi ý video cụ thể để quay ngay hôm nay, công thức hook để bạn biến tấu theo phong cách của mình, và bài học
-              thực tế từ kênh khác để đối chiếu.
-            </span>
-          </>
-        }
+        caption="Gợi ý video cụ thể để quay ngay hôm nay, công thức hook để bạn biến tấu theo phong cách của mình, và bài học thực tế từ kênh khác để đối chiếu."
         className="!mb-10"
       />
 

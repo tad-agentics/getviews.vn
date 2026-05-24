@@ -20,7 +20,7 @@ export function SectionHeader({
   title: ReactNode;
   caption?: ReactNode;
   right?: ReactNode;
-  kickerTone?: "default" | "muted" | "pos";
+  kickerTone?: "default" | "muted" | "pos" | "accent";
   /** Kicker dạng spark + chữ accent (ref GỢI Ý HÔM NAY). */
   kickerSparkles?: boolean;
   className?: string;
@@ -28,7 +28,9 @@ export function SectionHeader({
   titleId?: string;
 }) {
   const kickerColor =
-    kickerTone === "pos"
+    kickerTone === "accent"
+      ? "text-[color:var(--gv-accent)]"
+      : kickerTone === "pos"
       ? "text-[color:var(--gv-pos-deep)]"
       : kickerTone === "muted"
         ? "text-[color:var(--gv-ink-4)]"
@@ -51,7 +53,7 @@ export function SectionHeader({
           className={[
             "gv-kicker mb-1.5",
             kickerSparkles ? "" : "gv-kicker--dot",
-            kickerSparkles ? "text-[color:var(--gv-accent-deep)]" : kickerColor,
+            kickerSparkles ? "text-[color:var(--gv-accent)]" : kickerColor,
             !kickerSparkles && kickerTone === "muted" ? "gv-kicker--muted" : "",
             !kickerSparkles && kickerTone === "pos" ? "gv-kicker--pos" : "",
           ].filter(Boolean).join(" ")}
