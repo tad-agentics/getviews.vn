@@ -386,16 +386,18 @@ Baseline extract → signal → UI map. **Depth:** F2 vs F1 rules in **§5.3** (
 
 As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_channel_pattern`, **`build_channel_findings()`** (W4-1). Vision: `channel_findings[]` → `<<<CHANNEL FINDINGS>>>` — **✅ shipped @ `9b97207`**.
 
-### 6.1 Wired
+### 6.1 Wired — ✅ complete
 
-| Data source | Output block | UI |
-|-------------|--------------|-----|
-| ED `fetch_user_posts` | trajectory, score_card | `ScoreCard`, trajectory badges |
-| Corpus by handle | `channel_pattern`, competitive_landscape | Pattern section, peers |
-| `niche_channel_benchmarks` | percentiles in score card | KPI grid |
-| **`channel_findings.py`** (W4-1) | P0×4 findings → `<<<CHANNEL FINDINGS>>>` prompt inject | Evidence-backed memo sections |
-| Quick-peek `channel_summary` + `niche_benchmarks` | Percentile bars on Studio | `ChannelBenchmarkStrip` @ §6 |
-| Gemini memo | `verdict`, `what_falling`, `what_worked`, `recommendations` | `SectionRenderer` |
+| Data source | Output block | UI | Status |
+|-------------|--------------|-----|--------|
+| ED `fetch_user_posts` | trajectory, score_card | `ScoreCard`, trajectory badges | ✅ @ `78999fa` — `fetch_channel_videos_live` → SSE `score_card`; FE `ChannelDiagnosisBody` |
+| Corpus by handle | `channel_pattern`, competitive_landscape | Pattern prompt blocks + peers | ✅ @ `78999fa` + `9b97207` — `build_channel_pattern`; corpus peers (`reference_eligible`); `competitive_landscape` → `CreatorTileRow` |
+| `niche_channel_benchmarks` | percentiles in score card | KPI grid (`ScoreCard`) | ✅ @ `78999fa` — `compute_score_card` → `~Pn` + cadence/peak rows |
+| **`channel_findings.py`** (W4-1) | P0×4 findings → `<<<CHANNEL FINDINGS>>>` prompt inject | Evidence-backed memo sections | ✅ @ `9b97207` — `build_channel_findings` → `format_findings_for_prompt` |
+| Quick-peek `channel_summary` + `niche_benchmarks` | Percentile bars on Studio | `ChannelBenchmarkStrip` @ §6 | ✅ @ `37831b05` (BE quick-peek fields @ `98814cbf`) — Nhanh on `/app` |
+| Gemini memo | `verdict`, `what_falling`, `what_worked`, `recommendations` | `SectionRenderer` | ✅ @ `78999fa` — Sâu SSE on Studio @ `37831b05` |
+
+**Note:** Channel memo has no separate `channel_pattern` section_id (unlike video F1) — pattern stats feed prompt blocks (`<<<FORMAT PERFORMANCE>>>`) and findings, not a standalone heading.
 
 ### 6.2 Findings backlog (§5.3 P0–P2)
 
@@ -409,7 +411,7 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | `channel_boost_outlier_share` | §1.8 | `% suspect_medium` on handle | ✅ Launch 2a |
 | `channel_slang_staleness` | §2.5 | aggregate `persona_slang_dated` | ✅ Launch 2c |
 
-**Studio UX (§6 ship):** Channel analysis embedded on `/app` via `HomeMyChannelSection` + `ChannelStudioPanel`. Tab **Khám kênh** removed; `/app/channel` redirects to `/app?handle=…`.
+**Studio UX (§6 ship):** ✅ @ `37831b05` — Channel analysis embedded on `/app` via `HomeMyChannelSection` + `ChannelStudioPanel`. Tab **Khám kênh** removed; `/app/channel` redirects to `/app?handle=…`. Cloud Run user pod post quick-peek deploy required for Nhanh benchmark strip.
 
 ### 6.3 Credit & F8
 
@@ -419,18 +421,18 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 
 ---
 
-## 7. Decision gates (human approval)
+## 7. Decision gates (human approval) — ✅ all resolved
 
-| Gate | Decision | Blocks | Default recommendation |
-|------|----------|--------|------------------------|
-| **G1** Composer pills Cơ bản/Chuyên sâu | Ship in Wave 3? | W3-3 | Yes — vision §3.1.2; after W1 handoff |
-| **G2** | Hide follow-up turn 2+ | — | — | ✅ **Resolved @ W5-1** — `IntentCtaRail` thay free-text follow-up; §4.10.2 |
-| **G3** Hero niche list (5–8 IDs) | Which niches get deep ingest | W2-3, §8.7 | Human picks from `creator_niches` with thin corpus report |
-| **G4** Channel billing | 3× vs 1× | W0-1 | **3×** both sides per vision §10 — Completeness 10/10 |
-| **G5** Depth billing | 1× basic / 2× deep | W3-3 | Sign-off before migration |
-| **G6** `key_messages` trim | Post-ablation only | — | ✅ **Trim shipped @ W5-3** (`65e4145`) — **caveat:** no formal ablation metrics logged |
+| Gate | Decision | Blocks | Default recommendation | Status |
+|------|----------|--------|------------------------|--------|
+| **G1** Composer pills Cơ bản/Chuyên sâu | Ship in Wave 3? | W3-3 | Yes — vision §3.1.2; after W1 handoff | ✅ **Yes @ W3** (`9cd0957`) — `QueryComposer` pills + `?depth=` handoff |
+| **G2** Hide follow-up turn 2+ | Free-text follow-up vs CTA rail | — | Replace chat with guided CTAs | ✅ **Resolved @ W5-1** (`f3054f5`) — `IntentCtaRail` thay `FollowUpComposer`; §4.10.2 |
+| **G3** Hero niche list (5–8 IDs) | Which niches get deep ingest | W2-3, §8.7 | Human picks from `creator_niches` with thin corpus report | ✅ **Confirmed** — 8 IDs `[1,2,3,4,5,8,9,11]` @ `feature-map-v1.md` §8.7; evidence `launch-phase0-g3-hero.json` |
+| **G4** Channel billing | 3× vs 1× | W0-1 | **3×** both sides per vision §10 — Completeness 10/10 | ✅ **3× @ W0-1** (`8ad7ab0`) — `CHANNEL_DIAGNOSE_CREDIT_COST=3` BE + FE |
+| **G5** Depth billing | 1× basic / 2× deep | W3-3 | Sign-off before migration | ✅ **Resolved @ W3** (`9cd0957`) — `decrement_credit(p_amount)` 1/2; migration `analysis_depth` PK |
+| **G6** `key_messages` trim | Post-ablation only | — | Trim only after ablation metrics | ✅ **Trim @ W5-3** (`65e4145`) — **caveat:** no formal ablation metrics logged |
 
-Format per project AskUserQuestion: Tech Lead presents options A/B/C with Completeness scores before Wave 3+ execution.
+Format per project AskUserQuestion: Tech Lead presents options A/B/C with Completeness scores before Wave 3+ execution. **Historical — all gates closed; no open human blocks for launch.**
 
 ---
 
