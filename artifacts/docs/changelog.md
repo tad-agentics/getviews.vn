@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — Deep relax salience (§4.3)
+
+- **`GETVIEWS_DEEP_RELAX_SALIENCE`:** `section_emit_threshold(depth)` — deep analysis uses 0.45 vs 0.5 when enabled; **default on**.
+- **`diagnose_sections`:** Depth-aware gate via ctx; borderline sections (metadata, sound, script_structure, distribution, boost_attribution) emit more often on deep only.
+
 ## 2026-05-23 — Trends rail audit fixes
 
 - **`useTrendsRailVideos`:** Legacy `ingest_loop_niche_id` fallback when junction empty; 14d **`posted_at`** window (aligned with row age); pool 20 + 15m rotation with bucket offset vs Home; skip fallback query when eligible pool fills.

@@ -15,6 +15,7 @@ from getviews_pipeline.signals.registry import (
     build_signal_manifest,
     manifest_for_prompt,
 )
+from getviews_pipeline.signals.salience import section_emit_threshold
 from getviews_pipeline.video_analyze import _normalize_analysis_depth
 
 
@@ -231,3 +232,49 @@ def test_append_turn_deduct_credits_atomic(monkeypatch) -> None:
         )
 
     assert rpc_calls == [{"p_user_id": "u-1", "p_amount": 2}]
+
+
+def test_section_emit_threshold_default() -> None:
+    assert section_emit_threshold(depth="basic") == 0.5
+    assert section_emit_threshold(depth="deep") == 0.45
+
+
+def test_deep_relax_salience_can_be_disabled(monkeypatch) -> None:
+    from getviews_pipeline import settings as settings_mod
+
+    monkeypatch.setattr(settings_mod.settings, "getviews_deep_relax_salience", False)
+    assert section_emit_threshold(depth="basic") == 0.5
+    assert section_emit_threshold(depth="deep") == 0.5
+
+
+def test_deep_relax_salience_lowers_threshold_only_for_deep() -> None:
+    assert section_emit_threshold(depth="basic") == 0.5
+    assert section_emit_threshold(depth="deep") == 0.45
+
+
+def test_deep_relax_salience_emits_borderline_metadata_section(monkeypatch) -> None:
+    from getviews_pipeline import settings as settings_mod
+
+    ctx = build_diagnosis_ctx(
+        user_analysis={"hook_analysis": {"hook_type": "question", "first_frame_type": "face"}},
+        user_stats={"caption": "hi", "views": 50_000},
+        reference_videos=[],
+        channel_context=None,
+        performance_tier="average",
+    )
+    manifest = {
+        "metadata": [
+            Signal(
+                id="metadata_caption_density",
+                section_id="metadata",
+                taxonomy_ref="§1.6",
+                salience=0.47,
+                claim="Caption mỏng hơn median ngách.",
+                evidence=[],
+            )
+        ]
+    }
+    assert "metadata" in select_sections_to_emit(manifest, ctx, depth="deep")
+    assert "metadata" not in select_sections_to_emit(manifest, ctx, depth="basic")
+    monkeypatch.setattr(settings_mod.settings, "getviews_deep_relax_salience", False)
+    assert "metadata" not in select_sections_to_emit(manifest, ctx, depth="deep")
