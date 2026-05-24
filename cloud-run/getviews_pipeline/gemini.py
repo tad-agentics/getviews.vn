@@ -2098,6 +2098,93 @@ def upload_local_video_file_active(video_path: Path) -> Any:
         delay = min(delay * 1.5, FILES_API_POLL_MAX_SEC)
 
 
+def _snake_to_camel(name: str) -> str:
+    parts = name.split("_")
+    return parts[0] + "".join(p.title() for p in parts[1:])
+
+
+def _rest_camel_case_json(value: Any) -> Any:
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for key, val in value.items():
+            key_str = str(key)
+            if key_str == "response_json_schema":
+                out[_snake_to_camel(key_str)] = val
+                continue
+            out[_snake_to_camel(key_str)] = _rest_camel_case_json(val)
+        return out
+    if isinstance(value, list):
+        return [_rest_camel_case_json(v) for v in value]
+    return value
+
+
+def _normalize_system_instruction_for_rest(value: Any) -> Any:
+    if isinstance(value, str):
+        return {"parts": [{"text": value}]}
+    return value
+
+
+def _inline_json_schema_defs(schema: dict[str, Any]) -> dict[str, Any]:
+    """Expand ``$defs`` / ``$ref`` for Batch API (no JSON Schema ref resolution server-side)."""
+    import copy
+
+    root = copy.deepcopy(schema)
+    defs = root.pop("$defs", None) or {}
+
+    def _visit(node: Any) -> Any:
+        if isinstance(node, dict):
+            if "$ref" in node:
+                ref = str(node["$ref"])
+                if ref.startswith("#/$defs/"):
+                    name = ref.rsplit("/", 1)[-1]
+                    if name in defs:
+                        merged = copy.deepcopy(defs[name])
+                        for key, val in node.items():
+                            if key != "$ref":
+                                merged[key] = val
+                        return _visit(merged)
+                return node
+            return {key: _visit(val) for key, val in node.items()}
+        if isinstance(node, list):
+            return [_visit(item) for item in node]
+        return node
+
+    inlined = _visit(root)
+    if isinstance(inlined, dict):
+        inlined.pop("$defs", None)
+    return inlined if isinstance(inlined, dict) else schema
+
+
+def _generate_content_request_dict_for_batch(
+    json_cfg: types.GenerateContentConfig,
+    *,
+    contents: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """REST ``GenerateContentRequest`` shape for Batch JSONL (not SDK ``config`` wrapper)."""
+    config_dict = json_cfg.model_dump(mode="json", exclude_none=True)
+    body: dict[str, Any] = {"contents": contents}
+    for top_key in (
+        "system_instruction",
+        "cached_content",
+        "tools",
+        "tool_config",
+        "safety_settings",
+    ):
+        if top_key in config_dict:
+            body[top_key] = config_dict.pop(top_key)
+    if config_dict:
+        schema = config_dict.get("response_json_schema")
+        if isinstance(schema, dict):
+            config_dict = dict(config_dict)
+            config_dict["response_json_schema"] = _inline_json_schema_defs(schema)
+        body["generation_config"] = config_dict
+    if "system_instruction" in body:
+        body["system_instruction"] = _normalize_system_instruction_for_rest(
+            body["system_instruction"]
+        )
+    return _rest_camel_case_json(body)
+
+
 def build_video_corpus_batch_jsonl_record(
     video_id: str,
     file_resource: Any,
@@ -2114,7 +2201,6 @@ def build_video_corpus_batch_jsonl_record(
         system_text=sys_inst,
     )
     json_cfg = _ensure_safety_settings(json_cfg)
-    config_dict = json_cfg.model_dump(mode="json", exclude_none=True)
 
     mime = getattr(file_resource, "mime_type", None) or "video/mp4"
     video_parts = _build_video_extraction_content_parts(
@@ -2136,10 +2222,10 @@ def build_video_corpus_batch_jsonl_record(
 
     part_dicts = [p.model_dump(mode="json", exclude_none=True) for p in video_parts]
     part_dicts.append({"text": user_turn})
-    request_body: dict[str, Any] = {
-        "contents": [{"role": "user", "parts": part_dicts}],
-        "config": config_dict,
-    }
+    request_body = _generate_content_request_dict_for_batch(
+        json_cfg,
+        contents=[{"role": "user", "parts": part_dicts}],
+    )
     return {"key": video_id, "request": request_body}
 
 
@@ -2195,15 +2281,22 @@ def _batch_stats_dict(job: Any) -> dict[str, int]:
     if raw is None:
         return {}
     out: dict[str, int] = {}
-    for key in ("request_count", "successful_request_count", "failed_request_count"):
+    stat_keys = (
+        ("request_count", "requestCount"),
+        ("successful_request_count", "successfulRequestCount"),
+        ("failed_request_count", "failedRequestCount"),
+    )
+    for snake, camel in stat_keys:
         if isinstance(raw, dict):
-            val = raw.get(key)
+            val = raw.get(snake) if raw.get(snake) is not None else raw.get(camel)
         else:
-            val = getattr(raw, key, None)
+            val = getattr(raw, snake, None)
+            if val is None:
+                val = getattr(raw, camel, None)
         if val is None:
             continue
         try:
-            out[key] = int(val)
+            out[snake] = int(val)
         except (TypeError, ValueError):
             continue
     return out
@@ -2233,16 +2326,34 @@ def _cancel_batch_job_best_effort(client: Any, job_name: str) -> None:
         logger.warning("[gemini] batch cancel failed name=%s: %s", job_name, exc)
 
 
+def _batch_error_message(err: Any) -> str:
+    if err is None:
+        return "unknown_error"
+    if isinstance(err, dict):
+        for key in ("message", "status", "code"):
+            val = err.get(key)
+            if val:
+                return str(val)
+        return json.dumps(err, ensure_ascii=False)[:500]
+    return str(err)
+
+
 def _parse_batch_output_jsonl_line(
     line_obj: dict[str, Any],
 ) -> tuple[str | None, str | None, str | None, int, int, int]:
     """``(..., tokens_in, tokens_out, cached_content_token_count)`` per results line."""
     raw_key = line_obj.get("key")
+    if raw_key is None:
+        meta = line_obj.get("metadata")
+        if isinstance(meta, dict):
+            raw_key = meta.get("key")
     key = str(raw_key) if raw_key is not None else None
     err = line_obj.get("error")
     if err is not None:
-        return key, None, str(err), 0, 0, 0
+        return key, None, _batch_error_message(err), 0, 0, 0
     resp = line_obj.get("response")
+    if not isinstance(resp, dict) and isinstance(line_obj.get("candidates"), list):
+        resp = line_obj
     if not isinstance(resp, dict):
         return key, None, "missing_response", 0, 0, 0
     tin, tout, tcached = _usage_from_batch_response_dict(resp)
@@ -2391,7 +2502,7 @@ def run_corpus_extraction_batch_file_job(
 
         raw_bytes = client.files.download(file=result_file)
         body = raw_bytes.decode("utf-8")
-        for line in body.splitlines():
+        for line_idx, line in enumerate(body.splitlines()):
             line = line.strip()
             if not line:
                 continue
@@ -2402,6 +2513,10 @@ def run_corpus_extraction_batch_file_job(
             if not isinstance(obj, dict):
                 continue
             vid_k, resp_text, err_k, tin, tout, tcached = _parse_batch_output_jsonl_line(obj)
+            if not vid_k and line_idx < len(records):
+                rec_key = records[line_idx].get("key")
+                if rec_key is not None:
+                    vid_k = str(rec_key)
             if not vid_k:
                 continue
             if err_k or not resp_text:
@@ -2437,6 +2552,13 @@ def run_corpus_extraction_batch_file_job(
         line_ok = sum(1 for v in by_video_id.values() if v.get("ok"))
         line_fail = len(by_video_id) - line_ok
         stats = _batch_stats_dict(job)
+        if line_fail and by_video_id:
+            sample_vid, sample_entry = next(iter(by_video_id.items()))
+            logger.warning(
+                "[gemini] batch line failure sample video_id=%s error=%s",
+                sample_vid,
+                sample_entry.get("error"),
+            )
         logger.info(
             "[gemini] corpus extraction batch complete display_name=%s "
             "line_ok=%d line_fail=%d n_records=%d",

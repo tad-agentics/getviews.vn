@@ -264,6 +264,11 @@ class IngestResult:
     failed: int = 0
     subject_matter_inserted: int = 0
     errors: list[str] = field(default_factory=list)
+    hi13_batch_line_ok: int = 0
+    hi13_batch_line_fail: int = 0
+    hi13_sync_fallback: int = 0
+    hi13_batch_jobs_ok: int = 0
+    hi13_batch_jobs_failed: int = 0
 
 
 @dataclass
@@ -291,6 +296,11 @@ class BatchSummary:
     shadow_metrics: dict[str, Any] = field(default_factory=dict)
     # Wave 2 W2-4 — rows upserted with HI-9 content_context.subject_matter present.
     subject_matter_inserted: int = 0
+    hi13_batch_line_ok: int = 0
+    hi13_batch_line_fail: int = 0
+    hi13_sync_fallback: int = 0
+    hi13_batch_jobs_ok: int = 0
+    hi13_batch_jobs_failed: int = 0
 
 
 # ── Thin-niche prioritization (Wave 5+ Phase 2) ────────────────────────────────
@@ -317,6 +327,35 @@ def compute_thin_niche_multiplier(
     gap = max(0, target - max(0, int(current_count)))
     gap_fraction = gap / target  # 0.0 at target, 1.0 when empty
     return 1.0 + (max_multiplier - 1.0) * gap_fraction
+
+
+def _apply_hi13_batch_metrics(
+    result: IngestResult,
+    vres: list[Any],
+    batch_meta: dict[str, Any],
+) -> None:
+    """Accumulate HI-13 Batch API line stats from one niche shard job."""
+    if not batch_meta:
+        return
+    if batch_meta.get("ok"):
+        result.hi13_batch_jobs_ok += 1
+    else:
+        result.hi13_batch_jobs_failed += 1
+    batch_map = batch_meta.get("by_video_id")
+    if not isinstance(batch_map, dict):
+        batch_map = {}
+    hits = sum(
+        1 for entry in batch_map.values()
+        if isinstance(entry, dict) and entry.get("ok")
+    )
+    fails = sum(
+        1 for entry in batch_map.values()
+        if isinstance(entry, dict) and not entry.get("ok")
+    )
+    result.hi13_batch_line_ok += hits
+    result.hi13_batch_line_fail += fails
+    ok_count = sum(1 for r in vres if isinstance(r, tuple))
+    result.hi13_sync_fallback += max(0, ok_count - hits)
 
 
 def apply_thin_niche_multiplier(
@@ -1943,12 +1982,12 @@ def _video_pool_gate_diagnostics(
 async def _analyze_videos_gemini_batch_for_corpus(
     niche_name: str,
     video_awemes: list[dict[str, Any]],
-) -> list[Any]:
+) -> tuple[list[Any], dict[str, Any]]:
     """HI-13: one JSONL Batch job (file source) per niche shard, sync fallback.
 
-    Returns one entry per ``video_awemes`` (tuple result, or Exception) matching
-    ``_analyze_one`` video success shape: ``(analysis_dict, hook_frame_urls,
-    scene_frame_pairs)``.
+    Returns ``(results, batch_out)`` where ``results`` has one entry per
+    ``video_awemes`` (tuple result, or Exception) matching ``_analyze_one`` video
+    success shape: ``(analysis_dict, hook_frame_urls, scene_frame_pairs)``.
     """
     from getviews_pipeline.models import VideoAnalysis
     from getviews_pipeline.services.asr_vietnamese import (
@@ -1957,7 +1996,7 @@ async def _analyze_videos_gemini_batch_for_corpus(
 
     n = len(video_awemes)
     if n == 0:
-        return []
+        return [], {}
 
     sem = get_analysis_semaphore()
     loop = asyncio.get_event_loop()
@@ -2259,6 +2298,11 @@ async def run_hi13_batch_pilot(
         1 for entry in batch_map.values()
         if isinstance(entry, dict) and entry.get("ok")
     )
+    batch_line_errors = [
+        {"video_id": vid, "error": entry.get("error")}
+        for vid, entry in batch_map.items()
+        if isinstance(entry, dict) and not entry.get("ok")
+    ][:5]
 
     return {
         "ok": batch_ok and ok_count > 0,
@@ -2272,6 +2316,7 @@ async def run_hi13_batch_pilot(
         "batch_error": batch_out.get("job_error"),
         "batch_stats": batch_out.get("batch_stats"),
         "batch_line_hits": batch_hits,
+        "batch_line_errors": batch_line_errors,
         "analysis_ok": ok_count,
         "analysis_errors": err_count,
         "sync_fallback_count": max(0, ok_count - batch_hits),
@@ -2442,7 +2487,8 @@ async def _ingest_candidate_awemes(
                 niche_name,
                 len(vlist),
             )
-            vres, _batch_meta = await _analyze_videos_gemini_batch_for_corpus(niche_name, vlist)
+            vres, batch_meta = await _analyze_videos_gemini_batch_for_corpus(niche_name, vlist)
+            _apply_hi13_batch_metrics(result, vres, batch_meta)
         else:
             vres = await asyncio.gather(
                 *[_analyze_one(candidates[i]) for i in video_indices],
@@ -3996,6 +4042,11 @@ async def run_batch_ingest(
                 summary.total_skipped += res.skipped
                 summary.total_failed += res.failed
                 summary.subject_matter_inserted += res.subject_matter_inserted
+                summary.hi13_batch_line_ok += res.hi13_batch_line_ok
+                summary.hi13_batch_line_fail += res.hi13_batch_line_fail
+                summary.hi13_sync_fallback += res.hi13_sync_fallback
+                summary.hi13_batch_jobs_ok += res.hi13_batch_jobs_ok
+                summary.hi13_batch_jobs_failed += res.hi13_batch_jobs_failed
                 summary.niches_processed += 1
                 summary.niche_results.append({
                     "ingest_loop_niche_id": res.ingest_loop_niche_id,
@@ -4004,6 +4055,9 @@ async def run_batch_ingest(
                     "skipped": res.skipped,
                     "failed": res.failed,
                     "errors": res.errors,
+                    "hi13_batch_line_ok": res.hi13_batch_line_ok,
+                    "hi13_batch_line_fail": res.hi13_batch_line_fail,
+                    "hi13_sync_fallback": res.hi13_sync_fallback,
                 })
 
         if summary.aborted_early:

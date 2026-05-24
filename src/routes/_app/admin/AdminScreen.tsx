@@ -26,6 +26,7 @@ import { TopBar } from "@/components/v2/TopBar";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { CorpusClassHealthPanel } from "./CorpusClassHealthPanel";
+import { Hi13BatchHealthPanel } from "./Hi13BatchHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
 import { LogsPanel } from "./LogsPanel";
 import { TriggersPanel } from "./TriggersPanel";
@@ -88,6 +89,17 @@ export default function AdminScreen() {
 
           <section className="gv-fade-up gv-fade-up-delay-2">
             <SectionHeader
+              kicker="CORPUS · HI-13 BATCH API"
+              title="Gemini Batch extraction"
+              caption="Theo dõi nightly ingest qua Batch API: line thành công/thất bại, sync fallback, chi phí batch tier (~50%), và các lần chạy ingest/pilot gần nhất."
+            />
+            <Hi13BatchHealthPanel />
+          </section>
+
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
+          <section className="gv-fade-up gv-fade-up-delay-3">
+            <SectionHeader
               kicker="ENSEMBLEDATA · USED UNITS"
               title="Quỹ tín dụng"
               caption="Units đã dùng mỗi UTC-day và projection 30 ngày — canh trần chi phí ~$80–90/tháng."
@@ -97,7 +109,7 @@ export default function AdminScreen() {
 
           <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
 
-          <section className="gv-fade-up gv-fade-up-delay-3">
+          <section className="gv-fade-up gv-fade-up-delay-4">
             <SectionHeader
               kicker="CLOUD RUN · STDOUT TAIL"
               title="Nhật ký"
@@ -109,7 +121,7 @@ export default function AdminScreen() {
 
           <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
 
-          <section className="gv-fade-up gv-fade-up-delay-4">
+          <section className="gv-fade-up gv-fade-up-delay-5">
             <SectionHeader
               kicker="MANUAL RUN · NIGHTLY PIPELINE"
               title="Chạy thủ công"

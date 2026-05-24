@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — HI-13 Gemini Batch API promoted + admin observability
+
+- **`gemini.py`:** Batch JSONL REST shape (`generationConfig`, hoisted `safetySettings`); inline `$ref` in `responseJsonSchema`; preserve snake_case schema keys (no camelCase on schema body).
+- **`corpus_ingest`:** `_analyze_videos_gemini_batch_for_corpus` returns `(results, batch_out)`; empty aweme guard `([], {})`; per-niche HI-13 metrics → `batch_job_runs.summary.hi13` on ingest.
+- **Admin:** `GET /admin/hi13-batch-health`; `Hi13BatchHealthPanel` — batch line OK/fail, sync fallback, gemini_calls batch tier cost, recent ingest/pilot runs.
+- **Ops:** `CORPUS_INGEST_USE_GEMINI_BATCH=true` on batch pod after pilot 10/10 PASS.
+
 ## 2026-05-24 — ACQE assignment tier backfill + Admin content class health
 
 - **`class_quality_engine`:** TD-6 junction gate on `validated` tier (`_resolve_assignment_tier`); shared `_build_assignment_patch`; `run_assignment_tier_backfill` for legacy NULL tiers + validated junction repair.

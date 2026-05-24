@@ -142,6 +142,13 @@ async def batch_ingest(
             "materialized_view_refreshed": summary.materialized_view_refreshed,
             "aborted_early": summary.aborted_early,
             "niches_remaining": summary.niches_remaining,
+            "hi13": {
+                "batch_line_ok": summary.hi13_batch_line_ok,
+                "batch_line_fail": summary.hi13_batch_line_fail,
+                "sync_fallback": summary.hi13_sync_fallback,
+                "batch_jobs_ok": summary.hi13_batch_jobs_ok,
+                "batch_jobs_failed": summary.hi13_batch_jobs_failed,
+            },
         })
 
     return JSONResponse({

@@ -16,7 +16,11 @@ def test_build_video_corpus_batch_jsonl_record_has_key_and_request() -> None:
         mime_type="video/mp4",
         name="files/xyz",
     )
-    base_cfg = types.GenerateContentConfig(temperature=0.2)
+    base_cfg = types.GenerateContentConfig(
+        temperature=0.2,
+        response_mime_type="application/json",
+        response_json_schema={"type": "object", "properties": {"hook_analysis": {"type": "object"}}},
+    )
 
     with (
         patch("getviews_pipeline.gemini._get_client"),
@@ -47,8 +51,16 @@ def test_build_video_corpus_batch_jsonl_record_has_key_and_request() -> None:
     assert "request" in rec
     req = rec["request"]
     assert "contents" in req
-    assert "config" in req
+    assert "generationConfig" in req
+    assert "config" not in req
+    assert "generation_config" not in req
+    gen_cfg = req["generationConfig"]
+    schema = gen_cfg.get("responseJsonSchema")
+    assert isinstance(schema, dict)
+    hook = (schema.get("properties") or {}).get("hook_analysis")
+    assert isinstance(hook, dict)
+    assert "hookAnalysis" not in (schema.get("properties") or {})
     assert req["contents"][0]["role"] == "user"
     parts = req["contents"][0]["parts"]
-    assert any("file_data" in p for p in parts)
+    assert any("fileData" in p or "file_data" in p for p in parts)
     assert any(p.get("text") for p in parts if isinstance(p, dict))

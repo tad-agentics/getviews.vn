@@ -1053,6 +1053,155 @@ async def admin_corpus_class_health(
     })
 
 
+def _gemini_batch_call_stats(client: Any, since_iso: str) -> dict[str, Any]:
+    """Aggregate ``video_extraction_batch`` rows since ``since_iso``."""
+    total_count = 0
+    total_cost = 0.0
+    offset = 0
+    page_size = 1000
+    while True:
+        resp = (
+            client.table("gemini_calls")
+            .select("cost_usd")
+            .eq("is_batch", True)
+            .eq("call_site", "video_extraction_batch")
+            .gte("created_at", since_iso)
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            break
+        total_count += len(rows)
+        for row in rows:
+            try:
+                total_cost += float(row.get("cost_usd") or 0)
+            except (TypeError, ValueError):
+                continue
+        if len(rows) < page_size:
+            break
+        offset += page_size
+    return {
+        "count": total_count,
+        "cost_usd": round(total_cost, 4),
+    }
+
+
+def _hi13_from_job_summary(summary: Any) -> dict[str, int]:
+    if not isinstance(summary, dict):
+        return {}
+    hi13 = summary.get("hi13")
+    if isinstance(hi13, dict):
+        return {
+            "batch_line_ok": int(hi13.get("batch_line_ok") or 0),
+            "batch_line_fail": int(hi13.get("batch_line_fail") or 0),
+            "sync_fallback": int(hi13.get("sync_fallback") or 0),
+            "batch_jobs_ok": int(hi13.get("batch_jobs_ok") or 0),
+            "batch_jobs_failed": int(hi13.get("batch_jobs_failed") or 0),
+        }
+    return {
+        "batch_line_ok": int(summary.get("batch_line_hits") or 0),
+        "batch_line_fail": len(summary.get("batch_line_errors") or []),
+        "sync_fallback": int(summary.get("sync_fallback_count") or 0),
+        "batch_jobs_ok": 1 if summary.get("batch_job_ok") else 0,
+        "batch_jobs_failed": 0 if summary.get("batch_job_ok") else 1,
+    }
+
+
+@router.get("/admin/hi13-batch-health")
+async def admin_hi13_batch_health(
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    """HI-13 Gemini Batch API — ingest flag, gemini_calls, and recent job runs."""
+    from getviews_pipeline.config import (
+        CORPUS_BATCH_POLL_INTERVAL_SEC,
+        CORPUS_BATCH_POLL_MAX_SEC,
+        CORPUS_INGEST_USE_GEMINI_BATCH,
+    )
+    from getviews_pipeline.supabase_client import get_service_client
+
+    client = get_service_client()
+    now = datetime.now(UTC)
+    since_7d = (now - timedelta(days=7)).isoformat()
+    since_30d = (now - timedelta(days=30)).isoformat()
+
+    batch_7d = _gemini_batch_call_stats(client, since_7d)
+    batch_30d = _gemini_batch_call_stats(client, since_30d)
+
+    ingest_totals = {
+        "batch_line_ok": 0,
+        "batch_line_fail": 0,
+        "sync_fallback": 0,
+        "batch_jobs_ok": 0,
+        "batch_jobs_failed": 0,
+        "runs": 0,
+    }
+    recent_runs: list[dict[str, Any]] = []
+    try:
+        runs_res = (
+            client.table("batch_job_runs")
+            .select("job_name, started_at, finished_at, status, duration_ms, summary, error")
+            .in_("job_name", ["batch/ingest", "batch/hi13-pilot"])
+            .gte("started_at", since_30d)
+            .order("started_at", desc=True)
+            .limit(25)
+            .execute()
+        )
+        for row in runs_res.data or []:
+            summary = row.get("summary") or {}
+            hi13 = _hi13_from_job_summary(summary)
+            if row.get("job_name") == "batch/ingest":
+                ingest_totals["runs"] += 1
+                for key in (
+                    "batch_line_ok",
+                    "batch_line_fail",
+                    "sync_fallback",
+                    "batch_jobs_ok",
+                    "batch_jobs_failed",
+                ):
+                    ingest_totals[key] += hi13.get(key, 0)
+            recent_runs.append({
+                "job_name": row.get("job_name"),
+                "started_at": row.get("started_at"),
+                "finished_at": row.get("finished_at"),
+                "status": row.get("status"),
+                "duration_ms": row.get("duration_ms"),
+                "error": row.get("error"),
+                "hi13": hi13,
+                "batch_line_hits": hi13.get("batch_line_ok", 0),
+                "sync_fallback": hi13.get("sync_fallback", 0),
+            })
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"batch_job_runs: {exc}") from exc
+
+    success_rate_30d = (
+        round(
+            ingest_totals["batch_line_ok"]
+            / max(ingest_totals["batch_line_ok"] + ingest_totals["batch_line_fail"], 1),
+            4,
+        )
+    )
+
+    return JSONResponse({
+        "ok": True,
+        "as_of": now.isoformat(),
+        "config": {
+            "enabled": CORPUS_INGEST_USE_GEMINI_BATCH,
+            "poll_interval_s": CORPUS_BATCH_POLL_INTERVAL_SEC,
+            "poll_max_s": CORPUS_BATCH_POLL_MAX_SEC,
+        },
+        "gemini_calls": {
+            "batch_7d": batch_7d,
+            "batch_30d": batch_30d,
+        },
+        "ingest_30d": {
+            **ingest_totals,
+            "batch_line_success_rate": success_rate_30d,
+        },
+        "recent_runs": recent_runs,
+    })
+
+
 @router.get("/admin/ensemble-credits")
 async def admin_ensemble_credits(
     _admin: dict[str, Any] = Depends(require_admin),

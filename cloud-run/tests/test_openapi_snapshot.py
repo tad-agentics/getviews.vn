@@ -56,6 +56,7 @@ _REQUIRED_ROUTES: list[tuple[str, str]] = [
     ("POST", "/batch/scene-intelligence"),
     ("GET", "/admin/corpus-health"),
     ("GET", "/admin/corpus-class-health"),
+    ("GET", "/admin/hi13-batch-health"),
     ("GET", "/admin/ensemble-credits"),
     ("GET", "/admin/ensemble-call-sites"),
     ("GET", "/admin/ensemble-history"),
