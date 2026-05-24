@@ -10,6 +10,11 @@ import { analysisErrorCopy } from "@/lib/errorMessages";
 import { formatRelativeSinceVi, formatViews } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
+import {
+  formatRitualHookTitle,
+  formatRitualShotLabel,
+  formatRitualWhyWorks,
+} from "@/lib/ritualDisplay";
 
 /**
  * Studio Home — Tier 01 hero ("HÔM NAY QUAY NGAY") ranked list.
@@ -347,6 +352,8 @@ const StudioHeroRow = memo(function StudioHeroRow({
   onClick: () => void;
 }) {
   const rankLabel = String(rank).padStart(2, "0");
+  const hookTitle = formatRitualHookTitle(script.title_vi);
+  const whyWorks = formatRitualWhyWorks(script.why_works);
   return (
     <div
       className={
@@ -357,7 +364,7 @@ const StudioHeroRow = memo(function StudioHeroRow({
       <button
         type="button"
         onClick={onClick}
-        className="group grid w-full grid-cols-[40px_1fr_auto] items-center gap-x-4 gap-y-2 text-left transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+        className="group -mx-[18px] grid w-[calc(100%+36px)] grid-cols-[40px_minmax(0,1fr)] items-start gap-x-4 gap-y-3 px-[18px] py-1 text-left transition-colors hover:bg-[color:var(--gv-canvas-2)] min-[900px]:grid-cols-[40px_minmax(0,1fr)_auto] min-[900px]:items-center"
       >
         <span
           className="gv-mono self-start pt-1 text-[24px] font-semibold leading-none tracking-[-0.02em] text-[color:var(--gv-ink-4)]"
@@ -371,35 +378,43 @@ const StudioHeroRow = memo(function StudioHeroRow({
               HOOK #{rank}
             </span>
             <span
-              className="gv-mono inline-flex items-center gap-1 whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[11px] font-bold gv-kicker tracking-[0.1em]"
+              className="gv-mono inline-flex items-center gap-1 whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[11px] font-bold tracking-[0.06em] normal-case"
               style={{
                 background: "color-mix(in srgb, var(--gv-pos) 12%, transparent)",
                 color: "var(--gv-pos-deep)",
               }}
             >
               <span aria-hidden>●</span>
-              SCRIPT SẴN · {script.shot_count} shot · {script.length_sec}s
+              {formatRitualShotLabel(script.shot_count, script.length_sec)}
             </span>
             {script.hook_type_vi ? (
-              <span className="gv-kicker text-[color:var(--gv-ink-4)]">
+              <span className="gv-mono text-[11px] font-medium uppercase tracking-wider text-[color:var(--gv-ink-4)]">
                 {script.hook_type_vi}
               </span>
             ) : null}
           </div>
           <p
-            className="gv-serif m-0 text-[17px] font-medium leading-[1.3] tracking-[-0.01em] text-[color:var(--gv-ink)]"
+            className="gv-serif m-0 text-[17px] font-medium leading-[1.35] tracking-[-0.01em] text-[color:var(--gv-ink)] line-clamp-3"
             style={{ textWrap: "pretty" }}
           >
-            &ldquo;{script.title_vi}&rdquo;
+            {hookTitle ? (
+              <>
+                <span aria-hidden>&ldquo;</span>
+                {hookTitle}
+                <span aria-hidden>&rdquo;</span>
+              </>
+            ) : (
+              "—"
+            )}
           </p>
-          {script.why_works ? (
-            <p className="mt-1.5 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
-              {script.why_works}
+          {whyWorks ? (
+            <p className="mt-1.5 text-xs leading-[1.5] text-[color:var(--gv-ink-3)] line-clamp-2">
+              {whyWorks}
             </p>
           ) : null}
           <SoundRecommendationStrip script={script} />
         </div>
-        <div className="flex flex-col items-end gap-1 whitespace-nowrap">
+        <div className="col-span-2 flex flex-row items-center justify-between gap-3 min-[900px]:col-span-1 min-[900px]:flex-col min-[900px]:items-end min-[900px]:gap-1 min-[900px]:whitespace-nowrap">
           <span className="gv-mono text-[14px] font-bold" style={{ color: "var(--gv-pos)" }}>
             ▲ ~{script.retention_est_pct}%
           </span>

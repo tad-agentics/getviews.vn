@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — StudioHero ritual row display
+
+- **FE:** Strip nested quotes from `title_vi`; hide English `why_works` mechanism slug; fix SCRIPT pill uppercase; responsive row layout + line-clamp.
+
 ## 2026-05-24 — HooksTable thead layout fix
 
 - **FE:** `gv-kicker` on `<th>` broke `display: table-cell` — move kicker styles to inner `<span>`; drop `table-fixed`/`colgroup`.

@@ -239,6 +239,29 @@ describe("StudioHero", () => {
     );
   });
 
+  it("strips nested quotes from title_vi and English mechanism prefix from why_works", () => {
+    mockUseDailyRitual.mockReturnValue({
+      data: sampleRitual({
+        scripts: [
+          sampleScript({
+            title_vi: '""Hôm nay đi mua serum?"',
+            why_works:
+              "identification — viewer đặt mình vào tình huống thử nghiệm thực tế của creator",
+          }),
+        ],
+      }),
+      emptyReason: null,
+      isPending: false,
+      isError: false,
+      error: undefined,
+      refetch: vi.fn(),
+    });
+    const { getByText, queryByText } = wrap(<StudioHero nicheId={4} />);
+    expect(getByText(/Hôm nay đi mua serum/)).toBeTruthy();
+    expect(queryByText(/identification —/)).toBeNull();
+    expect(getByText(/viewer đặt mình vào tình huống/)).toBeTruthy();
+  });
+
   it("renders a fetch-failure banner instead of the empty cron stub when the ritual query errors", () => {
     mockUseDailyRitual.mockReturnValue({
       data: null,
