@@ -242,10 +242,14 @@ CLASSIFIER_GEMINI_DAILY_MAX = int(os.environ.get("CLASSIFIER_GEMINI_DAILY_MAX", 
 # Global Gemini USD-cost ceiling per UTC day. Sum is read from the
 # `gemini_calls.cost_usd` column for the current day and cached for
 # ``GEMINI_DAILY_USD_CACHE_SEC`` seconds so we don't query DB on every
-# call. CLAUDE.md targets ~$70/mo (~$2.5/day) across all Gemini usage.
-# 0 = unlimited (legacy behaviour).
-GEMINI_DAILY_USD_MAX = _float_env("GEMINI_DAILY_USD_MAX", "0")
-GEMINI_DAILY_USD_ENFORCE = _bool_env("GEMINI_DAILY_USD_ENFORCE", False)
+# call. CLAUDE.md targets ~$70-90/mo (~$2.5-3/day) of normal Gemini spend;
+# the $15/day default here is a *runaway circuit-breaker* — far above
+# normal operation, so it only trips on a stuck client / retry storm /
+# loop. Enforced by default; override per-env (set MAX=0 to disable). The
+# pre-call read fails soft to $0 (see gemini_cost._fetch_today_cost_usd),
+# so a transient DB blip never blocks a legitimate call.
+GEMINI_DAILY_USD_MAX = _float_env("GEMINI_DAILY_USD_MAX", "15")
+GEMINI_DAILY_USD_ENFORCE = _bool_env("GEMINI_DAILY_USD_ENFORCE", True)
 GEMINI_DAILY_USD_CACHE_SEC = int(
     os.environ.get("GEMINI_DAILY_USD_CACHE_SEC", "60") or "60"
 )

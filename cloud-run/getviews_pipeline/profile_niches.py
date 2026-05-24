@@ -69,11 +69,22 @@ _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
 
 
 def _canonical_legacy_niche_id(legacy_id: int) -> int:
-    """Map retired taxonomy ids to surviving ingest bucket (mirror ``profileNiches.ts``)."""
+    """Map retired taxonomy ids to the surviving bucket. MUST stay identical to
+    ``NICHE_TAXONOMY_ALIASES`` in ``src/lib/profileNiches.ts`` — the two power the
+    FE/BE inverse helper (``creatorNicheIdForLegacyNiche`` /
+    ``creator_niche_id_for_legacy_niche``), so any drift makes a retired legacy id
+    resolve on one surface and return None on the other."""
     aliases = {
-        19: 27,
-        20: 27,
-        22: 28,
+        1: 5,    # Review đồ Shopee / Gia dụng → Kinh doanh online / Bán hàng
+        6: 3,    # Chị đẹp retired → Thời trang Phụ kiện
+        12: 5,   # Livestream → Kinh doanh online
+        18: 4,   # Nấu ăn / Công thức → Ẩm thực & Ăn uống
+        19: 27,  # Thú cưng retired → Đời sống · Tâm sự
+        20: 27,  # Nhà cửa retired → Đời sống · Tâm sự
+        22: 28,  # K-pop retired → Âm nhạc · Vũ đạo ingest
+        23: 11,  # Học tiếng → EduTok VN
+        24: 15,  # Crypto / Web3 → Tài chính / Đầu tư
+        25: 14,  # Moto culture → Ô tô / Xe máy
     }
     return aliases.get(int(legacy_id), int(legacy_id))
 
