@@ -19,7 +19,7 @@ const VARIANTS: Record<ChipVariant, string> = {
   ink:
     "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] hover:bg-[color:var(--gv-ink-2)]",
   lime:
-    "border-[color:var(--gv-lime)] bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-accent-soft)]",
+    "border-transparent bg-[color:var(--gv-lime)] font-semibold text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-lime)]",
 };
 
 const SIZES: Record<ChipSize, string> = {
