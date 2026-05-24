@@ -239,10 +239,10 @@ export default function HomeScreen() {
             <Btn
               variant="ink"
               size="sm"
-              className="hidden min-[420px]:inline-flex"
+              className="shrink-0 whitespace-nowrap"
               onClick={() => navigate("/app/answer")}
             >
-              <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
               Phân tích mới
             </Btn>
           }

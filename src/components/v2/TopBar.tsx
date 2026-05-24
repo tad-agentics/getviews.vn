@@ -42,7 +42,7 @@ export function TopBar({
         </div>
       </div>
       {right ? (
-        <div className="flex max-w-[45%] shrink-0 items-center justify-end gap-2 sm:max-w-none sm:gap-2.5">
+        <div className="flex shrink-0 items-center justify-end gap-2 pl-2 sm:gap-2.5">
           {right}
         </div>
       ) : null}
