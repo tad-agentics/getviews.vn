@@ -8,7 +8,27 @@
  * accent-soft / ink-4 palette the reference sound/trend chips use.
  */
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useCorpusHealth, type ClaimTier, type CorpusHealthNicheRow } from "@/hooks/useCorpusHealth";
+import { supabase } from "@/lib/supabase";
+
+/** Thumbnail load-failure count (7d) — folded in from the retired
+ *  ThumbnailFailuresPanel. A non-zero number flags an R2 outage or a batch
+ *  of expired TikTok CDN URLs before it becomes user-facing. Fails soft so
+ *  a denied/erroring RPC never blocks the corpus view. SECURITY DEFINER RPC
+ *  (the table is RLS deny-all). */
+function useThumbnailFailureCount() {
+  return useQuery<number>({
+    queryKey: ["admin", "thumbnail-failures-count"],
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const res = await supabase.rpc("thumbnail_failures_count_7d", { cutoff_ts: cutoff });
+      if (res.error) throw res.error;
+      return (res.data as number) ?? 0;
+    },
+    staleTime: 5 * 60_000,
+  });
+}
 
 const TIER_LABEL: Record<ClaimTier, string> = {
   none: "Chưa đủ ngưỡng",
@@ -143,6 +163,7 @@ function TH({ children }: { children: React.ReactNode }) {
 
 export function CorpusHealthPanel() {
   const q = useCorpusHealth();
+  const thumbFails = useThumbnailFailureCount();
   const [showAllNiches, setShowAllNiches] = useState(false);
 
   const niches = q.data?.niches ?? [];
@@ -182,6 +203,22 @@ export function CorpusHealthPanel() {
         <Bignum label="Video corpus · 30 ngày" value={summary.videos_30d_total} />
         <Bignum label="Video corpus · 90 ngày" value={summary.videos_90d_total} />
       </div>
+
+      {/* Thumbnail load failures (7d) — folded from the retired panel. Hidden
+          while loading / on soft error; shows a danger-toned count when > 0. */}
+      {typeof thumbFails.data === "number" ? (
+        <div className="flex items-center gap-2.5">
+          <span className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-4)]">
+            Lỗi tải thumbnail · 7 ngày
+          </span>
+          <span
+            className="gv-mono text-[13px] font-bold tabular-nums"
+            style={{ color: thumbFails.data > 0 ? "var(--gv-danger)" : "var(--gv-ink-3)" }}
+          >
+            {thumbFails.data.toLocaleString("vi-VN")}
+          </span>
+        </div>
+      ) : null}
 
       {/* Tier distribution */}
       <div className="rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
