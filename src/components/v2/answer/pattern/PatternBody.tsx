@@ -2,12 +2,10 @@
  * Pattern report body — locked render order (Phase C.2.3).
  * Thin sample (&lt;30): first finding only, no WhatStalled, 3 evidence tiles, humility UX.
  */
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { OutlierStory, PatternABPair, PatternReportPayload, SumStatData } from "@/lib/api-types";
-import { ConfidenceStrip } from "./ConfidenceStrip";
 import { EvidenceGrid } from "./EvidenceGrid";
 import { HookFindingCard } from "./HookFindingCard";
-import { HumilityBanner } from "./HumilityBanner";
 import { PatternActionCards } from "./PatternActionCards";
 import { PatternCellGrid } from "./PatternCellGrid";
 import { WhatStalledCard } from "./WhatStalledCard";
@@ -156,7 +154,6 @@ export function PatternBody({
   sessionIntentType?: string;
 }) {
   const thin = report.confidence.sample_size < 30;
-  const [humilityOpen, setHumilityOpen] = useState(true);
 
   const labels = patternLabelsForSessionIntent(sessionIntentType);
 
@@ -170,15 +167,6 @@ export function PatternBody({
 
   return (
     <div className="space-y-8 text-sm text-[color:var(--gv-ink-2)]">
-      <ConfidenceStrip
-        data={report.confidence}
-        thinSample={thin}
-        humilityVisible={humilityOpen}
-        onHumilityToggle={() => setHumilityOpen((v) => !v)}
-      />
-
-      {thin && humilityOpen ? <HumilityBanner /> : null}
-
       {(report.outlier_story || report.ab_pair) && (
         <section className="gv-fade-up" style={{ animationDelay: "60ms" }}>
           {report.outlier_story ? <OutlierStoryBanner story={report.outlier_story} /> : null}

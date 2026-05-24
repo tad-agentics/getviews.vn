@@ -281,11 +281,13 @@ flowchart LR
 
 **Ghi chú:** `performance_tier` do metric (views vs ngách, channel context); `report.mode` có thể lệch tier khi user hỏi “vì sao flop” về video views cao — BE ưu tiên query `mode` khi explicit (§4.10).
 
-### 4.2 Whitelist Cơ bản (đã chốt)
+### 4.2 Whitelist Cơ bản ✅
+
+**Trạng thái:** ✅ **Done** — W1+W3 whitelist + §4.11.3 upsell teasers; QA `test_analysis_depth.py`, `VideoDeepUpsell`.
 
 **Áp dụng cho cả Win và Flop** — cùng `BASIC_SECTION_ALLOWLIST`; khác **copy** trong section `diagnosis` / CTA (theo `report.mode` + `performance_tier`), không khác whitelist.
 
-**Compliance:** giữ trong whitelist khi `applies()` (an toàn pháp lý). *Tùy chọn V1.1:* ẩn `compliance` khỏi Win Basic khi không flag — chỉ nếu product muốn rút gọn doomscroll hơn nữa (§15).
+**Compliance:** giữ trong whitelist khi `applies()` (an toàn pháp lý) — **Win Basic không rút gọn**; V1.1 ẩn khi không flag **closed** (product 2026-05-23).
 
 Sau khi chạy `select_sections_to_emit` như hiện tại, **giữ lại** (theo `display_order`):
 
@@ -299,30 +301,32 @@ Sau khi chạy `select_sections_to_emit` như hiện tại, **giữ lại** (the
 
 **Không có trong Cơ bản** (chỉ Chuyên sâu): `distribution`, `boost_attribution`, `douyin_origin`, `channel_pattern`, `commerce`, `metadata`, `editing`, `sound`, `persona`, `script_structure`.
 
-**Upsell UX (đề xuất):** sau Cơ bản, hiển thị teaser các section bị khóa (“Âm thanh”, “Editing”, “Douyin”…) từ manifest — không synthesize sẵn cho đến khi user chọn Chuyên sâu.
+**Upsell UX:** ✅ sau Cơ bản — teaser section bị khóa (“Âm thanh”, “Editing”, “Douyin”…) từ manifest qua `locked_sections`; không synthesize cho đến Chuyên sâu. BE: [`upsell_locked_sections`](../../cloud-run/getviews_pipeline/diagnose_sections.py) + [`_attach_depth_upsell_metadata`](../../cloud-run/getviews_pipeline/video_analyze.py); FE: [`VideoDeepUpsell`](../../src/components/v2/answer/video/VideoDeepUpsell.tsx).
 
-**Implementation sketch:**
+**As-built:**
 
 ```python
-# diagnose_sections.py — V1
+# diagnose_sections.py — shipped
 BASIC_SECTION_ALLOWLIST = frozenset({
     "diagnosis", "compliance", "hook_analysis", "niche_pattern", "next_video",
 })
 
 def select_sections_to_emit(manifest, ctx, *, depth: str = "basic") -> list[str]:
-    full = _select_sections_full(manifest, ctx)  # logic hiện tại
+    full = _select_sections_full(manifest, _ctx_with_emit_threshold(ctx, depth=depth))
     if depth == "deep":
         return full
     return [s for s in full if s in BASIC_SECTION_ALLOWLIST]
 ```
 
-### 4.3 Chuyên sâu — full pool + signal dày
+### 4.3 Chuyên sâu — full pool + signal dày ✅
+
+**Trạng thái:** ✅ **Done** — F1 @ W3+W4+S4; deep relax salience default on (`879938bf`).
 
 - Gọi `select_sections_to_emit(..., depth="deep")` → **không** lọc whitelist.  
 - Mỗi section trong [`SECTION_POOL`](../../cloud-run/getviews_pipeline/diagnose_sections.py) vẫn phải pass `applies()` + ngưỡng salience riêng (vd. `editing` ≥ 0.4, `hook_analysis` ≥ 0.7).  
-- **Độ dày nội dung:** không chỉ thêm section — xem **§4.8** (signal backlog + `manifest_for_prompt` khi `depth=deep`).  
-- **Tùy chọn V1:** `GETVIEWS_DEEP_RELAX_SALIENCE=1` hạ `SECTION_EMIT_THRESHOLD` 0.5→0.45 **chỉ** khi deep.  
-- Thin niche: vẫn áp dụng `claim_tiers` + `ConfidenceStrip` — deep không được phép bịa số.
+- **Độ dày nội dung:** không chỉ thêm section — xem **§4.8** (signal backlog + `manifest_for_prompt` cap 5 khi deep).  
+- **Deep relax salience:** `getviews_deep_relax_salience` **default true** — hạ `SECTION_EMIT_THRESHOLD` 0.5→0.45 **chỉ** khi deep; opt-out `GETVIEWS_DEEP_RELAX_SALIENCE=false`.  
+- **Thin niche:** `claim_tiers` + prompt guardrails (`should_cite_niche_norms`) — **không** expose `ConfidenceStrip` cho user (product 2026-05-23); BE vẫn gate copy khi mẫu thưa.
 
 ### 4.4 Feature IDs
 
@@ -501,7 +505,7 @@ Video user `suspect_medium`: narrative nói refs là **corpus organic-shaped**; 
 | `build_signal_manifest` | Tính **đủ** (mọi extractor) | Giống Cơ bản |
 | `select_sections_to_emit` | Whitelist §4.2 | Full pool + `boost_attribution` (§4.7) |
 | `manifest_for_prompt` | Top **3** signal/section (`MAX_SIGNALS_PER_SECTION_IN_PROMPT`) | Top **5** khi `analysis_depth=deep` |
-| `SECTION_EMIT_THRESHOLD` | 0.5 | 0.5 (hoặc 0.45 nếu `GETVIEWS_DEEP_RELAX_SALIENCE`) |
+| `SECTION_EMIT_THRESHOLD` | 0.5 | 0.45 default deep (`getviews_deep_relax_salience`; opt-out env `false`) |
 | Corpus trong `ctx` | `niche_meta`, `hook_effectiveness`, refs đã lọc §4.7 | Giống + percentiles p10/p25/p50/p90 cho M1/M3 |
 
 ```python
@@ -1148,7 +1152,7 @@ Dùng [`claim_tiers.py`](../../cloud-run/getviews_pipeline/claim_tiers.py) + [`a
 | `hook_effectiveness` | ≥50 | Hook leaderboard |
 | `trend_delta` | ≥100 | Week-over-week delta |
 
-UI: `ConfidenceStrip` / humility khi dưới ngưỡng — **đã có** trên pattern/diagnostic; áp dụng nhất quán F6.
+UI: `claim_tiers` — **internal only** (prompt + admin corpus-health); không render `ConfidenceStrip` user-facing (product 2026-05-23).
 
 ### 8.4 Feature ID
 

@@ -1,7 +1,5 @@
 import { memo, useState } from "react";
 
-import { ConfidenceStrip } from "@/components/v2/answer/pattern/ConfidenceStrip";
-import { HumilityBanner } from "@/components/v2/answer/pattern/HumilityBanner";
 import { useTopPatterns, type TopPattern, type TopPatternsScope } from "@/hooks/useTopPatterns";
 import { PatternCard } from "./PatternCard";
 import { PatternModal } from "./PatternModal";
@@ -21,45 +19,13 @@ const PATTERN_LIMIT = 6;
 export const TrendsPatternGrid = memo(function TrendsPatternGrid({
   patternScope,
   legacyNicheId = null,
-  thinSample = false,
-  thinSampleCount = 0,
-  nicheScopeLabel = null,
-  freshnessHours = 24,
 }: {
   patternScope: TopPatternsScope;
   /** PatternModal still keys related corpus on legacy id when set. */
   legacyNicheId?: number | null;
-  thinSample?: boolean;
-  thinSampleCount?: number;
-  nicheScopeLabel?: string | null;
-  freshnessHours?: number;
 }) {
   const { data: patterns = [], isPending } = useTopPatterns(patternScope, PATTERN_LIMIT);
   const [openPattern, setOpenPattern] = useState<TopPattern | null>(null);
-  const [humilityOpen, setHumilityOpen] = useState(true);
-
-  const confidenceStrip = thinSample ? (
-    <>
-      <ConfidenceStrip
-        data={{
-          sample_size: thinSampleCount,
-          window_days: 7,
-          niche_scope: nicheScopeLabel,
-          freshness_hours: freshnessHours,
-          intent_confidence: "low",
-          what_stalled_reason: null,
-        }}
-        thinSample
-        humilityVisible={humilityOpen}
-        onHumilityToggle={() => setHumilityOpen((v) => !v)}
-      />
-      {humilityOpen ? (
-        <div className="mb-4">
-          <HumilityBanner />
-        </div>
-      ) : null}
-    </>
-  ) : null;
 
   return (
     <section aria-label="Công thức từ video view cao trong ngách" className="mb-14">
@@ -77,8 +43,6 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
           Chạm thẻ để xem công thức đầy đủ.
         </p>
       </div>
-
-      {confidenceStrip}
 
       {/* Grid */}
       {isPending ? (

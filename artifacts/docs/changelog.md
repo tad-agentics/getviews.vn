@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — Remove user-facing ConfidenceStrip; mark §4.2/§4.3 done
+
+- **UX:** Gỡ `ConfidenceStrip` + `HumilityBanner` khỏi Pattern/Ideas/Timing/Diagnostic/Lifecycle/Generic + Xu hướng (Kho/Pattern grid). `claim_tiers` vẫn gate synthesis BE — không expose metadata mẫu cho user.
+- **Docs:** `feature-map-v1` §4.2 ✅, §4.3 ✅ (deep relax default on; thin niche internal-only).
+
 ## 2026-05-24 — Compare as first-class answer-session format
 
 - **Migration off `/stream`:** Two-URL side-by-side diagnosis is now an `/app/answer` session (`format='compare'`) instead of the legacy `/app/compare` screen + `POST /stream compare_videos`. Deleted `CompareScreen.tsx` + `/app/compare` route; `planAnswerEntry` opens a `compare` session; `CompareBody` renders via `ReportV1` `kind='compare'`.

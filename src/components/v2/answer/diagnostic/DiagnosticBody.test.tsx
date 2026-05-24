@@ -307,36 +307,4 @@ describe("DiagnosticBody niche execution tip", () => {
   });
 });
 
-describe("DiagnosticBody thin-sample chip", () => {
-  it("shows MẪU MỎNG when sample_size < 80", () => {
-    renderBody(
-      mkReport({
-        confidence: {
-          sample_size: 20,
-          window_days: 14,
-          niche_scope: "Skincare",
-          freshness_hours: 6,
-          intent_confidence: "low",
-          what_stalled_reason: null,
-        },
-      }),
-    );
-    expect(screen.getByText("MẪU MỎNG")).toBeTruthy();
-  });
-
-  it("hides the chip when sample_size >= 80", () => {
-    renderBody(
-      mkReport({
-        confidence: {
-          sample_size: 200,
-          window_days: 14,
-          niche_scope: "Skincare",
-          freshness_hours: 6,
-          intent_confidence: "medium",
-          what_stalled_reason: null,
-        },
-      }),
-    );
-    expect(screen.queryByText("MẪU MỎNG")).toBeNull();
-  });
-});
+// ── Actions section ───────────────────────────────────────────────────────

@@ -223,42 +223,6 @@ describe("LifecycleBody refresh moves", () => {
   });
 });
 
-// ── Thin-corpus MẪU MỎNG toggle ───────────────────────────────────────────
-
-describe("LifecycleBody thin-sample humility banner", () => {
-  it("shows 'MẪU MỎNG' chip when sample_size < 80", () => {
-    renderBody(
-      mkReport({
-        confidence: {
-          sample_size: 42,
-          window_days: 30,
-          niche_scope: "Skincare",
-          freshness_hours: 8,
-          intent_confidence: "low",
-          what_stalled_reason: null,
-        },
-      }),
-    );
-    expect(screen.getByText("MẪU MỎNG")).toBeTruthy();
-  });
-
-  it("hides the chip when sample_size >= 80", () => {
-    renderBody(
-      mkReport({
-        confidence: {
-          sample_size: 200,
-          window_days: 30,
-          niche_scope: "Skincare",
-          freshness_hours: 3,
-          intent_confidence: "high",
-          what_stalled_reason: null,
-        },
-      }),
-    );
-    expect(screen.queryByText("MẪU MỎNG")).toBeNull();
-  });
-});
-
 // ── Actions section ───────────────────────────────────────────────────────
 
 describe("LifecycleBody action cards", () => {

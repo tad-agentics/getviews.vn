@@ -13,12 +13,8 @@
  * primitives render — no component-level branching.
  */
 
-import { useState } from "react";
-
 import type { IdeasReportPayload } from "@/lib/api-types";
 
-import { ConfidenceStrip } from "../pattern/ConfidenceStrip";
-import { HumilityBanner } from "../pattern/HumilityBanner";
 import { IdeaBlock } from "./IdeaBlock";
 import { IdeasActionCards } from "./IdeasActionCards";
 import { LeadParagraph } from "./LeadParagraph";
@@ -34,9 +30,6 @@ export function IdeasBody({
   report: IdeasReportPayload;
   sessionIntentType?: string;
 }) {
-  const thin = report.confidence.sample_size < 60;
-  const [humilityOpen, setHumilityOpen] = useState(true);
-
   const { leadTitle, sectionKicker, ideasHeading } = ideasLeadAndSectionTitles({
     variant: report.variant,
     sessionIntentType,
@@ -51,15 +44,6 @@ export function IdeasBody({
 
   return (
     <div className="space-y-8 text-sm text-[color:var(--gv-ink-2)]">
-      <ConfidenceStrip
-        data={report.confidence}
-        thinSample={thin}
-        humilityVisible={humilityOpen}
-        onHumilityToggle={() => setHumilityOpen((v) => !v)}
-      />
-
-      {thin && humilityOpen ? <HumilityBanner /> : null}
-
       <LeadParagraph title={leadTitle} body={report.lead} />
 
       {report.ideas.length > 0 ? (

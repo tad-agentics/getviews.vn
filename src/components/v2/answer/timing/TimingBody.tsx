@@ -10,12 +10,8 @@
  * `variance_note.kind === "sparse"`.
  */
 
-import { useState } from "react";
-
 import type { TimingReportPayload } from "@/lib/api-types";
 
-import { ConfidenceStrip } from "../pattern/ConfidenceStrip";
-import { HumilityBanner } from "../pattern/HumilityBanner";
 import { CalendarStrip } from "./CalendarStrip";
 import { FatigueBand } from "./FatigueBand";
 import { TimingActionCards } from "./TimingActionCards";
@@ -31,24 +27,12 @@ export function TimingBody({
   report: TimingReportPayload;
   sessionIntentType?: string;
 }) {
-  const thin = report.confidence.sample_size < 80;
-  const [humilityOpen, setHumilityOpen] = useState(true);
-
   const legendFooter = `Dữ liệu từ ${report.confidence.sample_size} video · ngách ${
     report.confidence.niche_scope ?? "—"
   }`;
 
   return (
     <div className="space-y-8 text-sm text-[color:var(--gv-ink-2)]">
-      <ConfidenceStrip
-        data={report.confidence}
-        thinSample={thin}
-        humilityVisible={humilityOpen}
-        onHumilityToggle={() => setHumilityOpen((v) => !v)}
-      />
-
-      {thin && humilityOpen ? <HumilityBanner /> : null}
-
       <TimingHeadline report={report} sessionIntentType={sessionIntentType} />
 
       <TimingHeatmap grid={report.grid} legendFooter={legendFooter} />

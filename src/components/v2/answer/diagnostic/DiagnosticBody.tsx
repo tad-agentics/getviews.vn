@@ -15,7 +15,6 @@
  */
 
 import { useNavigate } from "react-router";
-import { useState } from "react";
 
 import type {
   DiagnosticCategoryData,
@@ -23,9 +22,6 @@ import type {
   DiagnosticReportPayload,
   DiagnosticVerdictData,
 } from "@/lib/api-types";
-
-import { ConfidenceStrip } from "../pattern/ConfidenceStrip";
-import { HumilityBanner } from "../pattern/HumilityBanner";
 
 // ── Verdict badge ───────────────────────────────────────────────────────────
 
@@ -177,20 +173,8 @@ function PasteLinkCTA({
 // ── Main body ──────────────────────────────────────────────────────────────
 
 export function DiagnosticBody({ report }: { report: DiagnosticReportPayload }) {
-  const thin = report.confidence.sample_size < 80;
-  const [humilityOpen, setHumilityOpen] = useState(true);
-
   return (
     <div className="space-y-8 text-sm text-[color:var(--gv-ink-2)]">
-      <ConfidenceStrip
-        data={report.confidence}
-        thinSample={thin}
-        humilityVisible={humilityOpen}
-        onHumilityToggle={() => setHumilityOpen((v) => !v)}
-      />
-
-      {thin && humilityOpen ? <HumilityBanner /> : null}
-
       {/* A1 — staggered fade-up (per design pack ``screens/answer.jsx`` §reveal). */}
       <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
         <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">

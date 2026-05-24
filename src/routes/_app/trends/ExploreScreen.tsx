@@ -25,8 +25,6 @@ import { useCreatorNiches } from "@/hooks/useCreatorNiches";
 import { TrendsDouyinCard } from "./TrendsDouyinCard";
 import { CrossNicheBreakoutLane } from "./components/CrossNicheBreakoutLane";
 import { TrendsPatternGrid } from "./TrendsPatternGrid";
-import { ConfidenceStrip } from "@/components/v2/answer/pattern/ConfidenceStrip";
-import { HumilityBanner } from "@/components/v2/answer/pattern/HumilityBanner";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
 import { TrendsRail } from "./TrendsRail";
 import { useContentClassIntelligence } from "@/hooks/useContentClassIntelligence";
@@ -502,7 +500,6 @@ export default function ExploreScreen() {
   // round-tripping through URL params.
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
-  const [khoHumilityOpen, setKhoHumilityOpen] = useState(true);
   const formatMenuRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -555,16 +552,15 @@ export default function ExploreScreen() {
     [selectedCreatorNicheId],
   );
 
-  const { data: contentClassIds = [], isPending: contentClassIdsLoading } = useQuery({
+  const { data: contentClassIds = [] } = useQuery({
     queryKey: ["creator_niche_content_classes", selectedCreatorNicheId],
     queryFn: () => fetchContentClassIdsForCreatorNiche(selectedCreatorNicheId!),
     enabled: selectedCreatorNicheId != null,
     staleTime: 10 * 60_000,
   });
 
-  const { data: junctionIntel, isPending: junctionIntelLoading } =
+  const { data: junctionIntel } =
     useContentClassIntelligence(contentClassIds);
-  const junctionAggregateSample = junctionIntel?.aggregateSampleSize ?? 0;
 
   const patternScope = useMemo<TopPatternsScope>(
     () => ({
@@ -605,37 +601,6 @@ export default function ExploreScreen() {
         : undefined,
     [niches, selectedCreatorNicheId],
   );
-
-  const hasJunctionClasses = contentClassIds.length > 0;
-
-  const { data: legacyCorpusSample = 0, isPending: legacySamplePending } = useQuery({
-    queryKey: ["video_corpus", "legacy_sample", selectedNicheId],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("video_corpus")
-        .select("*", { count: "planned", head: true })
-        .eq("ingest_loop_niche_id", selectedNicheId!);
-      if (error) throw error;
-      return count ?? 0;
-    },
-    enabled: selectedNicheId != null && !hasJunctionClasses,
-    staleTime: 5 * 60_000,
-  });
-
-  const lowVideoCorpus = Boolean(
-    selectedCreatorNicheId != null &&
-      !contentClassIdsLoading &&
-      (hasJunctionClasses
-        ? !junctionIntelLoading && junctionAggregateSample < 10
-        : selectedNicheId != null &&
-          !legacySamplePending &&
-          legacyCorpusSample < 10),
-  );
-
-  const thinCorpusSampleCount = hasJunctionClasses
-    ? junctionAggregateSample
-    : legacyCorpusSample;
-  const thinCorpusUsesClassCopy = hasJunctionClasses;
 
   const staleTimestamp = junctionIntel?.latestComputedAt ?? null;
   const trendsDataFreshLabel = useMemo(() => {
@@ -890,13 +855,6 @@ export default function ExploreScreen() {
               legacyNicheId={selectedNicheId}
               className="mb-4 min-[1100px]:hidden"
             />
-            {selectedNicheId !== null && lowVideoCorpus ? (
-              <p className="mb-4 text-xs text-[var(--muted)]">
-                {thinCorpusUsesClassCopy
-                  ? `Ngách này mới có ${thinCorpusSampleCount} video cùng format trong mẫu phân tích — dữ liệu chưa đầy đủ.`
-                  : `Ngách này mới có ${thinCorpusSampleCount} video trong mẫu phân tích — dữ liệu chưa đầy đủ.`}
-              </p>
-            ) : null}
           </section>
 
           {/* PR-T5 — compact Kho Douyin link card. Visible on every
@@ -926,10 +884,6 @@ export default function ExploreScreen() {
             <TrendsPatternGrid
               patternScope={patternScope}
               legacyNicheId={selectedNicheId}
-              thinSample={lowVideoCorpus}
-              thinSampleCount={thinCorpusSampleCount}
-              nicheScopeLabel={selectedNicheName}
-              freshnessHours={24}
             />
           ) : null}
 
@@ -986,25 +940,6 @@ export default function ExploreScreen() {
                 </div>
               </div>
             </div>
-
-            {selectedNicheId !== null && lowVideoCorpus ? (
-              <div className="mb-5 space-y-3">
-                <ConfidenceStrip
-                  data={{
-                    sample_size: thinCorpusSampleCount,
-                    window_days: 30,
-                    niche_scope: selectedNicheName ?? null,
-                    freshness_hours: 24,
-                    intent_confidence: "low",
-                    what_stalled_reason: null,
-                  }}
-                  thinSample
-                  humilityVisible={khoHumilityOpen}
-                  onHumilityToggle={() => setKhoHumilityOpen((v) => !v)}
-                />
-                {khoHumilityOpen ? <HumilityBanner /> : null}
-              </div>
-            ) : null}
 
             <div
               className="mb-5 flex w-full min-w-0 flex-wrap items-center gap-2"
