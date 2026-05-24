@@ -1,0 +1,50 @@
+{
+  "task_id": "section6-channel-studio",
+  "generated_at": "2026-05-24",
+  "baseline_commit": "37831b05",
+  "verdict": "PASS",
+  "scope": "§6 Studio Home channel analysis — F4 Sâu + F5 Nhanh embed; Khám kênh tab removed",
+  "items": {
+    "FE_STUDIO_EMBED": {
+      "status": "done",
+      "evidence": [
+        "src/routes/_app/home/components/HomeMyChannelSection.tsx",
+        "src/routes/_app/channel/components/ChannelStudioPanel.tsx",
+        "src/routes/_app/home/HomeScreen.tsx"
+      ]
+    },
+    "FE_BENCHMARK_STRIP": {
+      "status": "done",
+      "evidence": [
+        "src/routes/_app/channel/components/ChannelBenchmarkStrip.tsx",
+        "src/lib/channelBenchmarkRank.ts",
+        "src/routes/_app/channel/components/ChannelBenchmarkStrip.test.tsx"
+      ]
+    },
+    "FE_HANDOFF_REDIRECT": {
+      "status": "done",
+      "evidence": [
+        "src/lib/channelStudioHandoff.ts",
+        "src/routes/_app/channel/ChannelScreen.tsx",
+        "src/routes/_app/intent-router.ts"
+      ]
+    },
+    "BE_QUICK_PEEK_FIELDS": {
+      "status": "done",
+      "evidence": [
+        "cloud-run/getviews_pipeline/channel_quick_peek.py channel_summary niche_benchmarks",
+        "cloud-run/tests/test_channel_quick_peek.py"
+      ],
+      "deploy_note": "Cloud Run user pod required for live Nhanh strip"
+    },
+    "TESTS": {
+      "status": "done",
+      "evidence": [
+        "src/routes/_app/channel/ChannelStudioPanel.test.tsx",
+        "src/lib/channelStudioHandoff.test.ts",
+        "src/routes/_app/channel/ChannelScreen.test.tsx"
+      ]
+    }
+  },
+  "acceptance": "Channel on /app via HomeMyChannelSection; /app/channel redirect; ChannelBenchmarkStrip wired to quick-peek payload; Sâu SSE unchanged transport."
+}

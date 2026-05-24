@@ -1,11 +1,11 @@
-# Feature Map (main @ b479f64)
+# Feature Map (main @ 77b18bf8)
 
 *Comprehensive full-stack inventory of user-facing surfaces, backend endpoints, synthesis paths, and database tables. **Source of truth** for what ships where — update this file in the same commit as any route, endpoint, or orchestration change.*
 
 *User value / JTBD / gap analysis:* [`product-value-audit.md`](product-value-audit.md) (value → data, doc-only).  
 *V1 product vision (chỉ phạm vi ship GTM V1):* [`feature-map-v1.md`](feature-map-v1.md) — **không** liệt kê tính năng ngoài V1; xem **§ Post-V1 backlog** bên dưới.
 
-*Verified against codebase **2026-05-23** @ `b479f64` (Launch Phases 0–2c + infra; Wave 5 @ `680c803`). Spot-checked: Channel Nhanh/Sâu depth; `GET /channel/quick-peek`; M4 `stats_history` refetch; `channel_findings` P1/P2; video P1 signals; Cloud Run batch `00132-4sg`; cron/vault parity.*
+*Verified against codebase **2026-05-24** @ `37831b05` (§6 Studio channel embed + benchmark strip; Wave 5 @ `680c803`). Spot-checked: `HomeMyChannelSection` / `ChannelStudioPanel`; `/app/channel` redirect shim; `GET /channel/quick-peek` `channel_summary` + `niche_benchmarks`; M4 `stats_history`; `channel_findings` P1/P2; video P1 signals.*
 
 *Pivot SSOT:* Production ingest/browse defaults — [`system-design.md`](system-design.md) §9 · taxonomy tables — [`two-axis-niche-model.md`](two-axis-niche-model.md).*
 
@@ -88,8 +88,9 @@
      - **Tier III — Cảm hứng:** `BreakoutGrid` (`useTopBreakouts` → `video_corpus`, **within** user's junction `content_class_id`; cap 3; rotating window; copy: breakout trong ngách từ creator khác) → link `/app/trends`
   3. **Starter creators** — `/home/starter-creators`
   4. **Pulse data** — `DataFreshnessPill` + `/home/pulse`
-  5. **Query composer** — 4 pills + Cơ bản/Chuyên sâu → intent router → `/app/answer` | `/app/channel` (script via `shot_list` → Answer `format=script`)
-  6. **Niche picker** — session-scoped browse anchor (`studioNicheSession.ts`); profile `creator_niche_id` is SSOT
+  5. **Soi kênh (F4/F5 @ §6)** — `HomeMyChannelSection` → `ChannelStudioPanel` (`ChannelDepthPicker`, Nhanh `ChannelBenchmarkStrip`, Sâu `ChannelDiagnosisBody` SSE). Query: `?handle=`, `?depth=nhanh|sau`, optional `force_refresh=true`, `video_url`. Intent router + action cards → `buildChannelStudioPath()` → `/app?handle=…` (not standalone tab).
+  6. **Query composer** — 4 pills + Cơ bản/Chuyên sâu → intent router → `/app/answer` | `/app?handle=…` (channel @handle) | script via `shot_list` → Answer `format=script`
+  7. **Niche picker** — session-scoped browse anchor (`studioNicheSession.ts`); profile `creator_niche_id` is SSOT
 - **FE hooks (browse filter):** `fetchContentClassIdsForCreatorNiche`, `applyVideoCorpusNicheFilter` (`src/lib/corpusNicheFilter.ts`)
 - **BE endpoints:**
   - GET `/home/pulse` → `cloud-run/getviews_pipeline/routers/home.py:31`
@@ -190,22 +191,38 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
 
 ---
 
-## 5. /app/channel — Channel Analysis (Nhanh + Sâu)
+## 5. Channel Analysis (F4 Sâu + F5 Nhanh) — Studio Home @ §6
 
-- **FE:** `src/routes/_app/channel/ChannelScreen.tsx` — `ChannelDepthPicker`, `ChannelNhanhPanel` (Launch Phase 1)
-- **Entry:** `/app/channel?handle=<@handle>` (+ optional `creator_niche_id`, `force_refresh=true`, `video_url`)
-- **Depth:** **Nhanh** (0 credit, corpus-only) · **Sâu** (3× credit, live SSE)
-- **BE endpoints:**
-  - GET `/channel/user-search` (`video.py:100`) — handle autocomplete
-  - GET `/channel/quick-peek` (`video.py`) — F5 Nhanh payload (corpus-only, no credits) @ Launch Phase 1
-  - POST `/channel/diagnose` (`video.py:736`) — SSE narrative channel diagnosis (Lightreel-style v2)
-  - POST `/channel/refresh-mine` (`video.py:143`) — refresh signed-in user's channel
-- **Cache:** `channel_diagnoses` row, **`max_age_days=7`** default (`_fetch_channel_diagnoses_cache`, `video.py:291`); `force_refresh=true` bypasses
-- **Synthesis:** `channel_diagnose.py` + `channel_diagnose_prompts.py` + **`channel_findings.py`** (Wave 4 P0 + Launch P1/P2 findings → `<<<CHANNEL FINDINGS>>>` + SSE Layer B); corpus-first peers + live EnsembleData hybrid
-- **Peer filter (Wave 4):** `_run_peer_corpus_query(..., reference_eligible_only=True)` with &lt;4-handle unfiltered fallback — peers not ads-skew
-- **Credit cost:** **3** `credits_remaining` per cache-miss diagnosis — FE `ChannelScreen.tsx` `CREDIT_COST=3`; BE `channel_diagnose.CHANNEL_DIAGNOSE_CREDIT_COST=3` (pre-check balance ≥3, then 3× `decrement_credit` RPC). Cache hit free. No credit rollback on `stream_failed` (as-built).
+**Primary UX:** embedded on **`/app`** via `HomeMyChannelSection` + `ChannelStudioPanel` (`37831b05`). Bottom/sidebar tab **Khám kênh** removed.
+
+### Legacy shim: `/app/channel`
+
+- **FE:** `src/routes/_app/channel/route.tsx` → `ChannelScreen.tsx` **redirect only** to `/app?handle=…` (query preserved via `channelStudioHandoff.ts`)
+- **Entry (legacy URLs):** `/app/channel?handle=<@handle>` → 302-style client redirect to Studio Home
+
+### Studio panel (`ChannelStudioPanel`)
+
+- **Nhanh (F5):** 0 credit — `useChannelQuickPeek` → GET `/channel/quick-peek`; `ChannelBenchmarkStrip` (views / ER / cadence vs niche from `channel_summary` + `niche_benchmarks`)
+- **Sâu (F4):** 3× credit — `useChannelDiagnose` → POST `/channel/diagnose` SSE; `ChannelDiagnosisBody` → `ScoreCard`, trajectory badges, `SectionRenderer` memo sections
+- **Depth picker:** `ChannelDepthPicker` (Nhanh / Sâu); deep-link `?depth=sau`; credits upsell when balance &lt; 3
+- **Handoff:** `buildChannelStudioPath()` used by `intent-router.ts`, `PatternActionCards`, `TimingActionCards`
+
+### BE endpoints (unchanged transport)
+
+- GET `/channel/user-search` (`video.py:100`) — handle autocomplete
+- GET `/channel/quick-peek` (`video.py`) — F5 payload: corpus-only findings teaser + **`channel_summary`** + **`niche_benchmarks`** @ §6
+- POST `/channel/diagnose` (`video.py:736`) — SSE narrative channel diagnosis (Lightreel-style v2)
+- POST `/channel/refresh-mine` (`video.py:143`) — refresh signed-in user's channel
+
+### Cache, synthesis, billing
+
+- **Cache:** `channel_diagnoses` row, **`max_age_days=7`** (`_fetch_channel_diagnoses_cache`); `force_refresh=true` bypasses **client** dedupe only (server cache unchanged unless cache miss)
+- **Synthesis:** `channel_diagnose.py` + `channel_diagnose_prompts.py` + **`channel_findings.py`** (Wave 4 P0 + Launch P1/P2 → `<<<CHANNEL FINDINGS>>>`); corpus-first peers + live EnsembleData hybrid
+- **Peer filter (Wave 4):** `_run_peer_corpus_query(..., reference_eligible_only=True)` with &lt;4-handle unfiltered fallback
+- **Credit cost (Sâu):** **3×** `decrement_credit` on cache miss — FE `CHANNEL_SAU_CREDIT_COST=3`; BE `CHANNEL_DIAGNOSE_CREDIT_COST=3`. Cache hit free.
 - **DB tables:** `channel_diagnoses`, `video_patterns`, `hook_effectiveness`, `creator_velocity`, `niche_insights`
 - **Status:** shipped & live
+- **Evidence:** `HomeMyChannelSection.tsx`, `ChannelStudioPanel.tsx`, `ChannelBenchmarkStrip.tsx`, `channel_quick_peek.py`, `channelStudioHandoff.ts`
 
 ---
 

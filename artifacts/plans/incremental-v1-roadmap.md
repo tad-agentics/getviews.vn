@@ -438,12 +438,12 @@ Format per project AskUserQuestion: Tech Lead presents options A/B/C with Comple
 
 ## 8. Doc maintenance checklist (per wave)
 
-- [ ] Update [`feature-map.md`](../docs/feature-map.md) as-built rows for touched routes/endpoints
-- [ ] Append [`changelog.md`](../docs/changelog.md) in same commit as code
-- [ ] If FIELD wired: update [`data-utilization-map-v1.md`](../docs/data-utilization-map-v1.md) row + remove from §8 orphans
-- [ ] If architectural: update [`system-design.md`](../docs/system-design.md) §9/§10
-- [x] QA baseline: `artifacts/qa-reports/<wave-id>-baseline.json` (Wave 5: `wave5-baseline.json` @ `680c803`)
-- [ ] Do **not** edit canonical `feature-map-v1.md` without human amendment approval
+- [x] Update [`feature-map.md`](../docs/feature-map.md) as-built rows for touched routes/endpoints — §2 + §5 @ `37831b05` (2026-05-24)
+- [x] Append [`changelog.md`](../docs/changelog.md) in same commit as code — §6 + §8 doc sync entries
+- [x] If FIELD wired: update [`data-utilization-map-v1.md`](../docs/data-utilization-map-v1.md) row + remove from §8 orphans — `channel_summary` / `niche_benchmarks` @ §6 (2026-05-24)
+- [x] If architectural: update [`system-design.md`](../docs/system-design.md) §9/§10 — routes §2–§3 + §16 Studio embed (2026-05-24)
+- [x] QA baseline: `artifacts/qa-reports/<wave-id>-baseline.json` — Wave 4: `wave4-baseline.json` @ `9b97207`; Wave 5: `wave5-baseline.json` @ `680c803`; §6: `section6-channel-studio-baseline.json` @ `37831b05`
+- [x] Do **not** edit canonical `feature-map-v1.md` without human amendment approval — §5.1 F4/F5 edits were human-approved @ §6 ship
 
 ---
 

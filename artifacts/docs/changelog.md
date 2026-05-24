@@ -1,5 +1,17 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — §8 doc sync (Studio channel + utilization map)
+
+- **`feature-map.md`:** §2 Studio `HomeMyChannelSection`; §5 rewritten — F4/F5 on `/app`, `/app/channel` redirect shim @ `37831b05`.
+- **`system-design.md`:** Routes §2–§3 + §16 — Studio embed, intent `@handle` → `/app?handle=…`, quick-peek benchmark fields.
+- **`data-utilization-map-v1.md`:** §6 rows for `channel_summary` + `niche_benchmarks`; §6.1 F5 strip + F4 memo surfaces.
+- **QA:** `wave4-baseline.json` @ `9b97207`; `section6-channel-studio-baseline.json` @ `37831b05`.
+- **`incremental-v1-roadmap.md`:** §8 checklist marked complete.
+
+## 2026-05-24 — Roadmap §6.1 + §7 decision gates complete
+
+- **`incremental-v1-roadmap.md`:** §6.1 wired table + commit refs; §7 G1–G6 all resolved @ `77b18bf8`.
+
 ## 2026-05-24 — StudioHero ritual row display
 
 - **FE:** Strip nested quotes from `title_vi`; hide English `why_works` mechanism slug; fix SCRIPT pill uppercase; responsive row layout + line-clamp.

@@ -2,9 +2,9 @@
 
 > **Pivot SSOT (2026-05-21+):** Cohort canonical = `(content_class_id, creator_tier)`; browse/filter = junction `content_class_id` — [`system-design.md`](system-design.md) §9 · [`two-axis-niche-model.md`](two-axis-niche-model.md).
 
-**Version:** 1.4 (Wave 5 ship + doc resync)  
-**Last updated:** 2026-05-23  
-**Code baseline:** `main` @ `680c803` (Wave 5 ship; Wave 4 @ `9b97207`; Wave 3 @ `9cd0957`)  
+**Version:** 1.5 (§6 channel quick-peek fields + Studio surfaces)  
+**Last updated:** 2026-05-24  
+**Code baseline:** `main` @ `37831b05` (§6 Studio channel; Wave 5 @ `680c803`; Wave 4 @ `9b97207`; Wave 3 @ `9cd0957`)  
 **Status:** As-built FIELD × feature matrix  
 **Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0–5 ✅ @ `680c803`; **Launch Phases 0–2c + infra ✅** @ `b479f64`  
 **As-built routes:** [`feature-map.md`](feature-map.md)  
@@ -221,6 +221,8 @@
 | `daily_ritual` | — | — | — | — | — | show | anchor | MV | Top corpus + ritual templates | **✅** STU Tier I `StudioHero` |
 | `scene_intelligence` | — | teaser | — | — | — | — | spec | MV | `scenes[]` enrichment nightly | **✅** F7 panel |
 | `creator_velocity` | — | — | show | score | — | — | — | MV | ED rollup by handle | **✅** channel score card inputs |
+| **`channel_summary`** (quick-peek derived) | — | — | show | — | — | show | — | — | Handle corpus avg views, ER, posts/week | **✅** `channel_quick_peek.py` → `ChannelBenchmarkStrip` @ §6 |
+| **`niche_benchmarks`** (quick-peek serialized) | — | — | bench | score | — | show | — | — | `niche_channel_benchmarks` RPC p25/p50/p75 + cadence | **✅** Nhanh strip + Sâu `compute_score_card` |
 | `trending_sounds` | teaser | audit | — | — | feed | — | spec | MV | `sound_id`, lifecycle | **✅** |
 | `claim_tiers` | gate | gate | gate | gate | gate | gate | gate | gate | Sample size gates | **✅** `ConfidenceStrip`, corpus-health |
 | `channel_diagnoses` (cached memo) | — | — | — | show | — | — | — | — | Output F4 | **✅** 7d cache + findings inject |
@@ -238,6 +240,8 @@
 | **F6 TrendsRail** | `useTrendsRailVideos` | Within `ingest_loop_niche_id` — 7d + viral rails |
 | **F1/F2 diagnosis** | `fetch_video_benchmark_with_axis` | tier MV → class MV → niche fallback |
 | **F4 channel peers** | `video_corpus` by handle | Class+tier fallback chain; `reference_eligible` filter + thin fallback |
+| **F5 Nhanh strip** | GET `/channel/quick-peek` | `channel_summary` + `niche_benchmarks` → `ChannelBenchmarkStrip` on Studio Home @ §6 |
+| **F4 Sâu memo** | POST `/channel/diagnose` SSE | `ChannelDiagnosisBody` on Studio Home; legacy `/app/channel` redirect only |
 
 ---
 

@@ -84,7 +84,7 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/` | Landing | Pre-rendered for SEO. Eager-loaded. |
 | `/login` `/signup` | Auth | Supabase OAuth redirect. |
 | `/auth/callback` | Auth | OAuth callback handler. |
-| `/app` | App shell | Auth-guarded by `_app/layout.tsx`. `?session=` → `/app/history/chat/:id`. No niche → `/app/onboarding`. |
+| `/app` | Studio Home | Auth-guarded shell. `?session=` → `/app/history/chat/:id`. No niche → `/app/onboarding`. **Channel (F4/F5):** `?handle=` + optional `?depth=nhanh\|sau` — `HomeMyChannelSection` / `ChannelStudioPanel` @ §6. |
 | `/app/onboarding` | Onboarding | Single-niche picker (`profiles.creator_niche_id`). |
 | `/app/answer` | Answer | **Primary** structured video report + Q&A turns (`ReportV1`). Replaces deleted `/app/video`. |
 | `/app/history` | History | Session list via `history_union` RPC. |
@@ -92,7 +92,7 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/app/trends` | Trends | Niche intelligence + hook effectiveness. |
 | `/app/douyin` | Douyin | Douyin trend analysis. |
 | `/app/compare` | Compare | Two URLs → `POST /stream` `compare_videos`. |
-| `/app/channel` | Channel | Channel deep-dive (`POST /channel/diagnose`). |
+| `/app/channel` | *(legacy shim)* | Redirects to `/app?handle=…` (query preserved). **Khám kênh** tab removed @ §6 (`37831b05`). Transport unchanged: Nhanh → GET `/channel/quick-peek`; Sâu → POST `/channel/diagnose`. |
 | `/app/script` | *(legacy shim)* | Redirects to `/app/answer` with composer `?q=` prefill. |
 | `/app/script/shoot/:draftId` | *(legacy shim)* | Redirects to `/app/answer?shoot=:draftId`. |
 | `/app/settings` | Settings | Profile + niche edit. |
@@ -109,7 +109,7 @@ Do not use React Router `clientLoader` — TanStack Query is the data layer.
 
 ## 3. Intent Routing
 
-`src/routes/_app/intent-router.ts` — `detectIntent(query)` classifies input; `resolveDestination()` maps intent → **screen** (`answer:video`, `answer:pattern`, `/app/compare`, `/app/channel`, …). **Transport** (which HTTP endpoint) is chosen separately by the screen/hook — see §4.
+`src/routes/_app/intent-router.ts` — `detectIntent(query)` classifies input; `resolveDestination()` maps intent → **screen** (`answer:video`, `answer:pattern`, `/app/compare`, `/app?handle=…`, …). **Transport** (which HTTP endpoint) is chosen separately by the screen/hook — see §4.
 
 ```
 User message
@@ -122,7 +122,7 @@ User message
      │                 (answer_turn SSE — NOT POST /video; route deleted)
      │
      ├─ Contains @handle?
-     │      └─ YES → channel → /app/channel → POST /channel/diagnose
+     │      └─ YES → channel → `/app?handle=…` (`buildChannelStudioPath`) → Nhanh: GET `/channel/quick-peek` · Sâu: POST `/channel/diagnose`
      │
      ├─ Explicit keyword (trends / douyin / script / …)?
      │      └─ YES → specialized intent → answer:* shelf or dedicated screen
@@ -759,7 +759,7 @@ Admin panel tile (`/app/admin`) shows 7-day failure count + top-10 video_ids. Sp
 | EnsembleData | Live fetch of the 30 most-recent videos for the handle (`fetch_user_posts`) |
 | `video_corpus` | **Corpus-first peer creators** (`select_niche_peer_creators`) — content_class → niche_only → thin; **`reference_eligible=true` first** with unfiltered fallback when &lt;4 peer handles (§4.7 M2). Follower enrichment via EnsembleData (never surface `0` as real count). |
 | `video_corpus` + `map_legacy_corpus_to_content_class` | **Channel persona** — dominant content class + label (`derive_channel_persona`). |
-| `niche_channel_benchmarks` RPC | Percentile band (P25/P50/P75) + median posts/week for score card + prompts |
+| `niche_channel_benchmarks` RPC | Percentile band (P25/P50/P75) + median posts/week for score card + prompts; serialized as **`niche_benchmarks`** on GET `/channel/quick-peek` for Studio **`ChannelBenchmarkStrip`** |
 | **`channel_findings.py`** (Wave 4) | Deterministic P0 findings → `<<<CHANNEL FINDINGS>>>` inject before Gemini (no FYP % / shadowban certainty). |
 | Gemini | Vietnamese narrative only (synthesis model, ~`gemini-3-flash-preview`). Structured blocks (score card, hashtags, peer table, next-video skeleton) are **template-generated**. |
 
@@ -818,9 +818,16 @@ Mandatory LLM sections: **verdict** + **recommendations** — fallback to raw pr
 
 ### Frontend
 
-- **Hook**: `useChannelDiagnose` — handles `score_card` SSE; exposes `scoreCard`, `channelPersona`, `peerSource`; merges terminal `payload` for replay completeness.
-- **Components**: `ScoreCard`, `HashtagInsightsBlock`, `NextVideoCard`, `SectionRenderer`, `VideoTileRow`, `CreatorTileRow`, `NumberedRecommendation` (hero / anti grouping), `StepProgress`, `ProvenanceLine` under `src/routes/_app/channel/components/`.
-- **Screen**: `ChannelScreen.tsx` — score card skeleton until `score_card` arrives; thin-corpus disclaimer when `peer_source === "thin"` (or legacy `niche_thin` in old payloads).
+**Studio Home (§6 @ `37831b05`):** `HomeMyChannelSection` on `/app` embeds `ChannelStudioPanel` — Nhanh quick-peek + Sâu SSE memo. Legacy `/app/channel` redirects via `channelStudioHandoff.ts`. Nav tab **Khám kênh** removed.
+
+| Depth | Hook / component | Transport |
+|-------|------------------|-----------|
+| **Nhanh (F5)** | `useChannelQuickPeek` → `ChannelBenchmarkStrip` | GET `/channel/quick-peek` (0 credit) |
+| **Sâu (F4)** | `useChannelDiagnose` → `ChannelDiagnosisBody` | POST `/channel/diagnose` SSE (3× credit on cache miss) |
+
+- **Hook (Sâu):** `useChannelDiagnose` — handles `score_card` SSE; exposes `scoreCard`, `channelPersona`, `peerSource`; merges terminal `payload` for replay completeness.
+- **Components:** `ChannelStudioPanel`, `ChannelBenchmarkStrip`, `ChannelDepthPicker`, `ScoreCard`, `HashtagInsightsBlock`, `NextVideoCard`, `SectionRenderer`, `VideoTileRow`, `CreatorTileRow`, `NumberedRecommendation` (hero / anti grouping), `StepProgress`, `ProvenanceLine` under `src/routes/_app/channel/components/`.
+- **Legacy shim:** `ChannelScreen.tsx` — client redirect only; score card skeleton + thin-corpus disclaimer live in `ChannelDiagnosisBody` when `peer_source === "thin"`.
 
 ### Phase 2 cleanup — **DONE** (2026-07-15)
 

@@ -1,0 +1,46 @@
+{
+  "wave": 4,
+  "generated_at": "2026-05-24",
+  "baseline_commit": "9b97207",
+  "items": {
+    "W4-0": {
+      "status": "done",
+      "evidence": [
+        "artifacts/docs/data-utilization-map-v1.md §10 W4 cross-check"
+      ]
+    },
+    "W4-1": {
+      "status": "done",
+      "commit": "9b97207",
+      "evidence": [
+        "cloud-run/getviews_pipeline/channel_findings.py",
+        "cloud-run/getviews_pipeline/channel_diagnose_prompts.py format_findings_for_prompt",
+        "cloud-run/tests/test_channel_findings.py"
+      ]
+    },
+    "W4-2": {
+      "status": "done",
+      "commit": "9b97207",
+      "evidence": [
+        "cloud-run/getviews_pipeline/signals/distribution.py",
+        "src/components/v2/answer/video/BoostAttributionBlock.tsx"
+      ]
+    },
+    "W4-3": {
+      "status": "done",
+      "commit": "9b97207",
+      "evidence": [
+        "cloud-run/getviews_pipeline/signals/win.py",
+        "cloud-run/tests/test_analysis_depth.py"
+      ]
+    },
+    "W4-4": {
+      "status": "done",
+      "commit": "9b97207",
+      "evidence": [
+        "cloud-run/getviews_pipeline/channel_diagnose.py _run_peer_corpus_query reference_eligible_only",
+        "cloud-run/tests/test_channel_peer_eligible.py"
+      ]
+    }
+  }
+}
