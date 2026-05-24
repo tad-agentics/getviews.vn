@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — Gỡ Morning Signal strip khỏi Studio Home
+
+- **FE:** Unmount `MorningSignalStrip` (Tier I); xóa component. Tier I chỉ còn `StudioHero` (3 ritual scripts). Hook `useClassMorningSignals` giữ cho tái dùng sau.
+
 ## 2026-05-24 — Gỡ hàng Phím tắt trùng composer pill
 
 - **FE:** Xóa khối **Phím tắt** dưới composer — 4 pill chỉ còn trong `QueryComposer` (tránh lặp UI).

@@ -124,7 +124,7 @@ Giữ nguyên khối **GỢI Ý HÔM NAY** — 3 tầng, không reshape layout/c
 
 | Tầng | Tag | Nội dung | Component |
 |------|-----|----------|-----------|
-| **I** | HÔM NAY QUAY NGAY | Morning Signal (format đang nổi) + 3 kịch bản ritual | [`MorningSignalStrip`](../../src/routes/_app/home/components/MorningSignalStrip.tsx) (`useClassMorningSignals` → `content_class_intelligence` MV, primary junction; energy toggle [`productionFriction.ts`](../../src/lib/productionFriction.ts)) + [`StudioHero`](../../src/routes/_app/home/components/StudioHero.tsx) (`GET /home/daily-ritual`) |
+| **I** | HÔM NAY QUAY NGAY | 3 kịch bản ritual | [`StudioHero`](../../src/routes/_app/home/components/StudioHero.tsx) (`GET /home/daily-ritual`) — Morning Signal strip gỡ khỏi Home (2026-05-24) |
 | **II** | CÔNG THỨC NỀN | Hook/pattern đứng sau gợi ý | [`HooksTable`](../../src/routes/_app/home/components/HooksTable.tsx) embedded (`useTopPatterns`) |
 | **III** | CẢM HỨNG | 3 video breakout **trong ngách** (creator khác) | [`BreakoutGrid`](../../src/routes/_app/home/components/BreakoutGrid.tsx) (`useTopBreakouts` — `content_class_id IN` junction) → link `/app/trends` |
 
