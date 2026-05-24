@@ -374,7 +374,7 @@ const StudioHeroRow = memo(function StudioHeroRow({
         </span>
         <div className="min-w-0">
           <div className="mb-1.5 flex flex-wrap items-center gap-2">
-            <span className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] bg-[color:var(--gv-ink)] px-1.5 py-0.5 text-[11px] font-bold gv-kicker tracking-[0.1em] text-white">
+            <span className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] bg-[color:var(--gv-ink)] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-white">
               HOOK #{rank}
             </span>
             <span
