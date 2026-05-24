@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AppLayout } from "@/components/AppLayout";
+import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { useProfile } from "@/hooks/useProfile";
 
 type SuccessState = {
@@ -48,6 +49,7 @@ export default function PaymentSuccessScreen() {
   if (isPending) {
     return (
       <AppLayout enableMobileSidebar>
+        <MobileShellStandalone />
         <div className="flex-1 flex items-center justify-center px-4 bg-[var(--surface-alt)] animate-pulse">
           <div className="max-w-sm w-full rounded-xl bg-[var(--border)] h-64" />
         </div>
@@ -57,6 +59,7 @@ export default function PaymentSuccessScreen() {
 
   return (
     <AppLayout enableMobileSidebar>
+      <MobileShellStandalone />
       <div className="flex-1 flex items-center justify-center px-4 bg-[var(--surface-alt)]">
         <div className="max-w-sm w-full text-center">
           <div

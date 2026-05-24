@@ -21,6 +21,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { Pencil, Search, Trash2 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
@@ -202,6 +203,7 @@ export default function HistoryScreen() {
 
   return (
     <AppLayout enableMobileSidebar>
+      <MobileShellStandalone />
       <AlertDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {

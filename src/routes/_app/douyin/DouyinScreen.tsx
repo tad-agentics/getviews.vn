@@ -30,6 +30,7 @@ import {
 import { useDouyinSavedSet } from "./useDouyinSavedSet";
 import { vnNicheToDouyinSlug } from "./vnNicheToDouyinSlug";
 import { profileFirstNicheId } from "@/lib/profileNiches";
+import { markDouyinFeedVisited } from "@/lib/douyinNewBadge";
 
 /**
  * D4b (2026-06-04) — Kho Douyin · main screen.
@@ -73,6 +74,10 @@ export default function DouyinScreen() {
 function DouyinScreenMain() {
   const navigate = useNavigate();
   const { data, isPending, isError, refetch } = useDouyinFeed();
+
+  useEffect(() => {
+    markDouyinFeedVisited();
+  }, []);
   const {
     data: patternsData,
     isPending: patternsPending,

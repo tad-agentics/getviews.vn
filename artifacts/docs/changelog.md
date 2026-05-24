@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — Sidebar + mobile shell align design pack
+
+- **Sidebar:** Badge Kho Douyin ``🇨🇳 N MỚI`` (video mới sau baseline visit; cap 99+); **+ ĐỔI** ngách → Cài đặt; Gần đây + Ghim + thời gian.
+- **Mobile:** Gỡ bottom nav; hàng 2 = hamburger + Studio / Xu Hướng / Kho Douyin (dưới TopBar); ``MobileShellStandalone`` trên màn không TopBar.
+- **Fix audit:** lazy Douyin feed (desktop hoặc drawer mở); seed baseline tránh badge whole-corpus; gỡ shell flicker; Answer mobile pad 88px.
+
 ## 2026-05-24 — Gỡ Morning Signal strip khỏi Studio Home
 
 - **FE:** Unmount `MorningSignalStrip` (Tier I); xóa component. Tier I chỉ còn `StudioHero` (3 ritual scripts). Hook `useClassMorningSignals` giữ cho tái dùng sau.

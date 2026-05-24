@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { AppLayout } from "@/components/AppLayout";
+import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { supabase } from "@/lib/supabase";
 
 type PaymentMethod = "momo" | "bank_transfer" | "vietqr";
@@ -116,6 +117,7 @@ export default function CheckoutScreen() {
 
   return (
     <AppLayout enableMobileSidebar>
+      <MobileShellStandalone />
       <div className="flex flex-col h-full bg-[var(--surface-alt)]">
         <div className="flex-1 overflow-y-auto pb-6">
           <div className="max-w-xl mx-auto p-4 lg:p-6 space-y-6">

@@ -3,6 +3,7 @@ import {
   formatViews,
   formatVN,
   formatRecencyVI,
+  formatSessionRecencyFromIso,
   formatBreakoutVI,
   formatCorpusMarketingCount,
 } from "./formatters";
@@ -96,6 +97,16 @@ describe("formatRecencyVI", () => {
 
   it("returns '1 tháng trước' for 31 days ago", () => {
     expect(formatRecencyVI(31)).toBe("1 tháng trước");
+  });
+});
+
+describe("formatSessionRecencyFromIso", () => {
+  it("maps ISO timestamps to formatRecencyVI buckets", () => {
+    const now = new Date("2026-05-24T12:00:00Z");
+    expect(formatSessionRecencyFromIso("2026-05-24T08:00:00Z", now)).toBe("Hôm nay");
+    expect(formatSessionRecencyFromIso("2026-05-23T08:00:00Z", now)).toBe("Hôm qua");
+    expect(formatSessionRecencyFromIso("2026-05-10T08:00:00Z", now)).toBe("Tuần trước");
+    expect(formatSessionRecencyFromIso(null, now)).toBe("");
   });
 });
 

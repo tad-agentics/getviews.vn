@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { ExternalLink, ChevronLeft } from "lucide-react";
 import { motion } from "motion/react";
 import { AppLayout } from "@/components/AppLayout";
+import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 
 interface LearnMoreItem {
   title: string;
@@ -119,6 +120,7 @@ export default function LearnMoreScreen() {
 
   return (
     <AppLayout enableMobileSidebar>
+      <MobileShellStandalone />
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
         <div className="px-4 lg:px-8 pt-16 lg:pt-8 pb-8">
           <div className="max-w-xl mx-auto mb-6 flex items-start gap-2">

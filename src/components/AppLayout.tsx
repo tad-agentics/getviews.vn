@@ -16,7 +16,6 @@ import {
   BookOpen,
   Shield,
   Archive,
-  AlignLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { BrandMark } from "@/components/BrandMark";
@@ -38,9 +37,20 @@ import { readChannelHistory } from "@/lib/channelHistory";
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
+import { formatSessionRecencyFromIso } from "@/lib/formatters";
+import { MobileShellProvider, type AppShellActive } from "@/components/mobileShell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { BottomTabBar, type AppShellActive } from "@/components/BottomTabBar";
+import { useDouyinFeed } from "@/hooks/useDouyinFeed";
+import { useMediaMinLg } from "@/hooks/useMediaMinLg";
+import {
+  countDouyinNewVideos,
+  formatDouyinNewBadge,
+  markDouyinFeedVisited,
+  seedDouyinVisitBaselineIfAbsent,
+} from "@/lib/douyinNewBadge";
+
+export type { AppShellActive } from "@/components/mobileShell";
 
 /** Sidebar row — legacy chat thread or Phase C answer (research) session. */
 type Session = {
@@ -49,6 +59,7 @@ type Session = {
   title?: string | null;
   label?: string;
   source: "chat" | "answer" | "channel";
+  updatedAt: string | null;
 };
 
 /**
@@ -70,10 +81,10 @@ function LogoMark() {
 }
 
 /* ── NicheOfYoursBlock ──────────────────────────────────────────────────────
- * "Ngách Của Bạn" — single row from ``profileFirstNicheId`` (creator_niche_id → corpus niche_id).
- * Read-only; đổi trong Cài đặt.
+ * "Ngách Của Bạn" — single row from ``profileFirstNicheId``; **+ ĐỔI** → Cài đặt.
  */
 function NicheOfYoursBlock() {
+  const navigate = useNavigate();
   const { data: profile } = useProfile();
 
   // Two-axis refactor PR6: profile.primary_niche dropped. Resolve the
@@ -91,7 +102,16 @@ function NicheOfYoursBlock() {
 
   return (
     <div className="px-4 pb-2.5 pt-[14px]">
-      <p className="gv-uc mb-2.5 text-[11px] text-[color:var(--gv-ink-3)]">Ngách Của Bạn</p>
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <p className="gv-uc text-[11px] text-[color:var(--gv-ink-3)]">Ngách Của Bạn</p>
+        <button
+          type="button"
+          onClick={() => navigate("/app/settings")}
+          className="min-h-[44px] shrink-0 px-1 text-[11px] font-semibold text-[color:var(--gv-ink-3)] transition-colors hover:text-[color:var(--gv-ink)]"
+        >
+          + ĐỔI
+        </button>
+      </div>
       <ul className="flex flex-col gap-1">
         {isPending && niches.length === 0
           ? sidebarIds.map((id) => (
@@ -124,14 +144,17 @@ function NavItem({
   active = false,
   disabled = false,
   badge,
+  accentBadge,
   onClick,
 }: {
   icon: React.ElementType;
   label: string;
   active?: boolean;
   disabled?: boolean;
-  /** Small right-aligned label, e.g. "Sắp có" on placeholder entries. */
+  /** Small right-aligned label, e.g. legacy "CN" on placeholder entries. */
   badge?: string;
+  /** Kho Douyin — accent pill ``🇨🇳 N MỚI`` (design pack sidebar). */
+  accentBadge?: string;
   onClick?: () => void;
 }) {
   return (
@@ -151,7 +174,11 @@ function NavItem({
     >
       <Icon className="h-[15px] w-[15px] shrink-0" strokeWidth={1.8} />
       <span className="min-w-0 flex-1 whitespace-nowrap">{label}</span>
-      {badge ? (
+      {accentBadge ? (
+        <span className="gv-mono shrink-0 rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[9px] font-semibold uppercase tracking-[0.02em] text-white">
+          {accentBadge}
+        </span>
+      ) : badge ? (
         <span className="shrink-0 text-[11px] font-medium gv-kicker tracking-wider text-[color:var(--gv-ink-4)]">
           {badge}
         </span>
@@ -362,6 +389,7 @@ function SessionRow({
     session.title ??
     session.first_message ??
     (session.source === "answer" ? "Phiên nghiên cứu" : "Phiên chat");
+  const recencyLabel = formatSessionRecencyFromIso(session.updatedAt);
 
   return (
     <div className="relative group/row">
@@ -401,24 +429,38 @@ function SessionRow({
             title={displayLabel}
             aria-current={isActive && session.source === "answer" ? "true" : undefined}
             className={
-              "flex min-w-0 flex-1 items-center gap-1.5 text-left text-[12px] leading-snug " +
+              "flex min-w-0 flex-1 flex-col items-start gap-0.5 py-0.5 text-left text-[12px] leading-snug " +
               (isActive && session.source === "answer"
                 ? "font-semibold text-[color:var(--gv-canvas)]"
                 : "text-[color:var(--gv-ink-2)] hover:text-[color:var(--gv-ink)]")
             }
           >
-            {isPinned && (
-              <Pin
+            <span className="flex min-w-0 w-full items-center gap-1.5">
+              {isPinned && (
+                <Pin
+                  className={
+                    "h-2.5 w-2.5 flex-shrink-0 rotate-45 " +
+                    (isActive && session.source === "answer"
+                      ? "text-[color:var(--gv-accent-2)]"
+                      : "text-[color:var(--gv-accent)]")
+                  }
+                  strokeWidth={2}
+                />
+              )}
+              <span className="min-w-0 truncate">{displayLabel}</span>
+            </span>
+            {recencyLabel ? (
+              <span
                 className={
-                  "h-2.5 w-2.5 flex-shrink-0 rotate-45 " +
+                  "text-[10px] leading-none " +
                   (isActive && session.source === "answer"
-                    ? "text-[color:var(--gv-accent-2)]"
-                    : "text-[color:var(--gv-accent)]")
+                    ? "text-[color:var(--gv-canvas)]/70"
+                    : "text-[color:var(--gv-ink-4)]")
                 }
-                strokeWidth={2}
-              />
-            )}
-            <span className="min-w-0 truncate">{displayLabel}</span>
+              >
+                {recencyLabel}
+              </span>
+            ) : null}
           </button>
 
           {onPin && (
@@ -518,6 +560,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           first_message: s.first_message,
           title: s.title ?? null,
           source: "chat",
+          updatedAt: s.created_at,
         },
         sortMs: Number.isFinite(ts) ? ts : 0,
       });
@@ -531,6 +574,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           first_message: s.initial_q ?? null,
           title: s.title ?? null,
           source: "answer",
+          updatedAt: s.updated_at ?? s.created_at ?? null,
         },
         sortMs: Number.isFinite(ts) ? ts : 0,
       });
@@ -543,6 +587,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           first_message: c.handle,
           title: null,
           source: "channel",
+          updatedAt: c.visitedAt,
         },
         sortMs: Number.isFinite(ts) ? ts : 0,
       });
@@ -638,6 +683,24 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     (user?.user_metadata?.avatar_url as string | undefined) ||
     (user?.user_metadata?.picture as string | undefined);
 
+  const isLg = useMediaMinLg();
+  const shouldFetchDouyinBadge = Boolean(user?.id && (isLg || mobileNavOpen));
+  const { data: douyinFeed } = useDouyinFeed(shouldFetchDouyinBadge);
+  const douyinNewCount = useMemo(
+    () => countDouyinNewVideos(douyinFeed?.videos ?? []),
+    [douyinFeed?.videos],
+  );
+  const douyinAccentBadge = useMemo(
+    () => formatDouyinNewBadge(douyinNewCount),
+    [douyinNewCount],
+  );
+
+  useEffect(() => {
+    if (douyinFeed?.videos && douyinFeed.videos.length > 0) {
+      seedDouyinVisitBaselineIfAbsent();
+    }
+  }, [douyinFeed?.videos]);
+
 
   const handleLogout = async () => {
     setShowProfileModal(false);
@@ -720,8 +783,9 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             icon={Archive}
             label="Kho Douyin"
             active={active === "douyin"}
-            badge="CN"
+            accentBadge={douyinAccentBadge}
             onClick={() => {
+              markDouyinFeedVisited();
               navigate("/app/douyin");
               onClose?.();
             }}
@@ -886,6 +950,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     // (PR #243), so this only affects /app/* surfaces.
     <MotionConfig reducedMotion="user">
     <TooltipProvider delayDuration={200}>
+    <MobileShellProvider active={active} openDrawer={() => setMobileNavOpen(true)}>
     <div className="flex flex-col h-dvh bg-[color:var(--gv-canvas)]">
       {/* ── Desktop ─────────────────────────── */}
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
@@ -906,41 +971,20 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
       {/* ── Mobile ─────────────────────────── */}
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
         {enableMobileSidebar ? (
-          <>
-            <div className="sticky top-0 z-30 flex shrink-0 items-center border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-2 pt-[env(safe-area-inset-top)]">
-              <button
-                type="button"
-                aria-label="Mở lịch sử phiên"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
-                onClick={() => setMobileNavOpen(true)}
-              >
-                <AlignLeft className="h-5 w-5" strokeWidth={1.8} aria-hidden />
-              </button>
-            </div>
-            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-              <SheetContent
-                side="left"
-                className="h-full w-full max-w-[min(100vw,320px)] gap-0 border-0 bg-[color:var(--gv-canvas-2)] p-0 [&>button]:hidden sm:max-w-sm"
-              >
-                <div className="flex h-full max-h-dvh flex-col overflow-hidden">
-                  <SidebarContent onClose={() => setMobileNavOpen(false)} />
-                </div>
-              </SheetContent>
-            </Sheet>
-          </>
+          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+            <SheetContent
+              side="left"
+              className="h-full w-full max-w-[min(100vw,320px)] gap-0 border-0 bg-[color:var(--gv-canvas-2)] p-0 [&>button]:hidden sm:max-w-sm"
+            >
+              <div className="flex h-full max-h-dvh flex-col overflow-hidden">
+                <SidebarContent onClose={() => setMobileNavOpen(false)} />
+              </div>
+            </SheetContent>
+          </Sheet>
         ) : null}
-        <div
-          className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${
-            enableMobileSidebar
-              ? "pb-[calc(3.5rem+env(safe-area-inset-bottom))]"
-              : ""
-          }`}
-        >
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
           {children}
         </div>
-
-        {/* Mobile bottom tab bar — only on /_app/ screens that opt in. */}
-        {enableMobileSidebar ? <BottomTabBar active={active} /> : null}
       </div>
 
       {/* ── Delete confirmation dialog ── */}
@@ -1022,6 +1066,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
         )}
       </AnimatePresence>
     </div>
+    </MobileShellProvider>
     </TooltipProvider>
     </MotionConfig>
   );

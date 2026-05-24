@@ -6,11 +6,10 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react";
 
-/** Keys rendered as bottom tabs (four slots). */
-type Tab = "home" | "answer" | "trends" | "settings";
+import type { AppShellActive } from "@/components/mobileShell";
 
-/** Shell-wide active section; values not in the bottom bar show no tab as selected. */
-export type AppShellActive = Tab | "script" | "admin" | "douyin" | "channel";
+/** @deprecated — replaced by ``MobileShellBar``. */
+type Tab = "home" | "answer" | "trends" | "settings";
 
 /**
  * Mobile bottom tab bar (Phase A · A3.3).

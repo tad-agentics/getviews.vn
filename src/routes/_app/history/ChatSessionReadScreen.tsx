@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { Btn } from "@/components/v2/Btn";
 import { useChatSession } from "@/hooks/useChatSession";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
@@ -79,6 +80,7 @@ export default function ChatSessionReadScreen() {
 
   return (
     <AppLayout active="answer" enableMobileSidebar>
+      <MobileShellStandalone />
       <div className="min-h-full bg-[var(--gv-canvas)] px-4 py-4 lg:px-10 lg:py-6">
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/history")}>

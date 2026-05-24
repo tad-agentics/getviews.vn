@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { Check, Zap, Sparkles, Building2, Gift } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { env } from "@/lib/env";
 import { pricingSavings } from "@/lib/mock-data";
 import { useProfile } from "@/hooks/useProfile";
@@ -606,6 +607,7 @@ function PricingContent() {
 export default function PricingScreen() {
   return (
     <AppLayout enableMobileSidebar>
+      <MobileShellStandalone />
       <PricingContent />
     </AppLayout>
   );

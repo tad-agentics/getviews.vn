@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useMobileShell, MobileShellBar } from "@/components/mobileShell";
 
 /**
  * Per-screen sticky top bar. Matches the design's 64px topbar:
@@ -19,8 +20,11 @@ export function TopBar({
   right?: ReactNode;
   className?: string;
 }) {
+  const shell = useMobileShell();
+
   return (
-    <header
+    <>
+      <header
       className={[
         "sticky top-0 z-10 w-full",
         /* Cùng band với sidebar brand + iOS safe area (PWA standalone). */
@@ -37,5 +41,7 @@ export function TopBar({
       </div>
       {right ? <div className="shrink-0 flex items-center gap-2.5">{right}</div> : null}
     </header>
+    {shell ? <MobileShellBar /> : null}
+    </>
   );
 }

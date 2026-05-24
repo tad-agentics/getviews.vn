@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AppLayout } from "@/components/AppLayout";
+import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { Btn } from "@/components/v2/Btn";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth";
@@ -863,6 +864,7 @@ export default function SettingsScreen() {
   if (profileError) {
     return (
       <AppLayout active="settings" enableMobileSidebar>
+        <MobileShellStandalone />
         <div className="flex flex-1 items-center justify-center overflow-y-auto p-6">
           <div className="max-w-md space-y-3 text-center">
             <p className="text-sm text-[color:var(--gv-ink-2)]">Không tải được thông tin tài khoản — thử lại.</p>
@@ -881,6 +883,7 @@ export default function SettingsScreen() {
 
   return (
     <AppLayout active="settings" enableMobileSidebar>
+      <MobileShellStandalone />
       <div className="flex-1 overflow-y-auto bg-[color:var(--gv-canvas)]" style={{ scrollbarWidth: "thin" }}>
         <div className="mx-auto max-w-[1100px] px-7 pb-20 pt-8 lg:pt-10">
           <div className="grid grid-cols-1 gap-9 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">

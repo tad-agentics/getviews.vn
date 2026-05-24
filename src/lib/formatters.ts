@@ -55,6 +55,15 @@ export function formatRecencyVI(daysAgo: number): string {
   return `${Math.floor(daysAgo / 30)} tháng trước`;
 }
 
+/** Sidebar / history row — ISO timestamp → ``formatRecencyVI`` bucket. */
+export function formatSessionRecencyFromIso(iso: string | null | undefined, now = new Date()): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const daysAgo = Math.floor((now.getTime() - t) / 86_400_000);
+  return formatRecencyVI(daysAgo);
+}
+
 /**
  * Format a breakout multiplier with Vietnamese decimal separator (comma).
  * Vietnamese uses ',' for decimals: "3,2x" not "3.2x"

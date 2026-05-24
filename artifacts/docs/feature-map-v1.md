@@ -112,6 +112,17 @@ flowchart TB
   router --> answer[/app/answer_·_/app/channel]
 ```
 
+### 3.0 App shell — sidebar + mobile chrome (2026-05-24)
+
+| Surface | Chrome | Ghi chú |
+|---------|--------|---------|
+| **Desktop sidebar** | [`AppLayout.tsx`](../../src/components/AppLayout.tsx) | Nav: Studio / Xu Hướng / Kho Douyin. Kho Douyin: accent pill ``🇨🇳 N MỚI`` (video indexed sau baseline visit; cap 99+). Ngách Của Bạn + **+ ĐỔI** → Cài đặt. Gần đây + Ghim + nhãn thời gian (`formatSessionRecencyFromIso`). Footer: UsageArc + profile. |
+| **Mobile row 1** | [`TopBar`](../../src/components/v2/TopBar.tsx) | Per-screen sticky header (56px + safe area). Không có trên Settings / History / checkout — dùng standalone bar. |
+| **Mobile row 2** | [`MobileShellBar`](../../src/components/mobileShell.tsx) | Hamburger → drawer sidebar; 3 tab: Studio / Xu Hướng / Kho Douyin. **Gỡ** `BottomTabBar` 4-tab cố định đáy. |
+| **Mobile no-TopBar** | [`MobileShellStandalone`](../../src/components/MobileShellStandalone.tsx) | Pricing, checkout, payment-success, learn-more, Settings, History. |
+
+Douyin badge fetch: lazy — chỉ khi desktop (`useMediaMinLg`) hoặc drawer mở; seed baseline lần đầu feed load để tránh badge whole-corpus.
+
 **Architecture invariant (incremental V1 — giữ nguyên):** Entry Studio/handoff **prefill `?q=`** (URL, @handle, script brief) → [`intent-router.ts`](../../src/routes/_app/intent-router.ts) (`detectIntent` → `planAnswerEntry`). **Turn tiếp theo trong Answer:** **CTA intent pill** (nhãn cố định, `intent_type` explicit) — **không** `FollowUpComposer` chat tự do. **`QueryComposer`** = entry Studio (4 pill); **IntentCtaRail** = follow-up trong session. Giữ toàn bộ `INTENT_DESTINATIONS`; feature mới = thêm row router + thêm hàng CTA matrix §4.10.2. Deprecate `/app/script` shell (✅ W2-1a). Chi tiết: [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) Wave 2 #5–#7.
 
 ### 3.1 Tab Studio (`/app`)

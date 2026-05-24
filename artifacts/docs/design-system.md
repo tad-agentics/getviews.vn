@@ -288,8 +288,8 @@ Variants:
 
 ### Navigation
 
-- **Desktop:** sidebar (handled by `AppLayout.tsx`)
-- **Mobile (≤900px):** `BottomTabBar` — 4 tabs: Trang chủ / Nghiên cứu / Xu hướng / Cài đặt. Fixed bottom, safe area padding for iOS.
+- **Desktop:** sidebar (`AppLayout.tsx`) — Studio / Xu Hướng / Kho Douyin; Kho Douyin accent pill ``🇨🇳 N MỚI`` when new videos since last visit; Ngách Của Bạn + **+ ĐỔI**; Gần đây + Ghim + recency labels.
+- **Mobile (`lg` breakpoint, ≤1024px):** no fixed bottom tab bar. Row 1 = per-screen `TopBar` (when present). Row 2 = `MobileShellBar` — hamburger (opens sidebar drawer) + Studio / Xu Hướng / Kho Douyin, sticky below TopBar. Screens without TopBar (Settings, History, checkout…) use `MobileShellStandalone`.
 
 ### `TopBar` (per-screen sticky header)
 
@@ -593,6 +593,6 @@ Utility classes (`.gv-*`) are used directly in `className` strings:
 |v2 primitives              |`src/components/v2/`                                                           |
 |shadcn/Radix primitives    |`src/components/ui/`                                                           |
 |Report body renderers      |`src/components/v2/answer/{pattern,ideas,timing,lifecycle,diagnostic,generic}/`|
-|Navigation chrome          |`src/components/AppLayout.tsx`, `src/components/BottomTabBar.tsx`              |
+|Navigation chrome          |`src/components/AppLayout.tsx`, `src/components/mobileShell.tsx`, `src/components/MobileShellStandalone.tsx` |
 |Copy rules (Cursor rule)   |`.cursor/rules/copy-rules.mdc`                                                 |
 |Design system rule (Cursor)|`.cursor/rules/design-system.mdc`                                              |
