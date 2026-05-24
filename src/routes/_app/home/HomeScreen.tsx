@@ -34,6 +34,7 @@ import {
   unfilledPasteTemplateHint,
 } from "./pasteTemplates";
 import { scrollToSuggestionsTier, type SuggestionsTier } from "./components/scrollToTier";
+import { useHomeGreetingFit } from "./useHomeGreetingFit";
 
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
@@ -174,6 +175,11 @@ export default function HomeScreen() {
   // "Chào "); lowercase looks wrong at the start of a sentence.
   const displayName = profile?.display_name?.trim() || "Bạn";
   const firstName = displayName.split(/\s+/).pop() ?? displayName;
+  const { containerRef: greetingRef, line1Ref, line2Ref } = useHomeGreetingFit([
+    firstName,
+    nicheLabel,
+    newHookCount,
+  ]);
   const creditsRemaining =
     (profile as { credits_remaining?: number } | null | undefined)?.credits_remaining ?? 0;
 
@@ -272,8 +278,11 @@ export default function HomeScreen() {
               ) : null}
             </div>
 
-            <h1 className="gv-home-greeting gv-tight mt-0 w-full max-w-[880px] leading-[1.08] text-[color:var(--gv-ink)]">
-              <span className="gv-home-greeting__line">
+            <h1
+              ref={greetingRef}
+              className="gv-home-greeting gv-tight mt-0 w-full max-w-[880px] leading-[1.08] text-[color:var(--gv-ink)]"
+            >
+              <span ref={line1Ref} className="gv-home-greeting__line">
                 Chào {firstName}. Hôm nay{" "}
                 <span
                   className="inline-block rotate-[-1deg] rounded-[10px] px-2.5 text-white"
@@ -282,7 +291,7 @@ export default function HomeScreen() {
                   {nicheLabel}
                 </span>
               </span>
-              <span className="gv-home-greeting__line">
+              <span ref={line2Ref} className="gv-home-greeting__line">
                 {newHookCount > 0 ? (
                   <>
                     có{" "}
