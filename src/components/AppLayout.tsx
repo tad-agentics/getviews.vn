@@ -38,7 +38,7 @@ import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
 import { formatSessionRecencyFromIso } from "@/lib/formatters";
-import { MobileShellProvider, type AppShellActive } from "@/components/mobileShell";
+import { MobileShellProvider, type AppShellActive, MOBILE_FLOATING_NAV_CLEARANCE, MobileFloatingBottomNav } from "@/components/mobileShell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useDouyinFeed } from "@/hooks/useDouyinFeed";
@@ -950,7 +950,11 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     // (PR #243), so this only affects /app/* surfaces.
     <MotionConfig reducedMotion="user">
     <TooltipProvider delayDuration={200}>
-    <MobileShellProvider active={active} openDrawer={() => setMobileNavOpen(true)}>
+    <MobileShellProvider
+      active={active}
+      openDrawer={() => setMobileNavOpen(true)}
+      drawerEnabled={enableMobileSidebar}
+    >
     <div className="flex flex-col h-dvh bg-[color:var(--gv-canvas)]">
       {/* ── Desktop ─────────────────────────── */}
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
@@ -982,9 +986,13 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             </SheetContent>
           </Sheet>
         ) : null}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+        <div
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden lg:pb-0"
+          style={{ paddingBottom: MOBILE_FLOATING_NAV_CLEARANCE }}
+        >
           {children}
         </div>
+        <MobileFloatingBottomNav />
       </div>
 
       {/* ── Delete confirmation dialog ── */}
