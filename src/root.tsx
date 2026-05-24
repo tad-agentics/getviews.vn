@@ -18,7 +18,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         {/* viewport-fit=cover lets the page draw under iOS notch / home
             indicator. Used together with ``env(safe-area-inset-*)`` in
-            BottomTabBar.tsx + global layout padding so content stays
+            the mobile floating nav + global layout padding so content stays
             inside the safe area while the canvas extends edge-to-edge. */}
         <meta
           name="viewport"
