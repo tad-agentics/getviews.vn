@@ -741,18 +741,24 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 navigate("/app/answer");
                 onClose?.();
               }}
-              className="flex h-11 w-11 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+              className={
+                "flex items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)] " +
+                (onClose ? "h-9 w-9" : "h-11 w-11")
+              }
             >
-              <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" strokeWidth={1.8} />
+              <Plus
+                className={onClose ? "h-3 w-3" : "h-3.5 w-3.5 md:h-4 md:w-4"}
+                strokeWidth={1.8}
+              />
             </button>
             {onClose && (
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Đóng menu"
-                className="flex h-11 w-11 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+                className="flex h-9 w-9 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
               >
-                <X className="h-3.5 w-3.5 md:h-4 md:w-4" strokeWidth={1.8} />
+                <X className="h-3 w-3" strokeWidth={1.8} />
               </button>
             )}
           </div>
