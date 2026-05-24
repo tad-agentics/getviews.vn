@@ -1,11 +1,17 @@
 /**
- * Phase D.6 — /app/admin operator dashboard.
+ * /app/admin operator dashboard.
  *
  * Editorial layout mirrors `artifacts/uiux-reference/screens/home.jsx`:
  * sticky TopBar, 1320px main wrap, SectionHeader with kicker dot + tight
  * 28px title for each panel, `<hr>` rules between sections, and
  * `gv-fade-up` staggered entries. Each panel handles its own data + visual
  * density; this file is purely the routing + section rhythm.
+ *
+ * Scope is deliberately tight — four sections answer the only questions an
+ * operator acts on: is the pipeline growing the corpus (Corpus health), are
+ * we under the cost ceiling (EnsembleData), what's broken right now (Logs),
+ * and a manual re-kick when a nightly cron fails (Triggers). Product/growth
+ * funnels and one-off backfills were removed; backfills live in the CLI.
  *
  * Gate: the SPA checks `useIsAdmin()` and bounces non-admins to /app.
  * The server-side `require_admin` dep on every /admin/* endpoint is the
@@ -18,13 +24,9 @@ import { AppLayout } from "@/components/AppLayout";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TopBar } from "@/components/v2/TopBar";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { ActionLogPanel } from "./ActionLogPanel";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
-import { FunnelPanel } from "./FunnelPanel";
-import { Layer0Panel } from "./Layer0Panel";
 import { LogsPanel } from "./LogsPanel";
-import { ThumbnailFailuresPanel } from "./ThumbnailFailuresPanel";
 import { TriggersPanel } from "./TriggersPanel";
 
 export default function AdminScreen() {
@@ -63,44 +65,11 @@ export default function AdminScreen() {
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
           <section className="gv-fade-up">
             <SectionHeader
-              kicker="L2.2 · CREATOR-VIEWS-UPLIFT FUNNEL"
-              title="Funnel & enrichment uptake"
-              caption="Đọc các logUsage event được nhúng qua Sprint 1-5. Cửa sổ mặc định 7 ngày — toggle để mở rộng. Mục tiêu: trả lời 'creator có thực sự dùng vòng lặp này không'."
-            />
-            <FunnelPanel />
-          </section>
-
-          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
-
-          <section className="gv-fade-up">
-            <SectionHeader
               kicker="CORPUS · TAXONOMY + CLAIM TIERS"
               title="Sức khỏe corpus"
-              caption="Theo từng dòng niche_taxonomy (kho video đa ngách). Người dùng chỉ chọn một creator_niche_id; tier claim vẫn tính trên lượng video 30d của từng niche_id trong corpus."
+              caption="Theo từng dòng niche_taxonomy (kho video đa ngách). Lượng video 7/30/90 ngày, tier claim, và số lỗi tải thumbnail 7 ngày — tín hiệu nhịp đập của pipeline nightly."
             />
             <CorpusHealthPanel />
-          </section>
-
-          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
-
-          <section className="gv-fade-up">
-            <SectionHeader
-              kicker="R2 · THUMBNAIL OBSERVABILITY"
-              title="Lỗi tải thumbnail"
-              caption="Đếm số lần ảnh thumbnail không tải được ở phía trình duyệt (7 ngày). Số cao bất thường có thể là dấu hiệu R2 outage hoặc hàng loạt video_corpus vẫn dùng CDN URL hết hạn."
-            />
-            <ThumbnailFailuresPanel />
-          </section>
-
-          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
-
-          <section className="gv-fade-up gv-fade-up-delay-1">
-            <SectionHeader
-              kicker="LAYER0 · TAXONOMY + HASHTAG"
-              title="Tín hiệu hashtag theo ngách"
-              caption="Batch quét theo từng dòng niche_taxonomy (signal_hashtags, hashtag_niche_map, niche_candidates). Khác với creator_niche_id trên profile — đây là tầng kho / Layer0 cho toàn taxonomy."
-            />
-            <Layer0Panel />
           </section>
 
           <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
@@ -109,7 +78,7 @@ export default function AdminScreen() {
             <SectionHeader
               kicker="ENSEMBLEDATA · USED UNITS"
               title="Quỹ tín dụng"
-              caption="Units đã dùng mỗi UTC-day và projection 30 ngày."
+              caption="Units đã dùng mỗi UTC-day và projection 30 ngày — canh trần chi phí ~$80–90/tháng."
             />
             <EnsembleCreditsPanel />
           </section>
@@ -130,23 +99,11 @@ export default function AdminScreen() {
 
           <section className="gv-fade-up gv-fade-up-delay-3">
             <SectionHeader
-              kicker="MANUAL RUN · CRON JOBS"
+              kicker="MANUAL RUN · NIGHTLY PIPELINE"
               title="Chạy thủ công"
-              caption="Chạy tay các pipeline định kỳ. Mỗi job có confirm trước khi fire."
+              caption="Re-kick các stage pipeline nightly khi cron lỗi: ingest · post-processing · refresh · layer0. Mỗi job confirm trước khi fire."
             />
             <TriggersPanel />
-          </section>
-
-          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
-
-          <section className="gv-fade-up gv-fade-up-delay-3">
-            <SectionHeader
-              kicker="AUDIT · WHO RAN WHAT"
-              title="Lịch sử thao tác"
-              caption="Lịch sử các trigger gần đây kèm status + duration."
-              kickerTone="muted"
-            />
-            <ActionLogPanel />
           </section>
         </main>
       </div>

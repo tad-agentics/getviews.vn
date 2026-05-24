@@ -451,6 +451,12 @@ class AdminTriggerEmptyBody(StrictBody):
     """Placeholder body for jobs that take no parameters."""
 
 
+class AdminTriggerPostProcessingBody(StrictBody):
+    """Manual kick of /batch/post-processing — heal MV / VĐH / sound after ingest."""
+
+    weekly_if_sunday: bool = True
+
+
 class AdminTriggerThumbnailBackfillBody(StrictBody):
     batch_size: int = 20
     limit: int | None = None
@@ -667,6 +673,18 @@ async def _admin_run_refresh(body: AdminTriggerRefreshBody) -> dict[str, Any]:
         limit=body.limit if body.limit is not None else REFRESH_BATCH_LIMIT,
         stale_days=body.stale_days if body.stale_days is not None else REFRESH_STALE_DAYS,
         views_floor=body.views_floor if body.views_floor is not None else REFRESH_VIEWS_FLOOR,
+    )
+
+
+async def _admin_run_post_processing(body: AdminTriggerPostProcessingBody) -> dict[str, Any]:
+    """Manual kick of /batch/post-processing — heal MV / Video Đáng Học /
+    sound insights (+ Sunday weekly analytics) after an aborted ingest."""
+    from getviews_pipeline.corpus_ingest import run_ingest_post_processing
+    from getviews_pipeline.supabase_client import get_service_client
+
+    return await run_ingest_post_processing(
+        get_service_client(),
+        run_weekly_analytics_if_sunday=body.weekly_if_sunday,
     )
 
 
@@ -1035,107 +1053,6 @@ async def admin_logs(
     return JSONResponse({"ok": True, "enabled": True, "filter": filter_str, "entries": entries})
 
 
-@router.get("/admin/action-log")
-async def admin_action_log(
-    _admin: dict[str, Any] = Depends(require_admin),
-    limit: int = Query(50, ge=1, le=200),
-) -> JSONResponse:
-    from getviews_pipeline.supabase_client import get_service_client
-
-    try:
-        resp = get_service_client().table("admin_action_log").select("id, user_id, action, params_json, result_status, error_message, duration_ms, result_json, created_at").order("created_at", desc=True).limit(limit).execute()
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return JSONResponse({"ok": True, "entries": resp.data or []})
-
-
-@router.get("/admin/funnel")
-async def admin_funnel(
-    _admin: dict[str, Any] = Depends(require_admin),
-    days: int = Query(7, ge=1, le=30),
-) -> JSONResponse:
-    """Aggregate funnel + engagement counts from ``usage_events``.
-
-    Pre-launch / launch instrumentation surface (D3, 2026-05-13). Reads
-    every usage_events row in the window and groups by ``action`` —
-    cheap given pre-launch volume. Once corpus + traffic grow, swap for
-    a daily-aggregate materialised view.
-
-    Returns:
-      ``totals``       — { action: count } across the window
-      ``unique_users`` — { action: distinct_user_count }
-      ``daily``        — top-10 actions × N days bucketed counts
-      ``conversion``   — onboarding_completed / signup, ritual_click /
-                         onboarding_completed, video_body_load /
-                         answer_session_create
-    """
-    from getviews_pipeline.supabase_client import get_service_client
-
-    since = (datetime.now(UTC) - timedelta(days=days)).isoformat()
-    sb = get_service_client()
-    try:
-        resp = (
-            sb.table("usage_events")
-            .select("user_id, action, created_at")
-            .gte("created_at", since)
-            .limit(50000)
-            .execute()
-        )
-        rows = resp.data or []
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-    totals: dict[str, int] = {}
-    unique_by_action: dict[str, set[str]] = {}
-    daily: dict[str, dict[str, int]] = {}
-
-    for row in rows:
-        action = row.get("action") or "unknown"
-        uid = row.get("user_id") or ""
-        ts = row.get("created_at") or ""
-        day = ts[:10]  # YYYY-MM-DD prefix; cheap bucketing
-
-        totals[action] = totals.get(action, 0) + 1
-        unique_by_action.setdefault(action, set()).add(uid)
-        daily.setdefault(action, {})
-        daily[action][day] = daily[action].get(day, 0) + 1
-
-    unique_users = {a: len(uids) for a, uids in unique_by_action.items()}
-
-    # Top-10 actions for the daily breakdown — keeps payload small.
-    top_actions = sorted(totals.items(), key=lambda kv: -kv[1])[:10]
-    daily_top = {a: daily.get(a, {}) for a, _ in top_actions}
-
-    # Conversion ratios — defensive against zero-divides; "%" decimal.
-    def _pct(numer: str, denom: str) -> float | None:
-        d = totals.get(denom, 0)
-        if d == 0:
-            return None
-        return round((totals.get(numer, 0) / d) * 100, 1)
-
-    conversion = {
-        "onboarding_completed_per_skipped_ratio": _pct(
-            "onboarding_completed", "onboarding_skipped"
-        ),
-        "ritual_click_per_session_create": _pct(
-            "daily_ritual_script_clicked", "answer_session_create"
-        ),
-        "video_body_load_per_session_create": _pct(
-            "video_body_load", "answer_session_create"
-        ),
-    }
-
-    return JSONResponse({
-        "ok": True,
-        "as_of": datetime.now(UTC).isoformat(),
-        "days": days,
-        "totals": totals,
-        "unique_users": unique_users,
-        "daily_top_actions": daily_top,
-        "conversion": conversion,
-    })
-
-
 @router.get("/admin/jobs/{job_id}")
 async def admin_job_status(
     job_id: str,
@@ -1164,7 +1081,7 @@ async def admin_list_triggers(
             {
                 "id": "post_processing",
                 "label": "Post-ingest aggregates (/batch/post-processing) — MV, VĐH, Layer0B, Sunday weekly",
-                "body_schema": {"weekly_if_sunday": "bool — query param, default true"},
+                "body_schema": {"weekly_if_sunday": "bool — default true"},
                 "heavy": True,
             },
             {
@@ -1177,50 +1094,7 @@ async def admin_list_triggers(
                 },
                 "heavy": True,
             },
-            {
-                "id": "reclassify_format",
-                "label": "Content-format reclass (/batch/reclassify-format)",
-                "body_schema": {},
-                "heavy": True,
-            },
-            {
-                "id": "morning_ritual",
-                "label": "Daily ritual — 3 scripts / user (null user_ids = full run)",
-                "body_schema": {"user_ids": "uuid[] | null — omit for all users (one bundle per profile.creator_niche_id)"},
-                "heavy": True,
-            },
-            {"id": "analytics", "label": "Weekly analytics + signal grading (/batch/analytics)", "body_schema": {}, "heavy": True},
-            {"id": "layer0", "label": "Layer 0 insights", "body_schema": {}, "heavy": True},
-            {"id": "scene_intelligence", "label": "Scene intelligence refresh (/batch/scene-intelligence)", "body_schema": {}, "heavy": True},
-            {"id": "thumbnail_backfill", "label": "Thumbnail backfill — rehost TikTok CDN → R2", "body_schema": {}, "heavy": True},
-            {
-                "id": "backfill_classification",
-                "label": "ME-17 — Legacy classification backfill (POST /admin/backfill-classification)",
-                "body_schema": {
-                    "batch_size": "int — default 500",
-                    "max_runtime_s": "int — default 3300 (Cloud Run safety)",
-                    "dry_run": "bool",
-                },
-                "heavy": True,
-            },
-            {
-                "id": "r2_janitor",
-                "label": "R2 storage janitor (/batch/r2-janitor) — reconcile orphans",
-                "body_schema": {"dry_run": "bool"},
-                "heavy": True,
-            },
-            {
-                "id": "enrich_shots_top500",
-                "label": "Top-N video_shots Gemini re-extract",
-                "body_schema": {"limit": "int", "dry_run": "bool"},
-                "heavy": True,
-            },
-            {
-                "id": "viral_score_backtest",
-                "label": "Viral-score backtest — Spearman ρ",
-                "body_schema": {"sample_size": "int", "seed": "int | null"},
-                "heavy": False,
-            },
+            {"id": "layer0", "label": "Layer 0 insights (/batch/layer0)", "body_schema": {}, "heavy": True},
         ],
     })
 
@@ -1343,6 +1217,18 @@ async def admin_trigger_refresh(
     )
 
 
+@router.post("/admin/trigger/post_processing")
+async def admin_trigger_post_processing(
+    body: AdminTriggerPostProcessingBody = AdminTriggerPostProcessingBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"], action="trigger.post_processing",
+        params={"weekly_if_sunday": body.weekly_if_sunday},
+        runner=lambda: _admin_run_post_processing(body),
+    )
+
+
 @router.post("/admin/trigger/reclassify_format")
 async def admin_trigger_reclassify_format(
     _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
@@ -1401,172 +1287,3 @@ async def admin_trigger_viral_score_backtest(
         params={"sample_size": body.sample_size, "seed": body.seed},
         runner=lambda: _admin_run_viral_score_backtest(body),
     )
-
-
-# ── Phase 3.4 — /admin/diagnostics ────────────────────────────────────────────
-
-@router.get("/admin/diagnostics")
-async def admin_diagnostics(
-    _admin: dict[str, Any] = Depends(require_admin),
-) -> JSONResponse:
-    """Operational diagnostics snapshot for on-call and deploy verification.
-
-    Returns:
-      - instance_id: K_REVISION env (Cloud Run revision) or "local"
-      - batch_secret_configured: bool (whether X-Batch-Secret is still in use)
-      - idempotency_table_row_count: int (rows in answer_session_idempotency)
-      - models: active Gemini model names from config
-      - as_of: ISO timestamp
-    """
-    from getviews_pipeline.config import GEMINI_MODEL_FALLBACK, GEMINI_MODEL_PRIMARY
-    from getviews_pipeline.deps import _BATCH_SECRET
-    from getviews_pipeline.supabase_client import get_service_client
-
-    instance_id = os.environ.get("K_REVISION", "local")
-
-    idem_row_count: int | None = None
-    try:
-        resp = get_service_client().table("answer_session_idempotency").select("user_id", count="exact").limit(0).execute()
-        idem_row_count = resp.count if hasattr(resp, "count") else None
-    except Exception as exc:
-        logger.warning("[admin/diagnostics] idempotency count failed: %s", exc)
-
-    return JSONResponse({
-        "ok": True,
-        "as_of": datetime.now(UTC).isoformat(),
-        "instance_id": instance_id,
-        "batch_secret_configured": bool(_BATCH_SECRET),
-        "batch_secret_migration_status": (
-            "legacy_active — migrate Scheduler jobs to admin JWT" if _BATCH_SECRET
-            else "migrated — BATCH_SECRET can be removed"
-        ),
-        "idempotency_table_row_count": idem_row_count,
-        "models": {
-            "primary": GEMINI_MODEL_PRIMARY if hasattr(__import__("getviews_pipeline.config", fromlist=["GEMINI_MODEL_PRIMARY"]), "GEMINI_MODEL_PRIMARY") else "see config.py",
-            "fallback": GEMINI_MODEL_FALLBACK if hasattr(__import__("getviews_pipeline.config", fromlist=["GEMINI_MODEL_FALLBACK"]), "GEMINI_MODEL_FALLBACK") else "see config.py",
-        },
-    })
-
-
-# ── /admin/layer0-health ──────────────────────────────────────────────────────
-
-@router.get("/admin/layer0-health")
-async def admin_layer0_health(
-    _admin: dict[str, Any] = Depends(require_admin),
-) -> JSONResponse:
-    """Layer0 hashtag-discovery snapshot for the admin Layer0Panel.
-
-    Aggregates four signals so the operator can tell at a glance whether
-    the discovery loop is healthy AND whether new hashtags are awaiting
-    human review:
-
-      summary:
-        last_run_at / last_run_status — most recent batch/layer0 row
-        pending_review_count — niche_candidates where reviewed=false
-        hashtag_map_size — total hashtag_niche_map rows
-        niches_with_stale_signals — count where stale_signal_count > 0
-      recent_runs: last 5 batch/layer0 entries from batch_job_runs
-      pending_candidates: top 20 unreviewed by occurrences (the queue)
-      niches: per-niche signal_hashtags freshness, sorted stale-first
-
-    No mutations, no Cloud Run timeouts to worry about — this is pure
-    read against three Supabase tables.
-    """
-    from getviews_pipeline.supabase_client import get_service_client
-
-    client = get_service_client()
-    now = datetime.now(UTC)
-
-    runs: list[dict[str, Any]] = []
-    try:
-        runs_res = (
-            client.table("batch_job_runs")
-            .select("id, started_at, finished_at, status, duration_ms, summary, error")
-            .eq("job_name", "batch/layer0")
-            .order("started_at", desc=True)
-            .limit(5)
-            .execute()
-        )
-        runs = runs_res.data or []
-    except Exception as exc:
-        logger.warning("[layer0-health] batch_job_runs fetch failed: %s", exc)
-
-    pending: list[dict[str, Any]] = []
-    pending_count: int = 0
-    try:
-        cand_res = (
-            client.table("niche_candidates")
-            .select(
-                "id, hashtag, occurrences, avg_views, discovery_date, "
-                "sample_video_ids, notes, assigned_niche_id"
-            )
-            .eq("reviewed", False)
-            .order("occurrences", desc=True)
-            .limit(20)
-            .execute()
-        )
-        pending = cand_res.data or []
-
-        count_res = (
-            client.table("niche_candidates")
-            .select("id", count="exact", head=True)
-            .eq("reviewed", False)
-            .execute()
-        )
-        pending_count = count_res.count or 0
-    except Exception as exc:
-        logger.warning("[layer0-health] niche_candidates fetch failed: %s", exc)
-
-    niches: list[dict[str, Any]] = []
-    try:
-        niche_res = (
-            client.table("niche_taxonomy")
-            .select(
-                "id, name_vn, name_en, signal_hashtags, "
-                "last_hashtag_refresh, stale_signal_count"
-            )
-            .execute()
-        )
-        for n in niche_res.data or []:
-            signals = n.get("signal_hashtags") or []
-            niches.append({
-                "niche_id": n.get("id"),
-                "name_vn": n.get("name_vn"),
-                "name_en": n.get("name_en"),
-                "signal_count": len(signals),
-                "stale_count": int(n.get("stale_signal_count") or 0),
-                "last_hashtag_refresh": n.get("last_hashtag_refresh"),
-            })
-        niches.sort(key=lambda r: (-(r["stale_count"]), r["niche_id"]))
-    except Exception as exc:
-        logger.warning("[layer0-health] niche_taxonomy fetch failed: %s", exc)
-
-    map_size: int = 0
-    try:
-        map_res = (
-            client.table("hashtag_niche_map")
-            .select("hashtag", count="exact", head=True)
-            .execute()
-        )
-        map_size = map_res.count or 0
-    except Exception as exc:
-        logger.warning("[layer0-health] hashtag_niche_map count failed: %s", exc)
-
-    summary = {
-        "last_run_at": runs[0]["started_at"] if runs else None,
-        "last_run_status": runs[0]["status"] if runs else None,
-        "last_run_duration_ms": runs[0]["duration_ms"] if runs else None,
-        "pending_review_count": pending_count,
-        "hashtag_map_size": map_size,
-        "niches_with_stale_signals": sum(1 for n in niches if n["stale_count"] > 0),
-        "niches_total": len(niches),
-    }
-
-    return JSONResponse({
-        "ok": True,
-        "as_of": now.isoformat(),
-        "summary": summary,
-        "recent_runs": runs,
-        "pending_candidates": pending,
-        "niches": niches,
-    })

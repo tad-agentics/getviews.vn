@@ -45,9 +45,6 @@ vi.mock("./LogsPanel", () => ({
 vi.mock("./TriggersPanel", () => ({
   TriggersPanel: () => <div data-testid="panel-triggers" />,
 }));
-vi.mock("./ActionLogPanel", () => ({
-  ActionLogPanel: () => <div data-testid="panel-actionlog" />,
-}));
 
 // TopBar / SectionHeader — render enough structure to assert against.
 vi.mock("@/components/v2/TopBar", () => ({
@@ -133,19 +130,22 @@ describe("AdminScreen gate", () => {
 
     // Section kickers lock the rendering order / presence so a future
     // refactor that drops a section fails here rather than shipping a
-    // half-empty dashboard.
+    // half-empty dashboard. Streamlined to the four ops-worthy sections.
     expect(screen.getByTestId("kicker-CORPUS · TAXONOMY + CLAIM TIERS")).toBeTruthy();
-    expect(screen.getByTestId("kicker-LAYER0 · TAXONOMY + HASHTAG")).toBeTruthy();
     expect(screen.getByTestId("kicker-ENSEMBLEDATA · USED UNITS")).toBeTruthy();
     expect(screen.getByTestId("kicker-CLOUD RUN · STDOUT TAIL")).toBeTruthy();
-    expect(screen.getByTestId("kicker-MANUAL RUN · CRON JOBS")).toBeTruthy();
-    expect(screen.getByTestId("kicker-AUDIT · WHO RAN WHAT")).toBeTruthy();
+    expect(screen.getByTestId("kicker-MANUAL RUN · NIGHTLY PIPELINE")).toBeTruthy();
 
-    // Stubbed panels mount (Layer0Panel is not mocked — real component).
+    // Removed sections must NOT render.
+    expect(screen.queryByTestId("kicker-LAYER0 · TAXONOMY + HASHTAG")).toBeNull();
+    expect(screen.queryByTestId("kicker-AUDIT · WHO RAN WHAT")).toBeNull();
+    expect(
+      screen.queryByTestId("kicker-L2.2 · CREATOR-VIEWS-UPLIFT FUNNEL"),
+    ).toBeNull();
+
     expect(screen.getByTestId("panel-corpus")).toBeTruthy();
     expect(screen.getByTestId("panel-ensemble")).toBeTruthy();
     expect(screen.getByTestId("panel-logs")).toBeTruthy();
     expect(screen.getByTestId("panel-triggers")).toBeTruthy();
-    expect(screen.getByTestId("panel-actionlog")).toBeTruthy();
   });
 });
