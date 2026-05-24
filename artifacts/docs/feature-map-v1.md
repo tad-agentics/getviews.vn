@@ -1,9 +1,9 @@
 # Product Vision V1 — GetViews.vn
 
 **Version:** 2.0 — **FINAL (GTM scope)**  
-**Last updated:** 2026-05-23  
-**Codebase ref:** `b479f64` (Launch Phases 0–2c + infra @ 2026-05-23; Wave 5 @ `680c803`)  
-**Status:** W0–W5 ✅ · **Launch Phases 0–2c + infra ✅** @ `b479f64`; **GTM gates open** (visual-audit, dogfood, pre-handoff, Vercel deploy); freeze UI Studio + Xu hướng
+**Last updated:** 2026-05-24 (vision correction — composer pill channel, không khối Studio riêng)  
+**Codebase ref:** 2026-05-24 — composer pill channel (Option A) shipped; `/app/channel` full page  
+**Status:** W0–W5 ✅ · Channel UX ✅ — composer pill **Khám Kênh** → `/app/channel` full page
 
 > **Pivot SSOT (2026-05-21+, prod defaults ON):** Class-first ingest/browse/benchmark — [`system-design.md`](system-design.md) §9. **`content_class_intelligence`** + tier/stats MVs canonical; legacy `niche_intelligence` refresh **skipped** in prod (bridge only for unmigrated percentile paths).
 
@@ -11,7 +11,7 @@
 
 | Doc | Role |
 |-----|------|
-| [`feature-map.md`](feature-map.md) | Inventory as-built + **Post-V1 backlog** — synced `680c803` |
+| [`feature-map.md`](feature-map.md) | Inventory as-built + **Post-V1 backlog** — synced `162abc26` |
 | [`two-axis-niche-model.md`](two-axis-niche-model.md) | Taxonomy SSOT (16 niches × 82 classes, junction, MV chain) |
 | [`product-value-audit.md`](product-value-audit.md) | Value → data audit, gaps, PVA backlog |
 | [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) | Extract field tiers, trim rules |
@@ -53,7 +53,7 @@ Hai surface **browse** không reshape cho GTM — chỉ fix handoff / billing / 
 | # | Mục tiêu kinh doanh | Trụ V1 | Surface chính |
 |---|---------------------|--------|----------------|
 | 1 | Phân tích video flop/win — **cơ bản + chuyên sâu** | **Video Intelligence** | Tab Studio — pill Khám Video flop / win |
-| 2 | Phân tích kênh creator — **cơ bản + chuyên sâu** | **Channel Intelligence** | Tab Studio — pill Khám Kênh |
+| 2 | Phân tích kênh creator — **cơ bản + chuyên sâu** | **Channel Intelligence** | Tab Studio — pill **Khám Kênh** trong composer → intent-router → `/app/channel` |
 | 3 | Corpus + công thức ngách — thay doomscroll | **Xu hướng** | Tab Xu hướng — công thức + kho video (§3.2, freeze) |
 | 4 | Kịch bản chi tiết để quay | **Script Studio** | Tab Studio — pill Tạo kịch bản |
 | 5 | Data extract & utilize **đều** cho mọi feature trên | **Data plane** | Ingest + batch + claim tiers; pre-launch gate §8.6–§8.7 |
@@ -140,17 +140,35 @@ Giữ shell composer hiện tại; đổi **pill** thành **4 mục** (thay chip
 |-------------------|-----|-----------------|--------|
 | **Khám Video flop** | Vì sao video flop, fix nhanh | `/app/answer` (video) | Preset `mode=flop` khi submit từ pill này |
 | **Khám Video win** | Vì sao video chạy, công thức tái tạo | `/app/answer` (video) | Preset `mode=win` |
-| **Khám Kênh** | Soi kênh @handle | `/app/channel` | F4 Chuyên sâu / F5 Nhanh — §5 |
+| **Khám Kênh** | Soi kênh @handle | `/app/channel?handle=…` | F4 Sâu / F5 Nhanh — §5; **không** khối Studio riêng |
 | **Tạo kịch bản** | Kịch bản đủ quay | `/app/answer` (`format=script`) | F7; legacy `/app/script` → redirect |
 
 **Composer (entry Tab Studio — turn 1):**
 
 - Input **theo pill** — URL TikTok, `@handle`, hoặc brief kịch bản; **không** câu hỏi text tự do (§4.10.1).
 - **Hai nút Cơ bản / Chuyên sâu** — chọn `analysis_depth` trước submit video/kênh (§4.11.2). ✅ W3 @ `9cd0957`
-- Pill flop/win preset `mode`; depth độc lập qua nút composer.
-- Handoffs ([`answerHandoff.ts`](../../src/lib/answerHandoff.ts)) prefill `?q=` + params — router SSOT turn 1.
+- Pill flop/win preset `mode` **chỉ khi input có TikTok URL**; depth độc lập qua nút Cơ bản/Chuyên sâu.
+- Submit → [`planStudioComposerSubmit()`](../../src/lib/studioComposer.ts) (Studio) hoặc [`planAnswerEntry()`](../../src/routes/_app/intent-router.ts) (Answer CTAs).
+- Pill **Khám Kênh:** placeholder `@handle`; `analysisDepth` → `?depth=basic|deep` (Cơ bản = Nhanh, Chuyên sâu = Sâu).
+- Handoffs: [`answerHandoff.ts`](../../src/lib/answerHandoff.ts); kênh: [`channelStudioHandoff.ts`](../../src/lib/channelStudioHandoff.ts) → `/app/channel`.
+
+**As-built (2026-05-24):** ✅ 4 pill trên [`QueryComposer`](../../src/components/v2/QueryComposer.tsx); [`HomeScreen`](../../src/routes/_app/home/HomeScreen.tsx) submit qua `planStudioComposerSubmit`; **không** mount `HomeMyChannelSection`.
 
 **Follow-up trong Answer:** sau mỗi báo cáo → **CTA intent pill** (2–3 nút / format), không mở lại composer chat tự do — §4.10.1–§4.10.2.
+
+#### 3.1.3 Channel — composer pill only
+
+| | **V1 (shipped 2026-05-24)** |
+|---|------------------------------|
+| Entry | Pill **Khám Kênh** + `@handle` submit |
+| Surface | `/app/channel` — full [`ChannelStudioPanel`](../../src/routes/_app/channel/components/ChannelStudioPanel.tsx) |
+| Router | `planStudioComposerSubmit` / `planAnswerEntry` → `buildChannelStudioPath` → **`/app/channel`** |
+| Depth | Studio composer **Cơ bản / Chuyên sâu** → `?depth=basic\|deep` (không `ChannelDepthPicker` trên page) |
+| Nav tab Khám kênh | ❌ Không tab riêng |
+
+**Depth trên `/app/channel`:** Nhanh (F5) = quick-peek + `ChannelBenchmarkStrip`; Sâu (F4) = SSE memo. Billing §10 unchanged.
+
+**Trends (W5-4):** `ChannelQuickPeekTeaser` trên pattern card — giữ; không thay composer pill.
 
 ### 3.2 Tab Xu hướng (`/app/trends`)
 
@@ -182,7 +200,7 @@ Tab riêng — **không** gộp pill Studio. TopBar as-built: “Xu Hướng Tu�
 | Trụ (§2) | Tab | Điểm vào |
 |----------|-----|----------|
 | Video Intelligence | **Studio** | Pill Khám Video flop · Khám Video win |
-| Channel Intelligence | **Studio** | Pill Khám Kênh |
+| Channel Intelligence | **Studio** | Pill **Khám Kênh** → `/app/channel` |
 | Script Studio | **Studio** | Pill Tạo kịch bản |
 | Xu hướng | **Xu hướng** | Công thức + Kho video (§3.2.1) |
 | Data plane | — | `/batch/*`, ingest (không user-facing) |
@@ -623,7 +641,7 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 |-------|-------------------|-----------------|----------------|----------------|
 | Studio pill **Khám Video win** | `/app/answer?q={url}` | nút composer (default `basic`) | `win` (từ pill) | `composer` |
 | Studio pill **Khám Video flop** | `/app/answer?q={url}` | nút composer (default `basic`) | `flop` (từ pill) | `composer` |
-| Studio pill **Khám Kênh** | `/app/channel` | nút composer | — | `composer` |
+| Studio pill **Khám Kênh** | `/app/channel?handle=…` | depth picker → Nhanh/Sâu | — | `composer` + `planAnswerEntry` |
 | Studio pill **Tạo kịch bản** | `/app/answer?q=…` (composer prefill) | — | — | `composer` |
 | Tab Xu hướng (TikTok) — “Giải mã video này” | `/app/answer?q={url}&depth=basic&mode=win&from=trends` | `basic` (fixed) | `win` | `trends` |
 | Tab Xu hướng (Douyin) — card tương tự | handoff video nếu có URL VN map | `basic` | `win` | `trends_douyin` |
@@ -637,6 +655,7 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 | [`intent-router.ts`](../../src/routes/_app/intent-router.ts) | Turn 1: `detectIntent` → `planAnswerEntry`; turn 2+ CTA: **`intent_type` explicit** (bypass free-text classify) | ✅ invariant @ W2-1a |
 | [`QueryComposer.tsx`](../../src/components/QueryComposer.tsx) | Entry Studio: 4 pill + Cơ bản/Chuyên sâu — **không** follow-up slot chat | ✅ W3-0 |
 | [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx), handoff helpers | Full query: `depth=basic&mode=win&from=trends` | ✅ W1-1 (`answerHandoff.ts`) |
+| [`channelStudioHandoff.ts`](../../src/lib/channelStudioHandoff.ts), [`/app/channel`](../../src/routes/_app/channel/route.tsx) | Pill Khám Kênh + `@handle` → `/app/channel` | ✅ 2026-05-24 |
 | `TrendsRail`, `PatternModal`, `GenericEvidenceGrid`, `SceneIntelligencePanel`, `IdeaBlock` | Align bảng entry trên | ✅ W1-1/W1-2 |
 
 **Query param contract:**
@@ -818,19 +837,19 @@ On-demand upsert: always set `analysis_depth` from request. Corpus path: write *
 |---|-------------------|----------------------|
 | **Use case** | “Kênh @x đang thế nào?” trước khi follow | Audit kênh mình / đối thủ cho brief |
 | **Input** | `@handle` | `@handle` + optional `video_url`, `force_refresh` |
-| **Output** | Median views, 1 breakout gần nhất, hook dominant, link 1 video corpus | Score card v2, peers, narrative SSE, trajectory + **channel findings** V5 §2 (§5.3) |
+| **Output** | Median views, ER, cadence vs ngách (`ChannelBenchmarkStrip`); findings teaser; optional breakout tile | Score card v2, peers, narrative SSE, trajectory + **channel findings** V5 §2 (§5.3) |
 | **Cache** | Corpus rollup only (no full SSE) | `channel_diagnoses` **7 ngày** |
-| **Billing (§10)** | Free hoặc 1 credit (product — **Launch phase**) | **3×** `decrement_credit` — ✅ FE/BE aligned @ W0-1 |
-| **Trạng thái code** | ✅ **Shipped** — `GET /channel/quick-peek` + `ChannelNhanhPanel` on **Studio Home** (`HomeMyChannelSection`) | **Shipped** — `POST /channel/diagnose` on Studio (`ChannelStudioPanel`, depth=Sâu) |
+| **Billing (§10)** | **0×** (Launch Phase 1 D2) | **3×** `decrement_credit` — ✅ FE/BE aligned @ W0-1 |
+| **Trạng thái code** | ✅ pill **Khám Kênh** → `/app/channel` quick-peek + `ChannelBenchmarkStrip` | ✅ pill → `/app/channel?depth=deep` SSE memo |
 
-**Resolved @ W0-1:** `ChannelStudioPanel` + BE both use `CHANNEL_DIAGNOSE_CREDIT_COST=3` (3× RPC loop in [`channel_diagnose.py`](../../cloud-run/getviews_pipeline/channel_diagnose.py)). Legacy `/app/channel` redirects to `/app?handle=…`.
+**Entry (shipped 2026-05-24):** Pill **Khám Kênh** + Cơ bản/Chuyên sâu trên Studio → [`planStudioComposerSubmit`](../../src/lib/studioComposer.ts) / [`planAnswerEntry`](../../src/routes/_app/intent-router.ts) → [`buildChannelStudioPath`](../../src/lib/channelStudioHandoff.ts) → `/app/channel`. Legacy `/app?handle=` redirects. Billing: `CHANNEL_SAU_CREDIT_COST=3` / `CHANNEL_DIAGNOSE_CREDIT_COST=3` @ W0-1.
 
 ### 5.2 Feature IDs
 
 | ID | Tên | Tier | Trạng thái | Evidence |
 |----|-----|------|------------|----------|
-| **F4** | Soi kênh Sâu | Deep | Shipped | `video.py` `/channel/diagnose`, `channel_diagnose.py` |
-| **F5** | Soi kênh Nhanh | Basic | ✅ **Shipped** | Trends peek W5-4 + Studio Home `HomeMyChannelSection` @ §6 |
+| **F4** | Soi kênh Sâu | Deep | ✅ | [`ChannelScreen`](../../src/routes/_app/channel/ChannelScreen.tsx) + `POST /channel/diagnose` SSE |
+| **F5** | Soi kênh Nhanh | Basic | ✅ | `GET /channel/quick-peek` + strip; Trends peek W5-4 @ `98814cbf` |
 
 ### 5.3 V5 Phần 2 (Channel) → Soi kênh Chuyên sâu (F4)
 
@@ -1248,11 +1267,11 @@ Giảm cost **ngoài** cắt V1 feature: chủ yếu **ít video ingest hơn** h
 
 | ID | Feature | Trụ | Basic/Deep | Ship | Route / entry |
 |----|---------|-----|------------|------|----------------|
-| **STU** | Studio — Gợi ý hôm nay (3 tầng) | — | — | ✅ UI · ◐ data | `/app` — Morning Signal + ritual + breakouts; **Launch:** hero niche corpus §8.7 |
+| **STU** | Studio — Gợi ý hôm nay (3 tầng) | — | — | ✅ UI · ◐ data | `/app` — composer 4 pill ✅; **không** khối channel cố định |
 | F1 | Phân tích video Chuyên sâu | 1 | Deep | ✅ W3 | `/app/answer` + `analysis_depth=deep` @ `9cd0957` |
 | F2 | Phân tích video Cơ bản (Win doomscroll) | 1 | Basic | ✅ W1+W3 | `/app/answer?depth=basic`; Trends: `mode=win&from=trends` (§4.10) |
-| F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel` — `POST /channel/diagnose` (3× credit) |
-| F5 | Soi kênh Nhanh | 2 | Basic | ✅ | `/app/channel` Nhanh + Trends peek W5-4 @ Launch Phase 1 |
+| F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel?handle=…&depth=deep` — pill Khám Kênh |
+| F5 | Soi kênh Nhanh | 2 | Basic | ✅ | `/app/channel?handle=…` Cơ bản; Trends peek W5-4 |
 | F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · ✅ handoff W1-1 | `/app/trends` §3.2.1 + `CrossNicheBreakoutLane` |
 | F7 | Script (Answer sessions) | 4 | — | ✅ | `/app/answer` script turns; legacy `/app/script` redirect |
 | F8 | Data plane | 5 | — | ✅ | batch + claim tiers; HI-11 route ✅; M4 `stats_history` @ Launch 2b |
@@ -1267,7 +1286,7 @@ Legend: **✅ shipped** = in prod code today · **◐ partial** = surface live, 
 |-----------|-------------------|---------|
 | Video **Cơ bản** (primary, `depth=basic`) | **1×** | Cùng RPC; ít section → ít token |
 | Video **Chuyên sâu** (primary, `depth=deep`) | **2×** | Gọi RPC 2 lần hoặc `decrement_credit` mở rộng — product chọn |
-| Channel Sâu | **3×** (đề xuất) | Fix FE/BE mismatch |
+| Channel Sâu | **3×** (đề xuất) | ✅ W0-1 — FE/BE aligned |
 | Channel Nhanh | **0×** | ✅ Launch Phase 1 — D2 @ `launch-phase1-d2.json` |
 | Script generate sâu | 3× | As-built |
 | Ritual / Xu hướng browse | Free | Top-of-funnel |
@@ -1300,8 +1319,8 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 |------------|-----|------------|
 | Video | `build_video_report`, `VideoBody` | §4.2–§4.12 |
 | Xu hướng | `TrendsPatternGrid` + Kho video §3.2.1 + `CrossNicheBreakoutLane` | **Giữ UI**; CTA → `from=trends` §4.10 ✅ W1-1 |
-| Kênh | `/channel/diagnose` | F5 peek W5-4; credit ✅ W0-1 (3×) |
-| Studio home | `HomeSuggestionsToday` 3 tầng §3.1.1 | **Giữ UI** — Morning Signal + within-niche breakouts shipped |
+| Kênh | `/channel/diagnose` + `/channel/quick-peek` | ✅ pill → `/app/channel`; `HomeMyChannelSection` gỡ |
+| Studio home | `HomeSuggestionsToday` 3 tầng §3.1.1 | **Không** khối channel — composer 4 pill §3.1.2 |
 | Studio shell | App layout, composer | 4 pill §3.1.2; Cơ bản/Chuyên sâu |
 | Script | `script.py`, scene intel | Golden path từ F6 / `goWinScript` |
 | Data | `/batch/*`, `video_diagnostics` | §4.12 migration; §4.7 M1–M4 |
@@ -1335,7 +1354,7 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [x] Composer **4 pill** + Cơ bản/Chuyên sâu picker (§3.1.2) — ✅ W3-0 @ `9cd0957`
 - [x] §4.9–§4.12 Win: Xu hướng 1 tap → `depth=basic` + `mode=win` + `from=trends` — ✅ W1-1 (`answerHandoff.ts`)
 - [x] §4.8 W0: ≥2 signal `win_*` + test; salience `tier_gate=hit` — ✅ **5/5** Win W0 @ W1-6 + W4-3 (`signals/win.py`)
-- [x] Mọi handle → **Nhanh** hoặc **Sâu**; billing đúng spec §10 — ✅ Launch Phase 1 @ `d25f94e` (`ChannelDepthPicker`, D2 Nhanh 0× / Sâu 3×; `launch-phase1-baseline.json`)
+- [x] Mọi handle → pill **Khám Kênh** → `/app/channel` Cơ bản/Chuyên sâu; **không** khối Studio — ✅ 2026-05-24
 - [x] Kho / pattern tile → Answer handoff §4.10 (không paste URL thủ công) — ✅ W1-1/W1-2
 - [x] Ritual Studio tier I → **Script Studio** ≤2 tap — ✅ W2-1a (Answer prefill)
 - [x] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier — ✅ Launch Phase 0 (`launch-phase0-corpus-health.json`; `api/chat.ts` humility sweep)
@@ -1362,7 +1381,7 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 |---|---------|---------|
 | D1 | ~~Video Cơ bản credit~~ | **Đã chốt:** 1× basic / 2× deep (§10) — implement RPC |
 | D2 | Channel billing (Sâu 3×; Nhanh 0× vs 1×) | **Resolved Launch Phase 1:** Nhanh **0×** / Sâu **3×** — `launch-phase1-d2.json` |
-| D3 | ~~Shell + landing~~ | **Đã chốt:** 2 tab Studio + Xu hướng; **landing = `/app`** (Gợi ý hôm nay + composer) |
+| D3 | ~~Shell + landing~~ | **Đã chốt:** 2 tab Studio + Xu hướng; channel = **composer pill** → `/app/channel` (**không** khối Studio, **không** tab nav) |
 | D11 | ~~Xu hướng scope~~ | **Đã chốt (§3.2.1):** freeze Công thức + Kho video; không segment TikTok/Douyin bắt buộc |
 | D4 | Đổi tên route `/app/trends` → `/app/xu-huong`? | **Deferred post-launch** — SEO/i18n vs redirect cost |
 | D5 | ~~Boost — user khai báo hay OAuth?~~ | **Đã chốt:** chỉ M1–M4 tự động (§4.7) |

@@ -5,7 +5,7 @@
 *User value / JTBD / gap analysis:* [`product-value-audit.md`](product-value-audit.md) (value → data, doc-only).  
 *V1 product vision (chỉ phạm vi ship GTM V1):* [`feature-map-v1.md`](feature-map-v1.md) — **không** liệt kê tính năng ngoài V1; xem **§ Post-V1 backlog** bên dưới.
 
-*Verified against codebase **2026-05-24** @ `37831b05` (§6 Studio channel embed + benchmark strip; Wave 5 @ `680c803`). Spot-checked: `HomeMyChannelSection` / `ChannelStudioPanel`; `/app/channel` redirect shim; `GET /channel/quick-peek` `channel_summary` + `niche_benchmarks`; M4 `stats_history`; `channel_findings` P1/P2; video P1 signals.*
+*Verified against codebase **2026-05-24** (composer pill channel @ Option A). Spot-checked: `studioComposer.ts`, `ChannelStudioPanel` on `/app/channel`; legacy `/app?handle=` redirect; `GET /channel/quick-peek` `channel_summary` + `niche_benchmarks`; M4 `stats_history`; `channel_findings` P1/P2; video P1 signals.*
 
 *Pivot SSOT:* Production ingest/browse defaults — [`system-design.md`](system-design.md) §9 · taxonomy tables — [`two-axis-niche-model.md`](two-axis-niche-model.md).*
 
@@ -88,9 +88,8 @@
      - **Tier III — Cảm hứng:** `BreakoutGrid` (`useTopBreakouts` → `video_corpus`, **within** user's junction `content_class_id`; cap 3; rotating window; copy: breakout trong ngách từ creator khác) → link `/app/trends`
   3. **Starter creators** — `/home/starter-creators`
   4. **Pulse data** — `DataFreshnessPill` + `/home/pulse`
-  5. **Soi kênh (F4/F5 @ §6)** — `HomeMyChannelSection` → `ChannelStudioPanel` (`ChannelDepthPicker`, Nhanh `ChannelBenchmarkStrip`, Sâu `ChannelDiagnosisBody` SSE). Query: `?handle=`, `?depth=nhanh|sau`, optional `force_refresh=true`, `video_url`. Intent router + action cards → `buildChannelStudioPath()` → `/app?handle=…` (not standalone tab).
-  6. **Query composer** — 4 pills + Cơ bản/Chuyên sâu → intent router → `/app/answer` | `/app?handle=…` (channel @handle) | script via `shot_list` → Answer `format=script`
-  7. **Niche picker** — session-scoped browse anchor (`studioNicheSession.ts`); profile `creator_niche_id` is SSOT
+  5. **Query composer** — 4 pills + Cơ bản/Chuyên sâu → `planStudioComposerSubmit` → `/app/answer` | `/app/channel?handle=…` | script via Answer
+  6. **Niche picker** — session-scoped browse anchor (`studioNicheSession.ts`); profile `creator_niche_id` is SSOT
 - **FE hooks (browse filter):** `fetchContentClassIdsForCreatorNiche`, `applyVideoCorpusNicheFilter` (`src/lib/corpusNicheFilter.ts`)
 - **BE endpoints:**
   - GET `/home/pulse` → `cloud-run/getviews_pipeline/routers/home.py:31`
@@ -191,21 +190,22 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
 
 ---
 
-## 5. Channel Analysis (F4 Sâu + F5 Nhanh) — Studio Home @ §6
+## 5. Channel Analysis (F4 Sâu + F5 Nhanh) — `/app/channel`
 
-**Primary UX:** embedded on **`/app`** via `HomeMyChannelSection` + `ChannelStudioPanel` (`37831b05`). Bottom/sidebar tab **Khám kênh** removed.
+**Primary UX:** composer pill **Khám Kênh** → `/app/channel` full page (`ChannelScreen` + `ChannelStudioPanel`). Legacy `/app?handle=` redirects via `studioHomeChannelRedirectPath`. Bottom/sidebar tab **Khám kênh** removed.
 
-### Legacy shim: `/app/channel`
+### `/app/channel`
 
-- **FE:** `src/routes/_app/channel/route.tsx` → `ChannelScreen.tsx` **redirect only** to `/app?handle=…` (query preserved via `channelStudioHandoff.ts`)
-- **Entry (legacy URLs):** `/app/channel?handle=<@handle>` → 302-style client redirect to Studio Home
+- **FE:** `src/routes/_app/channel/route.tsx` → `ChannelScreen.tsx` → `ChannelStudioPanel`
+- **Query:** `?handle=`, `?depth=basic|deep` (composer; legacy `sau`/`nhanh` parsed), optional `force_refresh=1`, `video_url`
+- **Entry:** Studio pill Khám Kênh, `planAnswerEntry` channel intents, action cards → `buildChannelStudioPath()`
 
-### Studio panel (`ChannelStudioPanel`)
+### Panel (`ChannelStudioPanel`)
 
-- **Nhanh (F5):** 0 credit — `useChannelQuickPeek` → GET `/channel/quick-peek`; `ChannelBenchmarkStrip` (views / ER / cadence vs niche from `channel_summary` + `niche_benchmarks`)
-- **Sâu (F4):** 3× credit — `useChannelDiagnose` → POST `/channel/diagnose` SSE; `ChannelDiagnosisBody` → `ScoreCard`, trajectory badges, `SectionRenderer` memo sections
-- **Depth picker:** `ChannelDepthPicker` (Nhanh / Sâu); deep-link `?depth=sau`; credits upsell when balance &lt; 3
-- **Handoff:** `buildChannelStudioPath()` used by `intent-router.ts`, `PatternActionCards`, `TimingActionCards`
+- **Cơ bản / F5 (Nhanh):** 0 credit — `useChannelQuickPeek` → GET `/channel/quick-peek`; `ChannelBenchmarkStrip`
+- **Chuyên sâu / F4 (Sâu):** 3× credit — `useChannelDiagnose` → POST `/channel/diagnose` SSE; `ChannelDiagnosisBody`
+- **Depth:** chọn trên Studio composer (Cơ bản/Chuyên sâu); upsell + **Chuyển Cơ bản** khi thiếu credit
+- **Handoff:** `buildChannelStudioPath()` — `intent-router.ts`, `PatternActionCards`, `TimingActionCards`, `AppLayout` recent
 
 ### BE endpoints (unchanged transport)
 
@@ -222,7 +222,7 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
 - **Credit cost (Sâu):** **3×** `decrement_credit` on cache miss — FE `CHANNEL_SAU_CREDIT_COST=3`; BE `CHANNEL_DIAGNOSE_CREDIT_COST=3`. Cache hit free.
 - **DB tables:** `channel_diagnoses`, `video_patterns`, `hook_effectiveness`, `creator_velocity`, `niche_insights`
 - **Status:** shipped & live
-- **Evidence:** `HomeMyChannelSection.tsx`, `ChannelStudioPanel.tsx`, `ChannelBenchmarkStrip.tsx`, `channel_quick_peek.py`, `channelStudioHandoff.ts`
+- **Evidence:** `ChannelScreen.tsx`, `ChannelStudioPanel.tsx`, `ChannelBenchmarkStrip.tsx`, `studioComposer.ts`, `channelStudioHandoff.ts`, `channel_quick_peek.py`
 
 ---
 

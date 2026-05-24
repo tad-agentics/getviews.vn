@@ -7,6 +7,13 @@ import { forwardRef, type ReactNode } from "react";
 import { ArrowUp } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
 import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
+import {
+  STUDIO_COMPOSER_PILLS,
+  composerDepthTitles,
+  type StudioComposerPill,
+} from "@/lib/studioComposer";
+
+export type { StudioComposerPill };
 
 export type QueryComposerProps = {
   value: string;
@@ -22,6 +29,12 @@ export type QueryComposerProps = {
   /** §4.11.2 — Cơ bản / Chuyên sâu trước khi gửi (Tab Studio + Answer initial). */
   analysisDepth?: AnswerHandoffDepth;
   onAnalysisDepthChange?: (depth: AnswerHandoffDepth) => void;
+  /** §3.1.2 — Studio intent pills (Khám Video flop / win / kênh / kịch bản). */
+  studioPill?: StudioComposerPill;
+  onStudioPillChange?: (pill: StudioComposerPill) => void;
+  /** Disable Chuyên sâu on Khám Kênh when credits &lt; channelDeepCreditCost. */
+  creditsRemaining?: number;
+  channelDeepCreditCost?: number;
   /** Tắt depth picker (mặc định: hiện khi không có followUpSlot). */
   showDepthPicker?: boolean;
   /**
@@ -43,6 +56,12 @@ function depthPillClass(active: boolean): string {
     : `${DEPTH_PILL_BASE} border-[var(--gv-rule)] bg-[var(--gv-paper)] text-[var(--gv-ink-3)] hover:border-[var(--gv-ink-4)] hover:text-[var(--gv-ink)]`;
 }
 
+function intentPillClass(active: boolean): string {
+  return active
+    ? "inline-flex min-h-[36px] shrink-0 items-center rounded-full border border-[var(--gv-ink)] bg-[var(--gv-canvas-2)] px-3 text-xs font-medium text-[var(--gv-ink)]"
+    : "inline-flex min-h-[36px] shrink-0 items-center rounded-full border border-[var(--gv-rule)] bg-[var(--gv-paper)] px-3 text-xs text-[var(--gv-ink-3)] hover:border-[var(--gv-ink-4)] hover:text-[var(--gv-ink)]";
+}
+
 export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>(
   function QueryComposer(
     {
@@ -57,6 +76,10 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
       showUrlChip,
       analysisDepth = "basic",
       onAnalysisDepthChange,
+      studioPill,
+      onStudioPillChange,
+      creditsRemaining = 0,
+      channelDeepCreditCost = 3,
       showDepthPicker,
       followUpSlot,
     },
@@ -68,6 +91,13 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
     };
 
     const depthVisible = showDepthPicker ?? !followUpSlot;
+    const depthTitles = composerDepthTitles(studioPill ?? "video_flop");
+    const showStudioPills = studioPill != null && onStudioPillChange != null && !followUpSlot;
+    const channelDeepDisabled =
+      studioPill === "channel" && creditsRemaining < channelDeepCreditCost;
+    const channelDeepTitle = channelDeepDisabled
+      ? `Cần ${channelDeepCreditCost} credit — bạn còn ${creditsRemaining}`
+      : depthTitles.deep;
 
     return (
     <div className="gv-surface-brutal">
@@ -97,34 +127,56 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--gv-rule)] px-3 py-2">
         {followUpSlot ? (
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{followUpSlot}</div>
-        ) : depthVisible ? (
+        ) : (
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-            <div
-              className="inline-flex shrink-0 rounded-md border border-[var(--gv-rule)] p-0.5"
-              role="group"
-              aria-label="Mức phân tích"
-            >
-              <button
-                type="button"
-                className={depthPillClass(analysisDepth === "basic")}
-                aria-pressed={analysisDepth === "basic"}
-                title="Giải mã nhanh · 1 credit"
-                disabled={disabled}
-                onClick={() => onAnalysisDepthChange?.("basic")}
+            {showStudioPills ? (
+              <div
+                className="flex min-w-0 flex-wrap gap-1"
+                role="group"
+                aria-label="Loại phân tích"
               >
-                Cơ bản
-              </button>
-              <button
-                type="button"
-                className={depthPillClass(analysisDepth === "deep")}
-                aria-pressed={analysisDepth === "deep"}
-                title="Đầy đủ góc · 2 credit"
-                disabled={disabled}
-                onClick={() => onAnalysisDepthChange?.("deep")}
+                {STUDIO_COMPOSER_PILLS.map((pill) => (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    disabled={disabled}
+                    className={intentPillClass(studioPill === pill.id)}
+                    aria-pressed={studioPill === pill.id}
+                    onClick={() => onStudioPillChange?.(pill.id)}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {depthVisible ? (
+              <div
+                className="inline-flex shrink-0 rounded-md border border-[var(--gv-rule)] p-0.5"
+                role="group"
+                aria-label="Mức phân tích"
               >
-                Chuyên sâu
-              </button>
-            </div>
+                <button
+                  type="button"
+                  className={depthPillClass(analysisDepth === "basic")}
+                  aria-pressed={analysisDepth === "basic"}
+                  title={depthTitles.basic}
+                  disabled={disabled}
+                  onClick={() => onAnalysisDepthChange?.("basic")}
+                >
+                  Cơ bản
+                </button>
+                <button
+                  type="button"
+                  className={depthPillClass(analysisDepth === "deep")}
+                  aria-pressed={analysisDepth === "deep"}
+                  title={channelDeepTitle}
+                  disabled={disabled || channelDeepDisabled}
+                  onClick={() => onAnalysisDepthChange?.("deep")}
+                >
+                  Chuyên sâu
+                </button>
+              </div>
+            ) : null}
             {showUrlChip ? (
               <span className="rounded-md border border-[var(--gv-rule)] px-2 py-0.5 gv-kicker text-[var(--gv-ink-4)]">
                 URL detected
@@ -136,8 +188,6 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
               </span>
             ) : null}
           </div>
-        ) : (
-          <div className="min-w-0 flex-1" />
         )}
         <Btn
           variant="accent"

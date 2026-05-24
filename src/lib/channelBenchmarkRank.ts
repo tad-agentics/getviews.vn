@@ -1,4 +1,4 @@
-/** Benchmark bar + rank labels for HomeMyChannelSection (§6). */
+/** Benchmark bar + rank labels for ChannelBenchmarkStrip (§6). */
 
 export function benchmarkBarPct(userValue: number, p75: number): number {
   if (!Number.isFinite(userValue) || userValue <= 0 || p75 <= 0) return 0;

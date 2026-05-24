@@ -15,6 +15,7 @@ import {
 import {
   CHANNEL_SAU_CREDIT_COST,
   channelDepthCreditCost,
+  channelDepthToHandoff,
   parseChannelDepth,
   type ChannelDepth,
 } from "@/lib/channelDepth";
@@ -22,15 +23,14 @@ import { env } from "@/lib/env";
 import { pushChannelHistory } from "@/lib/channelHistory";
 import { useAuth } from "@/lib/auth";
 import { ChannelBenchmarkStrip } from "./ChannelBenchmarkStrip";
-import { ChannelDepthPicker } from "./ChannelDepthPicker";
 import { ChannelDiagnosisBody } from "./ChannelDiagnosisBody";
 import { ChannelNhanhPanel } from "./ChannelNhanhPanel";
 
 const CREDIT_COST = CHANNEL_SAU_CREDIT_COST;
 
 /**
- * F4/F5 channel analysis — embedded in Studio Home (§6).
- * URL state lives on `/app?handle=&depth=` (see ``channelStudioHandoff``).
+ * F4/F5 channel analysis — full page at `/app/channel`.
+ * Depth is chosen in Studio composer (Cơ bản / Chuyên sâu) via `?depth=basic|deep`.
  */
 export function ChannelStudioPanel({
   defaultHandle,
@@ -96,8 +96,9 @@ export function ChannelStudioPanel({
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
-          if (depth === "nhanh") next.delete("depth");
-          else next.set("depth", depth);
+          const handoff = channelDepthToHandoff(depth);
+          if (handoff === "basic") next.delete("depth");
+          else next.set("depth", handoff);
           return next;
         },
         { replace: true },
@@ -204,16 +205,6 @@ export function ChannelStudioPanel({
 
   return (
     <div className="flex flex-col gap-5">
-      <ChannelDepthPicker
-        depth={channelDepth}
-        onDepthChange={(depth) => {
-          lastDiagnoseHandleRef.current = null;
-          setChannelDepth(depth);
-        }}
-        creditsRemaining={credits}
-        sauCreditCost={CREDIT_COST}
-      />
-
       {emptyParams ? (
         <>
           <div
@@ -230,7 +221,6 @@ export function ChannelStudioPanel({
               className="flex min-w-0 flex-1"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!hasCredits) return;
                 openHandle(draftHandle);
               }}
             >
@@ -247,10 +237,10 @@ export function ChannelStudioPanel({
               />
               <button
                 type="submit"
-                disabled={!draftHandle.trim() || !hasCredits}
+                disabled={!draftHandle.trim()}
                 className={
                   "flex shrink-0 items-center gap-1.5 border-l border-[color:var(--gv-rule)] px-5 text-sm font-semibold text-[color:var(--gv-canvas)] transition-colors " +
-                  (draftHandle.trim() && hasCredits
+                  (draftHandle.trim()
                     ? "bg-[color:var(--gv-ink)] hover:bg-[color:var(--gv-ink-2)]"
                     : "cursor-not-allowed bg-[color:var(--gv-ink-2)] opacity-60")
                 }
@@ -302,8 +292,18 @@ export function ChannelStudioPanel({
         <>
           {channelDepth === "sau" && !hasCredits ? (
             <p className="m-0 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-neg-soft)] px-4 py-3 text-sm text-[color:var(--gv-neg-deep)]">
-              Cần {CREDIT_COST} credit để chạy Sâu — bạn còn {credits}. Chuyển sang Nhanh hoặc nạp thêm
-              credit.
+              Cần {CREDIT_COST} credit để chạy Chuyên sâu — bạn còn {credits}.{" "}
+              <button
+                type="button"
+                className="font-semibold text-[color:var(--gv-accent)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  lastDiagnoseHandleRef.current = null;
+                  setChannelDepth("nhanh");
+                }}
+              >
+                Chuyển Cơ bản
+              </button>{" "}
+              hoặc nạp thêm credit.
             </p>
           ) : null}
           {quickPeek && quickPeek.corpus_video_count >= 3 ? (
@@ -312,7 +312,10 @@ export function ChannelStudioPanel({
           {channelDepth === "nhanh" ? (
             <ChannelNhanhPanel
               handle={handleKey ?? ""}
-              onUpgradeToSau={() => setChannelDepth("sau")}
+              onUpgradeToDeep={() => {
+                lastDiagnoseHandleRef.current = null;
+                setChannelDepth("sau");
+              }}
               peekData={quickPeek ?? null}
               peekLoading={quickPeekQuery.isLoading}
               peekError={quickPeekQuery.isError}

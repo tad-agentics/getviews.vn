@@ -4,6 +4,7 @@ import { Navigate, useLocation, useSearchParams } from "react-router";
 import { useProfile } from "@/hooks/useProfile";
 import { pageMeta } from "@/lib/pageTitle";
 import { profileHasNiche } from "@/lib/profileNiches";
+import { studioHomeChannelRedirectPath } from "@/lib/channelStudioHandoff";
 
 export const meta: MetaFunction = () => pageMeta("Sảnh Sáng Tạo");
 
@@ -27,6 +28,17 @@ export default function AppIndexRoute() {
   const session = searchParams.get("session");
   if (session) {
     return <Navigate to={`/app/history/chat/${session}`} replace state={location.state} />;
+  }
+
+  const scrollTier = searchParams.get("scrollTier");
+  const legacyHandle = searchParams.get("handle");
+  if (legacyHandle?.trim() && scrollTier) {
+    return <Navigate to={`/app?scrollTier=${scrollTier}`} replace state={location.state} />;
+  }
+
+  const channelRedirect = studioHomeChannelRedirectPath(searchParams);
+  if (channelRedirect && !scrollTier) {
+    return <Navigate to={channelRedirect} replace state={location.state} />;
   }
 
   // Wait for the profile query to resolve before deciding. This avoids a

@@ -118,4 +118,34 @@ describe("QueryComposer (C.1.0)", () => {
     );
     expect(screen.queryByRole("button", { name: "Cơ bản" })).toBeNull();
   });
+
+  it("renders studio intent pills when studioPill props provided", () => {
+    render(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        studioPill="channel"
+        onStudioPillChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Khám Kênh" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Khám Video flop" })).toBeTruthy();
+  });
+
+  it("disables Chuyên sâu on Khám Kênh when credits are below channel cost", () => {
+    render(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        studioPill="channel"
+        onStudioPillChange={vi.fn()}
+        creditsRemaining={2}
+        channelDeepCreditCost={3}
+      />,
+    );
+    const deep = screen.getByRole("button", { name: "Chuyên sâu" }) as HTMLButtonElement;
+    expect(deep.disabled).toBe(true);
+  });
 });

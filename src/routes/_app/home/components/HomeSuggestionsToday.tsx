@@ -68,7 +68,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
 
       {/* PR-4 — data-tier anchors back the channel diagnostic's bridge
        * pills + the "Xem gợi ý ↓" ribbon at the bottom of the
-       * HomeMyChannelSection card (see scrollToTier.ts). */}
+       * Scroll tier deep-link from channel diagnostics (see scrollToTier.ts). */}
       <div className="mb-10 scroll-mt-20" data-tier="01">
         <TierHeader
           num="I"

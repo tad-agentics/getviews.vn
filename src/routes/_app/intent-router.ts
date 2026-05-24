@@ -413,7 +413,7 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
     const handleMatch = trimmed.match(/@([\w.]+)/);
     const to = handleMatch
       ? buildChannelStudioPath({ handle: handleMatch[1] })
-      : "/app";
+      : "/app/channel";
     return { kind: "redirect", to };
   }
   const format: AnswerSessionFormat =

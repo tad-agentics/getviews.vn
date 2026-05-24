@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 /**
  * Live-site audit for chat-modal quick-action cards on the empty chat screen
- * (excluding Soi Kênh — B.3.4 routes to Studio `/app?handle=`, see dedicated
+ * (excluding Soi Kênh — B.3.4 routes to `/app/channel`, see dedicated
  * test below). Soi Video → `/app/video` and Tìm KOL → `/app/kol` (B.2.3) use
  * separate navigation tests — no modal / no chat stream for those.
  *
@@ -654,9 +654,9 @@ test("quick-action: Soi Kênh Đối Thủ modal navigates to Studio channel blo
   await expect(page.getByRole("heading", { name: /Soi Kênh Đối Thủ/i })).toBeVisible({ timeout: 20_000 });
   await page.locator('input[type="text"], textarea').first().fill(INPUTS.soiKenhHandle);
   await page.getByRole("button", { name: /^Tiếp tục$/i }).click();
-  await expect(page).toHaveURL(/\/app\?handle=/);
+  await expect(page).toHaveURL(/\/app\/channel(\?|$)/);
   await expect(
-    page.getByText(/Soi kênh · Nhanh|Tóm tắt kênh|Kênh TikTok/i).first(),
+    page.getByText(/Soi kênh · Cơ bản|Khám kênh TikTok/i).first(),
   ).toBeVisible({ timeout: 20_000 });
 });
 

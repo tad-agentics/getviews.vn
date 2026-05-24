@@ -16,13 +16,18 @@ import { useTopPatterns, type TopPatternsScope } from "@/hooks/useTopPatterns";
 import { fetchContentClassIdsForCreatorNiche } from "@/lib/corpusNicheFilter";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
-import { buildAnswerHandoffPath, type AnswerHandoffDepth } from "@/lib/answerHandoff";
+import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
+import { CHANNEL_SAU_CREDIT_COST } from "@/lib/channelDepth";
 import { profileFirstNicheId, profileCreatorNicheId } from "@/lib/profileNiches";
 import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
+import {
+  planStudioComposerSubmit,
+  studioComposerPlaceholder,
+  type StudioComposerPill,
+} from "@/lib/studioComposer";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
 import { HomeSuggestionsToday } from "./components/HomeSuggestionsToday";
-import { HomeMyChannelSection } from "./components/HomeMyChannelSection";
 import { NichePicker } from "./components/NichePicker";
 import { DateChip } from "./components/DateChip";
 import { useIsFirstRun } from "./components/useIsFirstRun";
@@ -34,8 +39,7 @@ import { scrollToSuggestionsTier, type SuggestionsTier } from "./components/scro
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
  *
- * Order: ticker → greeting → composer → suggested chips + shortcut pills → <hr>
- * → SOI KÊNH (F4/F5 embedded) → GỢI Ý HÔM NAY (tier 01–03).
+ * Order: ticker → greeting → composer (4 pills + depth) → suggested chips → GỢI Ý HÔM NAY.
  */
 
 /** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */
@@ -68,6 +72,7 @@ export default function HomeScreen() {
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [composerText, setComposerText] = useState("");
   const [analysisDepth, setAnalysisDepth] = useState<AnswerHandoffDepth>("basic");
+  const [studioPill, setStudioPill] = useState<StudioComposerPill>("video_flop");
   // L1.5 audit follow-up — surfaces a Vietnamese hint when the user
   // submits an unfilled paste-template chip (legacy template text in composer).
   const [placeholderHint, setPlaceholderHint] = useState<string | null>(null);
@@ -170,6 +175,18 @@ export default function HomeScreen() {
   // "Chào "); lowercase looks wrong at the start of a sentence.
   const displayName = profile?.display_name?.trim() || "Bạn";
   const firstName = displayName.split(/\s+/).pop() ?? displayName;
+  const creditsRemaining =
+    (profile as { credits_remaining?: number } | null | undefined)?.credits_remaining ?? 0;
+
+  useEffect(() => {
+    if (
+      studioPill === "channel" &&
+      analysisDepth === "deep" &&
+      creditsRemaining < CHANNEL_SAU_CREDIT_COST
+    ) {
+      setAnalysisDepth("basic");
+    }
+  }, [studioPill, analysisDepth, creditsRemaining]);
 
   // Bắt đầu nhanh — ``prompt`` đủ dài để ``detectIntent`` khớp đúng intent;
   // ``label`` ngắn cho nút; hover/aria dùng câu đầy đủ.
@@ -210,8 +227,11 @@ export default function HomeScreen() {
       surface: "home",
       length: text.length,
       analysis_depth: analysisDepth,
+      studio_pill: studioPill,
     });
-    navigate(buildAnswerHandoffPath({ q: text, depth: analysisDepth, from: "composer" }));
+    const plan = planStudioComposerSubmit(studioPill, text, analysisDepth);
+    if (plan.kind === "blocked") return;
+    navigate(plan.to);
   };
 
   const fillComposer = (text: string) => {
@@ -332,12 +352,16 @@ export default function HomeScreen() {
               value={composerText}
               onChange={handleComposerChange}
               onSubmit={submitStudioComposer}
-              placeholder={`Hỏi về hook, trend, hay kênh trong ngách ${nicheLabel}…`}
+              placeholder={studioComposerPlaceholder(studioPill, nicheLabel)}
               nicheLabel={nicheLabel}
               corpusCount={currentNicheCount}
               showUrlChip={URL_IN_TEXT.test(composerText)}
               analysisDepth={analysisDepth}
               onAnalysisDepthChange={setAnalysisDepth}
+              studioPill={studioPill}
+              onStudioPillChange={setStudioPill}
+              creditsRemaining={creditsRemaining}
+              channelDeepCreditCost={CHANNEL_SAU_CREDIT_COST}
             />
             {placeholderHint ? (
               <p
@@ -388,14 +412,6 @@ export default function HomeScreen() {
               ))}
             </div>
           </div>
-
-          <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
-
-          <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
-            <HomeMyChannelSection />
-          </div>
-
-          <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
           <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
             <HomeSuggestionsToday

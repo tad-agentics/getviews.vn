@@ -35,6 +35,7 @@ import {
 import { chatKeys } from "@/hooks/useChatSession";
 import { env } from "@/lib/env";
 import { readChannelHistory } from "@/lib/channelHistory";
+import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -802,7 +803,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                     onNavigate={() => {
                       if (session.source === "channel") {
                         const handle = session.first_message ?? "";
-                        navigate(`/app?handle=${encodeURIComponent(handle)}`);
+                        navigate(buildChannelStudioPath({ handle }));
                       } else if (session.source === "answer") {
                         navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
                       } else {

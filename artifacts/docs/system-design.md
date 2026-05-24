@@ -84,7 +84,7 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/` | Landing | Pre-rendered for SEO. Eager-loaded. |
 | `/login` `/signup` | Auth | Supabase OAuth redirect. |
 | `/auth/callback` | Auth | OAuth callback handler. |
-| `/app` | Studio Home | Auth-guarded shell. `?session=` → `/app/history/chat/:id`. No niche → `/app/onboarding`. **Channel (F4/F5):** `?handle=` + optional `?depth=nhanh\|sau` — `HomeMyChannelSection` / `ChannelStudioPanel` @ §6. |
+| `/app` | Studio Home | Auth-guarded shell. `?session=` → `/app/history/chat/:id`. No niche → `/app/onboarding`. Legacy `?handle=` → redirect `/app/channel`. Composer 4 pills + Cơ bản/Chuyên sâu. |
 | `/app/onboarding` | Onboarding | Single-niche picker (`profiles.creator_niche_id`). |
 | `/app/answer` | Answer | **Primary** structured video report + Q&A turns (`ReportV1`). Replaces deleted `/app/video`. |
 | `/app/history` | History | Session list via `history_union` RPC. |
@@ -92,7 +92,7 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/app/trends` | Trends | Niche intelligence + hook effectiveness. |
 | `/app/douyin` | Douyin | Douyin trend analysis. |
 | `/app/compare` | Compare | Two URLs → `POST /stream` `compare_videos`. |
-| `/app/channel` | *(legacy shim)* | Redirects to `/app?handle=…` (query preserved). **Khám kênh** tab removed @ §6 (`37831b05`). Transport unchanged: Nhanh → GET `/channel/quick-peek`; Sâu → POST `/channel/diagnose`. |
+| `/app/channel` | Khám kênh | Full page `ChannelStudioPanel`. Query `?handle=`, `?depth=basic\|deep`. Legacy `/app?handle=` redirects here. Nhanh → GET `/channel/quick-peek`; Sâu → POST `/channel/diagnose`. |
 | `/app/script` | *(legacy shim)* | Redirects to `/app/answer` with composer `?q=` prefill. |
 | `/app/script/shoot/:draftId` | *(legacy shim)* | Redirects to `/app/answer?shoot=:draftId`. |
 | `/app/settings` | Settings | Profile + niche edit. |
@@ -818,16 +818,16 @@ Mandatory LLM sections: **verdict** + **recommendations** — fallback to raw pr
 
 ### Frontend
 
-**Studio Home (§6 @ `37831b05`):** `HomeMyChannelSection` on `/app` embeds `ChannelStudioPanel` — Nhanh quick-peek + Sâu SSE memo. Legacy `/app/channel` redirects via `channelStudioHandoff.ts`. Nav tab **Khám kênh** removed.
+**Composer pill channel (2026-05-24):** Pill **Khám Kênh** + Cơ bản/Chuyên sâu on Studio → `/app/channel`. `ChannelScreen` full page; legacy `/app?handle=` → `studioHomeChannelRedirectPath`. Nav tab **Khám kênh** removed.
 
 | Depth | Hook / component | Transport |
 |-------|------------------|-----------|
-| **Nhanh (F5)** | `useChannelQuickPeek` → `ChannelBenchmarkStrip` | GET `/channel/quick-peek` (0 credit) |
-| **Sâu (F4)** | `useChannelDiagnose` → `ChannelDiagnosisBody` | POST `/channel/diagnose` SSE (3× credit on cache miss) |
+| **Cơ bản / F5 (Nhanh)** | `useChannelQuickPeek` → `ChannelBenchmarkStrip` | GET `/channel/quick-peek` (0 credit) |
+| **Chuyên sâu / F4 (Sâu)** | `useChannelDiagnose` → `ChannelDiagnosisBody` | POST `/channel/diagnose` SSE (3× credit on cache miss) |
 
 - **Hook (Sâu):** `useChannelDiagnose` — handles `score_card` SSE; exposes `scoreCard`, `channelPersona`, `peerSource`; merges terminal `payload` for replay completeness.
-- **Components:** `ChannelStudioPanel`, `ChannelBenchmarkStrip`, `ChannelDepthPicker`, `ScoreCard`, `HashtagInsightsBlock`, `NextVideoCard`, `SectionRenderer`, `VideoTileRow`, `CreatorTileRow`, `NumberedRecommendation` (hero / anti grouping), `StepProgress`, `ProvenanceLine` under `src/routes/_app/channel/components/`.
-- **Legacy shim:** `ChannelScreen.tsx` — client redirect only; score card skeleton + thin-corpus disclaimer live in `ChannelDiagnosisBody` when `peer_source === "thin"`.
+- **Components:** `ChannelStudioPanel`, `ChannelBenchmarkStrip`, `ScoreCard`, `HashtagInsightsBlock`, `NextVideoCard`, `SectionRenderer`, `VideoTileRow`, `CreatorTileRow`, `NumberedRecommendation` (hero / anti grouping), `StepProgress`, `ProvenanceLine` under `src/routes/_app/channel/components/`.
+- **Legacy:** `/app?handle=` bookmarks redirect to `/app/channel`; score card skeleton + thin-corpus disclaimer in `ChannelDiagnosisBody` when `peer_source === "thin"`.
 
 ### Phase 2 cleanup — **DONE** (2026-07-15)
 

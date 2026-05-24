@@ -6,9 +6,7 @@ export const meta: MetaFunction = () => pageMeta("Soi kênh");
 
 const ChannelScreen = lazy(() => import("./ChannelScreen"));
 
-/**
- * `/app/channel` — legacy redirect to Studio Home (`/app?handle=…`).
- */
+/** `/app/channel` — channel intelligence full page (composer pill Khám Kênh). */
 export default function AppChannelRoute() {
   return (
     <Suspense

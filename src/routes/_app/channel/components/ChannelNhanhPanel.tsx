@@ -8,7 +8,7 @@ import { formatVN } from "@/lib/formatters";
 
 type ChannelNhanhPanelProps = {
   handle: string;
-  onUpgradeToSau: () => void;
+  onUpgradeToDeep: () => void;
   /** When provided, skip a second quick-peek fetch (parent already loaded). */
   peekData?: ChannelQuickPeek | null;
   peekLoading?: boolean;
@@ -17,7 +17,7 @@ type ChannelNhanhPanelProps = {
 
 export function ChannelNhanhPanel({
   handle,
-  onUpgradeToSau,
+  onUpgradeToDeep,
   peekData,
   peekLoading,
   peekError,
@@ -42,8 +42,8 @@ export function ChannelNhanhPanel({
       <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6">
         <p className="m-0 text-sm text-[color:var(--gv-ink-3)]">
           Chưa đủ video của {at} trong kho để soi nhanh — thử{" "}
-          <button type="button" className="font-semibold text-[color:var(--gv-accent)] underline-offset-2 hover:underline" onClick={onUpgradeToSau}>
-            Sâu
+          <button type="button" className="font-semibold text-[color:var(--gv-accent)] underline-offset-2 hover:underline" onClick={onUpgradeToDeep}>
+            Chuyên sâu
           </button>{" "}
           để phân tích live.
         </p>
@@ -61,15 +61,15 @@ export function ChannelNhanhPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="gv-mono m-0 text-[11px] gv-kicker tracking-[0.12em] text-[color:var(--gv-accent-deep)]">
-            Soi kênh · Nhanh
+            Soi kênh · Cơ bản
           </p>
           <h2 className="gv-tight m-0 mt-1 text-[17px] font-semibold text-[color:var(--gv-ink)]">{at}</h2>
           <p className="m-0 mt-1 text-[12px] text-[color:var(--gv-ink-3)]">
             {data.corpus_video_count} video gần nhất trong kho · không trừ credit
           </p>
         </div>
-        <Btn type="button" variant="accent" size="sm" onClick={onUpgradeToSau}>
-          Nâng Sâu · 3 credit
+        <Btn type="button" variant="accent" size="sm" onClick={onUpgradeToDeep}>
+          Chuyên sâu · 3 credit
         </Btn>
       </div>
 

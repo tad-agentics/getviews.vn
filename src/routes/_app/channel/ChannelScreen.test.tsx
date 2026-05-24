@@ -1,26 +1,37 @@
-import { describe, expect, it } from "vitest";
-import { MemoryRouter, Route, Routes, useSearchParams } from "react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import React from "react";
+import { describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router";
+import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+vi.mock("@/hooks/useProfile", () => ({
+  useProfile: () => ({
+    data: { creator_niche_id: 1, credits_remaining: 10, tiktok_handle: "mychannel" },
+    isPending: false,
+  }),
+}));
+
+vi.mock("@/routes/_app/channel/components/ChannelStudioPanel", () => ({
+  ChannelStudioPanel: () => <div data-testid="channel-panel">panel</div>,
+}));
+
+vi.mock("@/components/AppLayout", () => ({
+  AppLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
 
 import ChannelScreen from "./ChannelScreen";
 
-function SearchCapture() {
-  const [params] = useSearchParams();
-  return <div data-testid="search">{params.toString()}</div>;
-}
-
-describe("ChannelScreen redirect", () => {
-  it("redirects /app/channel to /app preserving query params", async () => {
+describe("ChannelScreen", () => {
+  it("renders full-page channel panel", () => {
+    const qc = new QueryClient();
     render(
-      <MemoryRouter initialEntries={["/app/channel?handle=foo&depth=sau"]}>
-        <Routes>
-          <Route path="/app/channel" element={<ChannelScreen />} />
-          <Route path="/app" element={<SearchCapture />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={["/app/channel?handle=foo"]}>
+          <ChannelScreen />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
-    await waitFor(() => {
-      expect(screen.getByTestId("search").textContent).toBe("handle=foo&depth=sau");
-    });
+    expect(screen.getByText("Khám kênh TikTok")).toBeTruthy();
+    expect(screen.getByTestId("channel-panel")).toBeTruthy();
   });
 });

@@ -4,7 +4,7 @@
 
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 
@@ -57,7 +57,7 @@ function renderPanel(searchParams = "", defaultHandle?: string | null) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[`/app${searchParams}`]}>
+      <MemoryRouter initialEntries={[`/app/channel${searchParams}`]}>
         <ChannelStudioPanel defaultHandle={defaultHandle ?? null} />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -130,34 +130,38 @@ describe("ChannelStudioPanel", () => {
     expect(screen.getByLabelText(/Handle hoặc URL kênh TikTok/)).toBeTruthy();
   });
 
-  it("renders Nhanh panel by default when handle is set", () => {
+  it("renders Cơ bản panel by default when handle is set", () => {
     renderPanel("?handle=sammie.tech");
-    expect(screen.getByText(/Soi kênh · Nhanh/)).toBeTruthy();
+    expect(screen.getByText(/Soi kênh · Cơ bản/)).toBeTruthy();
     expect(screen.getByText(/trần view/)).toBeTruthy();
   });
 
   it("uses profile default handle when query param absent", () => {
     renderPanel("", "mychannel");
-    expect(screen.getByText(/Soi kênh · Nhanh/)).toBeTruthy();
+    expect(screen.getByText(/Soi kênh · Cơ bản/)).toBeTruthy();
   });
 
-  it("disables Sâu depth pill when credits are below 3", () => {
-    mockUseProfile.mockReturnValue({
-      data: { creator_niche_id: 1, credits_remaining: 2 },
-      isPending: false,
-    });
-    renderPanel();
-    const sauBtn = screen.getByRole("button", { name: /Sâu · 3 credit/ });
-    expect((sauBtn as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it("shows upsell when deep-linked to Sâu without enough credits", () => {
+  it("shows upsell when deep-linked to Chuyên sâu without enough credits", () => {
     mockUseProfile.mockReturnValue({
       data: { creator_niche_id: 1, credits_remaining: 1, tiktok_handle: null },
       isPending: false,
     });
-    renderPanel("?handle=sammie.tech&depth=sau");
-    expect(screen.getByText(/Cần 3 credit để chạy Sâu/)).toBeTruthy();
+    renderPanel("?handle=sammie.tech&depth=deep");
+    expect(screen.getByText(/Cần 3 credit để chạy Chuyên sâu/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Chuyển Cơ bản/i })).toBeTruthy();
+  });
+
+  it("allows handle submit when Chuyên sâu selected but credits are low", () => {
+    mockUseProfile.mockReturnValue({
+      data: { creator_niche_id: 1, credits_remaining: 1, tiktok_handle: null },
+      isPending: false,
+    });
+    renderPanel("?depth=deep");
+    fireEvent.change(screen.getByLabelText(/Handle hoặc URL kênh TikTok/), {
+      target: { value: "@creator" },
+    });
+    const submit = screen.getByRole("button", { name: /Khám/i }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
   });
 
   it("renders narrative sections when diagnosis has sections", () => {
@@ -182,7 +186,7 @@ describe("ChannelStudioPanel", () => {
         cache_hit: false,
       },
     });
-    renderPanel("?handle=sammie.tech&depth=sau");
+    renderPanel("?handle=sammie.tech&depth=deep");
     expect(screen.getByText(/Kết luận/)).toBeTruthy();
   });
 });

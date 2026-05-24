@@ -1,16 +1,23 @@
 {
   "task_id": "section6-channel-studio",
   "generated_at": "2026-05-24",
-  "baseline_commit": "37831b05",
+  "baseline_commit": "uncommitted-option-a",
   "verdict": "PASS",
-  "scope": "§6 Studio Home channel analysis — F4 Sâu + F5 Nhanh embed; Khám kênh tab removed",
+  "scope": "§6 composer pill Khám Kênh → /app/channel full page; Cơ bản/Chuyên sâu depth; F4 Sâu + F5 Nhanh",
   "items": {
-    "FE_STUDIO_EMBED": {
+    "FE_COMPOSER_PILLS": {
       "status": "done",
       "evidence": [
-        "src/routes/_app/home/components/HomeMyChannelSection.tsx",
-        "src/routes/_app/channel/components/ChannelStudioPanel.tsx",
+        "src/lib/studioComposer.ts",
+        "src/components/v2/QueryComposer.tsx",
         "src/routes/_app/home/HomeScreen.tsx"
+      ]
+    },
+    "FE_CHANNEL_PAGE": {
+      "status": "done",
+      "evidence": [
+        "src/routes/_app/channel/ChannelScreen.tsx",
+        "src/routes/_app/channel/components/ChannelStudioPanel.tsx"
       ]
     },
     "FE_BENCHMARK_STRIP": {
@@ -21,11 +28,11 @@
         "src/routes/_app/channel/components/ChannelBenchmarkStrip.test.tsx"
       ]
     },
-    "FE_HANDOFF_REDIRECT": {
+    "FE_HANDOFF": {
       "status": "done",
       "evidence": [
         "src/lib/channelStudioHandoff.ts",
-        "src/routes/_app/channel/ChannelScreen.tsx",
+        "src/routes/_app/route.tsx studioHomeChannelRedirectPath",
         "src/routes/_app/intent-router.ts"
       ]
     },
@@ -35,16 +42,18 @@
         "cloud-run/getviews_pipeline/channel_quick_peek.py channel_summary niche_benchmarks",
         "cloud-run/tests/test_channel_quick_peek.py"
       ],
-      "deploy_note": "Cloud Run user pod required for live Nhanh strip"
+      "deploy_note": "Cloud Run user pod required for live Cơ bản strip"
     },
     "TESTS": {
       "status": "done",
       "evidence": [
         "src/routes/_app/channel/ChannelStudioPanel.test.tsx",
         "src/lib/channelStudioHandoff.test.ts",
-        "src/routes/_app/channel/ChannelScreen.test.tsx"
+        "src/lib/studioComposer.test.ts",
+        "src/routes/_app/channel/ChannelScreen.test.tsx",
+        "src/components/v2/QueryComposer.test.tsx"
       ]
     }
   },
-  "acceptance": "Channel on /app via HomeMyChannelSection; /app/channel redirect; ChannelBenchmarkStrip wired to quick-peek payload; Sâu SSE unchanged transport."
+  "acceptance": "Khám Kênh pill → /app/channel; legacy /app?handle= redirect; ChannelBenchmarkStrip on quick-peek; Chuyên sâu SSE unchanged; credit upsell + Chuyển Cơ bản."
 }

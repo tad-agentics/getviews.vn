@@ -1,5 +1,20 @@
 # Changelog — GetViews.vn
 
+## 2026-05-24 — Studio composer pill channel (Option A)
+
+- **FE:** 4 pill trên `QueryComposer` (flop / win / **Khám Kênh** / kịch bản); submit qua `planStudioComposerSubmit`; Cơ bản/Chuyên sâu map depth kênh (`basic`/`deep` URL).
+- **Route:** `/app/channel` full page; legacy `/app?handle=` → redirect; gỡ `HomeMyChannelSection`, `ChannelDepthPicker`, `ChannelBridgeRibbon`.
+- **Fixes:** credit gate không block form Cơ bản; disable Chuyên sâu trên composer khi thiếu credit; `mode=flop|win` chỉ khi có TikTok URL; nút **Chuyển Cơ bản** trên upsell.
+
+## 2026-05-24 — feature-map-v1: vision correction — composer pill channel
+
+- **Vision:** Khám kênh = pill composer + `planAnswerEntry` → `/app/channel`; **không** `HomeMyChannelSection` trên Studio.
+- **Deviation:** §6 embed @ `37831b05` marked for revert; §3.1.3 rewritten as target vs as-built.
+
+## 2026-05-24 — feature-map-v1: §6 Studio channel SSOT
+
+- **`feature-map-v1.md`:** §3.1.3 Soi kênh embed; routes `/app?handle=…`; F4/F5 matrix + §13B; legacy `/app/channel` redirect; `ChannelBenchmarkStrip` quick-peek fields.
+
 ## 2026-05-24 — §8 doc sync (Studio channel + utilization map)
 
 - **`feature-map.md`:** §2 Studio `HomeMyChannelSection`; §5 rewritten — F4/F5 on `/app`, `/app/channel` redirect shim @ `37831b05`.

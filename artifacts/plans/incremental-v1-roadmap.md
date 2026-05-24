@@ -411,7 +411,7 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | `channel_boost_outlier_share` | §1.8 | `% suspect_medium` on handle | ✅ Launch 2a |
 | `channel_slang_staleness` | §2.5 | aggregate `persona_slang_dated` | ✅ Launch 2c |
 
-**Studio UX (§6 ship):** ✅ @ `37831b05` — Channel analysis embedded on `/app` via `HomeMyChannelSection` + `ChannelStudioPanel`. Tab **Khám kênh** removed; `/app/channel` redirects to `/app?handle=…`. Cloud Run user pod post quick-peek deploy required for Nhanh benchmark strip.
+**Studio UX (§6 ship):** ✅ 2026-05-24 — Composer pill **Khám Kênh** → `/app/channel` full page (`ChannelStudioPanel`). Legacy `/app?handle=` redirects. Tab **Khám kênh** removed. Cloud Run user pod post quick-peek deploy required for Cơ bản benchmark strip.
 
 ### 6.3 Credit & F8
 
