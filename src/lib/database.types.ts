@@ -448,133 +448,6 @@ export type Database = {
         }
         Relationships: []
       }
-      chat_archival_audit: {
-        Row: {
-          archived_at: string
-          id: string
-          message_count: number
-          session_created_at: string | null
-          session_id: string
-          session_updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          archived_at?: string
-          id?: string
-          message_count: number
-          session_created_at?: string | null
-          session_id: string
-          session_updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          archived_at?: string
-          id?: string
-          message_count?: number
-          session_created_at?: string | null
-          session_id?: string
-          session_updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      chat_messages: {
-        Row: {
-          content: string | null
-          created_at: string
-          credits_used: number
-          id: string
-          intent_type: string | null
-          is_free: boolean
-          role: string
-          session_id: string
-          stream_id: string | null
-          structured_output: Json | null
-          user_id: string
-        }
-        Insert: {
-          content?: string | null
-          created_at?: string
-          credits_used?: number
-          id?: string
-          intent_type?: string | null
-          is_free?: boolean
-          role: string
-          session_id: string
-          stream_id?: string | null
-          structured_output?: Json | null
-          user_id: string
-        }
-        Update: {
-          content?: string | null
-          created_at?: string
-          credits_used?: number
-          id?: string
-          intent_type?: string | null
-          is_free?: boolean
-          role?: string
-          session_id?: string
-          stream_id?: string | null
-          structured_output?: Json | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "chat_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_sessions: {
-        Row: {
-          created_at: string
-          credits_used: number
-          first_message: string
-          id: string
-          intent_type: string | null
-          is_pinned: boolean
-          niche_id: number | null
-          title: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          credits_used?: number
-          first_message: string
-          id?: string
-          intent_type?: string | null
-          is_pinned?: boolean
-          niche_id?: number | null
-          title?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          credits_used?: number
-          first_message?: string
-          id?: string
-          intent_type?: string | null
-          is_pinned?: boolean
-          niche_id?: number | null
-          title?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_sessions_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: false
-            referencedRelation: "niche_taxonomy"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       competitor_tracking: {
         Row: {
           added_at: string
@@ -1008,13 +881,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "credit_transactions_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "chat_sessions"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "credit_transactions_subscription_id_fkey"
             columns: ["subscription_id"]
@@ -3272,27 +3138,6 @@ export type Database = {
           type: string
           updated_at: string
         }[]
-      }
-      search_sessions: {
-        Args: { p_user_id: string; search_query: string }
-        Returns: {
-          created_at: string
-          credits_used: number
-          first_message: string
-          id: string
-          intent_type: string | null
-          is_pinned: boolean
-          niche_id: number | null
-          title: string | null
-          updated_at: string
-          user_id: string
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "chat_sessions"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       seed_starter_creators: {
         Args: { p_top_n?: number }
