@@ -12,7 +12,7 @@ import { corpusThumbnailSrcCandidates } from "@/lib/r2";
  *
  * After the R2 hardening (May 2026), new ingests write a permanent R2 URL to
  * ``video_corpus.thumbnail_url`` derived from frame[0] (videos) or
- * slide[0] (carousels). The remaining cases — frame extraction failed AND
+ * slide[0] (carousels) as 360w WebP. The remaining cases — frame extraction
  * the CDN URL has already expired — render a clean placeholder via this
  * component, never a broken-icon.
  *
@@ -24,8 +24,8 @@ import { corpusThumbnailSrcCandidates } from "@/lib/r2";
  *
  * Fallback: when ``videoId`` is set and ``VITE_R2_PUBLIC_URL`` is
  * configured, expired TikTok CDN URLs in ``thumbnailUrl`` fall through to
- * R2 ``thumbnails/{id}.png|.jpg`` then ``frames/{id}/0.png`` (same keys
- * batch ingest writes). Telemetry fires only after all candidates fail.
+ * R2 ``thumbnails/{id}.webp`` then legacy ``.png`` / ``.jpg`` (same keys
+ * batch ingest writes). Skips heavy ``frames/{id}/0.png``. Telemetry fires
  */
 
 /** Session-scoped dedup: fire at most one beacon per video_id per page load. */

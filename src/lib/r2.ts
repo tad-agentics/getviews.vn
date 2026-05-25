@@ -23,8 +23,11 @@ export function r2FrameUrl(videoId: string): string | null {
   return `${base}/frames/${videoId}/0.png`;
 }
 
-/** Permanent R2 thumbnail keys written by batch ingest (png from frame copy, jpg from CDN mirror). */
-export function r2ThumbnailUrl(videoId: string, ext: "png" | "jpg" = "png"): string | null {
+/** Permanent R2 thumbnail keys — WebP (default), legacy png/jpg fallbacks. */
+export function r2ThumbnailUrl(
+  videoId: string,
+  ext: "webp" | "png" | "jpg" = "webp",
+): string | null {
   const base = r2PublicBase();
   if (!base || !videoId) return null;
   return `${base}/thumbnails/${videoId}.${ext}`;
@@ -32,8 +35,9 @@ export function r2ThumbnailUrl(videoId: string, ext: "png" | "jpg" = "png"): str
 
 /**
  * Ordered ``<img src>`` candidates for corpus rows: DB URL first (may still
- * be a fresh TikTok CDN link), then R2 ``thumbnails/`` (both extensions),
- * then ``frames/0.png``. Deduped; empty when nothing to try.
+ * be a fresh TikTok CDN link or legacy R2 png), then optimized WebP,
+ * then legacy png/jpg. Skips ``frames/0.png`` — same 720px PNG as legacy
+ * thumbnails and too heavy for card grids.
  */
 export function corpusThumbnailSrcCandidates(
   videoId: string | null | undefined,
@@ -46,9 +50,9 @@ export function corpusThumbnailSrcCandidates(
   if (!videoId) return out;
 
   for (const url of [
+    r2ThumbnailUrl(videoId, "webp"),
     r2ThumbnailUrl(videoId, "png"),
     r2ThumbnailUrl(videoId, "jpg"),
-    r2FrameUrl(videoId),
   ]) {
     if (url && !out.includes(url)) out.push(url);
   }

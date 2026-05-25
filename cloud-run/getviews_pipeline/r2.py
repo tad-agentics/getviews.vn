@@ -49,6 +49,14 @@ _R2_ENDPOINT = "https://{account_id}.r2.cloudflarestorage.com"
 _FRAME_CONTENT_TYPE = "image/png"
 _FRAME_EXT = ".png"
 
+# User-facing card thumbnails — 360w WebP (frames/ stay 720 PNG for Gemini).
+_THUMB_EXT = ".webp"
+_THUMB_CONTENT_TYPE = "image/webp"
+_THUMB_SCALE_WIDTH = 360
+_THUMB_WEBP_QUALITY = 80
+_THUMBNAIL_EXTS = (_THUMB_EXT, _FRAME_EXT, ".jpg")
+_MAX_THUMB_OUTPUT_BYTES = 512 * 1024  # 512 KB guard after transcode
+
 # 2026-05-10 — Wave 2.5 Phase A PR #3: per-scene frames use JPG (smaller,
 # adequate quality for thumbnails at ~720px). Key pattern
 # ``video_shots/{video_id}/{scene_index}.jpg`` matches the matcher's
@@ -93,13 +101,10 @@ def r2_object_exists(key: str) -> bool:
 
 
 def r2_public_thumbnail_exists(video_id: str) -> bool:
-    """True when ``thumbnails/{video_id}.png`` or ``.jpg`` exists in R2."""
+    """True when ``thumbnails/{video_id}.webp`` exists (optimized user-facing thumb)."""
     if not video_id:
         return False
-    for ext in (_FRAME_EXT, ".jpg"):
-        if r2_object_exists(f"thumbnails/{video_id}{ext}"):
-            return True
-    return False
+    return r2_object_exists(f"thumbnails/{video_id}{_THUMB_EXT}")
 
 
 def _get_r2_client() -> Any:
@@ -311,97 +316,168 @@ def _cleanup_frames(frame_paths: list[Path]) -> None:
             pass
 
 
-def _delete_thumbnail_other_ext(video_id: str, written_ext: str) -> None:
-    """Delete the complementary thumbnail extension for ``video_id``.
+def _delete_stale_thumbnail_exts(video_id: str, *, keep_ext: str) -> None:
+    """Delete legacy thumbnail keys for ``video_id`` except ``keep_ext``.
 
-    When we write ``thumbnails/{id}.png`` via the frame-copy path and
-    ``thumbnails/{id}.jpg`` via the CDN-mirror path, both objects can
-    coexist in R2. The janitor counts the live video_id as "kept" for
-    both, so duplicates accumulate silently. This helper erases the
-    opposite extension immediately after every successful write so the
-    invariant "at most one extension per video_id under thumbnails/"
-    is enforced at write time.
-
-    Non-fatal — a failure just logs and returns.
+    Enforces at most one extension per video_id under ``thumbnails/``.
+    Non-fatal — failures log at debug/warning and return.
     """
-    opposite_ext = ".jpg" if written_ext == ".png" else ".png"
-    other_key = f"thumbnails/{video_id}{opposite_ext}"
+    for ext in _THUMBNAIL_EXTS:
+        if ext == keep_ext:
+            continue
+        other_key = f"thumbnails/{video_id}{ext}"
+        try:
+            client = _get_r2_client()
+            client.delete_object(Bucket=R2_BUCKET_NAME, Key=other_key)
+            logger.debug("[r2] deleted stale thumbnail %s", other_key)
+        except (BotoCoreError, ClientError) as exc:
+            logger.debug("[r2] delete stale thumbnail %s: %s", other_key, exc)
+        except Exception as exc:
+            logger.warning("[r2] unexpected error deleting stale thumbnail %s: %s", other_key, exc)
+
+
+def _ffmpeg_transcode_to_webp(
+    src_path: Path,
+    dst_path: Path,
+    *,
+    scale_w: int = _THUMB_SCALE_WIDTH,
+    quality: int = _THUMB_WEBP_QUALITY,
+) -> bool:
+    """Scale still image to ``scale_w`` and write WebP. Returns True on success."""
+    if not _ffmpeg_available():
+        return False
+    dst_path.unlink(missing_ok=True)
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-nostdin",
+        "-i",
+        str(src_path),
+        "-vf",
+        f"scale={scale_w}:-2",
+        "-frames:v",
+        "1",
+        "-c:v",
+        "libwebp",
+        "-quality",
+        str(quality),
+        str(dst_path),
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=30.0)
+    except subprocess.TimeoutExpired:
+        return False
+    except Exception:
+        return False
+    if result.returncode != 0:
+        return False
+    if not dst_path.exists() or dst_path.stat().st_size == 0:
+        dst_path.unlink(missing_ok=True)
+        return False
+    if dst_path.stat().st_size > _MAX_THUMB_OUTPUT_BYTES:
+        logger.warning(
+            "[r2] webp thumbnail too large (%dKB) after transcode — rejecting",
+            dst_path.stat().st_size // 1024,
+        )
+        dst_path.unlink(missing_ok=True)
+        return False
+    return True
+
+
+def _download_r2_object_to_path(key: str, dest: Path) -> bool:
+    """Download one R2 object to a local path. Returns True on success."""
     try:
         client = _get_r2_client()
-        client.delete_object(Bucket=R2_BUCKET_NAME, Key=other_key)
-        logger.debug("[r2] deleted stale opposite thumbnail %s", other_key)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        client.download_file(R2_BUCKET_NAME, key, str(dest))
+        return dest.exists() and dest.stat().st_size > 0
     except (BotoCoreError, ClientError) as exc:
-        # 404 (NoSuchKey) is expected and fine — nothing to clean up.
-        # Log at debug to avoid noise in the common case.
-        logger.debug("[r2] delete opposite thumbnail %s: %s", other_key, exc)
+        logger.debug("[r2] download %s failed: %s", key, exc)
+        return False
     except Exception as exc:
-        logger.warning("[r2] unexpected error deleting opposite thumbnail %s: %s", other_key, exc)
+        logger.warning("[r2] unexpected download error for %s: %s", key, exc)
+        return False
+
+
+def _put_thumbnail_webp(video_id: str, webp_bytes: bytes) -> str | None:
+    """Upload optimized WebP bytes to ``thumbnails/{video_id}.webp``."""
+    if not r2_configured() or not webp_bytes:
+        return None
+    key = f"thumbnails/{video_id}{_THUMB_EXT}"
+    try:
+        client = _get_r2_client()
+        client.put_object(
+            Bucket=R2_BUCKET_NAME,
+            Key=key,
+            Body=webp_bytes,
+            ContentType=_THUMB_CONTENT_TYPE,
+            CacheControl="public, max-age=31536000, immutable",
+        )
+        url = f"{R2_PUBLIC_URL.rstrip('/')}/{key}"
+        logger.info(
+            "[r2] uploaded webp thumbnail %s → %s (%dKB)",
+            video_id,
+            url,
+            len(webp_bytes) // 1024,
+        )
+        _delete_stale_thumbnail_exts(video_id, keep_ext=_THUMB_EXT)
+        return url
+    except (BotoCoreError, ClientError) as exc:
+        logger.error("[r2] webp thumbnail upload failed for %s: %s", video_id, exc)
+        return None
+    except Exception as exc:
+        logger.error("[r2] unexpected error uploading webp thumbnail %s: %s", video_id, exc)
+        return None
+
+
+def _transcode_local_image_to_webp_thumbnail(video_id: str, src_path: Path) -> str | None:
+    """Transcode a local still → 360w WebP on R2. Cleans up temp output."""
+    run_id = uuid.uuid4().hex[:8]
+    out_path = Path("/tmp") / f"thumb_webp_{video_id}_{run_id}{_THUMB_EXT}"
+    try:
+        if not _ffmpeg_transcode_to_webp(src_path, out_path):
+            return None
+        return _put_thumbnail_webp(video_id, out_path.read_bytes())
+    finally:
+        out_path.unlink(missing_ok=True)
 
 
 def copy_first_frame_to_thumbnail(video_id: str) -> str | None:
-    """Copy the already-uploaded frame[0] PNG to the thumbnail key
-    via an R2 server-side ``copy_object`` call. No local file read,
-    no second CDN call.
+    """Derive a 360w WebP user-facing thumbnail from frame[0] (or legacy PNG).
 
-    Architecture principle: one heavy CDN pull per video, ever. The
-    video binary is downloaded once during ``corpus_ingest``; from
-    that single download we extract everything we need and never
-    hotlink the platform CDN again. Thumbnails are part of "everything
-    we need" — frame[0] is already in R2 from ``upload_frames``; we
-    just clone it under the ``thumbnails/`` namespace so the FE has
-    a stable URL pattern and the R2 janitor can manage ``frames/``
-    (analysis cache, evictable) and ``thumbnails/`` (user-facing,
-    permanent) independently.
+    Analysis frames stay at ``frames/{video_id}/0.png`` (720px PNG for Gemini).
+    User-facing cards read ``thumbnails/{video_id}.webp`` (~15–40 KB vs
+    200–850 KB legacy PNG copies).
 
-    Why frame[0] (not the platform's ``origin_cover``):
-      • Some creators don't set a custom cover, so the platform
-        default is whatever frame the platform picked — often
-        unrelated to the hook.
-      • Frame[0] is a deterministic capture WE control. No CDN
-        round-trip, no URL rotation, no creator-cover edge case.
-      • The PNG is already in R2 — a server-side copy is one HTTP
-        op (no GB transfer, no local disk read).
+    Source order:
+      1. ``frames/{video_id}/0.png`` (preferred — deterministic hook frame)
+      2. ``thumbnails/{video_id}.png`` (legacy re-encode during backfill)
 
-    Key pattern: ``thumbnails/{video_id}.png`` (sibling to the
-    ``thumbnails/{video_id}.jpg`` written by
-    ``download_and_upload_thumbnail`` for legacy CDN-mirror flows;
-    different extension keeps the keys distinct).
-
-    Returns the permanent R2 public URL on success; ``None`` on
-    skip-or-failure. Non-fatal — corpus ingest continues and the
-    platform CDN URL (set earlier in the row) survives as the
-    ``thumbnail_url`` value.
+    Returns the permanent R2 public URL on success; ``None`` on skip/failure.
+    Non-fatal — corpus ingest continues with platform CDN URL as fallback.
     """
     if not r2_configured():
         return None
+
     src_key = f"frames/{video_id}/0{_FRAME_EXT}"
-    dst_key = f"thumbnails/{video_id}{_FRAME_EXT}"
+    if not r2_object_exists(src_key):
+        legacy_key = f"thumbnails/{video_id}{_FRAME_EXT}"
+        if r2_object_exists(legacy_key):
+            src_key = legacy_key
+        else:
+            return None
+
+    run_id = uuid.uuid4().hex[:8]
+    tmp_src = Path("/tmp") / f"thumb_src_{video_id}_{run_id}{_FRAME_EXT}"
     try:
-        client = _get_r2_client()
-        client.copy_object(
-            Bucket=R2_BUCKET_NAME,
-            Key=dst_key,
-            CopySource={"Bucket": R2_BUCKET_NAME, "Key": src_key},
-            ContentType=_FRAME_CONTENT_TYPE,
-            CacheControl="public, max-age=31536000, immutable",
-            MetadataDirective="REPLACE",
-        )
-    except (BotoCoreError, ClientError) as exc:
-        logger.warning(
-            "[r2] thumbnail-from-frame copy failed for %s (src=%s): %s",
-            video_id, src_key, exc,
-        )
-        return None
-    except Exception as exc:
-        logger.warning(
-            "[r2] unexpected error copying frame→thumbnail for %s: %s", video_id, exc,
-        )
-        return None
-    url = f"{R2_PUBLIC_URL.rstrip('/')}/{dst_key}"
-    logger.info("[r2] thumbnail derived from frame[0] for %s → %s", video_id, url)
-    # Ensure at most one extension under thumbnails/ — delete the CDN-mirror .jpg if it exists.
-    _delete_thumbnail_other_ext(video_id, _FRAME_EXT)
-    return url
+        if not _download_r2_object_to_path(src_key, tmp_src):
+            return None
+        return _transcode_local_image_to_webp_thumbnail(video_id, tmp_src)
+    finally:
+        tmp_src.unlink(missing_ok=True)
 
 
 async def extract_and_upload(video_path: Path, video_id: str) -> list[str]:
@@ -637,41 +713,30 @@ async def download_and_upload_video(
 _MAX_THUMB_BYTES = 2 * 1024 * 1024  # 2 MB
 
 def upload_thumbnail_bytes(video_id: str, image_bytes: bytes, content_type: str = "image/jpeg") -> str | None:
-    """Upload raw thumbnail bytes to R2 at thumbnails/{video_id}.jpg.
+    """Transcode raw thumbnail bytes → 360w WebP at ``thumbnails/{video_id}.webp``.
 
     Returns the permanent public URL on success, None on failure.
     Runs synchronously — call via run_in_executor for async contexts.
-
-    Key pattern : thumbnails/{video_id}.jpg
-    CacheControl: immutable — thumbnail content is stable once ingested.
     """
     if not r2_configured():
         return None
     if not image_bytes:
         return None
+    if len(image_bytes) > _MAX_THUMB_BYTES:
+        logger.warning("[r2] thumbnail source too large (%dKB) for %s", len(image_bytes) // 1024, video_id)
+        return None
 
-    ext = "jpg" if "jpeg" in content_type or "jpg" in content_type else "png"
-    key = f"thumbnails/{video_id}.{ext}"
+    run_id = uuid.uuid4().hex[:8]
+    src_ext = ".jpg" if "jpeg" in content_type or "jpg" in content_type else ".png"
+    tmp_src = Path("/tmp") / f"thumb_in_{video_id}_{run_id}{src_ext}"
     try:
-        client = _get_r2_client()
-        client.put_object(
-            Bucket=R2_BUCKET_NAME,
-            Key=key,
-            Body=image_bytes,
-            ContentType=content_type,
-            CacheControl="public, max-age=31536000, immutable",
-        )
-        url = f"{R2_PUBLIC_URL.rstrip('/')}/{key}"
-        logger.info("[r2] uploaded thumbnail %s → %s (%dKB)", video_id, url, len(image_bytes) // 1024)
-        # Ensure at most one extension under thumbnails/ — delete the complementary extension.
-        _delete_thumbnail_other_ext(video_id, f".{ext}")
-        return url
-    except (BotoCoreError, ClientError) as exc:
-        logger.error("[r2] thumbnail upload failed for %s: %s", video_id, exc)
-        return None
+        tmp_src.write_bytes(image_bytes)
+        return _transcode_local_image_to_webp_thumbnail(video_id, tmp_src)
     except Exception as exc:
-        logger.error("[r2] unexpected error uploading thumbnail %s: %s", video_id, exc)
+        logger.error("[r2] thumbnail transcode failed for %s: %s", video_id, exc)
         return None
+    finally:
+        tmp_src.unlink(missing_ok=True)
 
 
 async def download_and_upload_thumbnail(thumbnail_url: str, video_id: str) -> str | None:
@@ -686,7 +751,7 @@ async def download_and_upload_thumbnail(thumbnail_url: str, video_id: str) -> st
          with TikTok ``Referer`` / browser ``User-Agent`` (TikTok's CDN replies
          ``403 host_not_allowed`` to bare datacenter IPs and wrong referers)
       2. Validate content-type is image/* and size < _MAX_THUMB_BYTES
-      3. PUT bytes to R2 at thumbnails/{video_id}.jpg
+      3. PUT bytes to R2 at thumbnails/{video_id}.webp (360w transcode)
       4. Return the permanent R2 public URL, or None on any failure (non-fatal)
 
     Skipped gracefully when:

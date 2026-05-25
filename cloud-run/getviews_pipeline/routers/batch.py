@@ -774,10 +774,9 @@ async def batch_backfill_thumbnails(
     """Backfill ``video_corpus.thumbnail_url`` to a permanent R2 URL.
 
     Per-row strategy (in order):
-      1. **R2 frame[0] copy** — server-side ``copy_object`` from
-         ``frames/{vid}/0.png`` to ``thumbnails/{vid}.png``. Zero CDN
-         egress, zero scraping credit. Self-heals every legacy row that
-         already has analysis frames in R2.
+      1. **R2 frame[0] transcode** — download ``frames/{vid}/0.png``, ffmpeg
+         360w WebP → ``thumbnails/{vid}.webp``. Legacy ``.png`` thumbs are
+         re-encoded the same way when frame[0] is missing.
       2. **CDN mirror fallback** — only when frame[0] is missing AND the
          row has a non-empty ``thumbnail_url``. Costs proxy bandwidth;
          the URL may already be expired (TikTok CDN tokens rotate every

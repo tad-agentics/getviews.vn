@@ -50,7 +50,7 @@ describe("VideoThumbnail", () => {
     expect(img.getAttribute("src")).toBe("https://tiktok.cdn/stale.jpg");
     fireEvent.error(img);
     expect(container.querySelector("img")?.getAttribute("src")).toBe(
-      "https://media.getviews.vn/thumbnails/1234567890123456.png",
+      "https://media.getviews.vn/thumbnails/1234567890123456.webp",
     );
     expect(mockFetch).toHaveBeenCalledTimes(0);
   });
@@ -100,7 +100,7 @@ describe("VideoThumbnail", () => {
     const VT = await importComponent();
     const { container } = render(<VT thumbnailUrl={null} videoId="3234567890123456" />);
     expect(container.querySelector("img")?.getAttribute("src")).toBe(
-      "https://media.getviews.vn/thumbnails/3234567890123456.png",
+      "https://media.getviews.vn/thumbnails/3234567890123456.webp",
     );
     expect(mockFetch).toHaveBeenCalledTimes(0);
   });

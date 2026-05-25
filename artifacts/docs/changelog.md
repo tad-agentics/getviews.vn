@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-25 — R2 thumbnails: 360w WebP pipeline (Option A)
+
+- **`r2.py`:** `copy_first_frame_to_thumbnail` + `upload_thumbnail_bytes` transcode to **360w WebP** (`thumbnails/{id}.webp`); legacy `.png`/`.jpg` deleted after write; backfill re-encodes from `frames/0.png` or legacy PNG.
+- **`src/lib/r2.ts`:** WebP-first `corpusThumbnailSrcCandidates`; drop `frames/0.png` fallback (720px PNG too heavy for card grids).
+- **Backfill:** `r2_public_thumbnail_exists` skips only when `.webp` exists — run `POST /batch/backfill-thumbnails` to migrate ~3.7K legacy PNG thumbs.
+
 ## 2026-05-24 — Corpus ingest 3-shift cron (HI-13 throughput)
 
 - **`corpus_ingest`:** `ingest_shift` (a–f) + `ingest_shift_count` (default 3) split `content_class_ingest_targets` by priority; `remaining_content_class_ids` on wall-clock abort; MV/post-processing only on final shift (shift c) or full manual run.

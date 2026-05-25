@@ -19,7 +19,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
-_FAKE_R2_URL = "https://pub-abc.r2.dev/thumbnails/vid42.jpg"
+_FAKE_R2_URL = "https://pub-abc.r2.dev/thumbnails/vid42.webp"
 
 _FAKE_AWEME = {
     "aweme_id": "vid42",
