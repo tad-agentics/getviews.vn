@@ -3,9 +3,6 @@ export const RETIRED_NICHE_TAXONOMY_IDS: ReadonlySet<number> = new Set([
   1, 6, 12, 18, 19, 20, 22, 23, 24, 25,
 ]);
 
-/** Retired UX buckets — hidden from pickers. */
-export const RETIRED_CREATOR_NICHE_IDS: ReadonlySet<number> = new Set([13]);
-
 /** Legacy id → surviving taxonomy id (matches Supabase merge / retire migrations). */
 const NICHE_TAXONOMY_ALIASES: Readonly<Record<number, number>> = {
   1: 5, // Review đồ Shopee / Gia dụng → Kinh doanh online / Bán hàng

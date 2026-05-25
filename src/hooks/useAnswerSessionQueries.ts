@@ -82,11 +82,6 @@ export function useDeleteAnswerSession() {
   });
 }
 
-/** @deprecated Use ``useDeleteAnswerSession`` — hard delete replaced soft archive. */
-export function useArchiveAnswerSession() {
-  return useDeleteAnswerSession();
-}
-
 /**
  * Rename an answer session via the same PATCH endpoint.
  * Trims the title on the client so a whitespace-only rename is a no-op

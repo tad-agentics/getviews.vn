@@ -44,14 +44,3 @@ export function pushChannelHistory(userId: string, handle: string): void {
     // storage quota — silently skip
   }
 }
-
-export function removeChannelHistory(userId: string, handle: string): void {
-  try {
-    const next = readChannelHistory(userId).filter(
-      (e) => e.handle.toLowerCase() !== handle.toLowerCase(),
-    );
-    localStorage.setItem(storageKey(userId), JSON.stringify(next));
-  } catch {
-    // ignore
-  }
-}

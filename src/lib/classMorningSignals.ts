@@ -138,32 +138,3 @@ function toSignal(
     corpus_citation: `${row.video_count_7d ?? row.sample_size ?? 0} video · 7 ngày`,
   };
 }
-
-export const SIGNAL_DISMISS_PREFIX = "gv_signal_dismiss_";
-export const SIGNAL_DISMISS_MS = 48 * 60 * 60 * 1000;
-
-export function readDismissedClassIds(nowMs = Date.now()): Set<number> {
-  if (typeof window === "undefined") return new Set();
-  const out = new Set<number>();
-  for (let i = 0; i < window.localStorage.length; i++) {
-    const key = window.localStorage.key(i);
-    if (!key?.startsWith(SIGNAL_DISMISS_PREFIX)) continue;
-    const raw = window.localStorage.getItem(key);
-    const until = raw ? Number(raw) : 0;
-    if (!Number.isFinite(until) || until <= nowMs) {
-      window.localStorage.removeItem(key!);
-      continue;
-    }
-    const id = Number(key.slice(SIGNAL_DISMISS_PREFIX.length));
-    if (Number.isFinite(id)) out.add(id);
-  }
-  return out;
-}
-
-export function dismissClassSignal(contentClassId: number, nowMs = Date.now()): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    `${SIGNAL_DISMISS_PREFIX}${contentClassId}`,
-    String(nowMs + SIGNAL_DISMISS_MS),
-  );
-}

@@ -11,10 +11,6 @@ export function parseChannelDepth(raw: string | null): ChannelDepth {
   return "nhanh";
 }
 
-export function channelDepthFromHandoff(depth: AnswerHandoffDepth): ChannelDepth {
-  return depth === "deep" ? "sau" : "nhanh";
-}
-
 export function channelDepthToHandoff(depth: ChannelDepth): AnswerHandoffDepth {
   return depth === "sau" ? "deep" : "basic";
 }

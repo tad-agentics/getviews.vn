@@ -40,24 +40,6 @@ export function useScriptSave() {
   });
 }
 
-export const scriptDraftsListKey = ["script-drafts"] as const;
-
-export function useScriptDrafts(enabled: boolean = true) {
-  return useQuery<ScriptDraftsListResponse>({
-    queryKey: scriptDraftsListKey,
-    queryFn: async () => {
-      baseOrThrow();
-      const res = await cloudRunAuthedFetch("/script/drafts", {
-        timeoutMs: 15_000,
-      });
-      if (!res.ok) await throwCloudRunError(res);
-      return (await res.json()) as ScriptDraftsListResponse;
-    },
-    enabled: enabled && Boolean(env.VITE_CLOUD_RUN_API_URL),
-    staleTime: 30_000,
-  });
-}
-
 export function scriptDraftKey(draftId: string | null | undefined) {
   return ["script-draft", draftId] as const;
 }

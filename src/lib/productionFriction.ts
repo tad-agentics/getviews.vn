@@ -7,8 +7,6 @@ export type ProductionFriction = "low" | "mid" | "high";
 
 export type MorningEnergyMode = "low" | "high";
 
-export const MORNING_ENERGY_STORAGE_KEY = "gv_morning_energy_mode";
-
 const LOW_FRICTION_AXES = new Set([
   "vlog_daily",
   "talking_head_advice",
@@ -38,17 +36,6 @@ export function frictionFromFormatAxis(formatAxis: string | null | undefined): P
   if (HIGH_FRICTION_AXES.has(axis)) return "high";
   if (axis === "tutorial" || axis === "pov_storytelling") return "mid";
   return "mid";
-}
-
-export function readMorningEnergyMode(): MorningEnergyMode {
-  if (typeof window === "undefined") return "high";
-  const raw = window.localStorage.getItem(MORNING_ENERGY_STORAGE_KEY);
-  return raw === "low" ? "low" : "high";
-}
-
-export function writeMorningEnergyMode(mode: MorningEnergyMode): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(MORNING_ENERGY_STORAGE_KEY, mode);
 }
 
 /** When energy is low, prefer low-friction classes; high mode keeps all eligible rows. */
