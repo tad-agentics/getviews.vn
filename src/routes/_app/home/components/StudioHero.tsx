@@ -7,7 +7,7 @@ import { Btn } from "@/components/v2/Btn";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
 import { useRitualEvidenceVideos } from "@/hooks/useRitualEvidenceVideos";
 import { analysisErrorCopy } from "@/lib/errorMessages";
-import { formatRelativeSinceVi, formatViews } from "@/lib/formatters";
+import { formatViews } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
 import {
@@ -108,18 +108,8 @@ export const StudioHero = memo(function StudioHero({
     );
   }
 
-  const isThin = ritual.adequacy === "none" || ritual.adequacy === "reference_pool";
-  const updatedRel = formatRelativeSinceVi(new Date(), new Date(ritual.generated_at));
-
   return (
     <div>
-      {isThin ? (
-        <p className="gv-mono mb-3 text-[11px] text-[color:var(--gv-ink-3)]">
-          <span className="text-[color:var(--gv-ink-3)]">
-            Dữ liệu ngách đang thưa, các retention estimate là định hướng.
-          </span>
-        </p>
-      ) : null}
       <div className="overflow-hidden rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-[18px]">
         {ritual.scripts.map((s, i) => (
           <StudioHeroRow
