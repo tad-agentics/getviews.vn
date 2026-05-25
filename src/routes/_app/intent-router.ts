@@ -1,14 +1,7 @@
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 
 /** Wave 1 — §3.1 URL handoff contract (`?q=&depth=&mode=&from=`). */
-export {
-  buildAnswerHandoffPath,
-  parseAnswerHandoffParams,
-  trendsVideoHandoffPath,
-  type AnswerHandoffDepth,
-  type AnswerHandoffMode,
-  type ParsedAnswerHandoff,
-} from "@/lib/answerHandoff";
+export { parseAnswerHandoffParams } from "@/lib/answerHandoff";
 
 /**
  * detectIntent — maps a raw user message to a pipeline intent (Phase C §A).

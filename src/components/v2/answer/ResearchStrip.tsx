@@ -6,42 +6,6 @@ import {
   VIDEO_PIPELINE_SLOW_HINT_MS,
 } from "@/lib/videoPipelineTimeouts";
 
-const STEPS = ["Quét", "Phân tích", "Tìm pattern", "Tóm tắt"] as const;
-
-/** Four-step research narrative (Phase C.1.3). */
-export function ResearchStepStrip({
-  stage,
-  done = false,
-}: {
-  /** 0–3 current highlight while loading; `done` styles all steps complete. */
-  stage: number;
-  done?: boolean;
-}) {
-  const activeIndex = done ? STEPS.length : Math.min(Math.max(stage, 0), STEPS.length - 1);
-  return (
-    <ol className="mt-4 flex flex-wrap gap-2" aria-label="Tiến trình nghiên cứu">
-      {STEPS.map((label, i) => {
-        const isDone = done || i < activeIndex;
-        const isActive = !done && i === activeIndex;
-        return (
-          <li
-            key={label}
-            className={`rounded-full border px-2.5 py-1 gv-kicker transition-colors ${
-              isDone
-                ? "border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-ink)]"
-                : isActive
-                  ? "border-[color:var(--gv-accent)] bg-[var(--gv-canvas-2)] text-[color:var(--gv-ink)]"
-                  : "border-[var(--gv-rule)] text-[var(--gv-ink-4)]"
-            }`}
-          >
-            {label}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
 /**
  * Thanh tiến trình ngang theo reference báo cáo — copy chi tiết + pill hoàn tất.
  */
@@ -132,24 +96,6 @@ export function useResearchStage(active: boolean): number {
     return () => window.clearInterval(id);
   }, [active]);
   return active ? stage : 0;
-}
-
-export function ProgressPill({
-  loading,
-  stepIndex,
-  total = 4,
-}: {
-  loading: boolean;
-  stepIndex: number;
-  total?: number;
-}) {
-  if (!loading) return null;
-  const n = Math.min(stepIndex + 1, total);
-  return (
-    <span className="inline-flex items-center rounded-full border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] px-2 py-0.5 gv-kicker text-[var(--gv-ink-3)]">
-      Đang nghiên cứu… {n}/{total}
-    </span>
-  );
 }
 
 // ── Tool card state ──────────────────────────────────────────────────────────

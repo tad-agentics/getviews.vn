@@ -29,22 +29,6 @@ export function scriptPrefillFromRitual(script: RitualScript, _nicheId: number):
   return answerComposerPath(parts.join(" "));
 }
 
-/** Path + query from Morning Signal card (class intelligence). */
-export function scriptPrefillFromMorningSignal(signal: {
-  label_vn: string;
-  suggested_hook_type?: string | null;
-  suggested_sound?: string | null;
-}): string {
-  const parts = [`Viết kịch bản TikTok cho format: ${signal.label_vn.trim()}.`];
-  if (signal.suggested_hook_type?.trim()) {
-    parts.push(`Góc hook gợi ý: ${signal.suggested_hook_type.trim()}.`);
-  }
-  if (signal.suggested_sound?.trim()) {
-    parts.push(`Nhạc nền gợi ý: ${signal.suggested_sound.trim()}.`);
-  }
-  return answerComposerPath(parts.join(" "));
-}
-
 /** Path + query from channel analysis (formula CTA). */
 export function scriptPrefillFromChannel(data: {
   niche_id: number;

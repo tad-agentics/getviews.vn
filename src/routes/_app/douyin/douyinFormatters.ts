@@ -97,12 +97,6 @@ export function formatRisePct(pct: number | null): string | null {
   return `+${Math.round(pct)}%`;
 }
 
-/** Engagement-rate display: ``12.5%`` or ``—``. BE stores 0..100. */
-export function formatEngagementPct(er: number | null): string {
-  if (er == null || !Number.isFinite(er)) return "—";
-  return `${er.toFixed(1)}%`;
-}
-
 /** ``2 tuần`` / ``2–4 tuần`` / ``null`` from the eta range. */
 export function formatEtaWeeks(
   min: number | null,

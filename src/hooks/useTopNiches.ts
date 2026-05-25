@@ -80,23 +80,3 @@ export function useNicheRowsForIds(ids: readonly number[] | null | undefined) {
   });
 }
 
-/** Active niches for pickers — excludes retired taxonomy ids. */
-export function useTopNiches() {
-  return useQuery({
-    queryKey: ["niche_taxonomy", "active"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("niche_taxonomy")
-        .select("id, name_vn")
-        .order("name_vn");
-      if (error) throw error;
-      return (data ?? [])
-        .filter((n) => !RETIRED_NICHE_TAXONOMY_IDS.has(n.id))
-        .map((n) => ({
-          id: n.id,
-          name: resolveNicheNameVn(n.id, n.name_vn as string),
-        }));
-    },
-    staleTime: 24 * 60 * 60_000,
-  });
-}
