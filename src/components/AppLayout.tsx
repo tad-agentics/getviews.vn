@@ -789,12 +789,17 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                       isPinned
                       isActive={session.source === "answer" && activeAnswerSessionId === session.id}
                       onNavigate={() => {
-                        navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
+                        if (session.source === "channel") {
+                          const handle = session.first_message ?? "";
+                          navigate(buildChannelStudioPath({ handle }));
+                        } else {
+                          navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
+                        }
                         onClose?.();
                       }}
-                      onPin={() => handlePin(session.id)}
-                      onDelete={() => handleDelete(session.id, session.source)}
-                      onRename={(label) => handleRename(session.id, label, session.source)}
+                      onPin={session.source === "channel" ? undefined : () => handlePin(session.id)}
+                      onDelete={session.source === "channel" ? undefined : () => handleDelete(session.id, session.source)}
+                      onRename={session.source === "channel" ? undefined : (label) => handleRename(session.id, label, session.source)}
                     />
                   ))}
                 </div>
