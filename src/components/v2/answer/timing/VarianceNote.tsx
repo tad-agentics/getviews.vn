@@ -4,7 +4,7 @@
  * Three states keyed to `variance_note.kind`:
  *   - strong  → accent chip ("Heatmap CÓ ý nghĩa")
  *   - weak    → ink-3 chip  ("Heatmap có xu hướng nhưng chưa rõ")
- *   - sparse  → canvas-2 chip ("Heatmap CHƯA ổn định — mẫu thưa")
+ *   - sparse  → canvas-2 chip ("Heatmap chưa đủ ổn định để chốt khung giờ")
  *
  * The chip doubles as the expand affordance for the longer `detail` copy
  * rendered below it so the band stays scannable.

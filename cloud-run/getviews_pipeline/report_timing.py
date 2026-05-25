@@ -298,10 +298,10 @@ def build_timing_report(
     if force_thin_variance:
         variance = {
             "kind": "sparse",
-            "label": "Heatmap CHƯA ổn định — mẫu ít",
+            "label": "Heatmap chưa đủ ổn định để chốt khung giờ",
             "detail": (
-                f"Chỉ {sample_n} video trong {window_days} ngày gần nhất; "
-                "heatmap và top-3 chỉ mang tính tham khảo."
+                f"{sample_n} video trong {window_days} ngày gần nhất; "
+                "heatmap và top-3 mang tính tham khảo."
             ),
         }
     else:

@@ -24,9 +24,9 @@ Live pipeline status (commit 3c, 2026-04-22):
   ``report_lifecycle_gemini`` so two follow-ups on the same niche don't
   produce byte-identical copy.
 
-Thin-corpus gate (< ``LIFECYCLE_SAMPLE_FLOOR`` videos in window) falls
-back to the fixture for all three modes with the sample size patched
-onto the confidence strip so the UI can show "mẫu thưa".
+Low-sample gate (< ``LIFECYCLE_SAMPLE_FLOOR`` videos in window) falls
+back to the fixture for all three modes, surfacing a reference-sample
+disclaimer instead of niche-specific numbers.
 """
 
 from __future__ import annotations
@@ -610,8 +610,8 @@ def _fixture_with_narrative(
     (today: hook_fatigue + subniche modes). In that case we:
       - force ``sample_size=0`` on the confidence strip — showing
         ``N=200`` against hardcoded cells is misleading;
-      - force ``intent_confidence="low"`` so the UI surfaces
-        "MẪU MỎNG" and the user reads with appropriate scepticism;
+      - force ``intent_confidence="low"`` so the UI treats the cells as a
+        reference sample and the user reads with appropriate scepticism;
       - prepend an explicit disclaimer to the subject line so the
         distinction is visible even if the confidence chip is missed;
       - prefix each cell insight with ``[Mẫu tham chiếu]`` so the
