@@ -1,17 +1,5 @@
 /**
- * Phase C.6.2 — /history row.
- *
- * Row shape is driven by the `history_union` RPC output:
- *   { id, type: 'answer' | 'chat', format?, niche_id?, title,
- *     turn_count, updated_at }
- *
- * Visual distinction between answer + chat rows (plan §C.6):
- *   - Answer: `NGHIÊN CỨU` chip (`chip-accent`) + optional format sub-pill
- *     (Pattern / Ideas / Timing / Generic).
- *   - Chat: `HỘI THOẠI` chip (neutral) — legacy readonly browse.
- *
- * Active row styling (when the route owns a `session` query param):
- *   `background: var(--gv-accent-soft), borderLeft: 3px solid var(--gv-accent)`.
+ * Phase C — /history row (answer sessions only).
  */
 
 import type { HistoryUnionRow } from "@/hooks/useHistoryUnion";
@@ -42,21 +30,6 @@ function formatLabelVi(format: string | null | undefined): string | null {
   }
 }
 
-function TypePill({ type }: { type: "answer" | "chat" }) {
-  if (type === "answer") {
-    return (
-      <span className="gv-mono inline-flex items-center rounded border border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] px-2 py-[2px] text-[11px] gv-kicker tracking-wide text-[color:var(--gv-accent-deep)]">
-        Nghiên cứu
-      </span>
-    );
-  }
-  return (
-    <span className="gv-mono inline-flex items-center rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-[2px] text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
-      Hội thoại
-    </span>
-  );
-}
-
 function FormatSubPill({ format }: { format: string | null | undefined }) {
   const label = formatLabelVi(format);
   if (!label) return null;
@@ -76,12 +49,9 @@ export function HistoryRow({
   row: HistoryUnionRow;
   active?: boolean;
   onClick: () => void;
-  /** Right-column controls (rename / delete) rendered only for legacy chat rows. */
   actions?: React.ReactNode;
 }) {
-  const title =
-    (row.title || "").trim() ||
-    (row.type === "answer" ? "Phiên nghiên cứu" : "Hội thoại cũ");
+  const title = (row.title || "").trim() || "Phiên nghiên cứu";
   return (
     <div
       className={`flex w-full items-stretch gap-2 border-l-[3px] transition-colors duration-[120ms] ${
@@ -96,7 +66,9 @@ export function HistoryRow({
         className="min-h-[44px] flex-1 px-3 py-3 text-left"
       >
         <div className="mb-1 flex flex-wrap items-center gap-2">
-          <TypePill type={row.type} />
+          <span className="gv-mono inline-flex items-center rounded border border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] px-2 py-[2px] text-[11px] gv-kicker tracking-wide text-[color:var(--gv-accent-deep)]">
+            Nghiên cứu
+          </span>
           <FormatSubPill format={row.format} />
           <span className="gv-mono ml-auto text-[11px] text-[color:var(--gv-ink-4)]">
             {relativeTime(row.updated_at)}
@@ -106,7 +78,7 @@ export function HistoryRow({
           {title}
         </p>
         <p className="gv-mono mt-1 text-[11px] text-[color:var(--gv-ink-3)]">
-          {row.turn_count} {row.type === "answer" ? "lượt" : "tin nhắn"}
+          {row.turn_count} lượt
         </p>
       </button>
       {actions ? (

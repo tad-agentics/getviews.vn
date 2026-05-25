@@ -1,26 +1,17 @@
 /**
- * Phase C.6.2 — /history filter ribbon (plan §C.6 design spec).
- *
- * 3-chip ribbon: `Tất cả` / `Phiên nghiên cứu` / `Hội thoại`. Active chip
- * uses `--gv-accent-soft` background + `--gv-accent` text, mirrors the
- * row type pill for consistency. Count badges render when supplied.
- *
- * Disabled during an active search (search operates on chat_sessions
- * only today; filter behaviour would confuse the user).
+ * Phase C — /history filter ribbon (answer sessions only).
  */
 
-export type HistoryFilter = "all" | "answer" | "chat";
+export type HistoryFilter = "all" | "answer";
 
 export interface HistoryFilterCounts {
   all?: number;
   answer?: number;
-  chat?: number;
 }
 
 const CHIPS: ReadonlyArray<{ key: HistoryFilter; label: string }> = [
   { key: "all", label: "Tất cả" },
   { key: "answer", label: "Phiên nghiên cứu" },
-  { key: "chat", label: "Hội thoại" },
 ];
 
 export function HistoryFilterRibbon({

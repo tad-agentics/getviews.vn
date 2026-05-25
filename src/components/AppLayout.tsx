@@ -24,14 +24,12 @@ import { useProfile } from "@/hooks/useProfile";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { profileFirstNicheId } from "@/lib/profileNiches";
-import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import {
   answerSessionKeys,
   useAnswerSessionsList,
   useDeleteAnswerSession,
   useRenameAnswerSession,
 } from "@/hooks/useAnswerSessionQueries";
-import { chatKeys } from "@/hooks/useChatSession";
 import { env } from "@/lib/env";
 import { readChannelHistory } from "@/lib/channelHistory";
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
@@ -52,13 +50,13 @@ import {
 
 export type { AppShellActive } from "@/components/mobileShell";
 
-/** Sidebar row — legacy chat thread or Phase C answer (research) session. */
+/** Sidebar row — answer (research) session or channel visit. */
 type Session = {
   id: string;
   first_message: string | null;
   title?: string | null;
   label?: string;
-  source: "chat" | "answer" | "channel";
+  source: "answer" | "channel";
   updatedAt: string | null;
 };
 
@@ -191,32 +189,20 @@ function NavItem({
 function DeleteConfirmDialog({
   onConfirm,
   onCancel,
-  variant,
 }: {
   onConfirm: () => void;
   onCancel: () => void;
-  variant: "chat" | "answer";
 }) {
-  const title =
-    variant === "answer" ? "Xoá phiên nghiên cứu" : "Xoá cuộc trò chuyện";
-  const body =
-    variant === "answer" ? (
-      <>
-        Bạn có chắc muốn xoá phiên này không?
-        <br />
-        <span className="text-[color:var(--gv-ink)] font-semibold">
-          Toàn bộ lượt phân tích và kết quả trong phiên sẽ bị xoá vĩnh viễn — không khôi phục được.
-        </span>
-      </>
-    ) : (
-      <>
-        Bạn có chắc muốn xoá cuộc trò chuyện này không?
-        <br />
-        <span className="text-[color:var(--gv-ink)] font-semibold">
-          Tất cả phân tích và insights sẽ bị xoá vĩnh viễn.
-        </span>
-      </>
-    );
+  const title = "Xoá phiên nghiên cứu";
+  const body = (
+    <>
+      Bạn có chắc muốn xoá phiên này không?
+      <br />
+      <span className="text-[color:var(--gv-ink)] font-semibold">
+        Toàn bộ lượt phân tích và kết quả trong phiên sẽ bị xoá vĩnh viễn — không khôi phục được.
+      </span>
+    </>
+  );
   const confirmLabel = "Xoá vĩnh viễn";
 
   return (
@@ -388,7 +374,7 @@ function SessionRow({
     session.label ??
     session.title ??
     session.first_message ??
-    (session.source === "answer" ? "Phiên nghiên cứu" : "Phiên chat");
+    (session.source === "answer" ? "Phiên nghiên cứu" : session.first_message ?? "Kênh");
   const recencyLabel = formatSessionRecencyFromIso(session.updatedAt);
 
   return (
@@ -467,7 +453,7 @@ function SessionRow({
             <button
               ref={moreRef}
               onClick={openMenu}
-              aria-label={session.source === "answer" ? "Tuỳ chọn phiên nghiên cứu" : "Tuỳ chọn phiên chat"}
+              aria-label="Tuỳ chọn phiên nghiên cứu"
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors duration-100 max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
                 isActive && session.source === "answer"
                   ? "text-[color:var(--gv-canvas)] hover:bg-[color:rgba(255,255,255,0.12)]"
@@ -515,11 +501,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const { isAdmin } = useIsAdmin();
-  const chatSessionsQuery = useChatSessions();
-  const { data: sessionsData, isPending: chatSessionsPending } = chatSessionsQuery;
   const qc = useQueryClient();
-  const deleteSession = useDeleteSession();
-  const updateSession = useUpdateSession();
   const deleteAnswerSessionMutation = useDeleteAnswerSession();
   const renameAnswerSession = useRenameAnswerSession();
   const cloudUrl = env.VITE_CLOUD_RUN_API_URL;
@@ -534,37 +516,17 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
-    source: "chat" | "answer" | "channel";
+    source: "answer" | "channel";
   } | null>(null);
 
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
-  // Merge legacy ``chat_sessions`` + Phase C ``answer_sessions`` (Cloud Run
-  // list) + client-side channel history so the sidebar shows all session types.
+  // Merge Phase C ``answer_sessions`` (Cloud Run list) + client-side channel history.
   const sessions: Session[] = useMemo(() => {
-    const chatRows = sessionsData ?? [];
     const answerRows = answerListQuery.data?.sessions ?? [];
     const channelRows = user?.id ? readChannelHistory(user.id) : [];
     type Row = { session: Session; sortMs: number };
     const merged: Row[] = [];
 
-    for (const s of chatRows as Array<{
-      id: string;
-      first_message: string | null;
-      title?: string | null;
-      created_at: string;
-    }>) {
-      const ts = new Date(s.created_at).getTime();
-      merged.push({
-        session: {
-          id: s.id,
-          first_message: s.first_message,
-          title: s.title ?? null,
-          source: "chat",
-          updatedAt: s.created_at,
-        },
-        sortMs: Number.isFinite(ts) ? ts : 0,
-      });
-    }
     for (const s of answerRows) {
       const iso = s.updated_at ?? s.created_at;
       const ts = iso ? new Date(iso).getTime() : 0;
@@ -594,10 +556,9 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     }
     merged.sort((a, b) => b.sortMs - a.sortMs);
     return merged.map((r) => r.session).slice(0, 60);
-  }, [sessionsData, answerListQuery.data?.sessions, user?.id]);
+  }, [answerListQuery.data?.sessions, user?.id]);
 
-  const sidebarSessionsLoading =
-    chatSessionsPending || (Boolean(cloudUrl) && answerListQuery.isPending);
+  const sidebarSessionsLoading = Boolean(cloudUrl) && answerListQuery.isPending;
 
   const pinned = sessions.filter((s) => pinnedIds.has(s.id));
   const recent = sessions.filter((s) => !pinnedIds.has(s.id));
@@ -643,27 +604,12 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
       });
       return;
     }
-    deleteSession.mutate(t.id, {
-      onSuccess: () => {
-        qc.removeQueries({ queryKey: chatKeys.session(t.id) });
-        qc.removeQueries({ queryKey: chatKeys.messages(t.id) });
-        setPinnedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(t.id);
-          return next;
-        });
-        const activeId = new URLSearchParams(window.location.search).get("session");
-        if (activeId === t.id) navigate("/app/answer");
-      },
-    });
   };
 
   const handleRename = (id: string, label: string, source: Session["source"]) => {
     if (source === "answer") {
       renameAnswerSession.mutate({ sessionId: id, title: label });
-      return;
     }
-    updateSession.mutate({ sessionId: id, title: label });
   };
 
   const displayName =
@@ -843,11 +789,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                       isPinned
                       isActive={session.source === "answer" && activeAnswerSessionId === session.id}
                       onNavigate={() => {
-                        if (session.source === "answer") {
-                          navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
-                        } else {
-                          navigate(`/app/history/chat/${session.id}`);
-                        }
+                        navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
                         onClose?.();
                       }}
                       onPin={() => handlePin(session.id)}
@@ -877,7 +819,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                       } else if (session.source === "answer") {
                         navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
                       } else {
-                        navigate(`/app/history/chat/${session.id}`);
+                        navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
                       }
                       onClose?.();
                     }}
@@ -895,7 +837,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           ) : null}
           {!sidebarSessionsLoading && sessions.length === 0 ? (
             <p className="py-3 text-[11px] leading-snug text-[color:var(--gv-ink-3)]">
-              Chưa có hội thoại hay phiên nghiên cứu nào.
+              Chưa có phiên nghiên cứu nào.
             </p>
           ) : null}
         </div>
@@ -1005,7 +947,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
       <AnimatePresence>
         {deleteTarget && (
           <DeleteConfirmDialog
-            variant={deleteTarget.source === "channel" ? "chat" : deleteTarget.source}
             onConfirm={confirmDelete}
             onCancel={() => setDeleteTarget(null)}
           />

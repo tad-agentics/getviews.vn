@@ -1,14 +1,12 @@
 """Intent enum + URL/handle/question parsing helpers.
 
 The deterministic intent classifier (``classify_intent``) and its
-companions (``merge_deterministic_with_gemini``,
-``query_intent_to_gemini_primary``) were removed L1.5 audit. The
-report-based UX classifies client-side via ``intent-router.ts``;
-``/stream``'s null-intent fallback uses ``classify_intent_gemini``
-(Gemini-backed) directly. This module is now scoped to: the
-``QueryIntent`` enum (kept as the FE-mirror contract + ``pipelines.py``
-session tracking), the TikTok URL regex (canonical version lives in
-``url_patterns``), and free-text question splitting used by ``/stream``.
+companions were removed L1.5 audit. The report-based UX classifies
+client-side via ``intent-router.ts``. This module is scoped to: the
+``QueryIntent`` enum (FE-mirror contract + ``pipelines.py`` session
+tracking), the TikTok URL regex (canonical version lives in
+``url_patterns``), free-text question splitting, and legacy intent
+string normalisation via ``normalize_intent_name()``.
 """
 
 from __future__ import annotations
@@ -25,10 +23,9 @@ class QueryIntent(StrEnum):
     Historical removals:
       - ``SERIES_AUDIT`` removed 2026-04-22 (no template, not classified).
       - ``COMPARISON`` removed L1.5 (Tier B). Was a deprecated alias for
-        ``COMPETITOR_PROFILE`` kept only for historical session reads —
-        ``routers/intent.py:_normalize_intent_name`` now folds the legacy
-        ``"comparison"`` string into ``competitor_profile`` at the router
-        edge so any historical-session intent_type still resolves.
+        ``COMPETITOR_PROFILE`` kept only for historical rows —
+        ``normalize_intent_name`` folds the legacy ``"comparison"`` string
+        into ``competitor_profile`` at the normaliser edge.
       - ``FIND_CREATORS`` removed L1.5 (Tier B). Was a deprecated alias
         for ``CREATOR_SEARCH``; same back-compat normaliser strategy.
       - ``FOLLOWUP`` removed L1.5 (Tier B). Chat-era catch-all replaced
@@ -39,8 +36,8 @@ class QueryIntent(StrEnum):
         Gemini; post-migration it falls through to ``build_generic_report``
         which DOES call Gemini. The "no-cost stats preview" promise was
         broken silently, so the intent provided zero UX differentiation
-        vs FOLLOW_UP_UNCLASSIFIABLE. Legacy strings normalised at the
-        router edge to ``follow_up_unclassifiable``.
+        vs FOLLOW_UP_UNCLASSIFIABLE. Legacy strings normalised via
+        ``normalize_intent_name`` to ``follow_up_unclassifiable``.
     """
 
     VIDEO_DIAGNOSIS = "video_diagnosis"
@@ -101,3 +98,19 @@ def split_into_questions(message: str) -> list[str]:
     )
     out = [p.strip() for p in parts if p.strip()]
     return out if out else [raw]
+
+
+def normalize_intent_name(raw: str | None) -> str | None:
+    """Fold legacy intent_type strings into current enum values."""
+    if raw is None:
+        return None
+    aliases = {
+        "tiktok_url_diagnosis": "video_diagnosis",
+        "kol_search": "creator_search",
+        "find_creators": "creator_search",
+        "kol_finder": "creator_search",
+        "followup": "follow_up_unclassifiable",
+        "comparison": "competitor_profile",
+        "metadata_only": "follow_up_unclassifiable",
+    }
+    return aliases.get(raw, raw)

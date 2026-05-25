@@ -2,7 +2,7 @@
  * Phase C.1.0 — answer-session SSE hook.
  *
  * Streams ``POST /answer/sessions/:id/turns`` (Cloud Run, §J ``ReportV1``).
- * Legacy chat ``/stream`` was sunset Wave 5 — text follow-ups use ``/api/chat``.
+ * Paid analysis uses ``answer_turn`` SSE only (Phase C — ``/stream`` removed).
  */
 
 import {

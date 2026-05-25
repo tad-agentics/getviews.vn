@@ -29,7 +29,7 @@ router = APIRouter()
 # Key: f"{user_id}:{handle}:{video_url}"
 # ---------------------------------------------------------------------------
 # /channel/diagnose now uses the DB-side ``begin_processing`` RPC for the
-# TD-3 atomic single-flight lock (mirrors routers/intent.py) so cross-pod
+# TD-3 atomic single-flight lock so cross-pod
 # requests can't double-deduct credits. The previous module-level
 # ``_DIAGNOSE_INFLIGHT`` set was per-instance and TOCTOU-racy.
 
@@ -957,7 +957,7 @@ async def channel_diagnose_endpoint(
             return
 
         # --- Cache miss path: TD-3 atomic lock BEFORE credit deduction ---
-        # Mirrors routers/intent.py:284. ``begin_processing`` flips
+        # TD-3: ``begin_processing`` flips
         # ``profiles.is_processing`` atomically and returns the prior
         # value; True means the lock was already held (concurrent tab,
         # double-click). Acquire BEFORE decrement_credit so two parallel

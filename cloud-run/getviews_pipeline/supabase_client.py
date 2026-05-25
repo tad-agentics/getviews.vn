@@ -3,8 +3,7 @@
 Two client types:
 
 1. user_supabase(access_token) — RLS-scoped, runs as the calling user.
-   Use for credit deduction, is_processing, chat_messages inserts.
-   Pattern mirrors api/chat.ts userSupabase().
+   Use for credit deduction, is_processing, and other user-scoped RPCs.
 
 2. get_service_client() — service_role key, bypasses RLS.
    Use ONLY for batch operations (corpus ingest, analytics, trend velocity).
@@ -29,9 +28,8 @@ def _require(name: str) -> str:
 def user_supabase(access_token: str) -> Client:
     """Return a Supabase client authenticated as the calling user.
 
-    All queries run through RLS as that user — matching the pattern in
-    api/chat.ts. Use this for credit deduction (decrement_credit RPC),
-    is_processing updates, and chat_messages inserts.
+    All queries run through RLS as that user. Use this for credit deduction
+    (decrement_credit RPC) and is_processing updates.
     """
     url = _require("SUPABASE_URL")
     anon_key = _require("SUPABASE_ANON_KEY")

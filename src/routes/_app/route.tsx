@@ -14,8 +14,6 @@ const HomeScreen = lazy(() => import("./home/HomeScreen"));
  * `/app` — the creator's entry surface (Getviews Studio redesign).
  *
  * Routing rules:
- *   - `/app?session=<id>` redirects to `/app/history/chat/<id>` (legacy
- *     chat transcript URLs).
  *   - If the profile has no niche yet (single-niche refactor 2026-05-05),
  *     redirect to `/app/onboarding`.
  *   - Otherwise render HomeScreen.
@@ -27,7 +25,7 @@ export default function AppIndexRoute() {
 
   const session = searchParams.get("session");
   if (session) {
-    return <Navigate to={`/app/history/chat/${session}`} replace state={location.state} />;
+    return <Navigate to={`/app/answer?session=${encodeURIComponent(session)}`} replace state={location.state} />;
   }
 
   const scrollTier = searchParams.get("scrollTier");

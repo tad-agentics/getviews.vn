@@ -15,7 +15,7 @@ from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.routers.admin import AdminTriggerRefreshBody
 from getviews_pipeline.routers.answer import AnswerSessionCreateBody
 from getviews_pipeline.routers.batch import BatchIngestRequest
-from getviews_pipeline.routers.intent import StreamRequest
+from getviews_pipeline.routers.answer import AnswerSessionCreateBody, AnswerTurnAppendBody
 
 
 def test_strict_body_base_rejects_extras() -> None:
@@ -29,7 +29,7 @@ def test_strict_body_base_rejects_extras() -> None:
 @pytest.mark.parametrize(
     "model_cls,valid_payload",
     [
-        (StreamRequest, {"session_id": "s1", "query": "hi"}),
+        (AnswerTurnAppendBody, {"query": "hi"}),
         (BatchIngestRequest, {"niche_ids": [1, 2], "deep_pool": False}),
         (
             AnswerSessionCreateBody,

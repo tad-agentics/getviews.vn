@@ -39,7 +39,7 @@ _REQUIRED_ROUTES: list[tuple[str, str]] = [
     ("GET", "/auth-check"),
     ("GET", "/admin/ping"),
     # ``/classify-intent`` removed L1.5 audit — zero FE callers.
-    ("POST", "/stream"),
+    # ``POST /stream`` removed Phase C — answer_turn only.
     ("POST", "/batch/ingest"),
     ("POST", "/batch/hi13-pilot"),
     ("POST", "/batch/post-processing"),
@@ -109,10 +109,10 @@ def test_all_required_routes_registered(app) -> None:  # type: ignore[type-arg]
 
 
 def test_route_count_not_decreased(app) -> None:  # type: ignore[type-arg]
-    """Total route count must not drop below the known baseline (50 @app. routes)."""
+    """Total route count must not drop below the known baseline."""
     registered = _route_set(app)
-    # 50 routes declared; FastAPI adds its own (redoc, openapi, docs) — allow some slack.
-    assert len(registered) >= 50, (
+    # 49 app routes after Phase C /stream removal; FastAPI adds openapi/docs.
+    assert len(registered) >= 49, (
         f"Only {len(registered)} routes registered. "
-        "Expected ≥ 50. A router may not have been included."
+        "Expected ≥ 49. A router may not have been included."
     )

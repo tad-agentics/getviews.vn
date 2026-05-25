@@ -53,11 +53,6 @@ vi.mock("@/hooks/useHistoryUnion", async () => {
   };
 });
 
-vi.mock("@/hooks/useChatSessions", () => ({
-  useDeleteSession: () => ({ mutateAsync: vi.fn() }),
-  useUpdateSession: () => ({ mutateAsync: vi.fn() }),
-}));
-
 vi.mock("@/hooks/useAnswerSessionQueries", async () => {
   const actual = await vi.importActual<typeof import("@/hooks/useAnswerSessionQueries")>(
     "@/hooks/useAnswerSessionQueries",
@@ -170,12 +165,12 @@ describe("HistoryScreen — D.2.4 pagination + search", () => {
   it("renders rows from the first page of useHistoryUnion", () => {
     mockUseHistoryUnion.mockReturnValue(
       mockInfiniteQuery({
-        pages: [[makeRow({ id: "a", title: "Answer A" }), makeRow({ id: "b", title: "Chat B", type: "chat" })]],
+        pages: [[makeRow({ id: "a", title: "Answer A" }), makeRow({ id: "b", title: "Answer B" })]],
       }),
     );
     renderScreen();
     expect(screen.getByText(/Answer A/)).toBeTruthy();
-    expect(screen.getByText(/Chat B/)).toBeTruthy();
+    expect(screen.getByText(/Answer B/)).toBeTruthy();
   });
 
   it("renders the loading sentinel only while isFetchingNextPage + hasNextPage", () => {
@@ -250,7 +245,7 @@ describe("HistoryScreen — D.2.4 pagination + search", () => {
     });
     renderScreen();
 
-    const input = screen.getByPlaceholderText(/Tìm trong hội thoại cũ/);
+    const input = screen.getByPlaceholderText(/Tìm trong phiên nghiên cứu/);
     fireEvent.change(input, { target: { value: "bass" } });
 
     // Debounced 300ms — wait it out.
@@ -273,7 +268,7 @@ describe("HistoryScreen — D.2.4 pagination + search", () => {
       refetch: vi.fn(),
     });
     renderScreen();
-    const input = screen.getByPlaceholderText(/Tìm trong hội thoại cũ/);
+    const input = screen.getByPlaceholderText(/Tìm trong phiên nghiên cứu/);
     fireEvent.change(input, { target: { value: "nope" } });
     await waitFor(
       () => {

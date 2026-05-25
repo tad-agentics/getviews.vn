@@ -873,7 +873,7 @@ On-demand upsert: always set `analysis_depth` from request. Corpus path: write *
 | Surface | Parameters | Default |
 |---------|------------|---------|
 | `build_video_report` / `append_turn` | `analysis_depth`, `mode?`, `source_entry?`; turn 2+ từ CTA: `intent_type`, `source_entry=intent_cta` | §4.10.1–§4.10.2 |
-| `run_video_diagnosis` / `/stream` | same | Video diagnosis (answer path) |
+| `run_video_diagnosis` (compare builder) | same | Side-by-side compare (internal, not HTTP) |
 | `manifest_for_prompt` | `depth` | cap 3 / 5 |
 | `select_sections_to_emit` | `depth` | whitelist if `basic` |
 | Billing | `decrement_credit` | ×1 basic, ×2 deep (§10) |
@@ -1019,7 +1019,7 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 
 #### 5.5.1 As-built — hai pipeline khác nhau
 
-| | **Video V6** (`/stream`, `build_video_report`) | **Channel F4** (`/channel/diagnose`) |
+| | **Video V6** (`build_video_report`, answer turn) | **Channel F4** (`/channel/diagnose`) |
 |---|-----------------------------------------------|--------------------------------------|
 | Đơn vị phân tích | 1 video + refs | Cả kênh (N video ED + corpus) |
 | Deterministic | `performance_tier`, refs, retention modeled | `classify_trajectory` (6 shape), `compute_score_card`, `build_channel_pattern`, tile rules theo trajectory |

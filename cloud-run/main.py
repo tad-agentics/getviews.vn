@@ -120,7 +120,6 @@ from getviews_pipeline.routers.batch_proxy import router as batch_proxy_router
 from getviews_pipeline.routers.douyin import router as douyin_router
 from getviews_pipeline.routers.health import router as health_router
 from getviews_pipeline.routers.home import router as home_router
-from getviews_pipeline.routers.intent import router as intent_router
 from getviews_pipeline.routers.script import router as script_router
 from getviews_pipeline.routers.video import router as video_router
 
@@ -128,7 +127,6 @@ from getviews_pipeline.routers.video import router as video_router
 app.include_router(health_router)
 
 if SERVICE_ROLE in {"all", "user"}:
-    app.include_router(intent_router)
     app.include_router(video_router)
     app.include_router(script_router)
     app.include_router(home_router)

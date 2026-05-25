@@ -5,8 +5,7 @@ Vietnamese keyword classifier), ``destination_for_intent``,
 ``destination_for_gemini_primary_label``, and ``resolve_destination``.
 All four were removed L1.5 audit follow-up (zero production callers
 after ``/classify-intent`` removal — the report-based UX classifies
-client-side via ``intent-router.ts`` and ``/stream``'s null-intent
-fallback uses ``classify_intent_gemini`` directly). What remains here:
+client-side via ``intent-router.ts``. What remains here:
 enum-membership pin, alias-normaliser contract, URL-pattern coverage,
 and Vietnamese question-splitter behaviour.
 """
@@ -22,7 +21,7 @@ from getviews_pipeline.intents import (
 def test_query_intent_enum_has_shot_list_and_creator_search() -> None:
     """SHOT_LIST, CREATOR_SEARCH (canonical), and OWN_CHANNEL must be in
     the enum with correct values. ``FIND_CREATORS`` was removed L1.5;
-    the back-compat alias lives in ``routers/intent.py:_normalize_intent_name``
+    the back-compat alias lives in ``intents.normalize_intent_name``
     so historical sessions with intent_type=``find_creators`` still resolve."""
     assert QueryIntent.SHOT_LIST == "shot_list"
     assert QueryIntent.CREATOR_SEARCH == "creator_search"
@@ -51,24 +50,24 @@ def test_legacy_intent_strings_normalise_to_current_values() -> None:
     still resolve via the router-edge alias normaliser. Without these
     aliases, /intent endpoint requests carrying legacy strings (or
     Gemini cached classifier outputs) would fail validation downstream."""
-    from getviews_pipeline.routers.intent import _normalize_intent_name
+    from getviews_pipeline.intents import normalize_intent_name
 
     # FIND_CREATORS removed in L1.5 → folds into canonical CREATOR_SEARCH.
-    assert _normalize_intent_name("find_creators") == "creator_search"
+    assert normalize_intent_name("find_creators") == "creator_search"
     # COMPARISON removed → folds into COMPETITOR_PROFILE (where it used to
     # alias). Historical session preview rounds still resolve.
-    assert _normalize_intent_name("comparison") == "competitor_profile"
+    assert normalize_intent_name("comparison") == "competitor_profile"
     # FOLLOWUP removed → folds into the modern unclassifiable surface
     # (was previously normalised to "follow_up" which is a Gemini label,
     # not an enum value).
-    assert _normalize_intent_name("followup") == "follow_up_unclassifiable"
+    assert normalize_intent_name("followup") == "follow_up_unclassifiable"
     # METADATA_ONLY removed L1.5 audit — historical session rows fold into
     # the generic-fallback path (which is what the FE comment used to
     # promise but didn't actually deliver).
-    assert _normalize_intent_name("metadata_only") == "follow_up_unclassifiable"
+    assert normalize_intent_name("metadata_only") == "follow_up_unclassifiable"
     # Sanity: unrelated values pass through unchanged.
-    assert _normalize_intent_name("video_diagnosis") == "video_diagnosis"
-    assert _normalize_intent_name(None) is None
+    assert normalize_intent_name("video_diagnosis") == "video_diagnosis"
+    assert normalize_intent_name(None) is None
 
 
 def test_canonical_tiktok_url_re_matches_all_subdomains() -> None:

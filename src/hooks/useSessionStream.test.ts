@@ -37,14 +37,6 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-vi.mock("@/hooks/useChatSession", () => ({
-  chatKeys: {
-    messages: (id: string) => ["chat", "messages", id],
-    sessions: () => ["chat", "sessions"],
-    session: (id: string) => ["chat", "session", id],
-  },
-}));
-
 const { mockLogUsage } = vi.hoisted(() => ({ mockLogUsage: vi.fn() }));
 vi.mock("@/lib/logUsage", () => ({
   logUsage: (...args: unknown[]) => mockLogUsage(...args),

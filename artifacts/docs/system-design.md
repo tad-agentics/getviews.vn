@@ -1,6 +1,6 @@
 # System Design — GetViews.vn
 
-**Last updated:** 2026-05-20 (`6a69ab3`)  
+**Last updated:** 2026-05-23 (Phase C chat/stream teardown)  
 **Status:** Living document. Update in the same commit as any architectural change.
 
 **Surface inventory (routes, endpoints, synthesis paths, shipping status):** [`feature-map.md`](feature-map.md) — per-route source of truth. **Orchestration / invariants:** this file. **Corpus Gemini field utilization:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md). Update docs and bump `main @ <sha>` / **Last updated** in the same commit when routes or pipelines change.
@@ -20,11 +20,10 @@
            ▼               ▼
 ┌──────────────┐   ┌──────────────────────────────────────────────────┐
 │ Vercel Edge  │   │  Cloud Run · asia-southeast1                      │
-│ /api/chat    │   │                                                    │
-│ /api/        │   │  getviews-pipeline-USER                           │
-│ landing-stats│   │  (min:1, 2Gi, 600s timeout)                       │
-│              │   │  Routers: /intent /video /script                  │
-│ Auth:        │   │           /home /answer /douyin                   │
+│ /api/        │   │                                                    │
+│ landing-stats│   │  getviews-pipeline-USER                           │
+│              │   │  (min:1, 2Gi, 600s timeout)                       │
+│ Auth:        │   │  Routers: /video /script /home /answer /douyin    │
 │ Supabase JWT │   │           /health /batch_proxy                    │
 │              │   │                                                    │
 │ Calls:       │   │  getviews-pipeline-BATCH                          │
@@ -84,11 +83,10 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/` | Landing | Pre-rendered for SEO. Eager-loaded. |
 | `/login` `/signup` | Auth | Supabase OAuth redirect. |
 | `/auth/callback` | Auth | OAuth callback handler. |
-| `/app` | Studio Home | Auth-guarded shell. `?session=` → `/app/history/chat/:id`. No niche → `/app/onboarding`. Legacy `?handle=` → redirect `/app/channel`. Composer 4 pills + Cơ bản/Chuyên sâu. |
+| `/app` | Studio Home | Auth-guarded shell. `?session=` → `/app/answer?session=`. No niche → `/app/onboarding`. Legacy `?handle=` → redirect `/app/channel`. Composer 4 pills + Cơ bản/Chuyên sâu. |
 | `/app/onboarding` | Onboarding | Single-niche picker (`profiles.creator_niche_id`). |
 | `/app/answer` | Answer | **Primary** structured video report + Q&A turns (`ReportV1`). Replaces deleted `/app/video`. |
-| `/app/history` | History | Session list via `history_union` RPC. |
-| `/app/history/chat/:sessionId` | History | Read-only legacy chat transcript. |
+| `/app/history` | History | Answer sessions only via `history_union` RPC. |
 | `/app/trends` | Trends | Niche intelligence + hook effectiveness. |
 | `/app/douyin` | Douyin | Douyin trend analysis. |
 | `/app/channel` | Khám kênh | Full page `ChannelStudioPanel`. Query `?handle=`, `?depth=basic\|deep`. Legacy `/app?handle=` redirects here. Nhanh → GET `/channel/quick-peek`; Sâu → POST `/channel/diagnose`. |
@@ -127,20 +125,18 @@ User message
      │      └─ YES → specialized intent → answer:* shelf or dedicated screen
      │
      └─ Text-only follow-up
-              ├─ answer session continuation → POST /answer/sessions/{id}/turns (kind ≠ primary)
-              └─ legacy chat / free text → POST /api/chat (Vercel Edge)
+              └─ answer session → POST /answer/sessions/{id}/turns (kind ≠ primary)
 ```
 
 **Rule:** Never reinvent routing inside screen components. Extend `detectIntent()`, `resolveDestination()`, and `intent-router.test.ts`.
 
-### Dual SSE transport (FE: `useSessionStream`)
+### SSE transport (FE: `useSessionStream`)
 
 | Mode | Endpoint | Typical surfaces |
 |------|----------|------------------|
-| `answer_turn` | `POST /answer/sessions/{id}/turns` | `/app/answer` (video + compare + structured follow-ups) |
-| Free text (legacy chat) | `POST /api/chat` (Vercel Edge) | Text intents ⑤⑥⑦, unclassifiable follow-ups |
+| `answer_turn` | `POST /answer/sessions/{id}/turns` | `/app/answer` (video, compare, structured follow-ups) |
 
-**Sunset (2026-05):** `POST /stream` returns **410 Gone** — legacy chat SSE removed. Do not add new `/stream` consumers.
+**Removed (Phase C, 2026-05-23):** `POST /stream` (Cloud Run chat SSE) and `POST /api/chat` (Vercel Edge). Do not reintroduce parallel chat transports.
 
 Both Cloud Run answer SSE uses `stream_id` + `seq` and a **60s** in-memory replay buffer (TD-4). Answer turns also emit **heartbeat** frames every 10s during long Gemini work to avoid client idle timeout.
 
@@ -190,16 +186,16 @@ This is the default path when a creator pastes a TikTok URL in Home or Answer.
 **Cold:** ~20–30s. **Warm** (diagnostics + narrative cache): ~2s.  
 **Not used on this path:** `POST /video`, `pipelines.run_video_diagnosis()` as the top-level orchestrator.
 
-### 4.2 Legacy `/stream` — sunset + compare via answer turn
+### 4.2 Compare via answer turn (+ internal `run_video_diagnosis`)
 
-**`POST /stream`** (legacy chat SSE) returns **410 Gone** as of Wave 5 (2026-05). Paid video work uses §4.1 only. Free text uses §5.1 `/api/chat`.
+**Removed:** `POST /stream` and `POST /api/chat` (Phase C). Paid video work uses §4.1 only.
 
 **Compare** uses `pipelines.run_video_diagnosis` ×2 (not the top-level answer orchestrator). Evidence ref pool: **class → junction → niche** ladder; off-corpus URLs derive class after user extraction, then refetch pool before ref analysis.
 
 #### Compare (answer-session format)
 
-Two-URL side-by-side diagnosis is a first-class `/app/answer` session (`format='compare'`),
-**not** a live `/stream` consumer. Both URLs ride in the session `initial_q`; the primary turn's
+Two-URL side-by-side diagnosis is a first-class `/app/answer` session (`format='compare'`).
+Both URLs ride in the session `initial_q`; the primary turn's
 `compare` builder (`answer_session.append_turn`) extracts + SSRF-resolves them and calls
 `report_compare.build_compare_report`. Because `run_video_diagnosis` deep-uses module-level
 httpx/Supabase clients + the analysis semaphore bound to the main uvicorn loop, the sync builder
@@ -235,24 +231,11 @@ Extraction + diagnosis cores (§12) apply inside `run_video_analyze_*` and `run_
 
 ---
 
-## 5. Text Query Flow (Vercel Edge + answer follow-ups)
+## 5. Text follow-ups (answer session only)
 
-### 5.1 Vercel Edge (`/api/chat`)
+Structured and free-text follow-ups inside `/app/answer` use **`answer_turn`** SSE (§4.1) with `kind` ≠ `primary` and intent-specific builders in `append_turn`.
 
-```
-1. Browser: detectIntent → follow_up_* (or format_lifecycle, creator_search in FREE_INTENTS)
-2. Browser: POST /api/chat (Vercel Edge, Supabase JWT)
-3. Edge: validate JWT, optional free-intent daily cap (100/day)
-4. Edge: TD-1 decrement_credit() when intent is billable
-5. Edge: stream Gemini (gemini-3.1-flash-lite default)
-6. Writes chat_sessions + chat_messages (immutable)
-```
-
-No Cloud Run. Typical latency ~2–5s.
-
-### 5.2 Answer-session text follow-ups
-
-Structured follow-ups inside an existing `/app/answer` session use **`answer_turn`** SSE (§4.1) with `kind` ≠ `primary` and intent-specific `run_*` builders in `append_turn` — not `/api/chat`.
+**Removed (Phase C):** Vercel Edge `POST /api/chat` and Cloud Run `POST /stream` — no separate chat session model.
 
 ---
 
@@ -300,7 +283,6 @@ Structured follow-ups inside an existing `/app/answer` session use **`answer_tur
 | `cron-reset-free-queries` | Daily 17:00 UTC | Resets free query count |
 | `cron-reset-processing` | Every 5 min | Clears `is_processing` flags older than 5min (TD-3 safety net) |
 | `cron-prune-webhooks` | Weekly Sunday 20:00 UTC | Prunes old `processed_webhook_events` rows |
-| `cron-chat-archival` | Nightly 03:00 UTC | Archives old chat sessions |
 | `cron-daily-health-digest` | Daily | Ops email (Resend) — corpus growth + Gemini cost |
 | `payos-webhook` | PayOS HTTP POST | Payment confirmation → credit grant |
 | `create-payment` | Browser call | Creates PayOS payment link |
@@ -326,20 +308,16 @@ Structured follow-ups inside an existing `/app/answer` session use **`answer_tur
 
 ## 9. Data Model (Key Tables)
 
-### Two parallel session data models (NOT legacy — both live)
-
-GetViews runs **two coexisting session models**. Do not confuse them or try to consolidate:
+### Session data model (answer-only since Phase C)
 
 | Model | Tables | Used by | Write path |
 |-------|--------|---------|------------|
-| **Chat model** (older) | `chat_sessions` + `chat_messages` | Text intents ⑤⑥⑦ (Vercel `/api/chat`), `/stream` Cloud Run path, history drawer, `session_store.py` context reconstruction | Cloud Run `intent.py` + Vercel Edge |
-| **Answer sessions model** (newer) | `answer_sessions` + `answer_turns` | Structured video diagnosis (Intents ①③④), channel diagnosis, follow-up turns | Cloud Run `answer.py` + `answer_session.py` |
+| **Answer sessions** | `answer_sessions` + `answer_turns` | Video/compare diagnosis, channel diagnosis, follow-up turns, history drawer | Cloud Run `answer.py` + `answer_session.py` |
 
-`history_union` + `search_history_union` SQL RPCs surface both models in one unified history drawer.
-`chat_messages` is **immutable** — no UPDATE ever (see TD chat-immutable). `answer_turns` payload is append-only.
-`gemini_calls` is logged from Cloud Run for both models; `user_id` may be null for answer-session calls (service-role path).
+`history_union` + `search_history_union` RPCs surface answer sessions only (migration `20260830000001`).  
+`answer_turns` payload is append-only. `gemini_calls` is logged from Cloud Run; `user_id` may be null for answer-session service-role paths.
 
-**Do not delete `chat_sessions` / `chat_messages`** — they hold all legacy text-intent history and are still written for every new text intent session.
+**Dropped (Phase C):** `chat_sessions`, `chat_messages`, `chat_archival_audit`, Edge `cron-chat-archival`, Vercel `/api/chat`, Cloud Run `/stream`.
 
 | Table | Owner | Write path | Notes |
 |-------|-------|-----------|-------|
@@ -348,8 +326,6 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 | `content_classifications` | Supabase | Migrations only | **82** analysis-facing categories (77 video + 5 carousel HI-16; class 82 AI) |
 | `video_corpus` | Cloud Run batch | Service role only | 46K+ analyzed TikTok videos; `ingest_source` is write-once |
 | `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); PK `(video_id, analysis_depth)` partitions basic vs deep; `cached_response.response_schema_version` (bump invalidates stale rows when `meta.caption` / refs change); basic rows persist `extract_json` for synthesis-only deep upgrade (S4-1) |
-| `chat_sessions` | Supabase | Client + Cloud Run | Chat model — title, niche, soft-delete via `deleted_at` |
-| `chat_messages` | Supabase | Cloud Run only | Chat model — immutable (no UPDATE); text intent transcripts |
 | `answer_sessions` | Supabase | Client + Cloud Run | Answer model — session format, intent type |
 | `answer_turns` | Supabase | Cloud Run (service role) | Answer model — append-only; `payload` is validated `ReportV1` JSON |
 | `processed_webhook_events` | Supabase | Edge Function | UNIQUE constraint for PayOS idempotency |

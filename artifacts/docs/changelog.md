@@ -1,5 +1,14 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — Phase C: full chat/stream teardown
+
+- **DB:** Migration `20260830000001` drops `chat_sessions`, `chat_messages`, `chat_archival_audit`, `search_sessions`; `history_union` / `search_history_union` answer-only; unschedule `cron-chat-archival`.
+- **Cloud Run:** Removed `POST /stream` router, dead text-intent pipelines in `pipelines.py`, chat context in `session_store.py` (replay buffer only); `normalize_intent_name()` → `intents.py`.
+- **Vercel:** Deleted `api/chat.ts` and dev proxy in `vite.config.ts`.
+- **FE:** Removed chat history route, hooks, transcript UI; sidebar + `/app/history` answer-only; `/app?session=` → `/app/answer?session=`.
+- **Seed:** Chat session/message rows removed from `supabase/seed.sql`.
+- **Audit fixes:** Migration drops orphan RPCs (`search_sessions`, chat trigger fn); `system-design.md` + `feature-map-v1.md` synced; stale comments; `query-keys.chatHistory` removed; `test_history_union` answer-only.
+
 ## 2026-05-23 — Class-first evidence ref pool + `/stream` sunset
 
 - **`corpus_context`:** Evidence ref pool ladder **content_class → junction → legacy niche**; eligible-first merge (M2); shared `content_class_id_for_reference_pool()`.

@@ -1,9 +1,5 @@
 /**
- * Phase C.6.1 RPC — unified answer + chat rows for history.
- * Phase D.2.4 — swap one-shot useQuery for useInfiniteQuery with keyset
- * (`p_cursor` = last row's `updated_at`), and add a cross-type search
- * hook that ORs over answer_sessions (title + initial_q) and
- * chat_sessions (title + first_message + chat_messages.content).
+ * Phase C — answer-only history via ``history_union`` / ``search_history_union``.
  */
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
@@ -11,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 
 export type HistoryUnionRow = {
   id: string;
-  type: "answer" | "chat";
+  type: "answer";
   format: string | null;
   niche_id: number | null;
   title: string | null;
@@ -19,9 +15,6 @@ export type HistoryUnionRow = {
   updated_at: string;
 };
 
-/** Page size shared by pagination + search. 50 keeps the first paint
- * responsive while giving scroll-lazy users enough rows to reach the
- * IntersectionObserver sentinel without an immediate refetch. */
 export const HISTORY_PAGE_SIZE = 50;
 
 export const historyUnionKeys = {
@@ -30,13 +23,7 @@ export const historyUnionKeys = {
   search: (query: string) => [...historyUnionKeys.all, "search", query] as const,
 };
 
-/**
- * Infinite-query version of the unified history feed. Each page has up
- * to `HISTORY_PAGE_SIZE` rows ordered by `updated_at DESC`; the next
- * cursor is the last row's `updated_at` (keyset — stable under inserts
- * because the RPC orders by the same column).
- */
-export function useHistoryUnion(filter: "all" | "answer" | "chat", enabled: boolean) {
+export function useHistoryUnion(filter: "all" | "answer", enabled: boolean) {
   return useInfiniteQuery({
     queryKey: historyUnionKeys.list(filter),
     queryFn: async ({ pageParam }) => {
@@ -59,12 +46,6 @@ export function useHistoryUnion(filter: "all" | "answer" | "chat", enabled: bool
   });
 }
 
-/**
- * Cross-type search. Returns `HistoryUnionRow[]` identical to the
- * pagination feed so the list renderer doesn't need a second shape.
- * No pagination yet — `p_limit` caps at 50 to keep the typing-UX
- * responsive; users who need deeper search refine the query.
- */
 export function useSearchHistoryUnion(query: string) {
   return useQuery({
     queryKey: historyUnionKeys.search(query),
