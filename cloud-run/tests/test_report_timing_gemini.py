@@ -64,7 +64,7 @@ def test_fallback_when_no_top_window_says_insufficient() -> None:
         lowest_window=None,
         variance_note=None,
     )
-    assert "Chưa đủ tín hiệu" in narr["insight"]
+    assert "chưa đủ ổn định" in narr["insight"]
 
 
 def test_related_questions_always_three() -> None:

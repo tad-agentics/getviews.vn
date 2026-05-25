@@ -101,7 +101,7 @@ function Headline({
     return (
       <>
         <span className="text-[color:var(--gv-accent)]">{earlyCount} dấu hiệu sớm</span>{" "}
-        — chưa đủ video xác nhận, đáng theo dõi.
+        — đáng theo dõi.
       </>
     );
   }
@@ -165,7 +165,7 @@ function formatLiftPhrase(
   if (tier === "strong") {
     return `Ăn gấp ${liftLabel} view trung bình ngách`;
   }
-  return `Ăn gấp ${liftLabel} view trung bình ngách (mẫu nhỏ, đang theo dõi)`;
+  return `Ăn gấp ${liftLabel} view trung bình ngách (đang theo dõi)`;
 }
 
 function buildCorpusCaption(

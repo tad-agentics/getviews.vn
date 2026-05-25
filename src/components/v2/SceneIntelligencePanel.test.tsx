@@ -91,7 +91,7 @@ describe("SceneIntelligencePanel", () => {
       referenceClips: [],
       sceneSampleSize: 12,
     });
-    expect(getByText(/Ngách đang thưa \(12 video \/ scene\)/)).toBeTruthy();
+    expect(getByText(/Pacing và overlay là định hướng/)).toBeTruthy();
   });
 
   it("hides the thin-corpus banner when sceneSampleSize is null or ≥ 30", () => {
@@ -102,7 +102,7 @@ describe("SceneIntelligencePanel", () => {
       referenceClips: [],
       sceneSampleSize: 80,
     });
-    expect(queryByText(/Ngách đang thưa/)).toBeNull();
+    expect(queryByText(/Pacing và overlay là định hướng/)).toBeNull();
   });
 
   it("anchors the overlay library to overlayCorpusCount when provided", () => {

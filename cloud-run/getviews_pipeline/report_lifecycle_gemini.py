@@ -256,7 +256,7 @@ def _fallback_subject(
     mode: LifecycleMode,
 ) -> str:
     if not cells:
-        return "Chưa đủ dữ liệu để xếp hạng lifecycle."
+        return "Chưa xếp hạng được lifecycle cho video này."
     lead = cells[0]
     lead_name = str(lead.get("name") or "—")
     delta = float(lead.get("reach_delta_pct") or 0)

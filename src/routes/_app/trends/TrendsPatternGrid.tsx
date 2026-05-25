@@ -59,8 +59,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
         </div>
       ) : patterns.length === 0 ? (
         <p className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-xs text-[color:var(--gv-ink-3)]">
-          Chưa đủ công thức có lift cao trong ngách này tuần qua — hệ thống
-          đang cập nhật, sẽ có sau khi đủ video tham chiếu.
+          Tuần qua chưa có công thức lift cao nổi bật trong ngách này. Quay lại sau.
         </p>
       ) : (
         <div

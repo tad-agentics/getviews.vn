@@ -574,8 +574,8 @@ def build_lifecycle_report(
 
 _FIXTURE_DISCLAIMER_BY_MODE: dict[LifecycleMode, str] = {
     "format": (
-        "Chưa đủ dữ liệu format-level cho ngách này — hiển thị mẫu "
-        "format tham chiếu. Paste link video để chẩn đoán chính xác."
+        "Đang hiển thị mẫu format tham chiếu cho ngách này. "
+        "Paste link video để chẩn đoán chính xác."
     ),
     "hook_fatigue": (
         "Chưa có tín hiệu hook-fatigue trong ngách này — hiển thị mẫu "

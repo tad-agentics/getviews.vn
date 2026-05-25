@@ -49,7 +49,7 @@ export function SceneIntelligencePanel({
     <div className="flex flex-col gap-3.5">
       {thinCorpus ? (
         <p className="gv-mono rounded-none border border-[color:var(--gv-rule)] bg-[color:var(--gv-accent-soft)] px-3 py-2 text-[11px] leading-snug text-[color:var(--gv-accent-deep)]">
-          Ngách đang thưa ({sceneSampleSize} video / scene) — pacing và overlay là định hướng, không tuyệt đối.
+          Pacing và overlay là định hướng, không tuyệt đối.
         </p>
       ) : null}
       <div className="rounded-none border border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] p-4 text-[color:var(--gv-canvas)]">

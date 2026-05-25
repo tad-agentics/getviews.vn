@@ -65,7 +65,7 @@ export const HooksTable = memo(function HooksTable({
   if (!patterns || patterns.length === 0) {
     const emptyBody = (
       <p className={`text-sm text-[color:var(--gv-ink-3)] ${embedded ? "" : "mt-6"}`}>
-        Chưa đủ pattern để xếp hạng tuần này. Chạy ingest nữa là có.
+        Chưa có pattern nổi bật để xếp hạng tuần này. Quay lại sau.
       </p>
     );
     if (embedded) return emptyBody;

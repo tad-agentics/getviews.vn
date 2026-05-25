@@ -155,7 +155,7 @@ export const TrendsRail = memo(function TrendsRail({
             className="mb-3 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-[11px] leading-snug text-[color:var(--gv-ink-3)]"
             data-testid="trends-rail-fallback-note"
           >
-            Mẫu organic còn mỏng — một số video bổ sung chưa qua lọc boost. So format và hook, đừng
+            Một số video bổ sung chưa qua lọc boost. So format và hook, đừng
             chỉ nhìn view tuyệt đối.
           </p>
         ) : null}
@@ -171,7 +171,7 @@ export const TrendsRail = memo(function TrendsRail({
           </div>
         ) : videos.length === 0 ? (
           <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-3 text-[12px] text-[color:var(--gv-ink-3)]">
-            Chưa đủ breakout đăng trong 14 ngày — thử lại sau khi cron cập nhật kho.
+            Chưa có breakout nổi bật đăng trong 14 ngày qua. Quay lại sau.
           </p>
         ) : (
           <ul className="flex flex-col gap-2.5">

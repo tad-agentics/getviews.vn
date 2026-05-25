@@ -217,7 +217,7 @@ def _fallback_lead(
             f"Theo câu hỏi «{query[:80]}»: dựa trên {sample_n} video thắng trong "
             f"ngách {niche_label}, top ý tưởng nên thử trước là «{head}»"
             if head
-            else f"Theo câu hỏi «{query[:80]}», chưa đủ ý tưởng ranking cho ngách {niche_label}."
+            else f"Theo câu hỏi «{query[:80]}», chưa có ý tưởng nổi bật để xếp hạng cho ngách {niche_label}."
         )
     else:
         base = (

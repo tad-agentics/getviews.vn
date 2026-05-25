@@ -172,7 +172,7 @@ export function ChannelDiagnosisBody({
 
           {isDone && (diagnose.peerSource === "thin" || diagnose.finalPayload?.niche_thin) && (
             <p className="mt-2 text-xs italic text-[color:var(--gv-ink-3)]">
-              Kho dữ liệu ngách này chưa đủ để benchmark chính xác — kết quả mang tính tham khảo.
+              Kết quả benchmark mang tính tham khảo.
             </p>
           )}
         </div>

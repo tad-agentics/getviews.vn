@@ -38,7 +38,7 @@ describe("buildDiagnosisPostingNarrative", () => {
       top_3_windows: [],
       user_post_window_vi: null,
     });
-    expect(text).toContain("mẫu còn thưa");
+    expect(text).toContain("khung giờ chưa đủ ổn định");
     expect(text).not.toContain("Ba cửa sổ");
   });
 });

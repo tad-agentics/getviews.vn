@@ -160,7 +160,7 @@ def test_templated_verdict_unknown_higher_states_data_gap() -> None:
     left = _stats({})
     right = _stats({})
     v = _templated_verdict(left, right, "unknown", "unknown")
-    assert "Chưa đủ" in v
+    assert "Chưa so được" in v
 
 
 # ── build_delta + Gemini fallback ───────────────────────────────────

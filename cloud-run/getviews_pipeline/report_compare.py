@@ -166,7 +166,7 @@ def _templated_verdict(
     if higher_side == "tie":
         spine = "Hai video chạy gần như tương đương nhau"
     elif higher_side == "unknown":
-        spine = "Chưa đủ data breakout để so điểm chính"
+        spine = "Chưa so được điểm chính cho hai video này"
     else:
         side_label = "trái" if higher_side == "left" else "phải"
         spine = f"Video {side_label} đang chạy mạnh hơn"

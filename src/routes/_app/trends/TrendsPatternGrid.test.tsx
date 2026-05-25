@@ -91,6 +91,6 @@ describe("TrendsPatternGrid", () => {
     const { getByText } = render(
       <TrendsPatternGrid patternScope={sampleScope} legacyNicheId={4} />,
     );
-    expect(getByText(/Chưa đủ công thức có lift cao/)).toBeTruthy();
+    expect(getByText(/chưa có công thức lift cao/)).toBeTruthy();
   });
 });

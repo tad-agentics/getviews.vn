@@ -70,7 +70,7 @@ export function FlopDiagnosisStrip({
           <span>{peerLabel}</span>
         ) : (
           <span className="text-[color:var(--gv-ink-4)]">
-            Đang xây dựng pool (≥10 video cần thu thập)
+            Chưa có nhóm đối chiếu cho video này
           </span>
         )}
       </div>
