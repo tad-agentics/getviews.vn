@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from "react";
 import { ExternalLink, Star } from "lucide-react";
-import { getVideoMeta, r2FrameUrl, type VideoMeta } from "@/lib/services/corpus-service";
+import { getVideoMeta, type VideoMeta } from "@/lib/services/corpus-service";
 import { formatBreakoutVI } from "@/lib/formatters";
 import { VideoThumb } from "./VideoThumb";
 
@@ -53,19 +53,18 @@ export function VideoRefCard({ data, className = "" }: Props) {
         ? Math.floor((Date.now() - new Date(meta.indexed_at).getTime()) / 86_400_000)
         : null;
 
-  // Thumbnail resolution: block URL → DB URL → R2 frame fallback → null (shows TikTok icon)
-  const thumbnail = data.thumbnail_url || meta?.thumbnail_url || r2FrameUrl(data.video_id);
+  const thumbnailUrl = data.thumbnail_url || meta?.thumbnail_url || null;
   const videoUrl = meta?.video_url ?? null;
   const tiktokUrl = handle
     ? `https://www.tiktok.com/${handle.startsWith("@") ? handle : "@" + handle}/video/${data.video_id}`
     : null;
 
-  // Show a skeleton until meta resolves, so the card doesn't flash with no thumbnail
-  const thumbSrc = metaLoaded || data.thumbnail_url ? thumbnail : null;
+  const thumbSrc = metaLoaded || data.thumbnail_url ? thumbnailUrl : null;
 
   return (
     <div className={`overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] ${className}`}>
       <VideoThumb
+        videoId={data.video_id}
         thumbnail={thumbSrc}
         handle={handle}
         views={views > 0 ? views : undefined}

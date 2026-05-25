@@ -46,6 +46,14 @@ def test_truncate_preserves_vietnamese_diacritics() -> None:
     assert _truncate_text(s, 40) == s
 
 
+def test_mime_type_for_image_url() -> None:
+    from getviews_pipeline.thumbnail_analysis import _mime_type_for_image_url
+
+    assert _mime_type_for_image_url("https://r2.test/frames/v/0.png") == "image/png"
+    assert _mime_type_for_image_url("https://r2.test/thumbnails/v.webp?v=1") == "image/webp"
+    assert _mime_type_for_image_url("https://cdn/cover.jpg") == "image/jpeg"
+
+
 # ── _is_fresh ─────────────────────────────────────────────────────────────
 
 

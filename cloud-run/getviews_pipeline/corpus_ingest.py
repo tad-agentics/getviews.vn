@@ -36,7 +36,6 @@ from getviews_pipeline.config import (
     CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH,
     GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
     HASHTAG_YIELD_THRESHOLD,
-    R2_PUBLIC_URL,
 )
 from getviews_pipeline.corpus_boost_suspect import classify_boost_suspect
 from getviews_pipeline.corpus_instructiveness import (
@@ -68,12 +67,11 @@ from getviews_pipeline.helpers import (
 )
 from getviews_pipeline.hook_type_normalize import normalize_hook_type
 from getviews_pipeline.r2 import (
-    copy_first_frame_to_thumbnail,
-    download_and_upload_thumbnail,
     download_and_upload_video,
     extract_and_upload,
     extract_and_upload_scene_frames,
     r2_configured,
+    resolve_ingest_thumbnail_url,
 )
 from getviews_pipeline.runtime import get_analysis_semaphore
 from getviews_pipeline.settings import settings as _ingest_settings
@@ -2680,39 +2678,13 @@ async def _ingest_candidate_awemes(
             )
             for row in video_rows
         ]
-        # "One heavy CDN pull per video, ever." — when frame[0] was
-        # already extracted from the single video download into R2,
-        # derive the user-facing thumbnail by server-side copying
-        # ``frames/{video_id}/0.png`` → ``thumbnails/{video_id}.png``
-        # (one R2 op, zero CDN bytes). Only fall back to the CDN
-        # mirror when frame extraction failed for that row — without
-        # an R2 frame to copy from, the platform CDN URL is the only
-        # source for the thumbnail.
-        loop = asyncio.get_event_loop()
-
+        # Derive user-facing ``thumbnails/{video_id}.webp`` (360w). Re-upserts
+        # with legacy R2 ``.png`` DB URLs are promoted when WebP is missing on
+        # R2 — see ``resolve_ingest_thumbnail_url``.
         async def _row_thumbnail(row: dict[str, Any]) -> str | None:
-            vid = row["video_id"]
-            existing_thumb = row.get("thumbnail_url") or ""
-            # Carousel rows may already have a permanent R2 URL written by
-            # _analyze_carousel (commit 2). Detect it by checking against the
-            # configured R2_PUBLIC_URL prefix or the default pub-*.r2.dev pattern.
-            _r2_prefix = R2_PUBLIC_URL.rstrip("/") if R2_PUBLIC_URL else ""
-            _is_already_r2 = (
-                (_r2_prefix and (
-                    existing_thumb.startswith(_r2_prefix + "/")
-                    or existing_thumb == _r2_prefix
-                ))
-                or existing_thumb.startswith("https://pub-")
-            )
-            if _is_already_r2:
-                return existing_thumb
-            has_frame = bool(frame_urls_by_video_id.get(vid) or [])
-            if has_frame:
-                return await loop.run_in_executor(
-                    None, copy_first_frame_to_thumbnail, vid,
-                )
-            return await download_and_upload_thumbnail(
-                existing_thumb, vid,
+            return await resolve_ingest_thumbnail_url(
+                str(row["video_id"]),
+                row.get("thumbnail_url"),
             )
 
         thumb_tasks = [_row_thumbnail(row) for row in rows]

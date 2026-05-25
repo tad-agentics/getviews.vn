@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — WebP ingest guard + thumbnail display cascade
+
+- **`r2.resolve_ingest_thumbnail_url`:** Shared ingest helper — skip only when `thumbnails/{id}.webp` exists on R2; re-upserts promote legacy `.png` DB URLs via frame/legacy-PNG transcode; stale R2 DB URLs never used as CDN mirror sources. Wired in `corpus_ingest` + `douyin_ingest`.
+- **`thumbnail_analysis.py`:** Gemini `Part.from_uri` MIME inferred from URL (720px `frame_urls` are PNG, not JPEG).
+- **FE:** `VideoGridBlock` + `VideoRefCard`/`VideoThumb` use `VideoThumbnail` WebP-first cascade (no `frames/0.png` card fallback).
+- **Ops:** Run `POST /batch/backfill-thumbnails?ed_fallback=true` on batch pod to heal ~4.5K legacy/null rows (not auto-run on deploy).
+
 ## 2026-05-23 — Phase C: full chat/stream teardown
 
 - **DB:** Migration `20260830000001` drops `chat_sessions`, `chat_messages`, `chat_archival_audit`, `search_sessions`; `history_union` / `search_history_union` answer-only; unschedule `cron-chat-archival`.

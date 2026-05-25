@@ -806,6 +806,54 @@ async def download_and_upload_thumbnail(thumbnail_url: str, video_id: str) -> st
         return None
 
 
+def r2_public_thumbnail_url(video_id: str) -> str | None:
+    """Permanent public URL for ``thumbnails/{video_id}.webp``."""
+    if not video_id or not r2_configured() or not R2_PUBLIC_URL:
+        return None
+    return f"{R2_PUBLIC_URL.rstrip('/')}/thumbnails/{video_id}{_THUMB_EXT}"
+
+
+def is_r2_pub_thumbnail_db_url(url: str | None) -> bool:
+    """True when ``url`` points at our R2 pub bucket (any ext under ``thumbnails/``)."""
+    if not url or not str(url).strip():
+        return False
+    u = str(url).strip()
+    prefix = (R2_PUBLIC_URL or "").rstrip("/")
+    if prefix and (u.startswith(f"{prefix}/") or u == prefix):
+        return "/thumbnails/" in u
+    return u.startswith("https://pub-") and "/thumbnails/" in u
+
+
+async def resolve_ingest_thumbnail_url(
+    video_id: str,
+    existing_thumbnail_url: str | None,
+) -> str | None:
+    """Ensure corpus upsert gets a permanent 360w WebP ``thumbnail_url``.
+
+    Skips work only when ``thumbnails/{video_id}.webp`` already exists on R2
+    (returns canonical URL so legacy ``.png`` DB values are patched). Otherwise
+    transcodes from ``frames/0.png`` or legacy ``thumbnails/*.png`` on R2, then
+    mirrors a non-R2 platform CDN URL. Stale R2 DB URLs are not used as CDN
+    sources (they 403/404 from datacenter IPs).
+    """
+    existing = (existing_thumbnail_url or "").strip()
+    loop = asyncio.get_event_loop()
+
+    if await loop.run_in_executor(None, r2_public_thumbnail_exists, video_id):
+        return r2_public_thumbnail_url(video_id) or existing or None
+
+    transcoded = await loop.run_in_executor(
+        None, copy_first_frame_to_thumbnail, video_id,
+    )
+    if transcoded:
+        return transcoded
+
+    if existing and not is_r2_pub_thumbnail_db_url(existing):
+        return await download_and_upload_thumbnail(existing, video_id)
+
+    return None
+
+
 # ── Per-scene frame extraction (Wave 2.5 Phase A PR #3) ────────────────
 #
 # Distinct from extract_frames() / upload_frames() above, which target the

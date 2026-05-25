@@ -19,6 +19,18 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _mime_type_for_image_url(url: str) -> str:
+    """Infer Gemini Part mime from URL path (``frame_urls`` are PNG on R2)."""
+    path = url.lower().split("?", 1)[0]
+    if path.endswith(".png"):
+        return "image/png"
+    if path.endswith(".webp"):
+        return "image/webp"
+    if path.endswith(".jpg") or path.endswith(".jpeg"):
+        return "image/jpeg"
+    return "image/png"
+
+
 def _truncate_text(s: str | None, limit: int) -> str | None:
     if s is None:
         return None
@@ -62,7 +74,10 @@ def analyze_thumbnail(frame_url: str) -> dict[str, Any] | None:
     from getviews_pipeline.prompts import THUMBNAIL_PROMPT
 
     try:
-        image_part = types.Part.from_uri(file_uri=frame_url, mime_type="image/jpeg")
+        image_part = types.Part.from_uri(
+            file_uri=frame_url,
+            mime_type=_mime_type_for_image_url(frame_url),
+        )
         cfg = types.GenerateContentConfig(
             temperature=GEMINI_EXTRACTION_TEMPERATURE,
             max_output_tokens=512,

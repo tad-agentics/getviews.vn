@@ -46,8 +46,7 @@ from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.douyin_metadata import build_douyin_corpus_row
 from getviews_pipeline.douyin_translator import translate_douyin_caption
 from getviews_pipeline.r2 import (
-    copy_first_frame_to_thumbnail,
-    download_and_upload_thumbnail,
+    resolve_ingest_thumbnail_url,
     extract_and_upload,
     extract_and_upload_scene_frames,
     r2_configured,
@@ -538,27 +537,14 @@ async def _ingest_candidate_awemes_douyin(
     if not rows:
         return result
 
-    # "One heavy CDN pull per video, ever." — frame[0] is already in
-    # R2 from ``extract_and_upload`` above. Derive the user-facing
-    # thumbnail by server-side copying ``frames/{vid}/0.png`` →
-    # ``thumbnails/{vid}.png`` (one R2 op, zero CDN bytes). When frame
-    # extraction failed for a row (no R2 source to copy), fall back to
-    # mirroring the platform CDN URL — best-effort, douyinpic.com may
-    # reject the TikTok-shaped Referer header in which case we leave
-    # the row's existing thumbnail_url alone (the FE's <VideoThumbnail>
-    # handles broken URLs via onError).
+    # ``thumbnails/{vid}.webp`` (360w). When frame[0] / legacy PNG on R2 are
+    # unavailable, fall back to mirroring the platform CDN URL — see
+    # ``resolve_ingest_thumbnail_url``.
     if r2_configured():
-        loop = asyncio.get_event_loop()
-
         async def _row_thumbnail(row: dict[str, Any]) -> str | None:
-            vid = row["video_id"]
-            has_frame = bool(hook_frames_by_id.get(vid))
-            if has_frame:
-                return await loop.run_in_executor(
-                    None, copy_first_frame_to_thumbnail, vid,
-                )
-            return await download_and_upload_thumbnail(
-                row.get("thumbnail_url") or "", vid,
+            return await resolve_ingest_thumbnail_url(
+                str(row["video_id"]),
+                row.get("thumbnail_url"),
             )
 
         thumb_results = await asyncio.gather(

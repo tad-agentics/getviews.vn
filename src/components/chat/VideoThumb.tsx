@@ -9,10 +9,14 @@
  */
 import { useState, useEffect } from "react";
 import { Play } from "lucide-react";
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { formatVN, formatRecencyVI } from "@/lib/formatters";
 
 export interface VideoThumbProps {
+  /** DB / block thumbnail URL (optional when ``videoId`` set — cascade fills from R2). */
   thumbnail?: string | null;
+  /** Corpus video_id — enables WebP-first ``VideoThumbnail`` cascade. */
+  videoId?: string | null;
   handle?: string;
   views?: number;
   daysAgo?: number | null;
@@ -23,6 +27,7 @@ export interface VideoThumbProps {
 
 export function VideoThumb({
   thumbnail,
+  videoId,
   handle,
   views,
   daysAgo,
@@ -33,13 +38,16 @@ export function VideoThumb({
   const [imgFailed, setImgFailed] = useState(false);
   const [playing, setPlaying] = useState(false);
 
-  // Reset on thumbnail change so switching to a different video retries the image.
+  // Reset playback when the target video changes.
   useEffect(() => {
     setImgFailed(false);
     setPlaying(false);
-  }, [thumbnail]);
+  }, [thumbnail, videoId]);
 
-  const showImage = !!thumbnail && !imgFailed;
+  const useCascade = Boolean(videoId?.trim());
+  const showImage = useCascade
+    ? Boolean(videoId)
+    : Boolean(thumbnail && !imgFailed);
   const showOverlays = showImage && !playing;
 
   const inner = (
@@ -58,13 +66,23 @@ export function VideoThumb({
           onClick={(e) => e.stopPropagation()}
         />
       ) : showImage ? (
-        <img
-          src={thumbnail!}
-          alt={handle ?? ""}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-          onError={() => setImgFailed(true)}
-        />
+        useCascade ? (
+          <VideoThumbnail
+            videoId={videoId}
+            thumbnailUrl={thumbnail}
+            alt={handle ?? ""}
+            className="absolute inset-0 h-full w-full"
+            loading="lazy"
+          />
+        ) : (
+          <img
+            src={thumbnail!}
+            alt={handle ?? ""}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setImgFailed(true)}
+          />
+        )
       ) : (
         /* No thumbnail or load failed */
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-[var(--surface-alt)]">

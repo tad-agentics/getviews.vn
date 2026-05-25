@@ -8,8 +8,9 @@
  * Tapping thumbnail opens TikTok URL.
  */
 import { useState, useEffect } from "react";
-import { getVideoMeta, r2FrameUrl, type VideoMeta } from "@/lib/services/corpus-service";
+import { getVideoMeta, type VideoMeta } from "@/lib/services/corpus-service";
 import { formatVN } from "@/lib/formatters";
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 
 interface VideoGridCellProps {
   videoId: string;
@@ -18,8 +19,6 @@ interface VideoGridCellProps {
 
 function VideoGridCell({ videoId, label }: VideoGridCellProps) {
   const [meta, setMeta] = useState<VideoMeta | null>(null);
-  const [imgFailed, setImgFailed] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,42 +30,24 @@ function VideoGridCell({ videoId, label }: VideoGridCellProps) {
     };
   }, [videoId]);
 
-  const thumbnail = meta?.thumbnail_url ?? r2FrameUrl(videoId);
   const tiktokUrl =
     meta?.tiktok_url ??
     (meta?.creator_handle
       ? `https://www.tiktok.com/${meta.creator_handle.startsWith("@") ? meta.creator_handle : "@" + meta.creator_handle}/video/${videoId}`
       : null);
 
-  useEffect(() => {
-    setImgFailed(false);
-    setImgLoaded(false);
-  }, [thumbnail]);
-
   const thumbnailEl = (
     <div
       className="relative w-full overflow-hidden rounded-xl bg-[var(--surface-alt)]"
       style={{ paddingBottom: "177.78%" /* 9:16 */ }}
     >
-      {thumbnail && !imgFailed ? (
-        <>
-          <img
-            src={thumbnail}
-            alt={label}
-            className="absolute inset-0 h-full w-full object-cover"
-            loading="lazy"
-            onError={() => setImgFailed(true)}
-            onLoad={() => setImgLoaded(true)}
-          />
-          {!imgLoaded ? (
-            <div className="absolute inset-0 animate-pulse bg-[var(--border)]" />
-          ) : null}
-        </>
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-8 w-8 animate-pulse rounded-full bg-[var(--border)]" />
-        </div>
-      )}
+      <VideoThumbnail
+        videoId={videoId}
+        thumbnailUrl={meta?.thumbnail_url}
+        alt={label}
+        className="absolute inset-0 h-full w-full"
+        loading="lazy"
+      />
       {meta?.views ? (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
           <p
