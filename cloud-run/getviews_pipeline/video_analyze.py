@@ -1430,6 +1430,7 @@ def finalize_video_narrative_layer(
                         niche_id=resolved_nid,
                         duration_sec=float(meta.get("duration_sec") or 30.0),
                         user_sb=user_sb,
+                        benchmark_axis=bench_axis,
                     )
                     if bench_fix.get("niche_meta"):
                         niche_meta = bench_fix["niche_meta"]
@@ -1973,6 +1974,8 @@ def run_video_analyze_pipeline(
         niche_id=niche_id or 0,
         duration_sec=max(dur, 5.0),
         user_sb=user_sb,
+        benchmark_axis=benchmark_axis,
+        content_class_id=int(content_class_id) if content_class_id else None,
     )
     niche_benchmark = bench_payload["niche_benchmark_curve"]
     niche_meta = bench_payload["niche_meta"] if bench_payload.get("niche_meta") is not None else default_niche_meta
@@ -2621,6 +2624,8 @@ def run_video_analyze_on_demand(
         niche_id=niche_id,
         duration_sec=max(dur, 5.0),
         user_sb=user_sb,
+        benchmark_axis=benchmark_axis,
+        content_class_id=int(content_class_id) if content_class_id else None,
     )
     niche_benchmark = bench_payload["niche_benchmark_curve"]
     niche_meta = (

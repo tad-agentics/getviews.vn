@@ -76,7 +76,7 @@ def test_build_payload_winners_sample_size_with_user_sb() -> None:
     sb.table.return_value.select.return_value.eq.return_value.or_.return_value.execute.return_value = mock_res
     out = build_niche_benchmark_payload(row, niche_id=7, duration_sec=58.0, user_sb=sb)
     assert out["niche_meta"]["winners_sample_size"] == 42
-    sb.table.assert_called_once_with("video_corpus")
+    assert any(c.args[0] == "video_corpus" for c in sb.table.call_args_list)
 
 
 def test_count_winners_returns_none_without_sb() -> None:

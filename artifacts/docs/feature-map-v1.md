@@ -557,86 +557,94 @@ def manifest_for_prompt(manifest, *, depth: str = "basic") -> dict[str, list[Sig
 
 #### 4.8.2 Đã ship — extractors → `section_id` (as-built)
 
-Nguồn: [`signals/registry.py`](../../cloud-run/getviews_pipeline/signals/registry.py) `_EXTRACTORS`. Mỗi dòng = `signal.id` đã có code.
+**Trạng thái:** ✅ **Done** — W0–S4 (`signals/win.py` W0; Phase 2a/2c P0–P1; S4 M5 `seeding_comment_pattern`). **15** `section_id` · **~79** `signal.id` trong `_EXTRACTORS`. QA: `test_phase2a_p1_video_signals.py`, `test_phase2c_p1_p2_video_signals.py`, `test_seeding_comment_signal.py`, `test_wave4_signals.py`.
+
+Nguồn: [`signals/registry.py`](../../cloud-run/getviews_pipeline/signals/registry.py) `_EXTRACTORS`. Mỗi dòng = `signal.id` đã có code (không liệt kê backlog §4.8.3).
 
 | `section_id` | Signal IDs (shipped) | Ghi chú |
 |--------------|----------------------|---------|
-| `diagnosis` | `diagnosis_baseline`, `hook_dialect_*`, `trigger_*` | Triggers: share/save archetype, sự thật trần trụi |
-| `compliance` | `compliance_restricted_phrase`, `compliance_price_anchor_*`, `compliance_ad_law_disclosure_missing`, `compliance_shadowban_cheo_signature`, `compliance_hit`, `hook_gia_soc_price_anchor_risk` | §10 V5 |
-| `hook_analysis` | `hook_first_frame_non_product`, `hook_type_niche_mismatch`, `hook_layering_single`, `hook_body_contract_violated` | §3 V5 — cần corpus `hook_distribution` |
-| `distribution` | `caption_thin`, `hashtag_generic_cluster`, `sound_original`, `engagement_*`, `context_golden_hour_miss`, `context_tuong_tac_cheo_heuristic` | §1.5–1.7 một phần |
-| `niche_pattern` | `niche_reference_anchor` | + `reference_videos` tiles |
+| `diagnosis` | `diagnosis_baseline`, `hook_dialect_*`, `trigger_*`, `engagement_save_trigger_weak`, `win_er_above_niche_p75` | W0 win @ `win.py`; triggers share/save + sự thật trần trụi |
+| `compliance` | `compliance_restricted_phrase`, `compliance_price_anchor_inflated`, `compliance_ad_law_disclosure_missing`, `compliance_shadowban_cheo_signature`, `compliance_hit`, `hook_gia_soc_price_anchor_risk` | §10 V5 |
+| `hook_analysis` | `hook_first_frame_non_product`, `hook_type_niche_mismatch`, `hook_layering_single`, `hook_body_contract_violated`, `hook_timeline_pacing_sparse`, `hook_pacing_cut_frequency`, `hook_vague_specificity`, `niche_hook_percentile_gap`, `win_hook_aligns_niche_top` | §3 V5 + P1 pacing/specificity @ Phase 2c |
+| `distribution` | `caption_thin`, `hashtag_generic_cluster`, `sound_original`, `engagement_*`, `context_golden_hour_miss`, `context_tuong_tac_cheo_heuristic`, `distribution_posted_at_ritual_hint` | §1.5–1.7; P2 ritual hint @ Phase 2c |
+| `niche_pattern` | `niche_reference_anchor`, `niche_format_underrepresented`, `win_format_in_growth` | + `reference_videos` tiles; W0 `win_format_*` |
 | `douyin_origin` | `douyin_origin_peer`, `douyin_migration_poor_fit` | §Douyin |
-| `channel_pattern` | `channel_baseline_available`, `channel_pattern_break_risk` | §2 kênh (sample ≥2–3) |
-| `commerce` | `commerce_conversion_objective`, `commerce_verbal_cta_missing`, `commerce_price_tier_hook_mismatch`, `commerce_disclosure_*`, `commerce_creator_type_inconsistent`, `commerce_promotion_detected`, `commerce_cta_missing`, `commerce_performance_conversion_override` | §0 V5 |
-| `metadata` | `metadata_safe_zone_bottom_risk`, `metadata_business_vpop_cml_friction` | §1.6 một phần |
-| `editing` | `editing_color_grading_niche_mismatch`, `editing_text_overlay_readability` | §1.3 một phần |
-| `sound` | `sound_lifecycle_phase`, `sound_cml_strip_risk`, `sound_dialect_audio_mismatch`, `sound_layering_thin_mukbang` | §1.4 + `trending_sounds` |
-| `persona` | `persona_channel_baseline_mismatch`, `persona_authenticity_weak_negative_markers`, `persona_slang_dated`, `persona_dialect_expert_tension` | §1.2 |
-| `script_structure` | `script_affiliate_five_phase_gap`, `script_livestream_demo_too_complete` | §1.1 / §1.7 |
+| `channel_pattern` | `channel_baseline_available`, `channel_pattern_break_risk`, `channel_video_vs_eligible_peers`, `win_breakout_vs_channel` | §2 kênh; P2 peer compare @ Phase 2c |
+| `commerce` | `commerce_conversion_objective`, `commerce_verbal_cta_missing`, `commerce_price_tier_hook_mismatch`, `commerce_disclosure_missing`, `commerce_creator_type_inconsistent`, `commerce_promotion_detected`, `commerce_cta_missing`, `commerce_silent_cta`, `commerce_price_tier_structure`, `commerce_performance_conversion_override` | §0 V5 + P1 silent/price @ Phase 2c |
+| `metadata` | `metadata_safe_zone_bottom_risk`, `metadata_business_vpop_cml_friction`, `metadata_hashtag_volume_gap`, `metadata_caption_density` | §1.6; P1 hashtag/caption @ Phase 2c |
+| `editing` | `editing_color_grading_niche_mismatch`, `editing_text_overlay_readability`, `editing_cut_pace_outlier`, `editing_broll_ratio_low` | §1.3; P1 cut/B-roll @ Phase 2c |
+| `sound` | `sound_lifecycle_phase`, `sound_cml_strip_risk`, `sound_dialect_audio_mismatch`, `sound_layering_thin_mukbang`, `sound_trending_mismatch`, `sound_no_audio_hook_window` | §1.4 + `trending_sounds`; P1 @ Phase 2c |
+| `persona` | `persona_channel_baseline_mismatch`, `persona_authenticity_weak_negative_markers`, `persona_slang_dated`, `persona_dialect_expert_tension`, `persona_tone_distribution_gap` | §1.2; P1 tone gap @ Phase 2c |
+| `script_structure` | `script_affiliate_five_phase_gap`, `script_livestream_demo_too_complete`, `script_zero_value_stretch` | §1.1 / §1.7; P1 zero-value @ Phase 2c |
+| `boost_attribution` | `boost_views_er_mismatch`, `boost_breakout_low_engagement`, `distribution_spike_then_flat`, `boost_tradeoff_education`, `seeding_comment_pattern` | **Deep-only** @ W4-2 + S4 M5; live in [`distribution.py`](../../cloud-run/getviews_pipeline/signals/distribution.py) — **không** `signals/boost.py` riêng |
+| `next_video` | `win_replicable_cta` | W0 win @ `win.py`; **gap:** chưa có signal flop cho “quay tiếp” (section vẫn `always_emit`) |
 
-**Shipped:** `boost_attribution` section F1 deep @ W4-2 ([`signals/distribution.py`](../../cloud-run/getviews_pipeline/signals/distribution.py) — live M3 + P0 flop signals). **Không** module `signals/boost.py` riêng — M3 heuristics live in `distribution.py`.
+**Depth gate:** `boost_attribution` + full `win_*` synthesize chỉ khi `analysis_depth=deep` (hoặc manifest teaser basic — §4.11.3). `win_*` salience gated `tier=hit` (§4.8.3).
 
-#### 4.8.3 Backlog signal — Chuyên sâu + Win (ưu tiên V1)
+#### 4.8.3 Backlog signal — V1 scope (closed)
 
-Chỉ liệt kê signal **làm được** từ extract + ED + corpus (không OAuth, không user form). Cột **Phase** gắn F8/F1. **`tier_gate`:** `hit` = salience cao chỉ khi `performance_tier=hit` (Win path); `any` = flop/win.
+**Trạng thái:** ✅ **Backlog trống** — toàn bộ W0 + P0/P1/P2 dưới đây đã ship @ §4.8.2 (W0 @ `win.py`; P0/P1 @ Phase 2a/2c; P2 @ Phase 2c + S4 M5). Bảng giữ làm **archive + tier_gate reference**, không còn work item V1.
 
-**Win — Phase W0 (trước S1, §4.9):**
+**Win — Phase W0** — ✅ shipped @ `signals/win.py`:
 
 | Phase | `signal.id` | `section_id` | `tier_gate` | JTBD / Data |
 |-------|-------------|--------------|-------------|-------------|
-| **W0** | `win_er_above_niche_p75` | `diagnosis` | `hit` | ER / comment rate ≥ p75 ngách — “vì sao tương tác theo view” |
-| **W0** | `win_hook_aligns_niche_top` | `hook_analysis` | `hit` | `hook_type` ∈ top `hook_distribution` |
-| **W0** | `win_breakout_vs_channel` | `channel_pattern` | `hit` | `breakout_multiplier` vs median kênh (deep section; basic teaser) |
-| **W0** | `win_format_in_growth` | `niche_pattern` | `hit` | `content_format` trong bucket Growth `format_distribution` |
-| **W0** | `win_replicable_cta` | `next_video` | `hit` | CTA + format lặp lại được (extract + corpus) |
+| **W0** ✅ | `win_er_above_niche_p75` | `diagnosis` | `hit` | ER / comment rate ≥ p75 ngách — “vì sao tương tác theo view” |
+| **W0** ✅ | `win_hook_aligns_niche_top` | `hook_analysis` | `hit` | `hook_type` ∈ top `hook_distribution` |
+| **W0** ✅ | `win_breakout_vs_channel` | `channel_pattern` | `hit` | `breakout_multiplier` vs median kênh (deep section; basic teaser) |
+| **W0** ✅ | `win_format_in_growth` | `niche_pattern` | `hit` | `content_format` trong bucket Growth `format_distribution` |
+| **W0** ✅ | `win_replicable_cta` | `next_video` | `hit` | CTA + format lặp lại được (extract + corpus) |
 
 Flop-tier video: các signal `win_*` salience &lt; 0.5 hoặc không export — không synthesize “cơ chế thắng” trên video flop.
 
-**Flop / shared backlog:**
+**Flop / shared — P0/P1/P2** — ✅ shipped (xem §4.8.2):
 
-| Phase | `signal.id` (đề xuất) | `section_id` | `tier_gate` | V5 / JTBD | Data |
-|-------|------------------------|--------------|-------------|-----------|------|
-| **P0** | `boost_views_er_mismatch` | `boost_attribution` | `any` | §1.8 Ads/seeding | `user_stats` + `niche_meta` percentiles (§4.7 M3) |
-| **P0** | `boost_breakout_low_engagement` | `boost_attribution` | `any` | §1.8 | `breakout_multiplier`, ER vs ngách |
-| **P0** | `niche_format_underrepresented` | `niche_pattern` | `any` | Format gap | `content_format` vs `format_distribution` |
-| **P0** | `niche_hook_percentile_gap` | `hook_analysis` | `any` | Hook vs ngách | `hook_type` vs `hook_distribution` + sample ≥30 |
-| **P1** | `distribution_spike_then_flat` | `boost_attribution` | `any` | Seeding backfire | `stats_history` (§4.7 M4) |
-| **P1** | `boost_tradeoff_education` | `boost_attribution` | `any` | Lợi/hại ads | `evidence_strength` ≥ medium (§4.7.0) |
-| **P1** | `hook_vague_specificity` | `hook_analysis` | `any` | Vague hook | `hook_phrase` / transcript |
-| **P1** | `hook_pacing_cut_frequency` | `hook_analysis` | `any` | Pacing / cut | `transitions_per_second` vs ngách |
-| **P1** | `commerce_silent_cta` | `commerce` | `any` | Silent CTA | `verbal_cta_present` + overlays |
-| **P1** | `commerce_price_tier_structure` | `commerce` | `any` | Price tier | `commerce_intent.price_tier` |
-| **P1** | `metadata_hashtag_volume_gap` | `metadata` | `any` | Hashtag §1.6 | `hashtag_count` vs ngách |
-| **P1** | `metadata_caption_density` | `metadata` | `any` | Caption | caption len vs `pct_has_caption_text` |
-| **P1** | `editing_cut_pace_outlier` | `editing` | `any` | Cut frequency | `transitions_per_second` p25/p75 |
-| **P1** | `editing_broll_ratio_low` | `editing` | `any` | B-roll §1.3 | `scenes[]` mix |
-| **P1** | `sound_trending_mismatch` | `sound` | `any` | Sound trend | `sound_id` vs `trending_sounds` |
-| **P1** | `sound_no_audio_hook_window` | `sound` | `any` | Audio hook §1.4 | transcript 0–3s |
-| **P1** | `persona_tone_distribution_gap` | `persona` | `any` | Tone mismatch | `tone` vs `tone_distribution` |
-| **P1** | `script_zero_value_stretch` | `script_structure` | `any` | Zero-value pacing | `scenes` vs `video_duration` |
-| **P1** | `engagement_comment_hook_missing` | `distribution` | `any` | Comment hook §1.7 | Transcript thiếu CTA hỏi |
-| **P1** | `engagement_save_trigger_weak` | `diagnosis` | `hit` | Save architecture | `trigger_save_archetype` + proxy |
-| **P2** | `seeding_comment_pattern` | `boost_attribution` | `any` | Seeding ảo | Comment radar (§4.7 M5) |
-| **P2** | `distribution_posted_at_ritual_hint` | `distribution` | `any` | Audience offline | `posted_at` vs heatmap |
-| **P2** | `channel_video_vs_eligible_peers` | `channel_pattern` | `any` | Video vs kênh | vs **reference_eligible** peers |
+| Phase | `signal.id` | `section_id` | `tier_gate` | V5 / JTBD | Data |
+|-------|-------------|--------------|-------------|-----------|------|
+| **P0** ✅ | `boost_views_er_mismatch` | `boost_attribution` | `any` | §1.8 Ads/seeding | `user_stats` + `niche_meta` percentiles (§4.7 M3) |
+| **P0** ✅ | `boost_breakout_low_engagement` | `boost_attribution` | `any` | §1.8 | `breakout_multiplier`, ER vs ngách |
+| **P0** ✅ | `niche_format_underrepresented` | `niche_pattern` | `any` | Format gap | `content_format` vs `format_distribution` |
+| **P0** ✅ | `niche_hook_percentile_gap` | `hook_analysis` | `any` | Hook vs ngách | `hook_type` vs `hook_distribution` + sample ≥30 |
+| **P1** ✅ | `distribution_spike_then_flat` | `boost_attribution` | `any` | Seeding backfire | `stats_history` (§4.7 M4) |
+| **P1** ✅ | `boost_tradeoff_education` | `boost_attribution` | `any` | Lợi/hại ads | `evidence_strength` ≥ medium (§4.7.0) |
+| **P1** ✅ | `hook_vague_specificity` | `hook_analysis` | `any` | Vague hook | `hook_phrase` / transcript |
+| **P1** ✅ | `hook_pacing_cut_frequency` | `hook_analysis` | `any` | Pacing / cut | `transitions_per_second` vs ngách |
+| **P1** ✅ | `commerce_silent_cta` | `commerce` | `any` | Silent CTA | `verbal_cta_present` + overlays |
+| **P1** ✅ | `commerce_price_tier_structure` | `commerce` | `any` | Price tier | `commerce_intent.price_tier` |
+| **P1** ✅ | `metadata_hashtag_volume_gap` | `metadata` | `any` | Hashtag §1.6 | `hashtag_count` vs ngách |
+| **P1** ✅ | `metadata_caption_density` | `metadata` | `any` | Caption | caption len vs `pct_has_caption_text` |
+| **P1** ✅ | `editing_cut_pace_outlier` | `editing` | `any` | Cut frequency | `transitions_per_second` p25/p75 |
+| **P1** ✅ | `editing_broll_ratio_low` | `editing` | `any` | B-roll §1.3 | `scenes[]` mix |
+| **P1** ✅ | `sound_trending_mismatch` | `sound` | `any` | Sound trend | `sound_id` vs `trending_sounds` |
+| **P1** ✅ | `sound_no_audio_hook_window` | `sound` | `any` | Audio hook §1.4 | transcript 0–3s |
+| **P1** ✅ | `persona_tone_distribution_gap` | `persona` | `any` | Tone mismatch | `tone` vs `tone_distribution` |
+| **P1** ✅ | `script_zero_value_stretch` | `script_structure` | `any` | Zero-value pacing | `scenes` vs `video_duration` |
+| **P1** ✅ | `engagement_comment_hook_missing` | `distribution` | `any` | Comment hook §1.7 | Transcript thiếu CTA hỏi |
+| **P1** ✅ | `engagement_save_trigger_weak` | `diagnosis` | `hit` | Save architecture | `trigger_save_archetype` + proxy |
+| **P2** ✅ | `seeding_comment_pattern` | `boost_attribution` | `any` | Seeding ảo | Comment radar (§4.7 M5) |
+| **P2** ✅ | `distribution_posted_at_ritual_hint` | `distribution` | `any` | Audience offline | `posted_at` vs heatmap |
+| **P2** ✅ | `channel_video_vs_eligible_peers` | `channel_pattern` | `any` | Video vs kênh | vs **reference_eligible** peers |
 
-**Không backlog V1** (cần Analytics / không đo được): FYP %, retention 3s thật, cart CTR, shadowban xác nhận, demographics post-ads.
+**Post-V1 product gap (nhỏ):** `next_video` — chỉ `win_replicable_cta` (hit-gated); chưa có flop signal cho “bước quay tiếp”.
+
+**Out of scope V1** (cần Analytics / không đo được): FYP %, retention 3s thật, cart CTR, shadowban xác nhận, demographics post-ads.
 
 #### 4.8.4 Corpus utilization — bắt buộc cho signal mới
 
-Mở rộng `build_diagnosis_ctx` / batch để `niche_meta` luôn có (khi `claim_tiers` đủ):
+**Trạng thái:** ✅ **Done** — `enrich_niche_meta_for_signals()` + widen CCI fetch + `format_distribution` derive từ junction corpus (`fetch_format_distribution_sync`); tier axis merge class MV distributions trước `build_diagnosis_ctx`.
 
-| Key trong `niche_meta` | Dùng cho signal |
-|------------------------|-----------------|
-| `hook_distribution`, `sample_size` | `hook_type_niche_mismatch`, `niche_hook_percentile_gap` |
-| `format_distribution` | `niche_format_underrepresented` |
-| `tone_distribution` | `persona_tone_distribution_gap` |
-| `median_er`, `p25_er`, `p90_views` (computed) | `boost_*`, `context_tuong_tac_cheo_heuristic` |
-| `avg_transitions_per_second`, `avg_hashtag_count`, `pct_has_caption_text` | editing / metadata backlog |
-| `reference_eligible` filter trên refs | `niche_reference_anchor` không anchor video ads-skew |
+| Key trong `niche_meta` | Dùng cho signal | MV / batch | Live `build_diagnosis_ctx` |
+|------------------------|-----------------|------------|---------------------------|
+| `hook_distribution`, `sample_size` | `hook_type_niche_mismatch`, `niche_hook_percentile_gap` | ✅ `content_class_intelligence` | ✅ `build_niche_benchmark_payload` → enrich |
+| `format_distribution` | `niche_format_underrepresented`, `win_format_in_growth` | ⚠️ omit trên class MV (format = axis) | ✅ junction `video_corpus.content_format` aggregate |
+| `tone_distribution` | `persona_tone_distribution_gap` | ✅ class MV | ✅ enrich |
+| `median_er`, `p25_er`, `p90_views` | `boost_*`, `context_tuong_tac_cheo_heuristic` | ⚠️ MV: `median_er`/`p75_views`; p90 derived | ✅ enrich + `boost_percentiles_from_niche_intel` |
+| `avg_transitions_per_second`, `avg_hashtag_count`, `pct_has_caption_text` | editing / metadata (§4.8.2) | ✅ class MV | ✅ enrich |
+| `reference_eligible` filter trên refs | `niche_reference_anchor`, peer tiles | ✅ `fetch_corpus_reference_pool*` | ✅ |
 
-Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corpus_context.py`) where available; legacy `niche_intelligence` rows for unmigrated paths — không query full corpus mỗi request.
+**Refresh (as-built):** nightly `refresh_content_class_intelligence` (+ tier MV); legacy `niche_intelligence` refresh **skipped** prod (bridge only). Không query full corpus mỗi request — `format_distribution` capped 2k rows / junction filter.
+
+**Tests:** `cloud-run/tests/test_niche_meta_signal_wiring.py` — prod-shaped `niche_meta` fires `niche_hook_percentile_gap`.
 
 #### 4.8.5 Thứ tự implement (gắn §11)
 

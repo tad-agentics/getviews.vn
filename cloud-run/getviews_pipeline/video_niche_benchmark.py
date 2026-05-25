@@ -128,12 +128,168 @@ def niche_row_to_video_meta(row: dict[str, Any]) -> dict[str, Any]:
     return out_meta
 
 
+# §4.8.4 — MV columns required by signal extractors (not all on slim VideoNicheMeta).
+_CCI_SELECT_BASE = (
+    "content_class_id,sample_size,avg_views,median_views,"
+    "median_er,avg_engagement_rate,median_scene_count,computed_at"
+)
+_CCI_SELECT_SIGNAL = (
+    "hook_distribution,tone_distribution,claim_tier,"
+    "avg_transitions_per_second,avg_hashtag_count,pct_has_caption_text,"
+    "pct_original_sound,organic_avg_views,commerce_avg_views,p50_views"
+)
+_CCI_SELECT_FULL = f"{_CCI_SELECT_BASE},{_CCI_SELECT_SIGNAL}"
+
+_INTEL_SIGNAL_KEYS = (
+    "hook_distribution",
+    "tone_distribution",
+    "claim_tier",
+    "avg_transitions_per_second",
+    "avg_hashtag_count",
+    "pct_has_caption_text",
+    "pct_original_sound",
+    "median_scene_count",
+    "p50_views",
+    "p75_views",
+    "p10_comment_rate",
+    "p25_er",
+    "p90_views",
+)
+
+
+def _junction_content_class_ids_sync(sb: Any, creator_niche_id: int) -> list[int]:
+    if not creator_niche_id or sb is None:
+        return []
+    try:
+        junction = (
+            sb.table("creator_niche_content_classes")
+            .select("content_class_id")
+            .eq("creator_niche_id", creator_niche_id)
+            .execute()
+            .data
+            or []
+        )
+        return [
+            int(j["content_class_id"])
+            for j in junction
+            if j.get("content_class_id") is not None
+        ]
+    except Exception as exc:
+        logger.warning(
+            "[niche_benchmark] junction lookup cn=%s failed: %s",
+            creator_niche_id,
+            exc,
+        )
+        return []
+
+
+def fetch_format_distribution_sync(
+    sb: Any,
+    *,
+    content_class_ids: list[int] | None = None,
+    legacy_niche_id: int | None = None,
+    max_rows: int = 2000,
+) -> dict[str, int]:
+    """Share % by ``content_format`` for signal ctx (§4.8.4 class-first path)."""
+    from getviews_pipeline.channel_findings import format_distribution_from_corpus_rows
+    from getviews_pipeline.postgrest_time import indexed_at_cutoff_iso
+
+    if sb is None:
+        return {}
+    if not content_class_ids and not legacy_niche_id:
+        return {}
+    try:
+        q = (
+            sb.table("video_corpus")
+            .select("content_format")
+            .gt("views", 0)
+            .gte("indexed_at", indexed_at_cutoff_iso(30))
+        )
+        if content_class_ids:
+            q = q.in_("content_class_id", content_class_ids)
+        else:
+            q = q.eq("ingest_loop_niche_id", int(legacy_niche_id))
+        rows = q.limit(max_rows).execute().data or []
+        return format_distribution_from_corpus_rows(rows)
+    except Exception as exc:
+        logger.warning("[niche_benchmark] format_distribution fetch failed: %s", exc)
+        return {}
+
+
+def _copy_intel_signal_fields(meta: dict[str, Any], intel_row: dict[str, Any]) -> None:
+    """Merge distribution + editing keys from a CCI/tier MV row into niche_meta."""
+    for key in _INTEL_SIGNAL_KEYS:
+        val = intel_row.get(key)
+        if val is None or val == "" or val == {}:
+            continue
+        meta[key] = val
+
+    if meta.get("p25_er") is None and intel_row.get("median_er") is not None:
+        meta["p25_er"] = intel_row["median_er"]
+    median_views = _to_float(intel_row.get("median_views"))
+    if meta.get("p75_views") is None:
+        p75 = intel_row.get("p75_views")
+        if p75 is not None:
+            meta["p75_views"] = p75
+        elif median_views > 0:
+            meta["p75_views"] = median_views
+    if meta.get("p90_views") is None and median_views > 0:
+        meta["p90_views"] = median_views * 1.8
+
+
+def enrich_niche_meta_for_signals(
+    meta: dict[str, Any],
+    benchmark_row: dict[str, Any] | None,
+    *,
+    sb: Any | None = None,
+    niche_id: int = 0,
+    benchmark_axis: str = "none",
+    content_class_id: int | None = None,
+) -> dict[str, Any]:
+    """§4.8.4 — widen live ``niche_meta`` so signal extractors see MV fields."""
+    out = dict(meta)
+    if not benchmark_row:
+        return out
+
+    signal_row = benchmark_row
+    cc_id = content_class_id or benchmark_row.get("content_class_id")
+    if benchmark_axis == "content_class_tier" and cc_id and sb is not None:
+        class_row = fetch_content_class_intel_row_sync(
+            sb,
+            int(cc_id),
+            enforce_min_sample=False,
+        )
+        if class_row is not None:
+            signal_row = {**class_row, **benchmark_row}
+
+    _copy_intel_signal_fields(out, signal_row)
+
+    if sb is not None and not out.get("format_distribution"):
+        from getviews_pipeline.profile_niches import creator_niche_id_for_legacy_niche
+
+        cn_id = creator_niche_id_for_legacy_niche(niche_id) if niche_id else None
+        cc_ids = _junction_content_class_ids_sync(sb, cn_id) if cn_id else []
+        if not cc_ids and cc_id:
+            cc_ids = [int(cc_id)]
+        fmt_dist = fetch_format_distribution_sync(
+            sb,
+            content_class_ids=cc_ids or None,
+            legacy_niche_id=niche_id if not cc_ids else None,
+        )
+        if fmt_dist:
+            out["format_distribution"] = fmt_dist
+
+    return out
+
+
 def build_niche_benchmark_payload(
     row: dict[str, Any] | None,
     *,
     niche_id: int,
     duration_sec: float = DEFAULT_CURVE_DURATION_SEC,
     user_sb: Any | None = None,
+    benchmark_axis: str = "none",
+    content_class_id: int | None = None,
 ) -> dict[str, Any]:
     """JSON body for ``GET /video/niche-benchmark``.
 
@@ -153,6 +309,14 @@ def build_niche_benchmark_payload(
         }
 
     meta = niche_row_to_video_meta(row)
+    meta = enrich_niche_meta_for_signals(
+        meta,
+        row,
+        sb=user_sb,
+        niche_id=niche_id,
+        benchmark_axis=benchmark_axis,
+        content_class_id=content_class_id or row.get("content_class_id"),
+    )
     # median_er is stored as percent (4.0 ≈ 4%); match
     # video_corpus.engagement_rate scale.
     median_er = _to_float(row.get("median_er"), 4.0)
@@ -214,10 +378,7 @@ def fetch_creator_niche_aggregate_intelligence_sync(
             return None
         rows = (
             sb.table("content_class_intelligence")
-            .select(
-                "content_class_id,sample_size,avg_views,median_views,"
-                "median_er,avg_engagement_rate,computed_at"
-            )
+            .select(_CCI_SELECT_FULL)
             .in_("content_class_id", cc_ids)
             .execute()
             .data
@@ -252,27 +413,19 @@ def fetch_creator_niche_aggregate_intelligence_sync(
 CONTENT_CLASS_BENCHMARK_MIN_SAMPLE = 15
 
 
-def fetch_content_class_intelligence_sync(sb: Any, content_class_id: int) -> dict[str, Any] | None:
-    """Blocking fetch from ``content_class_intelligence`` MV.
-
-    Two-axis A.2.3 (2026-05-15) — parallel to ``fetch_niche_intelligence_sync``
-    but for the sharper (topic × format) axis introduced in A.2.1. Returns
-    ``None`` when MV row missing OR sample_size below the stability floor;
-    callers fall back to niche-scoped row.
-
-    Column shape mirrors the niche MV columns the FE meta consumer needs
-    (avg_views/median_er/sample_size/computed_at) plus median_views/
-    median_scene_count which are A.2.1-only additions.
-    """
-    if not content_class_id:
+def fetch_content_class_intel_row_sync(
+    sb: Any,
+    content_class_id: int,
+    *,
+    enforce_min_sample: bool = True,
+) -> dict[str, Any] | None:
+    """Raw ``content_class_intelligence`` row including §4.8.4 signal columns."""
+    if not content_class_id or sb is None:
         return None
     try:
         res = (
             sb.table("content_class_intelligence")
-            .select(
-                "content_class_id,sample_size,avg_views,median_views,"
-                "median_er,avg_engagement_rate,median_scene_count,computed_at"
-            )
+            .select(_CCI_SELECT_FULL)
             .eq("content_class_id", content_class_id)
             .execute()
         )
@@ -280,18 +433,34 @@ def fetch_content_class_intelligence_sync(sb: Any, content_class_id: int) -> dic
         logger.warning(
             "[niche_benchmark] select content_class=%s failed (acceptable "
             "if migration 20260514000000 not yet applied): %s",
-            content_class_id, exc,
+            content_class_id,
+            exc,
         )
         return None
     rows = res.data or []
     row = rows[0] if rows and isinstance(rows[0], dict) else None
     if row is None:
         return None
-    sample = _to_int(row.get("sample_size"), 0)
-    if sample < CONTENT_CLASS_BENCHMARK_MIN_SAMPLE:
-        # Too thin to back claims — caller falls back to niche-wide.
-        return None
+    if enforce_min_sample:
+        sample = _to_int(row.get("sample_size"), 0)
+        if sample < CONTENT_CLASS_BENCHMARK_MIN_SAMPLE:
+            return None
     return row
+
+
+def fetch_content_class_intelligence_sync(sb: Any, content_class_id: int) -> dict[str, Any] | None:
+    """Blocking fetch from ``content_class_intelligence`` MV.
+
+    Two-axis A.2.3 (2026-05-15) — parallel to ``fetch_niche_intelligence_sync``
+    but for the sharper (topic × format) axis introduced in A.2.1. Returns
+    ``None`` when MV row missing OR sample_size below the stability floor;
+    callers fall back to niche-scoped row.
+    """
+    return fetch_content_class_intel_row_sync(
+        sb,
+        content_class_id,
+        enforce_min_sample=True,
+    )
 
 
 def fetch_content_class_tier_intelligence_sync(
