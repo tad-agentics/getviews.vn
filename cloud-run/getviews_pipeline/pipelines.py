@@ -774,7 +774,7 @@ def enrich_format_cards_from_corpus(
         if view_r:
             cc["view_range"] = view_r
         else:
-            cc["view_range"] = "Chưa đủ mẫu corpus (≥5 video/30 ngày) để chốt dải view."
+            cc["view_range"] = "Chưa chốt được dải view cho ngách này."
         if er_r:
             cc["engagement_rate"] = er_r
         else:

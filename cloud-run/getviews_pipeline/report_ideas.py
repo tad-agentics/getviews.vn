@@ -129,7 +129,7 @@ def build_thin_corpus_ideas_report() -> dict[str, Any]:
     if isinstance(conf, dict):
         conf["sample_size"] = 42
     inner["lead"] = (
-        "Mẫu nhỏ: 42 video trong ngách này 7 ngày qua — 3 hướng bên dưới chỉ dùng "
+        "Dựa trên 42 video trong ngách này 7 ngày qua — 3 hướng bên dưới chỉ dùng "
         "để định hướng, không kết luận toàn ngách."
     )
     inner["ideas"] = inner["ideas"][:3]

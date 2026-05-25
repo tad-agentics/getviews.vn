@@ -132,11 +132,11 @@ def build_thin_corpus_timing_report() -> dict[str, Any]:
         conf["sample_size"] = 42
     inner["variance_note"] = {
         "kind": "sparse",
-        "label": "Heatmap CHƯA ổn định — mẫu thưa",
-        "detail": "Chỉ 42 video trong 14 ngày qua; chỉ đọc top-3 cửa sổ.",
+        "label": "Heatmap chưa đủ ổn định để chốt khung giờ",
+        "detail": "42 video trong 14 ngày qua; đọc top-3 cửa sổ.",
     }
     inner["top_window"]["insight"] = (
-        "Mẫu nhỏ: dùng 3 cửa sổ bên phải để định hướng, "
+        "Dùng 3 cửa sổ bên phải để định hướng, "
         "không kết luận toàn ngách."
     )
     return inner
@@ -298,10 +298,10 @@ def build_timing_report(
     if force_thin_variance:
         variance = {
             "kind": "sparse",
-            "label": "Heatmap CHƯA ổn định — mẫu ít",
+            "label": "Heatmap chưa đủ ổn định để chốt khung giờ",
             "detail": (
-                f"Chỉ {sample_n} video trong {window_days} ngày gần nhất; "
-                "heatmap và top-3 chỉ mang tính tham khảo."
+                f"{sample_n} video trong {window_days} ngày gần nhất; "
+                "heatmap và top-3 mang tính tham khảo."
             ),
         }
     else:

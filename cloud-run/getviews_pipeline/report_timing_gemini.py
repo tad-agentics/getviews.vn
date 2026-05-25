@@ -162,7 +162,7 @@ def _fallback_insight(
     lowest_window: dict[str, str] | None,
 ) -> str:
     if not top_window:
-        return "Chưa đủ tín hiệu để xếp hạng cửa sổ đăng."
+        return "Khung giờ đăng chưa đủ ổn định để xếp hạng."
     day = top_window.get("day", "—")
     hours = top_window.get("hours", "—")
     lift = float(top_window.get("lift_multiplier") or 1.0)

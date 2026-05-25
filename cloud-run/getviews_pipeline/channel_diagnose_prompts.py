@@ -79,7 +79,7 @@ TITLE: ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ
 Với MỖI peer trong <<<KÊNH CÙNG NGÁCH>>>, 1 câu riêng: họ mạnh/yếu ở điểm gì (format, tần suất, hook) \
 và insight cho kênh đang phân tích.
 Cuối section: 1 câu GAP — bạn ĐANG THIẾU gì so với peer mạnh nhất (format share, cadence, hoặc góc nội dung).
-Nếu peer_source=thin: nêu rõ corpus ngách mỏng, chỉ có N peer để so.
+Nếu peer_source=thin: so sánh thận trọng với số peer hiện có, không tuyên bố mạnh.
 
 === next_video ===
 TITLE: VIDEO TIẾP THEO NÊN QUAY

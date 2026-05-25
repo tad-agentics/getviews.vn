@@ -105,7 +105,7 @@ describe("TrendsPatternThesisHero", () => {
     );
     const h1 = getByRole("heading", { level: 1 });
     expect(h1.textContent).toContain("1 dấu hiệu sớm");
-    expect(h1.textContent).toContain("chưa đủ video xác nhận");
+    expect(h1.textContent).toContain("đáng theo dõi");
   });
 
   it("shows the 'no nổi bật' empty headline when no patterns of any tier exist", () => {
@@ -165,7 +165,7 @@ describe("TrendsPatternThesisHero", () => {
     expect(queryByText(/↑ 2\.4×/)).toBeNull();
   });
 
-  it("flags early-tier lift descriptions with 'mẫu nhỏ, đang theo dõi'", () => {
+  it("flags early-tier lift descriptions with 'đang theo dõi'", () => {
     mockUseTopPatterns.mockReturnValue({
       data: [samplePattern({ tier: "early", lift_vs_niche: 13.7 })],
     });
@@ -178,7 +178,7 @@ describe("TrendsPatternThesisHero", () => {
         totalAnalyzedInNiche={null}
       />,
     );
-    expect(getByText(/Ăn gấp 14 lần view trung bình ngách \(mẫu nhỏ, đang theo dõi\)/)).toBeTruthy();
+    expect(getByText(/Ăn gấp 14 lần view trung bình ngách \(đang theo dõi\)/)).toBeTruthy();
   });
 
   it("renders the corpus caption with both total and weekly when both present", () => {

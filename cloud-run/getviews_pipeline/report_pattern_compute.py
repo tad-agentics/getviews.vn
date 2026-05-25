@@ -588,11 +588,11 @@ def compute_what_stalled(
     """Return 2–3 stalled hooks or [] + human-readable reason (C.2 §5)."""
     eligible = [r for r in he_rows if int(r.get("sample_size") or 0) >= 5]
     if len(eligible) < 4:
-        return [], "ngách quá thưa — không đủ hook để xếp hạng âm có ý nghĩa"
+        return [], "Chưa đủ hook để xếp hạng các điểm cần tránh có ý nghĩa."
 
     retentions = [float(x.get("avg_completion_rate") or 0) for x in eligible]
     if not retentions:
-        return [], "ngách quá thưa — không đủ hook để xếp hạng âm có ý nghĩa"
+        return [], "Chưa đủ hook để xếp hạng các điểm cần tránh có ý nghĩa."
     sorted_r = sorted(retentions)
     q1 = sorted_r[max(0, len(sorted_r) // 4 - 1)]
 

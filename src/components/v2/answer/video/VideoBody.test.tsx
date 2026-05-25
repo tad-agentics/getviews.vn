@@ -323,7 +323,7 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/Ngách TB:\s*—/)).toBeTruthy();
   });
 
-  it("renders 'Đang xây dựng pool' fallback when niche cohort < 10", () => {
+  it("renders 'Chưa có nhóm đối chiếu' fallback when niche cohort < 10", () => {
     const sparse = makeFlopReport({
       niche_meta: {
         avg_views: 0,
@@ -334,7 +334,7 @@ describe("VideoBody render", () => {
       },
     });
     renderInRouter(sparse);
-    expect(screen.getByText(/Đang xây dựng pool/)).toBeTruthy();
+    expect(screen.getByText(/Chưa có nhóm đối chiếu/)).toBeTruthy();
   });
 
   it("renders the TikTok play-button overlay link when creator + video_id present", () => {

@@ -16,7 +16,7 @@ export function buildDiagnosisPostingNarrative(
 
   const opener = label
     ? `Dựa trên ${n} video trong ngách ${label} (~${days} ngày gần nhất)`
-    : `Dựa trên ${n} video corpus (~${days} ngày gần nhất)`;
+    : `Dựa trên ${n} video (~${days} ngày gần nhất)`;
 
   if (kind === "strong") {
     paragraphs.push(
@@ -28,7 +28,7 @@ export function buildDiagnosisPostingNarrative(
     );
   } else {
     paragraphs.push(
-      `${opener}, mẫu còn thưa — heatmap chỉ mang tính tham khảo, không phải luật cứng cho ngách này.`,
+      `${opener}, khung giờ chưa đủ ổn định để chốt một slot — heatmap mang tính tham khảo, nên thử nhiều khung.`,
     );
   }
 

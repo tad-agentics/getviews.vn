@@ -189,14 +189,14 @@ def classify_variance(top_windows: list[dict[str, Any]]) -> dict[str, str]:
     - ``strong`` (lift ≥ 2.0)   → "Heatmap CÓ ý nghĩa" — ship the heatmap.
     - ``weak``   (1.3 ≤ lift)   → "Heatmap có xu hướng nhưng chưa rõ" — show
       with a cautionary note.
-    - ``sparse`` (lift < 1.3)   → "Heatmap CHƯA ổn định — mẫu thưa" — UI
+    - ``sparse`` (lift < 1.3)   → "Heatmap chưa đủ ổn định để chốt khung giờ" — UI
       falls back to top-3 windows list only.
     """
     if not top_windows:
         return {
             "kind": "sparse",
-            "label": "Heatmap CHƯA ổn định — mẫu thưa",
-            "detail": "Chưa đủ video để xếp hạng cửa sổ post.",
+            "label": "Heatmap chưa đủ ổn định để chốt khung giờ",
+            "detail": "Dùng top-3 cửa sổ để định hướng.",
         }
     lift = float(top_windows[0].get("lift_multiplier") or 1.0)
     if lift >= 2.0:
@@ -213,7 +213,7 @@ def classify_variance(top_windows: list[dict[str, Any]]) -> dict[str, str]:
         }
     return {
         "kind": "sparse",
-        "label": "Heatmap CHƯA ổn định — mẫu thưa",
+        "label": "Heatmap chưa đủ ổn định để chốt khung giờ",
         "detail": f"Cửa sổ mạnh nhất chỉ {lift:.1f}× trung vị — dùng top-3 để định hướng.",
     }
 

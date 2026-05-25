@@ -41,7 +41,7 @@ export function ChannelNhanhPanel({
     return (
       <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6">
         <p className="m-0 text-sm text-[color:var(--gv-ink-3)]">
-          Chưa đủ video của {at} trong kho để soi nhanh — thử{" "}
+          Chưa soi nhanh được {at} — thử{" "}
           <button type="button" className="font-semibold text-[color:var(--gv-accent)] underline-offset-2 hover:underline" onClick={onUpgradeToDeep}>
             Chuyên sâu
           </button>{" "}

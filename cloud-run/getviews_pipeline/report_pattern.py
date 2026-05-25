@@ -223,7 +223,7 @@ def build_empty_pattern_report(
     niche_label: str = "—",
     window_days: int = 7,
     sample_size: int = 0,
-    reason: str = "Chưa đủ dữ liệu để dựng báo cáo — quay lại khi corpus cập nhật.",
+    reason: str = "Chưa dựng được báo cáo cho ngách này. Quay lại sau.",
 ) -> dict[str, Any]:
     """Live empty-state payload — used whenever the real pipeline can't
     produce a ranked report (service client unavailable, niche corpus
@@ -290,10 +290,10 @@ def build_thin_corpus_pattern_report(
         niche_label=niche_label,
         window_days=window_days,
         sample_size=sample_size,
-        reason="ngách quá thưa — không đủ hook để xếp hạng âm",
+        reason="Chưa đủ hook để xếp hạng các điểm cần tránh.",
     )
     data["tldr"] = {
-        "thesis": "Mẫu nhỏ: chỉ dùng để định hướng, không kết luận toàn ngách.",
+        "thesis": "Tín hiệu định hướng — chưa nên kết luận cho toàn ngách.",
         "callouts": [],
     }
     return data

@@ -5,10 +5,9 @@
  *                                    → EvidenceVideos × 3 → (no ActionCards)
  *
  * FALLBACK chip: Generic is the humility landing; `intent_confidence` is
- * pinned to `"low"` by the backend. The ConfidenceStrip shows "MẪU MỎNG"
- * when the backend also reports `sample_size < 30`, but the FALLBACK chip
- * here renders unconditionally via a dedicated pill so low-intent queries
- * always announce themselves as "we couldn't classify this confidently".
+ * pinned to `"low"` by the backend. The FALLBACK chip here renders
+ * unconditionally via a dedicated pill so low-intent queries always
+ * announce themselves as "we couldn't classify this confidently".
  *
  * No ActionCards section — the OffTaxonomyBanner IS the routing surface.
  */

@@ -353,7 +353,7 @@ function EmptyState({
       <p className="mb-5 text-[14px] text-[color:var(--gv-ink-3)]">
         {hasFilter
           ? "Không có video nào khớp bộ lọc đang chọn."
-          : "Chưa có video nào — quay lại sau khi cron đầu tiên chạy."}
+          : "Chưa có video nào — quay lại sau."}
       </p>
       {hasFilter ? (
         <Btn variant="ghost" size="sm" type="button" onClick={onResetFilter}>
