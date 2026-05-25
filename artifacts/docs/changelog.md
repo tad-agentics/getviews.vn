@@ -3,7 +3,7 @@
 ## 2026-05-25 — R2 thumbnails: 360w WebP pipeline (Option A)
 
 - **`r2.py`:** `copy_first_frame_to_thumbnail` + `upload_thumbnail_bytes` transcode to **360w WebP** (`thumbnails/{id}.webp`); legacy `.png`/`.jpg` deleted after write; backfill re-encodes from `frames/0.png` or legacy PNG.
-- **`src/lib/r2.ts`:** WebP-first `corpusThumbnailSrcCandidates`; drop `frames/0.png` fallback (720px PNG too heavy for card grids).
+- **`src/lib/r2.ts`:** WebP-first `corpusThumbnailSrcCandidates` (R2 `.webp` before DB `thumbnail_url`, then legacy png/jpg); drop `frames/0.png` fallback (720px PNG too heavy for card grids).
 - **Backfill:** `r2_public_thumbnail_exists` skips only when `.webp` exists — run `POST /batch/backfill-thumbnails` to migrate ~3.7K legacy PNG thumbs.
 
 ## 2026-05-24 — Corpus ingest 3-shift cron (HI-13 throughput)

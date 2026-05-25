@@ -41,16 +41,27 @@ function exhaustThumbnailErrors(container: HTMLElement): void {
 }
 
 describe("VideoThumbnail", () => {
-  it("falls back to R2 after stale CDN URL fails", async () => {
+  it("prefers R2 webp before DB CDN URL", async () => {
     const VT = await importComponent();
     const { container } = render(
       <VT thumbnailUrl="https://tiktok.cdn/stale.jpg" videoId="1234567890123456" />,
     );
     const img = container.querySelector("img")!;
-    expect(img.getAttribute("src")).toBe("https://tiktok.cdn/stale.jpg");
+    expect(img.getAttribute("src")).toBe(
+      "https://media.getviews.vn/thumbnails/1234567890123456.webp",
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(0);
+  });
+
+  it("falls back to CDN after webp fails", async () => {
+    const VT = await importComponent();
+    const { container } = render(
+      <VT thumbnailUrl="https://tiktok.cdn/stale.jpg" videoId="1234567890123456" />,
+    );
+    const img = container.querySelector("img")!;
     fireEvent.error(img);
     expect(container.querySelector("img")?.getAttribute("src")).toBe(
-      "https://media.getviews.vn/thumbnails/1234567890123456.webp",
+      "https://tiktok.cdn/stale.jpg",
     );
     expect(mockFetch).toHaveBeenCalledTimes(0);
   });

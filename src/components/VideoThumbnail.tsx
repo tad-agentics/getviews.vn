@@ -23,9 +23,9 @@ import { corpusThumbnailSrcCandidates } from "@/lib/r2";
  * with Supabase's gateway. De-duplicated per video_id per page load.
  *
  * Fallback: when ``videoId`` is set and ``VITE_R2_PUBLIC_URL`` is
- * configured, expired TikTok CDN URLs in ``thumbnailUrl`` fall through to
- * R2 ``thumbnails/{id}.webp`` then legacy ``.png`` / ``.jpg`` (same keys
- * batch ingest writes). Skips heavy ``frames/{id}/0.png``. Telemetry fires
+ * configured, tries R2 ``thumbnails/{id}.webp`` first, then ``thumbnailUrl``
+ * (CDN or legacy R2), then ``.png`` / ``.jpg``. Skips heavy
+ * ``frames/{id}/0.png``. Telemetry fires on total failure.
  */
 
 /** Session-scoped dedup: fire at most one beacon per video_id per page load. */

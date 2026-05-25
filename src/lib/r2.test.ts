@@ -14,12 +14,12 @@ describe("r2 thumbnail helpers", () => {
     expect(r2ThumbnailUrl("123", "jpg")).toBe("https://media.getviews.vn/thumbnails/123.jpg");
   });
 
-  it("orders corpus candidates: DB URL then R2 fallbacks (webp first)", () => {
+  it("orders corpus candidates: webp first, then DB URL, then legacy R2", () => {
     expect(
       corpusThumbnailSrcCandidates("999", "https://tiktok.cdn/expired.jpg"),
     ).toEqual([
-      "https://tiktok.cdn/expired.jpg",
       "https://media.getviews.vn/thumbnails/999.webp",
+      "https://tiktok.cdn/expired.jpg",
       "https://media.getviews.vn/thumbnails/999.png",
       "https://media.getviews.vn/thumbnails/999.jpg",
     ]);

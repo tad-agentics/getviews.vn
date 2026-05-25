@@ -34,9 +34,9 @@ export function r2ThumbnailUrl(
 }
 
 /**
- * Ordered ``<img src>`` candidates for corpus rows: DB URL first (may still
- * be a fresh TikTok CDN link or legacy R2 png), then optimized WebP,
- * then legacy png/jpg. Skips ``frames/0.png`` — same 720px PNG as legacy
+ * Ordered ``<img src>`` candidates for corpus rows: R2 WebP first (360w,
+ * ~15–45 KB), then DB ``thumbnail_url`` (CDN or legacy R2 png), then
+ * legacy R2 png/jpg. Skips ``frames/0.png`` — same 720px PNG as legacy
  * thumbnails and too heavy for card grids.
  */
 export function corpusThumbnailSrcCandidates(
@@ -44,17 +44,19 @@ export function corpusThumbnailSrcCandidates(
   thumbnailUrl: string | null | undefined,
 ): string[] {
   const out: string[] = [];
-  const trimmed = thumbnailUrl?.trim();
-  if (trimmed) out.push(trimmed);
-
-  if (!videoId) return out;
-
-  for (const url of [
-    r2ThumbnailUrl(videoId, "webp"),
-    r2ThumbnailUrl(videoId, "png"),
-    r2ThumbnailUrl(videoId, "jpg"),
-  ]) {
+  const push = (url: string | null | undefined) => {
     if (url && !out.includes(url)) out.push(url);
+  };
+
+  const trimmed = thumbnailUrl?.trim();
+
+  if (videoId) {
+    push(r2ThumbnailUrl(videoId, "webp"));
+  }
+  push(trimmed);
+  if (videoId) {
+    push(r2ThumbnailUrl(videoId, "png"));
+    push(r2ThumbnailUrl(videoId, "jpg"));
   }
   return out;
 }

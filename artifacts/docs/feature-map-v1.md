@@ -533,25 +533,27 @@ Video user `suspect_medium`: narrative nói refs là **corpus organic-shaped**; 
 
 #### 4.8.1 Basic vs Deep — tại tầng signal
 
-| Knob | Cơ bản | Chuyên sâu (đề xuất V1) |
-|------|--------|-------------------------|
-| `build_signal_manifest` | Tính **đủ** (mọi extractor) | Giống Cơ bản |
-| `select_sections_to_emit` | Whitelist §4.2 | Full pool + `boost_attribution` (§4.7) |
-| `manifest_for_prompt` | Top **3** signal/section (`MAX_SIGNALS_PER_SECTION_IN_PROMPT`) | Top **5** khi `analysis_depth=deep` |
-| `SECTION_EMIT_THRESHOLD` | 0.5 | 0.45 default deep (`getviews_deep_relax_salience`; opt-out env `false`) |
-| Corpus trong `ctx` | `niche_meta`, `hook_effectiveness`, refs đã lọc §4.7 | Giống + percentiles p10/p25/p50/p90 cho M1/M3 |
+**Trạng thái:** ✅ **Done** — W3 @ `9cd0957` (cap 3/5 + whitelist); deep salience relax §4.3; `boost_attribution` deep-only @ W4-2; upsell manifest teasers §4.11.3 @ W5 (`upsell_locked_sections` + `VideoDeepUpsell`). QA: `test_analysis_depth.py`, `test_analysis_depth_486_sample.py`, `VideoDeepUpsell.test.tsx`.
+
+| Knob | Cơ bản | Chuyên sâu (V1) | As-built |
+|------|--------|-----------------|----------|
+| `build_signal_manifest` | Tính **đủ** (mọi extractor) | Giống Cơ bản | ✅ [`registry.py`](../../cloud-run/getviews_pipeline/signals/registry.py) |
+| `select_sections_to_emit` | Whitelist §4.2 | Full pool + `boost_attribution` (§4.7) | ✅ [`diagnose_sections.py`](../../cloud-run/getviews_pipeline/diagnose_sections.py) |
+| `manifest_for_prompt` | Top **3** signal/section | Top **5** khi `analysis_depth=deep` | ✅ `registry.py` + caps [`salience.py`](../../cloud-run/getviews_pipeline/signals/salience.py) |
+| `SECTION_EMIT_THRESHOLD` | 0.5 | 0.45 default deep (`getviews_deep_relax_salience`; opt-out `GETVIEWS_DEEP_RELAX_SALIENCE=false`) | ✅ `section_emit_threshold(depth=)` @ `diagnose_sections.py` |
+| Corpus trong `ctx` | `niche_meta`, `hook_effectiveness`, refs đã lọc §4.7 | Giống + percentiles p10/p25/p50/p90 cho M1/M3 | ✅ `boost_percentiles_from_niche_intel` + class-tier MV (§4.8.4) |
 
 ```python
-# signals/salience.py — V1
-MAX_SIGNALS_PER_SECTION_IN_PROMPT_BASIC = 3
-MAX_SIGNALS_PER_SECTION_IN_PROMPT_DEEP = 5
+# salience.py — caps; registry.py — manifest_for_prompt(depth=)
+MAX_SIGNALS_PER_SECTION_IN_PROMPT = 3   # basic
+MAX_SIGNALS_PER_SECTION_DEEP = 5        # deep
 
 def manifest_for_prompt(manifest, *, depth: str = "basic") -> dict[str, list[Signal]]:
-    cap = MAX_SIGNALS_PER_SECTION_IN_PROMPT_DEEP if depth == "deep" else MAX_SIGNALS_PER_SECTION_IN_PROMPT_BASIC
+    cap = MAX_SIGNALS_PER_SECTION_DEEP if depth == "deep" else MAX_SIGNALS_PER_SECTION_IN_PROMPT
     return {sid: lst[:cap] for sid, lst in manifest.items()}
 ```
 
-**Upsell Cơ bản:** UI đọc full manifest (không qua cap) để teaser *“+N finding trong Âm thanh / Editing…”* — không gọi synthesis.
+**Upsell Cơ bản:** ✅ `upsell_locked_sections` → `locked_sections` → `VideoDeepUpsell` — full manifest (không qua cap) teaser *“+N finding trong Âm thanh / Editing…”*; không gọi synthesis deep.
 
 #### 4.8.2 Đã ship — extractors → `section_id` (as-built)
 
