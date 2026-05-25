@@ -130,6 +130,8 @@ async def select_synthesis_references_for_video(
     video_hashtags: list[str],
     preferred_content_format: str | None = None,
     user_subject_matter: str | None = None,
+    content_class_id: int | None = None,
+    legacy_niche_id: int | None = None,
     live_search_fn: Any | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
     """Corpus pool → proximity picks → content-targeted merge → evidence block.
@@ -145,7 +147,12 @@ async def select_synthesis_references_for_video(
         return [], [], ""
 
     corpus_pool = await fetch_corpus_reference_pool(
-        niche, days=30, limit=40, exclude_video_id=target_id
+        niche,
+        days=30,
+        limit=40,
+        exclude_video_id=target_id,
+        content_class_id=content_class_id,
+        legacy_niche_id=legacy_niche_id,
     )
     for v in corpus_pool:
         v["niche_label"] = niche

@@ -17,7 +17,7 @@ import asyncio
 import logging
 import threading
 from datetime import UTC
-from typing import Any
+from typing import Any, Literal
 
 from getviews_pipeline.claim_tiers import (
     CLAIM_TIERS,
@@ -822,8 +822,170 @@ def _build_reference_awemes_from_rows(
             "_corpus_hook_analysis": corpus_analysis.get("hook_analysis") or {},
             "_corpus_content_format": row.get("content_format") or "",
             "_corpus_content_type": row.get("content_type") or "video",
+            "_corpus_content_class_id": row.get("content_class_id"),
         })
     return awemes
+
+
+def content_class_id_for_reference_pool(
+    meta: dict[str, Any],
+    *,
+    content_format: str = "",
+) -> int | None:
+    """Resolve content_class for evidence pool (corpus row or niche × format heuristic)."""
+    raw = meta.get("content_class_id")
+    if raw is not None:
+        try:
+            cc = int(raw)
+            return cc if cc > 0 else None
+        except (TypeError, ValueError):
+            pass
+    niche_id = int(meta.get("niche_id") or 0)
+    fmt = str(content_format or meta.get("content_format") or "").strip()
+    if niche_id and fmt:
+        from getviews_pipeline.corpus_ingest import _content_class_for
+
+        cc = _content_class_for(niche_id, fmt)
+        return int(cc) if cc else None
+    return None
+
+
+_REFERENCE_POOL_SELECT = (
+    "video_id, creator_handle, views, likes, comments, shares, "
+    "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
+    "indexed_at, content_format, content_type, content_class_id, analysis_json"
+)
+# Widen cohort when class-scoped pool is too thin (parity with REF_N / proximity pick).
+_REFERENCE_POOL_MIN_SCOPE_ROWS = 5
+ReferencePoolScope = Literal["content_class", "junction", "niche"]
+
+
+def _reference_pool_query(
+    client: Any,
+    *,
+    niche_id: int,
+    days: int,
+    limit: int,
+    scope: ReferencePoolScope,
+    content_class_id: int | None,
+    junction_class_ids: list[int],
+    eligible_only: bool,
+) -> Any:
+    q = (
+        client.table("video_corpus")
+        .select(_REFERENCE_POOL_SELECT)
+        .gt("views", 0)
+        .gte("indexed_at", indexed_at_cutoff_iso(days))
+        .order("breakout_multiplier", desc=True, nullsfirst=False)
+        .order("engagement_rate", desc=True)
+        .limit(limit)
+    )
+    if scope == "content_class" and content_class_id:
+        q = q.eq("content_class_id", content_class_id)
+    elif scope == "junction" and junction_class_ids:
+        q = q.in_("content_class_id", junction_class_ids)
+    else:
+        q = q.eq("ingest_loop_niche_id", niche_id)
+    if eligible_only:
+        q = q.eq("reference_eligible", True)
+    return q
+
+
+def _merge_eligible_reference_rows(
+    client: Any,
+    *,
+    niche_id: int,
+    days: int,
+    limit: int,
+    scope: ReferencePoolScope,
+    content_class_id: int | None,
+    junction_class_ids: list[int],
+) -> list[dict[str, Any]]:
+    """Eligible-first ref rows for one cohort scope (§4.7 M2 + class-first browse)."""
+    eligible = (
+        _reference_pool_query(
+            client,
+            niche_id=niche_id,
+            days=days,
+            limit=limit,
+            scope=scope,
+            content_class_id=content_class_id,
+            junction_class_ids=junction_class_ids,
+            eligible_only=True,
+        )
+        .execute()
+        .data
+        or []
+    )
+    if len(eligible) >= limit:
+        return eligible
+    if _settings.corpus_boost_hard_reject:
+        return eligible
+    seen = {str(r.get("video_id")) for r in eligible if r.get("video_id")}
+    merged = list(eligible)
+    fallback = (
+        _reference_pool_query(
+            client,
+            niche_id=niche_id,
+            days=days,
+            limit=limit,
+            scope=scope,
+            content_class_id=content_class_id,
+            junction_class_ids=junction_class_ids,
+            eligible_only=False,
+        )
+        .execute()
+        .data
+        or []
+    )
+    for row in fallback:
+        vid = str(row.get("video_id") or "")
+        if not vid or vid in seen:
+            continue
+        seen.add(vid)
+        merged.append(row)
+        if len(merged) >= limit:
+            break
+    return merged
+
+
+def _fetch_corpus_reference_rows(
+    client: Any,
+    *,
+    niche_id: int,
+    days: int,
+    limit: int,
+    content_class_id: int | None = None,
+) -> tuple[list[dict[str, Any]], ReferencePoolScope]:
+    """Class → junction → legacy niche ladder (parity with Home breakouts)."""
+    from getviews_pipeline.profile_niches import content_class_ids_for_legacy_niche
+
+    junction_ids = content_class_ids_for_legacy_niche(client, niche_id)
+    scopes: list[ReferencePoolScope] = []
+    if content_class_id:
+        scopes.append("content_class")
+    if junction_ids:
+        scopes.append("junction")
+    scopes.append("niche")
+
+    chosen: list[dict[str, Any]] = []
+    chosen_scope: ReferencePoolScope = "niche"
+    for scope in scopes:
+        rows = _merge_eligible_reference_rows(
+            client,
+            niche_id=niche_id,
+            days=days,
+            limit=limit,
+            scope=scope,
+            content_class_id=content_class_id,
+            junction_class_ids=junction_ids,
+        )
+        if rows:
+            chosen = rows
+            chosen_scope = scope
+        if len(rows) >= _REFERENCE_POOL_MIN_SCOPE_ROWS:
+            break
+    return chosen, chosen_scope
 
 
 def fetch_corpus_reference_pool_sync(
@@ -832,33 +994,34 @@ def fetch_corpus_reference_pool_sync(
     days: int = 30,
     limit: int = 40,
     exclude_video_id: str | None = None,
+    content_class_id: int | None = None,
+    legacy_niche_id: int | None = None,
 ) -> list[dict[str, Any]]:
     """Sync corpus ref pool (no thumbnail repair) for ``finalize_video_narrative_layer``."""
     try:
         client = _anon_client()
-        niche_id = _resolve_niche_id(client, niche_name)
-        if niche_id is None:
+        niche_id = int(legacy_niche_id) if legacy_niche_id else _resolve_niche_id(client, niche_name)
+        if niche_id is None or niche_id <= 0:
             logger.warning(
                 "[corpus_context] fetch_corpus_reference_pool_sync: niche %r not resolved",
                 niche_name,
             )
             return []
-        query = (
-            client.table("video_corpus")
-            .select(
-                "video_id, creator_handle, views, likes, comments, shares, "
-                "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
-                "indexed_at, content_format, content_type, analysis_json"
-            )
-            .eq("ingest_loop_niche_id", niche_id)
-            .gte("indexed_at", indexed_at_cutoff_iso(days))
-            .order("breakout_multiplier", desc=True, nullsfirst=False)
-            .order("engagement_rate", desc=True)
-            .limit(limit)
+        rows, scope = _fetch_corpus_reference_rows(
+            client,
+            niche_id=niche_id,
+            days=days,
+            limit=limit,
+            content_class_id=content_class_id,
         )
-        if _settings.corpus_boost_hard_reject:
-            query = query.eq("reference_eligible", True)
-        rows = (query.execute().data) or []
+        if scope != "niche":
+            logger.debug(
+                "[corpus_context] reference pool scope=%s niche=%s class=%s rows=%d",
+                scope,
+                niche_id,
+                content_class_id,
+                len(rows),
+            )
         return _build_reference_awemes_from_rows(rows, exclude_video_id=exclude_video_id)
     except Exception as exc:
         logger.warning("[corpus_context] fetch_corpus_reference_pool_sync failed: %s", exc)
@@ -871,6 +1034,8 @@ async def fetch_corpus_reference_pool(
     days: int = 30,
     limit: int = 20,
     exclude_video_id: str | None = None,
+    content_class_id: int | None = None,
+    legacy_niche_id: int | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch video_corpus rows for a niche, shaped as aweme-compatible dicts.
 
@@ -885,9 +1050,9 @@ async def fetch_corpus_reference_pool(
     """
     try:
         client = _anon_client()
-        niche_id = _resolve_niche_id(client, niche_name)
+        niche_id = int(legacy_niche_id) if legacy_niche_id else _resolve_niche_id(client, niche_name)
 
-        if niche_id is None:
+        if niche_id is None or niche_id <= 0:
             logger.warning(
                 "[corpus_context] fetch_corpus_reference_pool: niche '%s' not in taxonomy — "
                 "falling back to live search. Add signal_hashtags entry to fix.",
@@ -895,23 +1060,21 @@ async def fetch_corpus_reference_pool(
             )
             return []
 
-        query = (
-            client.table("video_corpus")
-            .select(
-                "video_id, creator_handle, views, likes, comments, shares, "
-                "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
-                "indexed_at, content_format, content_type, analysis_json"
-            )
-            .eq("ingest_loop_niche_id", niche_id)
-            .gte("indexed_at", indexed_at_cutoff_iso(days))
-            .order("breakout_multiplier", desc=True, nullsfirst=False)
-            .order("engagement_rate", desc=True)
-            .limit(limit)
+        rows, scope = _fetch_corpus_reference_rows(
+            client,
+            niche_id=niche_id,
+            days=days,
+            limit=limit,
+            content_class_id=content_class_id,
         )
-        if _settings.corpus_boost_hard_reject:
-            query = query.eq("reference_eligible", True)
-        result = query.execute()
-        rows = result.data or []
+        if scope != "niche":
+            logger.debug(
+                "[corpus_context] reference pool scope=%s niche=%s class=%s rows=%d",
+                scope,
+                niche_id,
+                content_class_id,
+                len(rows),
+            )
 
         awemes = _build_reference_awemes_from_rows(rows, exclude_video_id=exclude_video_id)
 

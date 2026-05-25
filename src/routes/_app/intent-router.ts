@@ -190,8 +190,7 @@ export function detectIntent(
   // 2026-05-07: the flop-keyword branch widened with colloquial
   // Vietnamese expressions. The BE deterministic mirror in
   // ``cloud-run/getviews_pipeline/intents.py`` was purged L1.5 audit;
-  // this regex is now the single source of truth — ``/stream``'s
-  // null-intent fallback uses Gemini classification, not a regex.
+  // this regex is now the single source of truth for FE intent routing.
   if (
     !/https?:\/\/[^\s]*tiktok\.com/i.test(q)
     && (

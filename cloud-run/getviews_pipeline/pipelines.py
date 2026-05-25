@@ -17,6 +17,7 @@ from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.claim_tiers import PATTERN_SPREAD_MIN_INSTANCES
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
+    content_class_id_for_reference_pool,
     enrich_niche_meta_with_sound_radar,
     fetch_corpus_reference_pool,
     fetch_creator_format_history,
@@ -2173,6 +2174,154 @@ async def _get_niche_insight(
         return "", None
 
 
+async def _reference_pool_class_ids(
+    session: dict[str, Any],
+    *,
+    niche: str,
+    video_id: str | None,
+    legacy_niche_id_hint: int | None = None,
+) -> tuple[int | None, int | None]:
+    """Resolve ``(content_class_id, legacy_niche_id)`` for corpus reference pool."""
+
+    legacy_niche_id = int(legacy_niche_id_hint) if legacy_niche_id_hint else None
+    if legacy_niche_id is None or legacy_niche_id <= 0:
+        resolved = await resolve_niche_id_cached(session, niche)
+        legacy_niche_id = int(resolved) if resolved else None
+
+    content_class_id: int | None = None
+    content_format = ""
+    if video_id:
+        try:
+            client = get_service_client()
+            row = (
+                client.table("video_corpus")
+                .select("content_class_id,content_format,niche_id:ingest_loop_niche_id")
+                .eq("video_id", video_id)
+                .maybe_single()
+                .execute()
+            )
+            data = row.data if row else None
+            if isinstance(data, dict):
+                raw_cc = data.get("content_class_id")
+                if raw_cc is not None:
+                    try:
+                        content_class_id = int(raw_cc)
+                    except (TypeError, ValueError):
+                        content_class_id = None
+                content_format = str(data.get("content_format") or "")
+                row_nid = data.get("niche_id")
+                if (legacy_niche_id is None or legacy_niche_id <= 0) and row_nid is not None:
+                    legacy_niche_id = int(row_nid)
+        except Exception as exc:
+            logger.debug("[video_diagnosis] corpus class lookup failed: %s", exc)
+
+    meta: dict[str, Any] = {
+        "content_class_id": content_class_id,
+        "niche_id": legacy_niche_id,
+        "content_format": content_format,
+    }
+    cc = content_class_id_for_reference_pool(meta, content_format=content_format)
+    return cc, legacy_niche_id
+
+
+async def _derive_class_after_user_analysis(
+    user_res: dict[str, Any],
+    session: dict[str, Any],
+    niche: str,
+    legacy_niche_id: int | None,
+) -> tuple[int | None, int | None]:
+    """Post-extraction class for ref pool when corpus row lacked ``content_class_id``."""
+    niche_id = int(legacy_niche_id or 0)
+    if niche_id <= 0:
+        resolved = await resolve_niche_id_cached(session, niche)
+        niche_id = int(resolved) if resolved else 0
+    if niche_id <= 0:
+        return None, None
+    analysis = user_res.get("analysis") or {}
+    if not isinstance(analysis, dict):
+        return None, None
+    content_format = classify_format(analysis, niche_id)
+    cc = content_class_id_for_reference_pool(
+        {"niche_id": niche_id, "content_format": content_format},
+        content_format=content_format,
+    )
+    return (cc, niche_id) if cc else (None, None)
+
+
+async def _load_corpus_ref_pool_and_picks(
+    *,
+    niche: str,
+    uid: str,
+    video_desc: str,
+    video_hashtags: list[str],
+    cached_ids: set[str],
+    content_class_id: int | None,
+    legacy_niche_id: int | None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], str]:
+    """Corpus ref pool + proximity picks (+ content-targeted merge)."""
+    corpus_pool = await fetch_corpus_reference_pool(
+        niche,
+        days=30,
+        limit=40,
+        exclude_video_id=uid or None,
+        content_class_id=content_class_id,
+        legacy_niche_id=legacy_niche_id,
+    )
+    for v in corpus_pool:
+        v["niche_label"] = niche
+    corpus_source = "corpus"
+    if len(corpus_pool) >= REF_N:
+        pool = corpus_pool
+        picks = _select_by_proximity_then_er(
+            corpus_pool,
+            video_desc=video_desc,
+            video_hashtags=video_hashtags,
+            cached_ids=cached_ids,
+            n=REF_N,
+            recency_days=30,
+        )
+        logger.info(
+            "[ref_source] niche=%s class=%s corpus_hit=true corpus_size=%d",
+            niche,
+            content_class_id,
+            len(corpus_pool),
+        )
+    else:
+        corpus_source = "live_search" if len(corpus_pool) == 0 else "sparse_fallback"
+        logger.warning(
+            "[ref_source] niche=%s class=%s corpus_hit=false corpus_size=%d threshold=%d source=%s — "
+            "falling back to live EnsembleData search (costs API units)",
+            niche,
+            content_class_id,
+            len(corpus_pool),
+            REF_N,
+            corpus_source,
+        )
+        pool = await _niche_aweme_pool(niche, period=30)
+        for v in pool:
+            v.setdefault("niche_label", niche)
+        picks = _select_by_proximity_then_er(
+            pool,
+            video_desc=video_desc,
+            video_hashtags=video_hashtags,
+            cached_ids=cached_ids,
+            n=REF_N,
+            recency_days=30,
+        )
+
+    pool, picks = await _maybe_merge_content_targeted_refs_async(
+        pool,
+        picks,
+        video_desc=video_desc,
+        video_hashtags=video_hashtags,
+        niche=niche,
+        cached_ids=cached_ids,
+        n=REF_N,
+        recency_days=30,
+    )
+    return corpus_pool, pool, picks, corpus_source
+
+
 async def run_video_diagnosis(
     url: str,
     session: dict[str, Any],
@@ -2202,6 +2351,7 @@ async def run_video_diagnosis(
     #         e.g. #xinh maps to "thoi_trang" from learned corpus associations.
     # Tier 3: Raw first-non-generic hashtag or description snippet (last resort,
     #         often produces poor niche strings like "trendingtiktok").
+    _db_niche_id: int | None = None
     if niche_override:
         niche = niche_override
     elif session.get("niche"):
@@ -2238,64 +2388,21 @@ async def run_video_diagnosis(
         if t.get("hashtag_name") or t.get("title")
     ]
 
-    # Prefer curated corpus (niche-tagged, ≥20k views) over live search to
-    # ensure reference videos are actually in the same niche as the user's video.
-    corpus_pool = await fetch_corpus_reference_pool(
-        niche, days=30, limit=40, exclude_video_id=uid or None
+    # Prefer curated corpus (class → junction → niche ladder) over live search.
+    ref_content_class_id, ref_legacy_niche_id = await _reference_pool_class_ids(
+        session,
+        niche=niche,
+        video_id=uid or None,
+        legacy_niche_id_hint=_db_niche_id,
     )
-    for v in corpus_pool:
-        v["niche_label"] = niche
-    corpus_source = "corpus"
-    if len(corpus_pool) >= REF_N:
-        pool = corpus_pool
-        picks = _select_by_proximity_then_er(
-            corpus_pool,
-            video_desc=video_desc,
-            video_hashtags=video_hashtags,
-            cached_ids=cached_ids,
-            n=REF_N,
-            recency_days=30,
-        )
-        logger.info(
-            "[ref_source] niche=%s corpus_hit=true corpus_size=%d",
-            niche,
-            len(corpus_pool),
-        )
-    else:
-        # Corpus too sparse for this niche — fall back to live EnsembleData search.
-        # Each fallback costs EnsembleData API units (keyword + hashtag search).
-        # Monitor corpus_hit=false frequency per niche in Cloud Run logs to identify
-        # niches where the corpus needs broader coverage.
-        corpus_source = "live_search" if len(corpus_pool) == 0 else "sparse_fallback"
-        logger.warning(
-            "[ref_source] niche=%s corpus_hit=false corpus_size=%d threshold=%d source=%s — "
-            "falling back to live EnsembleData search (costs API units)",
-            niche,
-            len(corpus_pool),
-            REF_N,
-            corpus_source,
-        )
-        pool = await _niche_aweme_pool(niche, period=30)
-        for v in pool:
-            v.setdefault("niche_label", niche)
-        picks = _select_by_proximity_then_er(
-            pool,
-            video_desc=video_desc,
-            video_hashtags=video_hashtags,
-            cached_ids=cached_ids,
-            n=REF_N,
-            recency_days=30,
-        )
-
-    pool, picks = await _maybe_merge_content_targeted_refs_async(
-        pool,
-        picks,
+    corpus_pool, pool, picks, corpus_source = await _load_corpus_ref_pool_and_picks(
+        niche=niche,
+        uid=uid,
         video_desc=video_desc,
         video_hashtags=video_hashtags,
-        niche=niche,
         cached_ids=cached_ids,
-        n=REF_N,
-        recency_days=30,
+        content_class_id=ref_content_class_id,
+        legacy_niche_id=ref_legacy_niche_id,
     )
 
     emit(step_queue, step_count(len(pool)))
@@ -2349,10 +2456,56 @@ async def run_video_diagnosis(
             logger.warning("[ref_timeout] aweme_id=%s — skipped: %s", aweme.get("aweme_id"), e)
             return {"_skipped": True}
 
-    user_task = asyncio.create_task(_user())
-    ref_tasks = [asyncio.create_task(_ref_with_timeout(a)) for a in picks]
-    user_res = await user_task
-    ref_results = await asyncio.gather(*ref_tasks)
+    user_res: dict[str, Any]
+    if ref_content_class_id is None:
+        # Compare / off-corpus URLs: derive class from extraction before ref analysis.
+        user_res = await _user()
+        _user_error = user_res.get("error") if isinstance(user_res, dict) else None
+        if _user_error in ("carousel_no_images", "carousel_download_failed"):
+            _msg = (
+                "GetViews chưa tải được ảnh carousel này — CDN TikTok đang chặn tải xuống. "
+                "Thử lại sau ít phút hoặc hỏi 'Carousel skincare đang trending?' để xem xu hướng."
+                if _user_error == "carousel_download_failed"
+                else (
+                    "Bài ảnh TikTok chưa hỗ trợ — EnsembleData không trả về ảnh slide. "
+                    "Thử hỏi 'Carousel skincare đang trending?' để xem xu hướng ngách này."
+                )
+            )
+            emit(step_queue, step_error(code=_user_error, message_vi=_msg))
+            emit_sentinel(step_queue)
+            if ch_task is not None:
+                ch_task.cancel()
+            return
+
+        derived_cc, derived_nid = await _derive_class_after_user_analysis(
+            user_res, session, niche, ref_legacy_niche_id,
+        )
+        if derived_cc:
+            logger.info(
+                "[ref_source] post-analysis class=%s niche_id=%s — refetch pool",
+                derived_cc,
+                derived_nid,
+            )
+            ref_content_class_id = derived_cc
+            ref_legacy_niche_id = derived_nid
+            corpus_pool, pool, picks, corpus_source = await _load_corpus_ref_pool_and_picks(
+                niche=niche,
+                uid=uid,
+                video_desc=video_desc,
+                video_hashtags=video_hashtags,
+                cached_ids=cached_ids,
+                content_class_id=ref_content_class_id,
+                legacy_niche_id=ref_legacy_niche_id,
+            )
+        ref_results = await asyncio.gather(
+            *[asyncio.create_task(_ref_with_timeout(a)) for a in picks],
+        )
+    else:
+        user_task = asyncio.create_task(_user())
+        ref_tasks = [asyncio.create_task(_ref_with_timeout(a)) for a in picks]
+        user_res = await user_task
+        ref_results = await asyncio.gather(*ref_tasks)
+
     references = [r for r in ref_results if "analysis" in r and not r.get("_skipped")]
     for r in references:
         r.setdefault("niche_label", niche)

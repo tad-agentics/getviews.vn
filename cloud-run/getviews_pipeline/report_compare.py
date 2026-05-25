@@ -366,11 +366,11 @@ async def run_compare_pipeline(
     Runs ``run_video_diagnosis`` on each URL in parallel using
     independent shallow session copies (cache mutations are top-level
     keys; deeper objects are read-only inside the diagnosis flow).
-    Bundle streaming — no per-side step events; the outer /stream
-    handler wraps the call with one start/done envelope of its own.
+    Bundle streaming — no per-side step events; the answer turn handler
+    wraps the call with one start/done envelope of its own.
     """
     # Local import to avoid a circular dep with pipelines.py at module
-    # import time. /stream + tests both import this module directly.
+    # import time. Tests import this module directly.
     from getviews_pipeline.pipelines import run_video_diagnosis
     from getviews_pipeline.step_events import emit_sentinel, step_done, step_start
 

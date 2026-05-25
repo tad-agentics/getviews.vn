@@ -138,10 +138,11 @@ User message
 | Mode | Endpoint | Typical surfaces |
 |------|----------|------------------|
 | `answer_turn` | `POST /answer/sessions/{id}/turns` | `/app/answer` (video + compare + structured follow-ups) |
-| default (`chat`) | `POST /stream` (`intent.py:265`) | legacy chat-era `video_diagnosis` + other chat intents |
-| chat → Vercel | `POST /api/chat` | Free/cheap text intents ⑤⑥⑦ |
+| Free text (legacy chat) | `POST /api/chat` (Vercel Edge) | Text intents ⑤⑥⑦, unclassifiable follow-ups |
 
-Both Cloud Run SSE paths use `stream_id` + `seq` and a **60s** in-memory replay buffer (TD-4). Answer turns also emit **heartbeat** frames every 10s during long Gemini work to avoid client idle timeout.
+**Sunset (2026-05):** `POST /stream` returns **410 Gone** — legacy chat SSE removed. Do not add new `/stream` consumers.
+
+Both Cloud Run answer SSE uses `stream_id` + `seq` and a **60s** in-memory replay buffer (TD-4). Answer turns also emit **heartbeat** frames every 10s during long Gemini work to avoid client idle timeout.
 
 ---
 
@@ -189,23 +190,16 @@ This is the default path when a creator pastes a TikTok URL in Home or Answer.
 **Cold:** ~20–30s. **Warm** (diagnostics + narrative cache): ~2s.  
 **Not used on this path:** `POST /video`, `pipelines.run_video_diagnosis()` as the top-level orchestrator.
 
-### 4.2 Secondary — `/stream` (legacy chat video + other chat intents)
+### 4.2 Legacy `/stream` — sunset + compare via answer turn
 
-```
-1. FE: useSessionStream() default mode → POST /stream (intent.py)
-2. intent normalized:
-   └─ video_diagnosis → run_video_diagnosis() directly (chat session_store context)
-      (+ competitor_profile / content_directions / trend_spike / shot_list / creator_search)
-3. Uses pipelines.py orchestration + run_video_diagnosis_core inside the diagnosis stack
-4. TD-3: profiles.is_processing guard on /stream path
-```
+**`POST /stream`** (legacy chat SSE) returns **410 Gone** as of Wave 5 (2026-05). Paid video work uses §4.1 only. Free text uses §5.1 `/api/chat`.
 
-New Studio work should stay on §4.1 unless explicitly adding a `/stream` consumer.
+**Compare** uses `pipelines.run_video_diagnosis` ×2 (not the top-level answer orchestrator). Evidence ref pool: **class → junction → niche** ladder; off-corpus URLs derive class after user extraction, then refetch pool before ref analysis.
 
 #### Compare (answer-session format)
 
 Two-URL side-by-side diagnosis is a first-class `/app/answer` session (`format='compare'`),
-**not** a `/stream` consumer. Both URLs ride in the session `initial_q`; the primary turn's
+**not** a live `/stream` consumer. Both URLs ride in the session `initial_q`; the primary turn's
 `compare` builder (`answer_session.append_turn`) extracts + SSRF-resolves them and calls
 `report_compare.build_compare_report`. Because `run_video_diagnosis` deep-uses module-level
 httpx/Supabase clients + the analysis semaphore bound to the main uvicorn loop, the sync builder
@@ -449,7 +443,7 @@ Distinct from batch loop niche: `resolve_live_niche_id` in `live_niche.py` — (
 
 ### Reference parity (answer / on-demand finalize)
 
-**Answer path** (`build_video_report` → `run_video_analyze_*` → `finalize_video_narrative_layer`) and **`/stream`** (`pipelines.run_video_diagnosis`) both end in `finalize_video_narrative_layer` or an equivalent synthesis step that calls `select_synthesis_references_for_video`: corpus pool (≥`REF_N` or sparse/live fallback) → `_select_by_proximity_then_er` → `_maybe_merge_content_targeted_refs_async` → `_reference_evidence_lines` passed to `synthesize_diagnosis_v2(..., reference_evidence_block=…)`. Embed-tile repair (§4.3) applies on the answer finalize path only.
+**Answer path** (`build_video_report` → `run_video_analyze_*` → `finalize_video_narrative_layer`) and **compare** (`run_video_diagnosis` ×2 in `pipelines.py`) both call `select_synthesis_references_for_video` / `fetch_corpus_reference_pool*` with the **class → junction → niche** ladder: corpus pool (≥`REF_N` or sparse/live fallback) → proximity picks → content-targeted merge → evidence block for synthesis. Embed-tile repair (§4.3) applies on the answer finalize path only.
 
 ### Two cores — one extraction, one diagnosis
 

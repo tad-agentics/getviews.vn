@@ -41,6 +41,7 @@ def test_fetch_corpus_reference_pool_sync_filters_reference_eligible() -> None:
     client.table.return_value = table
     table.select.return_value = query
     query.eq.return_value = query
+    query.gt.return_value = query
     query.gte.return_value = query
     query.order.return_value = query
     query.limit.return_value = query
@@ -49,6 +50,10 @@ def test_fetch_corpus_reference_pool_sync_filters_reference_eligible() -> None:
     with (
         patch("getviews_pipeline.corpus_context._anon_client", return_value=client),
         patch("getviews_pipeline.corpus_context._resolve_niche_id", return_value=1),
+        patch(
+            "getviews_pipeline.profile_niches.content_class_ids_for_legacy_niche",
+            return_value=[],
+        ),
         patch(
             "getviews_pipeline.corpus_context._settings",
             MagicMock(corpus_boost_hard_reject=True),

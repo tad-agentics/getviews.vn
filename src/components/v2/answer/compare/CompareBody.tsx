@@ -1,7 +1,7 @@
 /**
  * Wave 4 PR #3 — Compare flow body.
  *
- * Renders the ``ComparePayload`` from /stream as a side-by-side video
+ * Renders the ``ComparePayload`` from answer-turn SSE as a side-by-side video
  * diagnosis with a brutalist delta bar pinned at the top.
  *
  * Layout:

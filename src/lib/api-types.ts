@@ -307,8 +307,8 @@ export type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus
 // ── Wave 4 PR #3 — Compare flow stream payload ──────────────────────────
 //
 // Mirror of ``ComparePayload`` in
-// ``cloud-run/getviews_pipeline/report_compare.py``. The /stream endpoint
-// emits this as ``finalPayload`` when intent_type === "compare_videos".
+// ``cloud-run/getviews_pipeline/report_compare.py``. Answer turn ``kind=compare``
+// emits this as ``ReportV1`` payload when session format is ``compare``.
 //
 // ``left`` and ``right`` carry the run_video_diagnosis output dicts —
 // typed minimally here because CompareBody only reads a handful of

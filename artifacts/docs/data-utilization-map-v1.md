@@ -199,7 +199,7 @@
 | `niche_resolution_source` / `_confidence` / `inferred_creator_niche_id` | — | — | — | — | feed | anchor | — | BAT | HI-11 telemetry |
 | `boost_attribution` | — | audit | flag | rollup | filter | — | — | MV | Batch ✅ ingest; live M3 user video ✅ |
 | `comment_radar` | — | audit | show | — | — | — | — | BAT | JSONB col + live payload; F1 `boost_attribution` M5; `CommentRadarTile` |
-| `reference_eligible` | ref | ref | filter | ref | filter | filter | — | — | MV | M2 ref pool + channel peers ✅; STU/ticker/CrossNiche ✅ S4-3 |
+| `reference_eligible` | ref | ref | filter | ref | filter | filter | — | — | MV | M2 ref pool + channel peers ✅; diagnosis/compare ref pool **class → junction → niche** ✅ §4.8.4 |
 | `ingest_relaxation_tier` | — | — | — | — | — | — | — | BAT | Ingest policy telemetry |
 | `stats_history` | — | audit | — | rollup | — | — | — | M4 | **✅** M4 cron re-fetch + `distribution_spike_then_flat` |
 | `distribution_shape` | — | audit | — | — | — | — | — | M4 | **✅** Derived from `stats_history` @ launch M4 |

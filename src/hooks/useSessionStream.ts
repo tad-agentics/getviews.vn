@@ -1,8 +1,8 @@
 /**
- * Phase C.1.0 — shared session-stream hook.
+ * Phase C.1.0 — answer-session SSE hook.
  *
- * - **Chat / pipeline** (`mode` omitted or `chat`): `POST` Cloud Run `/stream` or Vercel `/api/chat`.
- * - **Answer research** (`mode: 'answer_turn'`): `POST` `/answer/sessions/:id/turns` (SSE, §J `ReportV1`).
+ * Streams ``POST /answer/sessions/:id/turns`` (Cloud Run, §J ``ReportV1``).
+ * Legacy chat ``/stream`` was sunset Wave 5 — text follow-ups use ``/api/chat``.
  */
 
 import {
@@ -25,7 +25,6 @@ import {
   savePendingAnswerStream,
   type PendingAnswerTurnKind,
 } from "@/lib/sseResume";
-import { chatKeys } from "./useChatSession";
 import { STEP_EVENT_TYPES, type StepEvent } from "@/lib/types/sse-events";
 import type {
   BrightSpotSignal,
@@ -59,7 +58,6 @@ type SseDropReason = "network" | "server" | "abort" | "unknown";
 const ANSWER_SSE_ENDPOINT = "/answer/sessions/:id/turns";
 
 const CLOUD_RUN_URL = env.VITE_CLOUD_RUN_API_URL;
-const VERCEL_CHAT_URL = "/api/chat";
 
 /**
  * TD-4 — a single auto-retry covers the common network-blip case where the
@@ -80,16 +78,6 @@ const MAX_ANSWER_RETRIES = 1;
  * timer — every chunk resets it, so long but healthy streams don't trip.
  */
 const SSE_IDLE_TIMEOUT_MS = 45_000;
-
-const CLOUD_RUN_INTENTS = new Set([
-  "video_diagnosis",
-  "competitor_profile",
-  "own_channel",
-  "content_directions",
-  "trend_spike",
-  "creator_search",
-  "shot_list",
-]);
 
 export type StreamStatus = "idle" | "streaming" | "done" | "error";
 
@@ -116,41 +104,31 @@ export interface StreamOptions<TPayload = unknown> {
 
 export type AnswerTurnKind = "primary" | "timing" | "creators" | "script" | "generic";
 
-export type StreamArgs =
-  | {
-      mode?: "chat";
-      sessionId: string;
-      query: string;
-      intentType: string;
-      resumeStreamId?: string;
-      lastSeq?: number;
-      nicheLabel?: string;
-    }
-  | {
-      mode: "answer_turn";
-      answerSessionId: string;
-      query: string;
-      turnKind: AnswerTurnKind;
-      /** Session row ``format`` — primary script turns bill 3 credits. */
-      sessionFormat?: string | null;
-      videoMode?: "win" | "flop" | null;
-      analysisDepth?: "basic" | "deep" | null;
-      sourceEntry?: string | null;
-      /** Explicit intent from CTA pill — skip free-text classify (§4.10.2). */
-      intentType?: string | null;
-      ctaId?: string | null;
-      resumeStreamId?: string;
-      lastSeq?: number;
-      /**
-       * Unix ms timestamp of the original stream — preserved across
-       * reloads so the sessionStorage entry keeps its age relative to
-       * Cloud Run's 60s replay-buffer TTL
-       * (``cloud-run/getviews_pipeline/session_store.py:_STREAM_REPLAY_TTL_SEC``).
-       * Omit on the first attempt; caller passes it back when resuming
-       * from a stored pending entry.
-       */
-      startedAt?: number;
-    };
+export type StreamArgs = {
+  mode: "answer_turn";
+  answerSessionId: string;
+  query: string;
+  turnKind: AnswerTurnKind;
+  /** Session row ``format`` — primary script turns bill 3 credits. */
+  sessionFormat?: string | null;
+  videoMode?: "win" | "flop" | null;
+  analysisDepth?: "basic" | "deep" | null;
+  sourceEntry?: string | null;
+  /** Explicit intent from CTA pill — skip free-text classify (§4.10.2). */
+  intentType?: string | null;
+  ctaId?: string | null;
+  resumeStreamId?: string;
+  lastSeq?: number;
+  /**
+   * Unix ms timestamp of the original stream — preserved across
+   * reloads so the sessionStorage entry keeps its age relative to
+   * Cloud Run's 60s replay-buffer TTL
+   * (``cloud-run/getviews_pipeline/session_store.py:_STREAM_REPLAY_TTL_SEC``).
+   * Omit on the first attempt; caller passes it back when resuming
+   * from a stored pending entry.
+   */
+  startedAt?: number;
+};
 
 export type StreamResult<TPayload = unknown> =
   | { ok: true; finalPayload: TPayload | null }
@@ -223,13 +201,12 @@ export function useSessionStream<TPayload = unknown>(
         } = await supabase.auth.getSession();
         if (!session) throw new Error("No session");
 
-        if (args.mode === "answer_turn") {
-          if (!CLOUD_RUN_URL) {
-            setState((s) => ({ ...s, status: "error", error: "no_cloud_run" }));
-            return { ok: false, error: "no_cloud_run" };
-          }
+        if (!CLOUD_RUN_URL) {
+          setState((s) => ({ ...s, status: "error", error: "no_cloud_run" }));
+          return { ok: false, error: "no_cloud_run" };
+        }
 
-          // Retry loop — carries captured `streamId`/`lastSeq`/`payload`
+        // Retry loop — carries captured `streamId`/`lastSeq`/`payload`
           // across attempts so if the first attempt got the payload but lost
           // the done marker, the second attempt just asks the server to
           // replay seq=N+1 and we surface `finalPayload` from the first run.
@@ -420,68 +397,6 @@ export function useSessionStream<TPayload = unknown>(
 
           clearPendingAnswerStream();
           return { ok: false, error: "stream_failed" };
-        }
-
-        const intentType = args.intentType;
-        const useCloudRun = CLOUD_RUN_INTENTS.has(intentType);
-        if (useCloudRun && !CLOUD_RUN_URL) {
-          console.warn(
-            `[useSessionStream] Cloud Run URL not set — routing ${intentType} to Vercel fallback`,
-          );
-        }
-        const endpoint =
-          useCloudRun && CLOUD_RUN_URL ? `${CLOUD_RUN_URL}/stream` : VERCEL_CHAT_URL;
-
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            session_id: args.sessionId,
-            query: args.query,
-            intent_type: intentType,
-            stream_id: args.resumeStreamId,
-            last_seq: args.lastSeq,
-            niche_label: args.nicheLabel,
-          }),
-          signal: abort.signal,
-        });
-
-        if (res.status === 402) {
-          setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
-          return { ok: false, error: "insufficient_credits" };
-        }
-        if (res.status === 409) {
-          // TD-3 atomic lock held by another in-flight request from
-          // this user. Surface a clear "wait for the previous one"
-          // message; no retry will help.
-          setState((s) => ({ ...s, status: "error", error: "already_processing" }));
-          return { ok: false, error: "already_processing" };
-        }
-        if (res.status === 429) {
-          setState((s) => ({ ...s, status: "error", error: "daily_free_limit" }));
-          return { ok: false, error: "daily_free_limit" };
-        }
-        if (!res.ok) {
-          setState((s) => ({ ...s, status: "error", error: `http_${res.status}` }));
-          return { ok: false, error: `http_${res.status}` };
-        }
-        if (!res.body) {
-          setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
-          return { ok: false, error: "stream_failed" };
-        }
-
-        return await consumeChatSse(
-          res,
-          setState,
-          qc,
-          streamOptsRef,
-          args.sessionId,
-          args.resumeStreamId,
-          args.lastSeq,
-        );
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") {
           return { ok: false, error: "aborted" };
@@ -783,113 +698,4 @@ async function consumeAnswerSse<TPayload>(
   }
   setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
   return { ok: false, error: "stream_failed", streamId: lastStreamId, lastSeq, payload };
-}
-
-async function consumeChatSse<TPayload>(
-  res: Response,
-  setState: SetState<TPayload>,
-  qc: QueryClient,
-  streamOptsRef: MutableRefObject<StreamOptions<TPayload>>,
-  sessionId: string,
-  resumeStreamId: string | undefined,
-  resumeSeq: number | undefined,
-): Promise<StreamResult<TPayload>> {
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let text = "";
-  let lastStreamId: string | null = resumeStreamId ?? null;
-  let lastSeq = resumeSeq ?? 0;
-  let payload: TPayload | null = null;
-  let buffer = "";
-
-  while (true) {
-    const chunk = await readWithIdleTimeout(reader, SSE_IDLE_TIMEOUT_MS);
-    if ("timedOut" in chunk) {
-      try { await reader.cancel(); } catch { /* ignore */ }
-      setState((s) => ({ ...s, status: "error", error: "stream_timeout" }));
-      return { ok: false, error: "stream_timeout" };
-    }
-    const { done, value } = chunk;
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      const row = line.replace(/\r$/, "");
-      if (!row.startsWith("data: ")) continue;
-      try {
-        const token = JSON.parse(row.slice(6)) as {
-          type?: string;
-          stream_id?: string;
-          seq?: number;
-          delta?: string;
-          done?: boolean;
-          error?: string;
-          payload?: TPayload;
-        };
-        if (token.type !== undefined && STEP_EVENT_TYPES.has(token.type)) {
-          setState((s) => ({
-            ...s,
-            steps: [...s.steps, token as StepEvent],
-          }));
-          continue;
-        }
-        if (token.stream_id) lastStreamId = token.stream_id;
-        if (typeof token.seq === "number") lastSeq = token.seq;
-        if (token.payload !== undefined) payload = token.payload;
-        if (token.delta) text += token.delta;
-        if (token.done) {
-          if (token.error) {
-            setState((s) => ({
-              ...s,
-              status: "error",
-              text,
-              streamId: lastStreamId,
-              lastSeq,
-              error: token.error ?? null,
-              finalPayload: null,
-            }));
-            void qc.invalidateQueries({ queryKey: ["profile"] });
-            void qc.invalidateQueries({ queryKey: ["credits"] });
-            return { ok: false, error: token.error };
-          }
-          setState((s) => ({
-            ...s,
-            status: "done",
-            text,
-            streamId: lastStreamId,
-            lastSeq,
-            error: null,
-            finalPayload: payload,
-          }));
-          void qc.invalidateQueries({ queryKey: chatKeys.session(sessionId) });
-          void qc.invalidateQueries({ queryKey: chatKeys.sessions() });
-          void qc.invalidateQueries({ queryKey: ["profile"] });
-          void qc.invalidateQueries({ queryKey: ["credits"] });
-          const streamOpts = streamOptsRef.current;
-          for (const key of streamOpts.invalidateKeys ?? []) {
-            void qc.invalidateQueries({ queryKey: key });
-          }
-          if (payload !== null && streamOpts.onFinal) {
-            streamOpts.onFinal(payload);
-          }
-          return { ok: true, finalPayload: payload };
-        }
-        if (token.error) {
-          setState((s) => ({
-            ...s,
-            status: "error",
-            error: token.error ?? "stream_failed",
-          }));
-          void qc.invalidateQueries({ queryKey: ["profile"] });
-          return { ok: false, error: token.error ?? "stream_failed" };
-        }
-        setState((s) => ({ ...s, text, streamId: lastStreamId, lastSeq }));
-      } catch {
-        /* skip malformed */
-      }
-    }
-  }
-  setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
-  return { ok: false, error: "stream_failed" };
 }

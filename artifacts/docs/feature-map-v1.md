@@ -631,7 +631,7 @@ Flop-tier video: các signal `win_*` salience &lt; 0.5 hoặc không export — 
 
 #### 4.8.4 Corpus utilization — bắt buộc cho signal mới
 
-**Trạng thái:** ✅ **Done** — `enrich_niche_meta_for_signals()` + widen CCI fetch + `format_distribution` derive từ junction corpus (`fetch_format_distribution_sync`); tier axis merge class MV distributions trước `build_diagnosis_ctx`.
+**Trạng thái:** ✅ **Done** — `enrich_niche_meta_for_signals()` + widen CCI fetch + `format_distribution` derive; evidence ref pool **`content_class_id` → junction → niche** ladder (`fetch_corpus_reference_pool*`); tier axis merge class MV trước `build_diagnosis_ctx`.
 
 | Key trong `niche_meta` | Dùng cho signal | MV / batch | Live `build_diagnosis_ctx` |
 |------------------------|-----------------|------------|---------------------------|
@@ -640,11 +640,11 @@ Flop-tier video: các signal `win_*` salience &lt; 0.5 hoặc không export — 
 | `tone_distribution` | `persona_tone_distribution_gap` | ✅ class MV | ✅ enrich |
 | `median_er`, `p25_er`, `p90_views` | `boost_*`, `context_tuong_tac_cheo_heuristic` | ⚠️ MV: `median_er`/`p75_views`; p90 derived | ✅ enrich + `boost_percentiles_from_niche_intel` |
 | `avg_transitions_per_second`, `avg_hashtag_count`, `pct_has_caption_text` | editing / metadata (§4.8.2) | ✅ class MV | ✅ enrich |
-| `reference_eligible` filter trên refs | `niche_reference_anchor`, peer tiles | ✅ `fetch_corpus_reference_pool*` | ✅ |
+| `reference_eligible` filter trên refs | `niche_reference_anchor`, peer tiles | ✅ eligible-first + class→junction→niche ladder | ✅ |
 
 **Refresh (as-built):** nightly `refresh_content_class_intelligence` (+ tier MV); legacy `niche_intelligence` refresh **skipped** prod (bridge only). Không query full corpus mỗi request — `format_distribution` capped 2k rows / junction filter.
 
-**Tests:** `cloud-run/tests/test_niche_meta_signal_wiring.py` — prod-shaped `niche_meta` fires `niche_hook_percentile_gap`.
+**Tests:** `test_niche_meta_signal_wiring.py`, `test_corpus_reference_pool_class.py`.
 
 #### 4.8.5 Thứ tự implement (gắn §11)
 

@@ -79,10 +79,11 @@ function mockFetchStream(chunks: string[], status = 200): Response {
   return new Response(stream, { status, headers: { "Content-Type": "text/event-stream" } });
 }
 
-const BASE_PARAMS = {
-  sessionId: "session-1",
+const ANSWER_SSE_PARAMS = {
+  mode: "answer_turn" as const,
+  answerSessionId: "answer-1",
   query: "test",
-  intentType: "follow_up_unclassifiable", // not in CLOUD_RUN_INTENTS → hits /api/chat
+  turnKind: "primary" as const,
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -101,7 +102,7 @@ describe("useSessionStream — SSE line buffer", () => {
 
     const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
 
     await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
     expect(result.current.text).toBe("hello");
@@ -115,7 +116,7 @@ describe("useSessionStream — SSE line buffer", () => {
 
     const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
 
     await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
     expect(result.current.text).toBe("hello");
@@ -130,7 +131,7 @@ describe("useSessionStream — SSE line buffer", () => {
 
     const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
 
     await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
     expect(result.current.error).toBeNull();
@@ -144,7 +145,7 @@ describe("useSessionStream — SSE line buffer", () => {
 
     const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
 
     await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
     expect(result.current.error).toBe("insufficient_credits");
@@ -158,7 +159,7 @@ describe("useSessionStream — SSE line buffer", () => {
 
     const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
 
     await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
     expect(result.current.error).toBe("already_processing");
@@ -170,7 +171,7 @@ describe("useSessionStream — SSE line buffer", () => {
 
     const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
 
     await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
     expect(result.current.error).toBe("analysis_timeout");
@@ -187,7 +188,7 @@ describe("useSessionStream — SSE line buffer", () => {
 
     const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
 
     await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
     expect(result.current.steps).toHaveLength(2);
@@ -228,7 +229,7 @@ describe("useSessionStream — SSE line buffer", () => {
 
     const { result, unmount } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     unmount();
 
@@ -259,7 +260,7 @@ describe("useSessionStream — report payload delivery", () => {
       { wrapper: wrapper(qc) },
     );
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
 
     await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
     expect(result.current.finalPayload).toEqual(payload);
@@ -277,7 +278,7 @@ describe("useSessionStream — report payload delivery", () => {
       { wrapper: wrapper(qc) },
     );
 
-    result.current.stream(BASE_PARAMS);
+    result.current.stream(ANSWER_SSE_PARAMS);
 
     await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
     expect(result.current.finalPayload).toBeNull();

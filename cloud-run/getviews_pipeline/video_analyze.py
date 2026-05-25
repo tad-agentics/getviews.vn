@@ -22,6 +22,7 @@ def _normalize_analysis_depth(depth: str | None) -> AnalysisDepth:
 
 
 from getviews_pipeline.corpus_context import (
+    content_class_id_for_reference_pool,
     format_creator_format_history_for_diagnosis,
     get_creator_format_history_sync,
 )
@@ -58,6 +59,8 @@ def _apply_peer_tier_to_niche_meta(
         views=views,
         topic_axis=topic,
     )
+
+
 # Bump when ``VideoAnalyzeResponse.meta`` shape changes (invalidates on-demand cache).
 # v3 — embed_contract_version + finalize-lite repair for poisoned cached_response blobs.
 ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3
@@ -797,6 +800,9 @@ def _response_from_diagnostics_row(
             "stats_history": video.get("stats_history"),
             "distribution_shape": video.get("distribution_shape"),
             "content_format": str(video.get("content_format") or "").strip() or None,
+            "content_class_id": int(video["content_class_id"])
+            if video.get("content_class_id") is not None
+            else None,
             "boost_attribution": video.get("boost_attribution"),
             "reference_eligible": video.get("reference_eligible"),
         },
@@ -1092,6 +1098,11 @@ async def _refetch_synthesis_reference_videos(
         video_desc=video_desc,
         video_hashtags=video_hashtags,
         preferred_content_format=content_format or None,
+        content_class_id=content_class_id_for_reference_pool(
+            meta,
+            content_format=content_format,
+        ),
+        legacy_niche_id=int(meta.get("niche_id") or 0) or None,
         live_search_fn=_live_search_references_for_finalize,
     )
     return slim_refs
@@ -1452,6 +1463,11 @@ def finalize_video_narrative_layer(
             video_hashtags=video_hashtags,
             preferred_content_format=content_format or None,
             user_subject_matter=user_subject_matter,
+            content_class_id=content_class_id_for_reference_pool(
+                meta,
+                content_format=content_format,
+            ),
+            legacy_niche_id=int(meta.get("niche_id") or 0) or None,
             live_search_fn=_live_search_references_for_finalize,
         )
     )
@@ -1921,6 +1937,8 @@ def run_video_analyze_pipeline(
         # niche × format → derive on the fly so the new path can fire.
         from getviews_pipeline.corpus_ingest import _content_class_for
         content_class_id = _content_class_for(niche_id, video.get("content_format"))
+    if content_class_id is not None:
+        video["content_class_id"] = content_class_id
     creator_tier = str(video.get("creator_tier") or "").strip() or None
     niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
         user_sb,
@@ -2588,8 +2606,10 @@ def run_video_analyze_on_demand(
     from getviews_pipeline.corpus_ingest import _content_class_for, classify_format
     _on_demand_format = classify_format(analysis, niche_id) if niche_id else None
     content_class_id = _content_class_for(niche_id, _on_demand_format) if niche_id else None
-    # Propagate so _response_from_diagnostics_row can expose it as _content_format.
+    # Propagate so _response_from_diagnostics_row + reference pool can scope by class.
     video["content_format"] = _on_demand_format or ""
+    if content_class_id is not None:
+        video["content_class_id"] = content_class_id
     od_creator_tier = str(video.get("creator_tier") or "").strip() or None
     niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
         user_sb,

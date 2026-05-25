@@ -10,7 +10,7 @@
  * Receives ``report: VideoReportPayload`` from the answer-session
  * dispatcher (``ContinuationTurn`` / primary-turn renderer); does NOT
  * fetch its own data — that's the session payload's job, populated by
- * Cloud Run's /stream emit (PR-2 backend half).
+ * Cloud Run answer-turn payload (``build_video_report`` / ``finalize_video_narrative_layer``).
  *
  * PR-2 ships dark — composer still redirects to /app/video, this body
  * doesn't render in production yet. PR-3 flips routing so the

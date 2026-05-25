@@ -1,5 +1,13 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — Class-first evidence ref pool + `/stream` sunset
+
+- **`corpus_context`:** Evidence ref pool ladder **content_class → junction → legacy niche**; eligible-first merge (M2); shared `content_class_id_for_reference_pool()`.
+- **`video_analyze` / `references`:** Finalize + embed repair pass `content_class_id` into pool fetch; `meta.content_class_id` on cached responses.
+- **`pipelines.run_video_diagnosis`:** Same ladder for **compare** path; post-extraction class derive + pool refetch when video not in corpus.
+- **`POST /stream`:** **410 Gone** (Wave 5); FE `useSessionStream` answer-turn only.
+- **Docs:** `system-design.md` §4.2/transport table, `data-utilization-map-v1.md`, stale `/stream` comments removed.
+
 ## 2026-05-25 — R2 thumbnails: 360w WebP pipeline (Option A)
 
 - **`r2.py`:** `copy_first_frame_to_thumbnail` + `upload_thumbnail_bytes` transcode to **360w WebP** (`thumbnails/{id}.webp`); legacy `.png`/`.jpg` deleted after write; backfill re-encodes from `frames/0.png` or legacy PNG.
