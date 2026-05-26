@@ -59,4 +59,14 @@ describe("corpusKeys registry", () => {
       JSON.stringify(corpusKeys.count(filters)),
     );
   });
+
+  it("count cache key includes stitchOnly and duetOnly filters", () => {
+    const base = corpusKeys.count({ nicheId: 1 });
+    expect(JSON.stringify(corpusKeys.count({ nicheId: 1, stitchOnly: true }))).not.toBe(
+      JSON.stringify(base),
+    );
+    expect(JSON.stringify(corpusKeys.count({ nicheId: 1, duetOnly: true }))).not.toBe(
+      JSON.stringify(base),
+    );
+  });
 });

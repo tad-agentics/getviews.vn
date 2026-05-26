@@ -2,11 +2,11 @@
 
 > **Pivot SSOT (2026-05-21+):** Cohort canonical = `(content_class_id, creator_tier)`; browse/filter = junction `content_class_id` — [`system-design.md`](system-design.md) §9 · [`two-axis-niche-model.md`](two-axis-niche-model.md).
 
-**Version:** 1.5 (§6 channel quick-peek fields + Studio surfaces)  
-**Last updated:** 2026-05-24  
-**Code baseline:** `main` @ `37831b05` (§6 Studio channel; Wave 5 @ `680c803`; Wave 4 @ `9b97207`; Wave 3 @ `9cd0957`)  
-**Status:** As-built FIELD × feature matrix  
-**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0–5 ✅ @ `680c803`; **Launch Phases 0–2c + infra ✅** @ `b479f64`  
+**Version:** 1.7 (Wave 2 B + selective A — telemetry, F6 stitch/duet, trim dead lib)  
+**Last updated:** 2026-05-26  
+**Code baseline:** `main` @ Wave 2 utilization pass  
+**Status:** As-built FIELD × feature matrix — **V1 utilization gate PASS with documented exceptions**  
+**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0–5 ✅ @ `680c803`; **Launch Phases 0–2c + infra ✅** @ `b479f64`; QA gates visual-audit / dogfood / pre-handoff ✅ @ 2026-05-23  
 **As-built routes:** [`feature-map.md`](feature-map.md)  
 **Technical audit:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) (tier A–D, trim-safe)  
 **Schema source:** [`models.py`](../../cloud-run/getviews_pipeline/models.py) `VideoAnalysis` · [`corpus_ingest.py`](../../cloud-run/getviews_pipeline/corpus_ingest.py) `_build_corpus_row`
@@ -18,6 +18,17 @@
 > **Mỗi field extract phải phục vụ ít nhất một feature sản phẩm.** Không “orphan data” — không field trong prompt/schema mà không có đường đi UI, batch aggregate, hoặc signal.
 
 **Mục tiêu chặt V1:** field Gemini trong production prompt nên phục vụ **F2 hoặc F1 + ≥1 cột khác** (F4/F5/F6/STU/F7/BAT), trừ mục §8 Orphans đã có action (trim / wire / defer).
+
+### Utilization verdict (audit 2026-05-26)
+
+| Câu hỏi | Kết quả |
+|---------|---------|
+| **Mọi field trong `VideoAnalysis` production schema có consumer?** | **✅ Có** — mỗi hàng §1–§4 map tới signal, synthesis manifest, channel rollup, batch MV, hoặc §8 action (trim/defer). |
+| **Mọi promoted column §5 có consumer?** | **✅ Có** — `is_stitch`/`is_duet` wired F6 @ Wave 2 A; FTS full-text defer F8 |
+| **Mọi batch aggregate §6 có surface?** | **✅ Có** — `scene_intelligence` → F7 `SceneIntelligencePanel` @ `b49e6b3d`; `daily_ritual` → STU Tier I `StudioHero`. |
+| **100% blob JSON được đọc trực tiếp?** | **Không** — ~**55–65%** field có đường đi sản phẩm rõ (khớp [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md)); phần còn lại nằm trong `analysis_json` và chỉ phát huy qua synthesis/signals khi diagnosis hoặc channel rollup chạm tới. |
+
+**Kết luận GTM:** Objective 5 **đạt cho V1** — promoted cols wired; gap còn lại chỉ **FTS defer** (`transcript_snippet` full-text Kho), không chặn launch.
 
 **Invariant:** Live ingest và on-demand extract **cùng contract** — TD-7 ([`system-design.md`](system-design.md) §10). Mọi field mới → thêm hàng vào bảng này **trước** merge.
 
@@ -42,7 +53,7 @@
 | **F5** | F5 | Soi kênh **Nhanh** — card ED + 1–2 finding P0 (`channel_findings`) |
 | **F4** | F4 | Soi kênh **Sâu** — SSE memo + trajectory/score_card + `channel_findings[]` §5.3 |
 | **F6** | F6 | **Xu hướng** — công thức viral + kho video (class-first browse) |
-| **STU** | Studio §3.1 | **Gợi ý hôm nay** I Morning Signal · II hooks · III within-niche breakouts |
+| **STU** | Studio §3.1 | **Gợi ý hôm nay** I `daily_ritual` · II hooks · III within-niche breakouts |
 | **F7** | F7 | **Script Studio** — hook, shot list, scene intel, ritual prefill |
 | **BAT** | F8 | **Batch / data plane** — MV, cron, claim tiers, M1/M2 hygiene |
 
@@ -125,10 +136,10 @@
 | FIELD | F2 | F1 | F5 | F4 | F6 | STU | F7 | BAT | Ghi chú |
 |-------|----|----|----|----|----|-----|----|-----|---------|
 | `creator_persona` | gate | audit | pattern | rollup | — | — | spec | — | `persona_*` signals; channel persona block |
-| `persona_consistency_signals.*` | — | teaser | — | rollup | — | — | — | — | **✅** `channel_persona_drift` @ launch Phase 2 |
+| `persona_consistency_signals.*` | — | teaser | — | rollup | — | — | — | — | **✅** F4 `channel_persona_drift` (channel rollup — không phải video signal) |
 | `tone` | bench | audit | pattern | pattern | feed | — | spec | MV | Promoted; F6 sort |
 | `slang_terms_used` | — | audit | — | rollup | — | — | — | — | `persona_slang_dated` |
-| `slang_freshness_score` | — | audit | — | rollup | — | — | — | — | **✅** `channel_slang_staleness` @ launch Phase 2 |
+| `slang_freshness_score` | — | audit | — | rollup | — | — | — | — | **✅** F4 `channel_slang_staleness` (channel rollup) |
 | `target_audience` | show | show | — | — | — | — | spec | — | Promoted; `ContextStrip` |
 | `pain_points` | show | show | — | — | — | — | spec | — | Promoted; `ContextStrip` |
 | `style_tags` | show | show | — | — | — | — | spec | — | Promoted; `ContextStrip` |
@@ -178,6 +189,7 @@
 |-------|----|----|----|----|----|-----|----|-----|---------|
 | `views` | bench | bench | show | score | sort | breakout | — | M1 | ED; boost M1; diagnosis benchmarks |
 | `likes` / `comments` / `shares` / `saves` | bench | bench | show | score | sort | — | — | M1 | ER, boost heuristic |
+| `save_rate` | bench | show | — | score | sort | — | — | M1/MV | Promoted `saves/views`; F1 `KpiGrid` + `hook_effectiveness.avg_completion_rate` |
 | `engagement_rate` | bench | bench | show | score | feed | — | — | M1/MV | Promoted; cohort percentiles |
 | `breakout_ratio` / `breakout_multiplier` | bench | bench | show | score | feed | breakout | — | M1 | Ingest + live; STU `useTopBreakouts`; Trends rails |
 | `creator_median_views` | bench | bench | show | score | — | — | — | — | `ContextStrip`; channel baseline |
@@ -191,11 +203,12 @@
 | `is_commerce` | gate | audit | rollup | rollup | feed | — | spec | — | Batch filter commerce cohorts |
 | `dialect` (promoted) | gate | audit | flag | rollup | — | — | — | — | From `dialect_detected` |
 | `hashtags` / `caption` | bench | bench | — | history | feed | — | — | MV | Proximity; `metadata_hashtag_*` |
+| `is_stitch` / `is_duet` | — | — | — | — | show | — | — | — | ED metadata; F6 Kho filter + card chips @ Wave 2 A |
 | `sound_id` / `sound_name` / `is_original_sound` | teaser | audit | — | rollup | feed | — | spec | MV | `sound_*` signals; `trending_sounds` |
 | `posting_hour` / `posted_at` | teaser | audit | — | rollup | feed | — | — | MV | `context_golden_hour_*` |
 | `creator_followers` / `creator_tier` | show | bench | show | score | feed | — | — | MV | Explore tiles; `content_class_tier_intelligence` |
 | `text_overlay_count` / `scene_count` / `video_duration` | bench | audit | — | pattern | feed | — | spec | MV | Derived from extract |
-| `transcript_snippet` | bench | bench | — | — | — | — | — | gate | Promoted 500 chars; full-text search **🔨** F8 |
+| `transcript_snippet` | bench | bench | — | — | — | — | — | gate | Promoted 500 chars; KPI/proximity; **FTS search 🔨 defer F8** |
 | `niche_resolution_source` / `_confidence` / `inferred_creator_niche_id` | — | — | — | — | feed | anchor | — | BAT | HI-11 telemetry |
 | `boost_attribution` | — | audit | flag | rollup | filter | — | — | MV | Batch ✅ ingest; live M3 user video ✅ |
 | `comment_radar` | — | audit | show | — | — | — | — | BAT | JSONB col + live payload; F1 `boost_attribution` M5; `CommentRadarTile` |
@@ -212,7 +225,7 @@
 
 | AGGREGATE / TABLE | F2 | F1 | F5 | F4 | F6 | STU | F7 | BAT | Nguồn field | As-built |
 |-------------------|----|----|----|----|----|-----|----|-----|-------------|----------|
-| `content_class_intelligence` | bench | bench | — | score | feed | show | — | MV | views, ER, hooks, formats by `content_class_id` | **✅** Morning Signal, Trends thin banner, diagnosis `benchmark_axis=content_class` |
+| `content_class_intelligence` | bench | bench | — | score | feed | show | — | MV | views, ER, hooks, formats by `content_class_id` | **✅** F6 thin banner (`useContentClassIntelligence`), diagnosis `benchmark_axis=content_class` |
 | `content_class_tier_intelligence` | bench | bench | — | score | — | — | — | MV | `(content_class_id, creator_tier)` peer band | **✅** BE + `peer_percentile` label → `FlopDiagnosisStrip` |
 | `creator_niche_content_class_stats` | — | bench | — | — | feed | — | — | MV | Junction rollup for browse gates | **✅** refreshed nightly |
 | `hook_effectiveness` | bench | bench | — | pattern | leader | anchor | anchor | MV | `hook_type`, views, ER | **✅** STU Tier II, script, pattern reports |
@@ -220,30 +233,31 @@
 | `niche_intelligence` | bench | bench | — | score | — | — | — | MV | Legacy bridge | **Bridge only** — `REFRESH_NICHE_INTELLIGENCE_MV=false` |
 | `niche_meta` / percentiles (live fetch) | bench | bench | — | score | — | — | — | MV | `fetch_video_benchmark_with_axis` class→tier→niche fallback | **✅** on-demand diagnosis |
 | `daily_ritual` | — | — | — | — | — | show | anchor | MV | Top corpus + ritual templates | **✅** STU Tier I `StudioHero` |
-| `scene_intelligence` | — | teaser | — | — | — | — | spec | MV | `scenes[]` enrichment nightly | **✅** F7 panel |
+| `scene_intelligence` | — | teaser | — | — | — | — | spec | MV | `scenes[]` enrichment nightly | **✅** F7 `SceneIntelligencePanel` in `ScriptBody` @ `b49e6b3d` |
 | `creator_velocity` | — | — | show | score | — | — | — | MV | ED rollup by handle | **✅** channel score card inputs |
-| **`channel_summary`** (quick-peek derived) | — | — | show | — | — | show | — | — | Handle corpus avg views, ER, posts/week | **✅** `channel_quick_peek.py` → `ChannelBenchmarkStrip` @ §6 |
-| **`niche_benchmarks`** (quick-peek serialized) | — | — | bench | score | — | show | — | — | `niche_channel_benchmarks` RPC p25/p50/p75 + cadence | **✅** Nhanh strip + Sâu `compute_score_card` |
+| **`channel_summary`** (quick-peek derived) | — | — | show | — | — | — | — | — | Handle corpus avg views, ER, posts/week | **✅** `channel_quick_peek.py` → `ChannelBenchmarkStrip` on `/app/channel` |
+| **`niche_benchmarks`** (quick-peek serialized) | — | — | bench | score | — | — | — | — | `niche_channel_benchmarks` RPC p25/p50/p75 + cadence | **✅** Nhanh strip + Sâu `compute_score_card` |
 | `trending_sounds` | teaser | audit | — | — | feed | — | spec | MV | `sound_id`, lifecycle | **✅** |
-| `claim_tiers` | gate | gate | gate | gate | gate | gate | gate | gate | Sample size gates | **✅** `ConfidenceStrip`, corpus-health |
+| `claim_tiers` | gate | gate | gate | gate | gate | gate | gate | gate | Sample size gates | **✅** internal prompt + admin corpus-health (không user `ConfidenceStrip`) |
 | `channel_diagnoses` (cached memo) | — | — | — | show | — | — | — | — | Output F4 | **✅** 7d cache + findings inject |
 | `video_shots` (R2 + matcher) | — | teaser | — | — | — | — | spec | MV | `scenes[]` frames | **✅** |
 
-### §6.1 Class-first surfaces (as-built @ `8ad7ab0`)
+### §6.1 Class-first surfaces (as-built @ `477426ad`)
 
 | Surface | Data read | Filter / cohort |
 |---------|-----------|-----------------|
-| **STU Tier I** `MorningSignalStrip` | `content_class_intelligence` via `useClassMorningSignals` | Primary junction classes only |
+| **STU Tier I** `StudioHero` | `daily_ritual` via `useDailyRitual` | Top corpus + ritual templates per creator niche |
 | **STU Tier II** `HooksTable` | `hook_effectiveness` + patterns | `useTopPatterns` scoped to creator niche |
 | **STU Tier III** `BreakoutGrid` / `useTopBreakouts` | `video_corpus` | `content_class_id IN junction`; `breakout_multiplier ≥ 1`; **`reference_eligible=true` first** + fallback |
 | **Home ticker** `_breakout_items` | `video_corpus` | `ingest_loop_niche_id`; **`reference_eligible=true` first** + fallback |
-| **F6 Kho video** `ExploreScreen` | `video_corpus` | `applyVideoCorpusNicheFilter` class-first; thin banner = sum junction `sample_size` |
+| **F6 Kho video** `ExploreScreen` | `video_corpus` + `content_class_intelligence` | `applyVideoCorpusNicheFilter` class-first; thin banner = junction `sample_size` |
 | **F6 Cross-niche** `CrossNicheBreakoutLane` | `video_corpus` | `content_class_id NOT IN` user junction; **`reference_eligible=true` first** + fallback |
 | **F6 TrendsRail** | `useTrendsRailVideos` | Junction `content_class_id` or legacy `ingest_loop_niche_id`; 14d **`posted_at`**; **`reference_eligible=true` first** + fallback; pool 20 → rotate 5; preview → analyze |
 | **F1/F2 diagnosis** | `fetch_video_benchmark_with_axis` | tier MV → class MV → niche fallback |
 | **F4 channel peers** | `video_corpus` by handle | Class+tier fallback chain; `reference_eligible` filter + thin fallback |
-| **F5 Nhanh strip** | GET `/channel/quick-peek` | `channel_summary` + `niche_benchmarks` → `ChannelBenchmarkStrip` on Studio Home @ §6 |
-| **F4 Sâu memo** | POST `/channel/diagnose` SSE | `ChannelDiagnosisBody` on Studio Home; legacy `/app/channel` redirect only |
+| **F5 Nhanh strip** | GET `/channel/quick-peek` | `channel_summary` + `niche_benchmarks` → `ChannelBenchmarkStrip` on `/app/channel` |
+| **F4 Sâu memo** | POST `/channel/diagnose` SSE | `ChannelDiagnosisBody` + `ChannelAuditRingsPanel` (Vòng 0–4) on `/app/channel` |
+| **F7 Script** `ScriptBody` | `scene_intelligence` + extract `scenes[]` | `useSceneIntelligence(niche_id)` → `SceneIntelligencePanel` when shot type matches |
 
 ---
 
@@ -297,7 +311,11 @@
 | Field / nhóm | Verdict | Action |
 |--------------|---------|--------|
 | `key_messages[]` | **Trimmed W5-3** | Removed from Gemini extraction schema (2026-05-23) |
-| `persona_consistency_signals` | **Strong** | **✅** `channel_persona_drift` @ launch Phase 2 |
+| `is_stitch` / `is_duet` | **Wired F6** | F6 Kho toggle + metadata chips — `useVideoCorpus` @ Wave 2 A |
+| `transcript_snippet` FTS | **Defer F8** | Col used for KPI/proximity; full-text Kho search not built |
+| `classMorningSignals.ts` | **Removed** | Dead library deleted Wave 2 A (strip gỡ Home 2026-05-24) |
+| `persona_consistency_signals` | **Strong (F4)** | **✅** `channel_persona_drift` via `channel_findings.py` — channel rollup, not per-video signal |
+| `slang_freshness_score` | **Strong (F4)** | **✅** `channel_slang_staleness` via `channel_findings.py` |
 | `peer_percentile` / `peer_percentile_label` | **Strong** | Wired W1-3 when tier MV + `creator_tier` on corpus row |
 | `win_er_above_niche_p75` / `win_hook_aligns_niche_top` | **Strong** | **✅** `signals/win.py`; `tier_gate=hit`; W1-6 |
 | `win_breakout_vs_channel` / `win_format_in_growth` / `win_replicable_cta` | **Strong** | **✅** `signals/win.py` W4-3 |
@@ -315,23 +333,26 @@
 
 ---
 
-## §9 — Coverage checklist (v1.4 @ `680c803`)
+## §9 — Coverage checklist (v1.6 @ `477426ad`)
 
 | Kiểm tra | Target | Kết quả |
 |----------|--------|---------|
 | `VideoAnalysis` fields có ≥1 ô hoặc §8 | 100% | ✅ ~70 rows §1–§4 |
-| Promoted + F8 columns có ≥1 ô | 100% | ✅ §5 (+ Phase C cols) |
-| Batch aggregates có ≥1 feature | 100% | ✅ §6 (+ class MVs) |
-| Class-first surfaces documented | Yes | ✅ §6.1 |
-| True orphans với action | ≤5 | ✅ 2 + weak group §8 |
+| Promoted + F8 columns có ≥1 ô | 100% | ✅ §5 (FTS defer noted §8) |
+| Batch aggregates có ≥1 feature | 100% | ✅ §6 (+ class MVs; F7 scene intel wired) |
+| Class-first surfaces documented | Yes | ✅ §6.1 (STU Tier I = `daily_ritual`, not Morning Signal strip) |
+| True orphans với action | ≤5 | ✅ 2 (FTS defer, weak group §8) |
+| Wave 2 utilization (B + A) | Shipped | ✅ manifest telemetry + F6 stitch/duet + dead lib trim |
 | Depth split (F2/F1) | Shipped | ✅ §7 @ `9cd0957` — whitelist + cap + cache + billing |
 | Wave 0 F8 verify | Done | ✅ ref pool + boost batch + channel 3× credit |
 | Wave 4 gate doc | Cross-check | ✅ §10 — W4-1…W4-4 shipped @ `9b97207` |
 | Wave 5 polish | Shipped | ✅ W5-1…W5-5 @ `680c803` — CTA rail, format parity, key_messages trim, Trends channel peek |
 | Launch Phases 0–2c + infra | Shipped | ✅ @ `b479f64` — channel Nhanh/Sâu, findings P1/P2, video P1 signals, M4 stats_history, types regen, Cloud Run deploy |
 | §4 closure S4-* | Shipped | ✅ @ 2026-05-23 — synthesis-only upgrade, M5 seeding signal, eligible-first breakouts |
+| F7 scene intelligence UI | Shipped | ✅ @ `b49e6b3d` — `ScriptBody` + `useSceneIntelligence` |
+| Channel Vòng 0–4 panel | Shipped | ✅ @ `d37a99e8` — `ChannelAuditRingsPanel` |
 
-**GTM gates (human):** `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` — see [`launch-phase3-baseline.json`](../qa-reports/launch-phase3-baseline.json).
+**GTM gates (human):** `/visual-audit` ✅ · `/dogfood` ✅ · `/pre-handoff` ✅ · `/deploy` ⏳ — see [`feature-map-v1.md`](feature-map-v1.md) §13B.
 
 ---
 
@@ -382,6 +403,28 @@
 | `signal.id` | § map FIELD | `section_id` | Data |
 |-------------|-------------|--------------|------|
 | `seeding_comment_pattern` | §5 `comment_radar` | `boost_attribution` | `sampled`, `neutral_pct`, `spam_skipped_ratio`, `user_stats.views/comments`, `niche_meta` percentiles |
+
+---
+
+## §12 — Utilization roadmap (Wave 2: B + selective A)
+
+**Shipped @ Wave 2 A:**
+
+| Item | Path | Evidence |
+|------|------|----------|
+| F6 `is_stitch` / `is_duet` | `useVideoCorpus` + `ExploreScreen` Kho toggles + card chips | §5 promoted cols |
+| Remove dead Morning Signal lib | Deleted `classMorningSignals.ts` | Strip gỡ 2026-05-24 |
+
+**Shipped @ Wave 2 B:**
+
+| Item | Path | Evidence |
+|------|------|----------|
+| Manifest telemetry | `manifest_telemetry()` + `log_manifest_telemetry()` | JSON log `diagnosis_manifest_telemetry` on v6 synthesis |
+| Section emit QA | `cloud-run/tests/test_manifest_telemetry.py` | Rich fixture: `hook_analysis` + `commerce` deep sections |
+
+**Deferred:** A (FTS Kho, persona MV) post-launch · C (prompt trim) after ≥30d fire-rate logs.
+
+**Rule:** B always · A per evidence · C only with ablation — never A+C on same field.
 
 ---
 

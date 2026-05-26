@@ -18,6 +18,9 @@ export interface VideoCorpusFilters {
   search?: string;
   minViews?: number;
   contentFormat?: string;
+  /** F6 Kho — ED metadata promoted @ ingest (utilization Wave 2 A). */
+  stitchOnly?: boolean;
+  duetOnly?: boolean;
 }
 
 export const corpusKeys = {
@@ -32,7 +35,7 @@ export const corpusKeys = {
   count: (
     filters: Pick<
       VideoCorpusFilters,
-      "nicheId" | "contentClassIds" | "search" | "minViews" | "contentFormat"
+      "nicheId" | "contentClassIds" | "search" | "minViews" | "contentFormat" | "stitchOnly" | "duetOnly"
     >,
   ) => ["video_corpus", "count", filters] as const,
   /** All indexed videos for a niche — no search / views / format filters (hero, trust). */
@@ -52,13 +55,15 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
     search,
     minViews,
     contentFormat,
+    stitchOnly,
+    duetOnly,
   } = filters;
 
   return useInfiniteQuery({
     queryKey: corpusKeys.list(filters),
     queryFn: async ({ pageParam = 0 }) => {
       let query = supabase.from("video_corpus").select(
-        "id, video_id, tiktok_url, video_url, thumbnail_url, creator_handle, views, engagement_rate, content_type, content_format, content_class_id, ingest_loop_niche_id, indexed_at, likes, shares, comments, hook_phrase, breakout_multiplier, tone, cta_type, is_commerce, sound_name, creator_tier, posting_hour, video_duration",
+        "id, video_id, tiktok_url, video_url, thumbnail_url, creator_handle, views, engagement_rate, content_type, content_format, content_class_id, ingest_loop_niche_id, indexed_at, likes, shares, comments, hook_phrase, breakout_multiplier, tone, cta_type, is_commerce, sound_name, creator_tier, posting_hour, video_duration, is_stitch, is_duet",
       );
 
       query = applyBrowsableCorpusFilter(
@@ -84,6 +89,12 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
       }
       if (contentFormat) {
         query = query.eq("content_format", contentFormat);
+      }
+      if (stitchOnly) {
+        query = query.eq("is_stitch", true);
+      }
+      if (duetOnly) {
+        query = query.eq("is_duet", true);
       }
 
       const ascending = sortOrder === "asc";

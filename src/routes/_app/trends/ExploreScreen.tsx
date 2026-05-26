@@ -72,10 +72,14 @@ type CorpusRow = {
   creator_tier: string | null;
   posting_hour: number | null;
   video_duration?: number | null;
+  is_stitch?: boolean | null;
+  is_duet?: boolean | null;
 };
 
 function corpusMetadataChips(row: CorpusRow): string[] {
   const chips: string[] = [];
+  if (row.is_stitch === true) chips.push("Ghép clip");
+  if (row.is_duet === true) chips.push("Song ca");
   if (row.is_commerce === true) chips.push("Mua bán");
   const tier = row.creator_tier?.trim();
   if (tier) chips.push(tier);
@@ -470,6 +474,8 @@ export default function ExploreScreen() {
     : "indexed_at";
   const activeFormat = searchParams.get("format");
   const activeViewFilter = parsePositiveInt(searchParams.get("min_views"));
+  const stitchOnly = searchParams.get("stitch") === "1";
+  const duetOnly = searchParams.get("duet") === "1";
   const searchQuery = searchParams.get("q") ?? "";
   // PR-T7 — date filter pills (Hôm nay / 7 ngày). Maps to ``dateFrom``
   // on ``useVideoCorpus`` (filtered against ``indexed_at``). Not in
@@ -633,6 +639,8 @@ export default function ExploreScreen() {
     minViews: activeViewFilter ?? undefined,
     contentFormat: activeFormat ?? undefined,
     dateFrom: dateFromIso,
+    stitchOnly: stitchOnly || undefined,
+    duetOnly: duetOnly || undefined,
   });
 
   // Estimated total count for the current filter combination (head-only, no rows fetched).
@@ -649,6 +657,8 @@ export default function ExploreScreen() {
       search: searchQuery || undefined,
       minViews: activeViewFilter ?? undefined,
       contentFormat: activeFormat ?? undefined,
+      stitchOnly: stitchOnly || undefined,
+      duetOnly: duetOnly || undefined,
     }),
     queryFn: async () => {
       let q = applyBrowsableCorpusFilter(
@@ -660,6 +670,8 @@ export default function ExploreScreen() {
       if (searchQuery?.trim()) q = q.textSearch("search_vector", searchQuery.trim(), { config: "simple", type: "plain" });
       if (activeViewFilter != null) q = q.gte("views", activeViewFilter);
       if (activeFormat != null) q = q.eq("content_format", activeFormat);
+      if (stitchOnly) q = q.eq("is_stitch", true);
+      if (duetOnly) q = q.eq("is_duet", true);
       const { count, error } = await q;
       if (error) return null;
       return count;
@@ -1011,6 +1023,19 @@ export default function ExploreScreen() {
                     onClick={activeViewFilter !== opt.value ? () => setFilter({ min_views: String(opt.value) }) : undefined}
                   />
                 ))}
+
+                <KhoTogglePill
+                  label="Ghép clip"
+                  active={stitchOnly}
+                  onRemove={stitchOnly ? () => setFilter({ stitch: null }) : undefined}
+                  onClick={!stitchOnly ? () => setFilter({ stitch: "1" }) : undefined}
+                />
+                <KhoTogglePill
+                  label="Song ca"
+                  active={duetOnly}
+                  onRemove={duetOnly ? () => setFilter({ duet: null }) : undefined}
+                  onClick={!duetOnly ? () => setFilter({ duet: "1" }) : undefined}
+                />
 
                 <KhoTogglePill
                   label="Hôm nay"

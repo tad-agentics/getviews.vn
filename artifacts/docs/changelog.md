@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-05-26 — Wave 2 utilization (B + selective A)
+
+- **B:** `manifest_telemetry()` + `log_manifest_telemetry()` on v6 synthesis; `test_manifest_telemetry.py` section emit QA.
+- **A:** F6 Kho — `is_stitch`/`is_duet` filter toggles + card chips (`useVideoCorpus`, `ExploreScreen`).
+- **A:** Deleted dead `classMorningSignals.ts` (+ tests) — Morning Signal strip gỡ 2026-05-24.
+- **Docs:** `data-utilization-map-v1.md` v1.7 §12 utilization roadmap.
+
 ## 2026-05-23 — Housekeeping: doc sync + cross-niche test
 
 - **Docs:** `feature-map-v1.md` — §5 `ChannelAuditRingsPanel` (Vòng 0–4), §8.7/§13B launch gates synced với visual-audit + dogfood + pre-handoff PASS; bỏ user-facing `ConfidenceStrip` / Morning Signal strip refs.

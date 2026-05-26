@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 from collections import defaultdict
 
 from getviews_pipeline.signals.base import Evidence, Signal
@@ -27,6 +29,8 @@ from getviews_pipeline.signals.script import extract_script_signals
 from getviews_pipeline.signals.sound import extract_sound_signals
 from getviews_pipeline.signals.triggers import extract_trigger_signals
 from getviews_pipeline.signals.win import extract_win_signals
+
+logger = logging.getLogger(__name__)
 
 _EXTRACTORS = (
     extract_compliance_signals,
@@ -93,6 +97,48 @@ def build_signal_manifest(ctx: dict) -> dict[str, list[Signal]]:
         manifest["diagnosis"].sort(key=lambda s: -s.salience)
 
     return dict(manifest)
+
+
+def manifest_telemetry(
+    manifest: dict[str, list[Signal]],
+    *,
+    sections_to_emit: list[str] | None = None,
+) -> dict:
+    """Summarize fired signals + section emit coverage for ops / ablation (Wave 2 B)."""
+    signal_ids: list[str] = []
+    sections_with_signals: dict[str, int] = {}
+    for sid, signals in manifest.items():
+        sections_with_signals[sid] = len(signals)
+        signal_ids.extend(sig.id for sig in signals)
+
+    out: dict = {
+        "signal_count": len(signal_ids),
+        "signal_ids": signal_ids,
+        "sections_with_signals": sections_with_signals,
+    }
+    if sections_to_emit is not None:
+        out["sections_to_emit"] = sections_to_emit
+        out["sections_empty"] = [
+            sid for sid in sections_to_emit if not manifest.get(sid)
+        ]
+    return out
+
+
+def log_manifest_telemetry(
+    telemetry: dict,
+    *,
+    depth: str,
+    video_id: str | None = None,
+) -> None:
+    """Structured log line for Cloud Run log-based metrics (signal fire-rate sampling)."""
+    payload: dict = {
+        "event": "diagnosis_manifest_telemetry",
+        "depth": depth,
+        **telemetry,
+    }
+    if video_id:
+        payload["video_id"] = video_id
+    logger.info("%s", json.dumps(payload, ensure_ascii=False))
 
 
 def manifest_for_prompt(

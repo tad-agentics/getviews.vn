@@ -1382,7 +1382,9 @@ def _synthesize_diagnosis_v6_section_pool(
     from getviews_pipeline.signals.registry import (
         build_diagnosis_ctx,
         build_signal_manifest,
+        log_manifest_telemetry,
         manifest_for_prompt,
+        manifest_telemetry,
     )
 
     allowed = _allowed_aweme_ids(reference_videos)
@@ -1402,6 +1404,11 @@ def _synthesize_diagnosis_v6_section_pool(
     manifest = build_signal_manifest(ctx_dict)
     depth = "basic" if analysis_depth == "basic" else "deep"
     sections_ordered = select_sections_to_emit(manifest, ctx_dict, depth=depth)
+    log_manifest_telemetry(
+        manifest_telemetry(manifest, sections_to_emit=sections_ordered),
+        depth=depth,
+        video_id=str(user_stats.get("video_id") or "") or None,
+    )
     manifest_trim = manifest_for_prompt(manifest, depth=depth)
 
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
