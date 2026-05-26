@@ -1068,7 +1068,16 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 
 ### 5.5 Triết lý salience cho kênh (không phải “dùng V6”)
 
-**Trạng thái: ✅ Done (V1 + Wave 2 deep)** — audit 2026-05-23; `select_channel_sections_to_emit()` + `<<<SECTIONS TO EMIT>>>` + Vòng 1–4 UX + `PolicyRiskStrip`.
+**Trạng thái: ✅ Done (prod)** — shipped `c6ec9afa` (2026-05-23) · Cloud Run `getviews-pipeline-user-00182-fv9` · Vercel `main`.
+
+| Hạng mục | Evidence |
+|----------|----------|
+| Section gate BE | `select_channel_sections_to_emit()` + emit loop @ [`video.py`](../../cloud-run/getviews_pipeline/routers/video.py) |
+| Prompt gate | `<<<SECTIONS TO EMIT>>>` @ [`channel_diagnose_prompts.py`](../../cloud-run/getviews_pipeline/channel_diagnose_prompts.py) |
+| Findings tile | [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) — Vòng 1–4 hints; policy/account excluded from top strip (`summaryFindingsForStrip`) |
+| Optional memo tiles | [`PolicyRiskStrip`](../../src/routes/_app/channel/components/PolicyRiskStrip.tsx) @ `policy_risk` · [`AccountHealthStrip`](../../src/routes/_app/channel/components/AccountHealthStrip.tsx) @ `account_health` |
+| Tests | `test_channel_findings.py` (salience) · `test_channel_diagnose_endpoint.py::TestChannelSectionsSalience` · channel component vitest |
+| Deferred | Unify `ChannelFinding` ↔ `Signal`/`Evidence` — Wave 3+ |
 
 **Chốt product:** Mục tiêu là **triết lý salience** — chỉ surface insight khi có bằng chứng đủ mạnh, xếp hạng, cap vào prompt, gate section theo context — **không** phải reuse stack V6 (`SECTION_POOL`, `VideoBody`, synthesis từng section).
 
@@ -1091,7 +1100,7 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 | “Signal” | `build_signal_manifest` → ~40+ extractors, salience/section | **`build_channel_findings()`** (14 rules) + `select_channel_sections_to_emit()` — **không** gọi video manifest |
 | LLM | `synthesize_diagnosis_v6_section_pool` — **theo section** đã chọn | **Một** `GenerateContent` memo — `<<<SECTIONS TO EMIT>>>` + `<<<CHANNEL FINDINGS>>>` |
 | Output | `diagnosis_vi.sections[]` + `findings[]` JSON | Parse `=== section_id ===`; emit order = `select_channel_sections_to_emit()` |
-| FE | `DiagnosisSectionRenderer` / `VideoBody` | `SectionRenderer` + `ChannelFindingsStrip` + `PolicyRiskStrip` @ `policy_risk` |
+| FE | `DiagnosisSectionRenderer` / `VideoBody` | `SectionRenderer` + `ChannelFindingsStrip` + `PolicyRiskStrip` / `AccountHealthStrip` @ optional sections |
 | Biến thiên độ dài | `select_sections_to_emit` + salience | `select_channel_sections_to_emit` + trajectory + optional `account_health` / `policy_risk` |
 
 → Kênh = **memo tư vấn một lần**, salience-driven **findings + section gate** — không phải V6 section pool.
@@ -1106,7 +1115,7 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 | **Data aggregate** | Channel finding = roll-up N video — không phải `user_analysis` một lần extract |
 | **Đã ship** | Cache `channel_diagnoses`, SSE `score_card`, tests `test_channel_diagnose_*` — rewrite rủi ro cao |
 
-#### 5.5.3 As-built salience (Wave 2 deep — shipped)
+#### 5.5.3 As-built salience (Wave 2 deep — prod)
 
 ```mermaid
 flowchart LR
@@ -1125,7 +1134,7 @@ flowchart LR
 | Candidate pool | `build_signal_manifest` | `build_channel_findings()` — `taxonomy_ref` V5 §2 |
 | Gate | `applies()` + ngưỡng salience/section | `select_channel_sections_to_emit()` + trajectory |
 | Cap vào LLM | `manifest_for_prompt` 3/5 | `<<<CHANNEL FINDINGS>>>` top 8 salience |
-| Render | V6 sections + `VideoBody` | **Memo SSE** + `ChannelFindingsStrip` + `PolicyRiskStrip` |
+| Render | V6 sections + `VideoBody` | **Memo SSE** + `ChannelFindingsStrip` (summary strip + Vòng hints) + `PolicyRiskStrip` / `AccountHealthStrip` |
 | Mở rộng | Thêm extractor → `section_id` | Thêm rule → `finding.id`; optional `account_health` / `policy_risk` |
 
 **Chia sẻ code (surgical):**
@@ -1136,9 +1145,17 @@ flowchart LR
 
 **Không port:** `SECTION_POOL`, `VideoBody`, per-section v6 synthesis.
 
-#### 5.5.4 Phạm vi V1 + Wave 2
+#### 5.5.4 Phạm vi V1 + Wave 2 — acceptance
 
-**§5.3 C1–C3 + Wave 2 deep** = kênh Chuyên sâu salience-native theo V5 Phần 2. Vòng 1–4 audit hints @ `ChannelFindingsStrip`; compliance tile @ `PolicyRiskStrip`. Unify `ChannelFinding` ↔ `Signal` deferred.
+**§5.3 C1–C3 + Wave 2 deep** = kênh Chuyên sâu salience-native theo V5 Phần 2.
+
+- [x] `select_channel_sections_to_emit()` — trajectory + finding hints + `peer_source=thin` landscape skip — ✅ `c6ec9afa`
+- [x] `what_falling` chỉ emit khi không có finding **hoặc** có finding `section_hint=what_falling` — ✅ audit C1
+- [x] `<<<SECTIONS TO EMIT>>>` trong prompt + emit order khớp salience — ✅ BE + endpoint test
+- [x] Vòng 1–4 audit hints @ `ChannelFindingsStrip` (`channelFindingGroups.ts`) — ✅
+- [x] Compliance / account findings không duplicate trên top strip — ✅ `summaryFindingsForStrip`
+- [x] `PolicyRiskStrip` @ `policy_risk` · `AccountHealthStrip` @ `account_health` — ✅
+- [ ] Unify `ChannelFinding` ↔ `Signal`/`Evidence` — deferred Wave 3+
 
 ---
 
