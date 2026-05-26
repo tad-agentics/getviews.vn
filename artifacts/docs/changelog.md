@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — §5.3 Channel deep findings doc + Vòng 1 copy
+
+- **Docs:** `feature-map-v1.md` §5.3.1–§5.3.2 refreshed to as-built (14/14 finding IDs, three consumer layers A / A′ / B).
+- **FE:** `ChannelFindingsStrip` Vòng 1 footnote when `channel_view_ceiling_300` or `channel_boost_outlier_share` present (Account Status — no FYP % claim).
+
 ## 2026-05-23 — §5.1 Channel Intelligence gaps (force_refresh, depth, findings tile)
 
 - **`POST /channel/diagnose`:** `force_refresh=1` bypasses 7-day `channel_diagnoses` cache (fresh run charges 3 credits; replay stays 0 credit).

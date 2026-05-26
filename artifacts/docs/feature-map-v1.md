@@ -972,26 +972,31 @@ flowchart LR
 
 #### 5.3.1 Đã có (as-built) vs V5 §2
 
-| V5 §2 | F4 hôm nay | Độ phủ |
-|-------|------------|--------|
-| **2.2 Niche inconsistency** | `derive_channel_persona`, `channel_pattern.formats`, trajectory `bursty` / `stagnant` | **Một phần** — format mix + inflection, chưa entropy “tạp nham” |
-| **2.2 Audience mismatch** | `decline_from_peak`, `what_falling`, so sánh recent vs peak | **Một phần** — không đo Following traffic |
-| **2.3 Format saturation** | `competitive_landscape` + peers + `video_patterns` / corpus | **Một phần** — qua peer gap, chưa % format trùng top 20 ngách |
-| **2.5 Persona / signature** | `channel_persona`, `score_card.category_label`, cadence | **Một phần** — chưa profile-visit proxy |
-| **2.5 Slang staleness** | — | **Chưa** — cần aggregate `persona_slang_dated` từ corpus extract |
-| **2.4 Compliance (kênh)** | — (video-level `compliance` signals) | **Chưa ở tầng kênh** |
-| **2.1 Shadowban / bot / device** | — | **Chưa** — chỉ proxy view ceiling |
-| **2.3 Mega Sale cannibalization** | — | **Chưa** — cần lịch sale + view dip theo tuần |
-| **Audit flow Vòng 0–4** | trajectory + score card | **Một phần** — chưa map “kẹt 300 = Vòng 1” |
+**Trạng thái: ✅ Done (V1 core)** — audit 2026-05-23; §5.3.1 refreshed + Vòng 1 copy @ findings tile.
+
+| V5 §2 | F4 as-built | Độ phủ | Finding / surface |
+|-------|-------------|--------|-------------------|
+| **2.1 Shadowban / bot / device** | Proxy only — không FYP % | **⚠️ Proxy** | `channel_view_ceiling_300`, `channel_boost_outlier_share` → `ChannelFindingsStrip` + optional `account_health` SSE |
+| **2.2 Niche inconsistency** | Entropy + drift + narrative | **✅ Mostly** | `channel_format_entropy_high`, `channel_persona_drift`, trajectory `bursty`/`stagnant` |
+| **2.2 Audience mismatch** | Recent vs peak ER/views | **⚠️ Partial** | `channel_recent_vs_peak_er_drop` + `what_falling`; không Following traffic |
+| **2.3 Format saturation** | Peer corpus % rule | **✅ Mostly** | `channel_peer_format_saturation` (≥70% top 7d) + `competitive_landscape` |
+| **2.3 Mega Sale cannibalization** | Static ICT sale window | **✅ Shipped (P2)** | `channel_mega_sale_dip` |
+| **2.4 Compliance (kênh)** | Corpus roll-up | **✅ Shipped (P1)** | `channel_compliance_aggregate` + restricted / ad-law / mute → `policy_risk` SSE |
+| **2.5 Persona / signature** | Persona + score card + drift | **⚠️ Partial–Mostly** | `channel_persona`, cadence/hour findings; chưa profile-visit proxy |
+| **2.5 Slang staleness** | Corpus `slang_freshness_score` | **✅ Data-dependent** | `channel_slang_staleness` — fire khi batch extract có field |
+| **Audit flow Vòng 0–4** | Trajectory + score card + findings | **⚠️ Partial UX** | Vòng 1 hint khi ceiling finding (`ChannelFindingsStrip` footnote); chưa full Vòng 2–4 map |
+
+**14/14 finding IDs** trong [`channel_findings.py`](../../cloud-run/getviews_pipeline/channel_findings.py) — chi tiết phase @ §5.3.3. Deep UI: [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) (SSE `channel_findings`, cache `20260830000002`).
 
 #### 5.3.2 Cơ chế bổ sung (không đổi UX shell)
 
-Hai lớp — giống tinh thần “dày signal” video nhưng implement khác:
+**Trạng thái: ✅ Done (V1 core)** — audit 2026-05-23. Ba consumer cùng nguồn `build_channel_findings()` — giống tinh thần “dày signal” video nhưng implement khác:
 
 | Lớp | Cách làm F4 | Consumer |
 |-----|-------------|----------|
-| **A — Deterministic `channel_findings[]`** | Python trước Gemini: rule + số → inject `<<<CHANNEL FINDINGS>>>` trong prompt | `verdict`, `what_falling`, `recommendations` |
-| **B — Section SSE mới (tùy chọn)** | Parser thêm `=== account_health ===`, `=== policy_risk ===` khi có finding | FE `SectionRenderer` |
+| **A — Prompt inject** | `format_findings_for_prompt()` → `<<<CHANNEL FINDINGS>>>` trong `channel_diagnose_prompts.py` (top 8) | LLM memo: `verdict`, `what_falling`, `recommendations` |
+| **A′ — SSE tile** | `serialize_findings_for_api()` → event `channel_findings`; persist JSONB @ `20260830000002` | FE [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) (Vòng 1 footnote khi ceiling/boost) |
+| **B — Section SSE (tùy chọn)** | `optional_memo_sections_from_findings()` gate; prompt yêu cầu `=== account_health ===` / `=== policy_risk ===`; `_parse_sections_from_narrative`; fallback `synthesize_optional_section_from_findings()` nếu LLM bỏ sót | FE `SectionRenderer` (prose generic — chưa tile riêng compliance) |
 
 **Không** fork sang V6 `VideoBody` — channel giữ memo SSE.
 

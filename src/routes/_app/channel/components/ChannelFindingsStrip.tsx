@@ -6,9 +6,20 @@ const STRENGTH_LABEL: Record<string, string> = {
   low: "Nhẹ",
 };
 
+/** V5 audit Vòng 1 — account distribution ceiling (not full shadowban claim). */
+const ACCOUNT_HEALTH_FINDING_IDS = new Set([
+  "channel_view_ceiling_300",
+  "channel_boost_outlier_share",
+]);
+
+const VONG1_ACCOUNT_HINT =
+  "Vòng 1 (sức khỏe tài khoản): nếu nhiều video kẹt ~300 view, mở TikTok → Cài đặt → Account Status. GetViews không đọc FYP %.";
+
 /** Deep diagnosis — evidence-backed findings tile (§5.1 / V5 §2). */
 export function ChannelFindingsStrip({ findings }: { findings: ChannelDiagnosisFinding[] }) {
   if (findings.length === 0) return null;
+
+  const showVong1Hint = findings.some((f) => ACCOUNT_HEALTH_FINDING_IDS.has(f.finding_id));
 
   return (
     <div
@@ -31,6 +42,9 @@ export function ChannelFindingsStrip({ findings }: { findings: ChannelDiagnosisF
           </li>
         ))}
       </ul>
+      {showVong1Hint ? (
+        <p className="mb-0 mt-3 text-[11px] leading-snug text-[color:var(--gv-ink-3)]">{VONG1_ACCOUNT_HINT}</p>
+      ) : null}
     </div>
   );
 }
