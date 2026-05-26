@@ -1,8 +1,8 @@
 # Product Vision V1 — GetViews.vn
 
 **Version:** 2.0 — **FINAL (GTM scope)**  
-**Last updated:** 2026-05-24 (vision correction — composer pill channel, không khối Studio riêng)  
-**Codebase ref:** 2026-05-24 — composer pill channel (Option A) shipped; `/app/channel` full page  
+**Last updated:** 2026-05-23 (§5 Vòng panel · §7 F7 scene intel · doc sync)  
+**Codebase ref:** 2026-05-23 — `cf05ddc8` channel audit rings + `b49e6b3d` script scene intel  
 **Status:** W0–W5 ✅ · Channel UX ✅ — composer pill **Khám Kênh** → `/app/channel` full page
 
 > **Pivot SSOT (2026-05-21+, prod defaults ON):** Class-first ingest/browse/benchmark — [`system-design.md`](system-design.md) §9. **`content_class_intelligence`** + tier/stats MVs canonical; legacy `niche_intelligence` refresh **skipped** in prod (bridge only for unmigrated percentile paths).
@@ -950,7 +950,7 @@ flowchart LR
 |---|-------------------|----------------------|
 | **Use case** | “Kênh @x đang thế nào?” trước khi follow | Audit kênh mình / đối thủ cho brief |
 | **Input** | `@handle` | `@handle` + optional `video_url`, `force_refresh` |
-| **Output** | Median views, ER, cadence vs ngách (`ChannelBenchmarkStrip`); findings teaser; optional breakout tile | Score card v2, peers, narrative SSE, trajectory + **`ChannelFindingsStrip`** (V5 §2) |
+| **Output** | Median views, ER, cadence vs ngách (`ChannelBenchmarkStrip`); findings teaser; optional breakout tile | Score card v2, peers, narrative SSE, trajectory + **`ChannelAuditRingsPanel`** (Vòng 0–4) |
 | **Cache** | Corpus rollup only (no full SSE) | `channel_diagnoses` **7 ngày**; replay **0 credit**; `force_refresh=1` bypasses cache + **3 credit** fresh |
 | **Billing (§10)** | **0×** (Launch Phase 1 D2) | **3×** `decrement_credit` on cache miss — ✅ FE/BE aligned @ W0-1 |
 | **Trạng thái code** | ✅ pill **Khám Kênh** → `/app/channel` quick-peek + `ChannelBenchmarkStrip` | ✅ pill / intent → `/app/channel?depth=deep` SSE memo + findings tile |
@@ -962,7 +962,7 @@ flowchart LR
 | ID | Tên | Tier | Trạng thái | Evidence |
 |----|-----|------|------------|----------|
 | **F4** | Soi kênh Sâu | Deep | ✅ | [`ChannelScreen`](../../src/routes/_app/channel/ChannelScreen.tsx) + `POST /channel/diagnose` SSE |
-| **F5** | Soi kênh Nhanh | Basic | ✅ | `GET /channel/quick-peek` + strip; Trends peek W5-4 @ `98814cbf` |
+| **F5** | Soi kênh Nhanh | Basic | ✅ | `GET /channel/quick-peek` + strip; Trends peek W5-4 @ `98814cb` |
 
 ### 5.3 V5 Phần 2 (Channel) → Soi kênh Chuyên sâu (F4)
 
@@ -976,7 +976,7 @@ flowchart LR
 
 | V5 §2 | F4 as-built | Độ phủ | Finding / surface |
 |-------|-------------|--------|-------------------|
-| **2.1 Shadowban / bot / device** | Proxy only — không FYP % | **⚠️ Proxy** | `channel_view_ceiling_300`, `channel_boost_outlier_share` → `ChannelFindingsStrip` + optional `account_health` SSE |
+| **2.1 Shadowban / bot / device** | Proxy only — không FYP % | **⚠️ Proxy** | `channel_view_ceiling_300`, `channel_boost_outlier_share` → Vòng 1 @ `ChannelAuditRingsPanel` + optional `account_health` SSE |
 | **2.2 Niche inconsistency** | Entropy + drift + narrative | **✅ Mostly** | `channel_format_entropy_high`, `channel_persona_drift`, trajectory `bursty`/`stagnant` |
 | **2.2 Audience mismatch** | Recent vs peak ER/views | **⚠️ Partial** | `channel_recent_vs_peak_er_drop` + `what_falling`; không Following traffic |
 | **2.3 Format saturation** | Peer corpus % rule | **✅ Mostly** | `channel_peer_format_saturation` (≥70% top 7d) + `competitive_landscape` |
@@ -986,7 +986,7 @@ flowchart LR
 | **2.5 Slang staleness** | Corpus `slang_freshness_score` | **✅ Data-dependent** | `channel_slang_staleness` — fire khi batch extract có field |
 | **Audit flow Vòng 0–4** | Trajectory + score card + findings | **✅ Done (V1 core)** | [`ChannelAuditRingsPanel`](../../src/routes/_app/channel/components/ChannelAuditRingsPanel.tsx) — 5 ring stepper + finding teasers + KPI copy; hiện khi có `score_card` hoặc findings |
 
-**14/14 finding IDs** trong [`channel_findings.py`](../../cloud-run/getviews_pipeline/channel_findings.py) — chi tiết phase @ §5.3.3. Deep UI: [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) (SSE `channel_findings`, cache `20260830000002`).
+**14/14 finding IDs** trong [`channel_findings.py`](../../cloud-run/getviews_pipeline/channel_findings.py) — chi tiết phase @ §5.3.3. Deep UI: [`ChannelAuditRingsPanel`](../../src/routes/_app/channel/components/ChannelAuditRingsPanel.tsx) (SSE `channel_findings`, cache `20260830000002`).
 
 #### 5.3.2 Cơ chế bổ sung (không đổi UX shell)
 
@@ -1023,7 +1023,7 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 | **P2** | `channel_persona_drift` | §2.5 cross-niche drift | `content_class` đổi ≥2 lần 90d **hoặc** ≥2 video `persona_consistency` drift (backdrop/costume/catchphrase/camera/speech) |
 | **P2** | `channel_slang_staleness` | §2.5 slang | ≥2 video handle corpus `analysis_json.slang_freshness_score == "dated"` — **data-dependent** batch extract |
 
-**Copy (§4.7.0):** claim P0 ceiling (as-built) — *“{n} video gần đây kẹt dưới ~300 view với ER thấp — **có dấu hiệu** trần phân phối tài khoản; GetViews không đọc được FYP %.”* Vòng 1 UX: [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) footnote → TikTok Account Status.
+**Copy (§4.7.0):** claim P0 ceiling (as-built) — *“{n} video gần đây kẹt dưới ~300 view với ER thấp — **có dấu hiệu** trần phân phối tài khoản; GetViews không đọc được FYP %.”* Vòng 1 UX: [`ChannelAuditRingsPanel`](../../src/routes/_app/channel/components/ChannelAuditRingsPanel.tsx) + [`AccountHealthStrip`](../../src/routes/_app/channel/components/AccountHealthStrip.tsx) → TikTok Account Status.
 
 #### 5.3.4 Map finding → narrative sections
 
@@ -1100,7 +1100,7 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 | “Signal” | `build_signal_manifest` → ~40+ extractors, salience/section | **`build_channel_findings()`** (14 rules) + `select_channel_sections_to_emit()` — **không** gọi video manifest |
 | LLM | `synthesize_diagnosis_v6_section_pool` — **theo section** đã chọn | **Một** `GenerateContent` memo — `<<<SECTIONS TO EMIT>>>` + `<<<CHANNEL FINDINGS>>>` |
 | Output | `diagnosis_vi.sections[]` + `findings[]` JSON | Parse `=== section_id ===`; emit order = `select_channel_sections_to_emit()` |
-| FE | `DiagnosisSectionRenderer` / `VideoBody` | `SectionRenderer` + `ChannelFindingsStrip` + `PolicyRiskStrip` / `AccountHealthStrip` @ optional sections |
+| FE | `DiagnosisSectionRenderer` / `VideoBody` | `SectionRenderer` + `ChannelAuditRingsPanel` + `PolicyRiskStrip` / `AccountHealthStrip` @ optional sections |
 | Biến thiên độ dài | `select_sections_to_emit` + salience | `select_channel_sections_to_emit` + trajectory + optional `account_health` / `policy_risk` |
 
 → Kênh = **memo tư vấn một lần**, salience-driven **findings + section gate** — không phải V6 section pool.
@@ -1134,7 +1134,7 @@ flowchart LR
 | Candidate pool | `build_signal_manifest` | `build_channel_findings()` — `taxonomy_ref` V5 §2 |
 | Gate | `applies()` + ngưỡng salience/section | `select_channel_sections_to_emit()` + trajectory |
 | Cap vào LLM | `manifest_for_prompt` 3/5 | `<<<CHANNEL FINDINGS>>>` top 8 salience |
-| Render | V6 sections + `VideoBody` | **Memo SSE** + `ChannelFindingsStrip` (summary strip + Vòng hints) + `PolicyRiskStrip` / `AccountHealthStrip` |
+| Render | V6 sections + `VideoBody` | **Memo SSE** + `ChannelAuditRingsPanel` (Vòng 0–4) + `PolicyRiskStrip` / `AccountHealthStrip` |
 | Mở rộng | Thêm extractor → `section_id` | Thêm rule → `finding.id`; optional `account_health` / `policy_risk` |
 
 **Chia sẻ code (surgical):**
@@ -1381,8 +1381,8 @@ Chi tiết FIELD × feature: [`data-utilization-map-v1.md`](data-utilization-map
 | Surface | ID | Data batch đã trả | Gate pre-launch |
 |---------|-----|-------------------|-----------------|
 | **Xu hướng — Công thức** | F6 | `video_patterns` | Mỗi **ngách hero** ≥ 1 pattern có mechanism + ví dụ; không card rỗng |
-| **Xu hướng — Kho** | F6 | `video_corpus` promote cols | Filter/search; `ConfidenceStrip` đúng tier §8.3 |
-| **Studio — Gợi ý** | STU | `daily_ritual`, `content_class_intelligence`, breakout | Cron `morning-ritual` OK; tier I = Morning Signal + ritual; tier III = within-niche breakouts; preview tier I–III trên staging |
+| **Xu hướng — Kho** | F6 | `video_corpus` promote cols | Filter/search; copy khiêm tốn theo `claim_tiers` §8.3 (không user `ConfidenceStrip`) |
+| **Studio — Gợi ý** | STU | `daily_ritual`, `content_class_intelligence`, breakout | Cron `morning-ritual` OK; tier I = 3 kịch bản ritual (`daily_ritual`); tier III = within-niche breakouts; preview tier I–III trên staging |
 | **Hook / format chips** | F6/STU | `hook_effectiveness`, `content_class_hook_effectiveness`, `content_class_intelligence` | Thin → copy khiêm tốn; **`content_class_intelligence`** primary; `niche_intelligence` bridge only (MV refresh off in prod) |
 
 #### Tầng 2 — Aggregate từ corpus (Gemini **rẻ** hơn vision — tận dụng blob)
@@ -1526,13 +1526,13 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 
 - [x] Mở app → **Tab Studio** mặc định; **Gợi ý hôm nay** 3 tầng render (§3.1.1)  
 - [x] Tab Xu hướng → **Công thức viral** + **Kho video** (§3.2.1) không regress layout  
-- [x] Studio tier I → Morning Signal + ritual/script; tier III within-niche breakouts → `/app/trends`  
+- [x] Studio tier I → 3 kịch bản ritual; tier III within-niche breakouts → `/app/trends`  
 - [x] Cross-niche lane on Trends (`CrossNicheBreakoutLane`, Wave 3b)  
 - [x] Class-first browse + junction filter (Phase C; `applyVideoCorpusNicheFilter`)  
 - [x] HI-11 `route` in prod; taxonomy v2 migrated (**16 × 82**)  
 - [x] TD-7: batch ingest và on-demand extract cùng contract (wave sign-off baseline)  
 - [x] `peer_percentile` UI — `FlopDiagnosisStrip` reads payload (`VideoBody.tsx`)  
-- [x] **§8.7:** Studio tier I–III render on staging (`daily_ritual` + Morning Signal + breakout); cron nightly SLA  
+- [x] **§8.7:** Studio tier I–III render on staging (`daily_ritual` + breakout lane); cron nightly SLA  
 
 ### 13B — Launch gate (infra ✅ @ `b479f64`; GTM human gates open)
 
@@ -1547,7 +1547,7 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [x] Script turn — `SceneIntelligencePanel` khi có nightly `scene_intelligence` khớp shot — ✅ `b49e6b3d`
 - [x] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier — ✅ Launch Phase 0 (`launch-phase0-corpus-health.json`; `api/chat.ts` humility sweep)
 - [x] **§8.7:** 5–8 ngách hero đạt tier tối thiểu `reference_pool` (≥5 video/30d); ưu tiên `niche_norms` / `hook_effectiveness` cho ngách launch — ✅ G3 IDs 1,2,3,4,5,8,9,11 @ `trend_delta` (`launch-phase0-g3-hero.json`, `launch-phase0-corpus-health.json`)
-- [x] **§8.7:** Xu hướng — mỗi ngách hero có ≥1 `video_patterns` card không rỗng; Kho + `ConfidenceStrip` khớp tier — ✅ Phase 0 QA (`launch-phase0-baseline.json`; thin heroes none)
+- [x] **§8.7:** Xu hướng — mỗi ngách hero có ≥1 `video_patterns` card không rỗng; Kho copy khớp `claim_tiers` — ✅ Phase 0 QA (`launch-phase0-baseline.json`; thin heroes none)
 - [x] **§8.7:** ≥1 URL corpus-hit → Answer Cơ bản (demo) — chứng minh synthesis path, không yêu cầu mass on-demand pre-launch — ✅ `launch-gate-demo.json` (`@lynguyn.2002/video/7622669408665652488`)
 - [x] Channel FE/BE credit aligned — ✅ W0-1 (3×)
 - [x] §4.7: reference peers `reference_eligible`; boost section chỉ Chuyên sâu; không claim ads poisoning từ heuristic alone — ✅ W4-2/W4-4 @ `9b97207`
@@ -1561,7 +1561,10 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [x] **W5-3:** `key_messages[]` trim — extraction schema — ✅ @ `65e4145` (G6 ablation metrics deferred)
 - [x] **W5-4:** F5 channel quick peek on Trends card — ✅ @ `98814cb`
 - [x] **W5-5:** GTM copy + §13B sweep — ✅ @ `680c803`
-- [ ] `/visual-audit`, `/dogfood`, `/pre-handoff`, `/deploy` (Vercel SPA) — **human gates** (`launch-phase3-baseline.json`)
+- [x] `/visual-audit` — PASS @ `visual-audit-launch-2026-05-23.md` (0 BLOCKING)
+- [x] `/dogfood` — SHIP @ `dogfood-report.md` (human sign-off 2026-05-23)
+- [x] `/pre-handoff` — PASS @ `pre-handoff-baseline.json` (`b479f64`)
+- [ ] `/deploy` (Vercel SPA) — **human gate** (`launch-phase3-baseline.json`)
 
 ---
 
@@ -1588,7 +1591,7 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 
 | Layer | File / area | V1 change |
 |-------|-------------|-----------|
-| **Two-axis FE (✅ shipped)** | [`corpusNicheFilter.ts`](../../src/lib/corpusNicheFilter.ts), [`useClassMorningSignals.ts`](../../src/hooks/useClassMorningSignals.ts), [`useCrossNicheBreakouts.ts`](../../src/hooks/useCrossNicheBreakouts.ts), [`useTopBreakouts.ts`](../../src/hooks/useTopBreakouts.ts) | Class-first browse; Morning Signal; cross-niche + within-niche breakouts |
+| **Two-axis FE (✅ shipped)** | [`corpusNicheFilter.ts`](../../src/lib/corpusNicheFilter.ts), [`useClassMorningSignals.ts`](../../src/hooks/useClassMorningSignals.ts), [`useCrossNicheBreakouts.ts`](../../src/hooks/useCrossNicheBreakouts.ts), [`useTopBreakouts.ts`](../../src/hooks/useTopBreakouts.ts) | Class-first browse; class intel hook (strip gỡ Home 2026-05-24); cross-niche + within-niche breakouts |
 | BE pipeline | [`diagnose_sections.py`](../../cloud-run/getviews_pipeline/diagnose_sections.py) | `BASIC_SECTION_ALLOWLIST`, `select_sections_to_emit(..., depth=)` — ✅ W3 |
 | BE synthesis | [`gemini.py`](../../cloud-run/getviews_pipeline/gemini.py) | Pass `depth` → `manifest_for_prompt` cap 3/5 |
 | BE salience | [`signals/salience.py`](../../cloud-run/getviews_pipeline/signals/) (hoặc mới) | `manifest_for_prompt(depth)` |
@@ -1616,7 +1619,7 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 
 - [x] Pipeline Win riêng? → **Không** (§4.9)  
 - [x] Xu hướng freeze? → **Công thức + Kho video** giữ nguyên (§3.2.1)  
-- [x] Studio freeze? → **Gợi ý hôm nay** 3 tầng (§3.1.1) — Morning Signal + within/cross-niche distinction documented  
+- [x] Studio freeze? → **Gợi ý hôm nay** 3 tầng (§3.1.1) — ritual tier I + within/cross-niche distinction documented  
 - [x] Two-axis browse shipped under UI freeze? → **Yes** (class MV, junction filter, CrossNiche lane)  
 - [x] Cross-niche ≠ Home Tier III? → **Yes** (§3.1.1, §3.2.2)  
 - [x] Handoff spec? → **`depth=basic` + `mode=win`** (§4.10) — ✅ W1-1 wired  

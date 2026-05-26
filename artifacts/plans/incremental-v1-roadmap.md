@@ -346,7 +346,7 @@ Baseline extract → signal → UI map. **Depth:** F2 vs F1 rules in **§5.3** (
 | `commerce_intent.*` | `commerce_*` | `commerce` | `DiagnosisSectionRenderer` — **F1 deep only**; F2 → locked upsell (§5.3) | ✅ maintain |
 | `target_audience`, `pain_points`, `style_tags`, `promotion_type`, `tone` | persona / enrichment | sidebar context | `ContextStrip` via `report.enrichment` + `videoToneVi` | ✅ maintain |
 | `scenes[]` (video extract) | editing signals | `editing` | BE segments + v6 `editing` prose when **F1 deep** | ✅ maintain |
-| `scene_intelligence` (F7 corpus) | nightly batch | F7 script | `SceneIntelligencePanel` — **unwired**; see **feature-map F7 partial** (not §5.1 video path) | ⏸ F7 backlog |
+| `scene_intelligence` (F7 corpus) | nightly batch | F7 script | `SceneIntelligencePanel` wired in `ScriptBody` via `useSceneIntelligence` @ `b49e6b3d` (not §5.1 video `scenes[]`) | ✅ F7 |
 | `performance_tier` + corpus stats | performance signals | `diagnosis` | `PerformanceTierChip`, `FlopDiagnosisStrip`, `KpiGrid` | ✅ maintain |
 | `reference_videos` + proximity | `niche_reference_anchor` | `niche_pattern` | `VideoTileRow` / `EvidenceVideoEmbed` / `FormatCardsGrid`; `reference_eligible` pool filter | ✅ maintain |
 | `douyin_*` (on-demand) | `douyin_origin_*` | `douyin_origin` | v6 section when `douyin_match` populates extract — **F1 deep only** (not Douyin browse `KHO_*` flag) | ✅ maintain |
@@ -394,7 +394,7 @@ As-built: **memo SSE** — `classify_trajectory`, `compute_score_card`, `build_c
 | Corpus by handle | `channel_pattern`, competitive_landscape | Pattern prompt blocks + peers | ✅ @ `78999fa` + `9b97207` — `build_channel_pattern`; corpus peers (`reference_eligible`); `competitive_landscape` → `CreatorTileRow` |
 | `niche_channel_benchmarks` | percentiles in score card | KPI grid (`ScoreCard`) | ✅ @ `78999fa` — `compute_score_card` → `~Pn` + cadence/peak rows |
 | **`channel_findings.py`** (W4-1) | P0×4 findings → `<<<CHANNEL FINDINGS>>>` prompt inject | Evidence-backed memo sections | ✅ @ `9b97207` — `build_channel_findings` → `format_findings_for_prompt` |
-| Quick-peek `channel_summary` + `niche_benchmarks` | Percentile bars on Studio | `ChannelBenchmarkStrip` @ §6 | ✅ @ `37831b05` (BE quick-peek fields @ `98814cbf`) — Nhanh on `/app` |
+| Quick-peek `channel_summary` + `niche_benchmarks` | Percentile bars on Studio | `ChannelBenchmarkStrip` @ §6 | ✅ @ `37831b05` (BE quick-peek fields @ `98814cb`) — Nhanh on `/app` |
 | Gemini memo | `verdict`, `what_falling`, `what_worked`, `recommendations` | `SectionRenderer` | ✅ @ `78999fa` — Sâu SSE on Studio @ `37831b05` |
 
 **Note:** Channel memo has no separate `channel_pattern` section_id (unlike video F1) — pattern stats feed prompt blocks (`<<<FORMAT PERFORMANCE>>>`) and findings, not a standalone heading.

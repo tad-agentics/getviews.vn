@@ -1,5 +1,19 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — Housekeeping: doc sync + cross-niche test
+
+- **Docs:** `feature-map-v1.md` — §5 `ChannelAuditRingsPanel` (Vòng 0–4), §8.7/§13B launch gates synced với visual-audit + dogfood + pre-handoff PASS; bỏ user-facing `ConfidenceStrip` / Morning Signal strip refs.
+- **Docs:** `incremental-v1-roadmap.md` — F7 `SceneIntelligencePanel` wired @ `b49e6b3d`.
+- **Test:** `useCrossNicheBreakouts.test.ts` — mock `.eq("reference_eligible")` + eligible/fallback merge path.
+
+## 2026-05-23 — F7 Script scene intelligence wired
+
+- **FE:** `useSceneIntelligence` + `ScriptBody` merge nightly `scene_intelligence` into shots; `SceneIntelligencePanel` when `intel_scene_type` matches @ `b49e6b3d`.
+
+## 2026-05-23 — Channel Vòng 0–4 audit rings panel
+
+- **FE:** `ChannelAuditRingsPanel` — 5-ring stepper (compliance → audience); `channelFindingGroups.ts` ring split; `ChannelFindingsStrip` delegates @ `d37a99e8`.
+
 ## 2026-05-23 — §5.5 Channel salience Wave 2 deep
 
 - **BE:** `select_channel_sections_to_emit()` gates memo SSE; prompt `<<<SECTIONS TO EMIT>>>`; wired in `/channel/diagnose`.
