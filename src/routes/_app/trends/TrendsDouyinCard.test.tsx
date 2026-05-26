@@ -55,7 +55,7 @@ describe("TrendsDouyinCard", () => {
   it("renders the kicker, count-less mid-line, and caption when feed/patterns are empty", () => {
     const { getByText } = wrap();
     expect(getByText(/TÍN HIỆU SỚM · DOUYIN → VN/)).toBeTruthy();
-    expect(getByText(/Pattern đang nổ ở TQ · video đã sub VN/)).toBeTruthy();
+    expect(getByText(/Công thức thịnh hành ở TQ · video đã dịch phụ đề/)).toBeTruthy();
     expect(getByText(/Đi trước VN 4–10 tuần · không cần VPN/)).toBeTruthy();
   });
 
@@ -68,7 +68,7 @@ describe("TrendsDouyinCard", () => {
     });
     const { getByText } = wrap();
     expect(
-      getByText(/3 pattern đang nổ ở TQ · 16 video đã sub VN/),
+      getByText(/3 công thức thịnh hành ở TQ · 16 video đã dịch phụ đề/),
     ).toBeTruthy();
   });
 

@@ -28,7 +28,7 @@ function Tile({ v }: { v: CrossNicheBreakout }) {
           @{v.creator_handle}
         </p>
         <p className="font-[family-name:var(--gv-font-mono)] text-[11px] text-[color:var(--gv-ink-3)]">
-          {formatViews(v.views)} view
+          {formatViews(v.views)} lượt xem
         </p>
       </div>
     </a>
@@ -48,10 +48,10 @@ export const CrossNicheBreakoutLane = memo(function CrossNicheBreakoutLane({
   return (
     <section className="mb-8" data-testid="cross-niche-breakout-lane">
       <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]">
-        Format đang nổi ở ngách khác
+        Định dạng đang thịnh hành ở ngách khác
       </p>
       <p className="mb-3 text-sm text-[color:var(--gv-ink-2)]">
-        3 video breakout khác ngách/format so với junction của bạn — tham khảo góc quay, không phải rail 7 ngày trong ngách.
+        3 video bứt phá ở các ngách khác ngoài ngách của bạn — tham khảo góc quay và phong cách thể hiện để tìm kiếm ý tưởng mới.
       </p>
       <div className="grid grid-cols-3 gap-3">
         {tiles.map((v) => (

@@ -60,9 +60,9 @@ describe("TrendsPatternGrid", () => {
     const { getByText } = render(
       <TrendsPatternGrid patternScope={sampleScope} legacyNicheId={4} />,
     );
-    expect(getByText(/Phần I — Pattern/)).toBeTruthy();
-    expect(getByText(/Công thức từ video view cao trong ngách/)).toBeTruthy();
-    expect(getByText(/Chạm thẻ để xem công thức đầy đủ/)).toBeTruthy();
+    expect(getByText(/Phần I — Công thức Hook/)).toBeTruthy();
+    expect(getByText(/Công thức từ video thịnh hành trong ngách/)).toBeTruthy();
+    expect(getByText(/Bấm vào thẻ để xem kịch bản chi tiết/)).toBeTruthy();
   });
 
   it("renders one card per pattern", () => {
@@ -91,6 +91,6 @@ describe("TrendsPatternGrid", () => {
     const { getByText } = render(
       <TrendsPatternGrid patternScope={sampleScope} legacyNicheId={4} />,
     );
-    expect(getByText(/chưa có công thức lift cao/)).toBeTruthy();
+    expect(getByText(/chưa phát hiện công thức hook bứt phá/)).toBeTruthy();
   });
 });

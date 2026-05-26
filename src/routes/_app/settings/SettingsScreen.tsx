@@ -36,10 +36,10 @@ type ProfileUpdateMutation = UseMutationResult<
 >;
 
 const SETTINGS_SECTIONS = [
-  { id: "profile", label: "Hồ Sơ" },
-  { id: "niches", label: "Ngách" },
-  { id: "alerts", label: "Thông báo" },
-  { id: "billing", label: "Gói & Thanh Toán" },
+  { id: "profile", label: "Hồ sơ cá nhân" },
+  { id: "niches", label: "Ngách nội dung" },
+  { id: "alerts", label: "Thông báo email" },
+  { id: "billing", label: "Gói & Giao dịch" },
 ] as const;
 
 type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]["id"];
@@ -186,11 +186,11 @@ function tierLabelFromProfile(profile: ProfileRow | null | undefined): string {
 }
 
 const REASON_LABELS: Record<string, string> = {
-  purchase: "Mua gói",
-  query: "Phân tích sâu",
-  refund: "Hoàn tiền",
-  admin_grant: "Cộng phân tích",
-  expiry_reset: "Gia hạn / reset",
+  purchase: "Nạp thêm lượt dùng",
+  query: "Phân tích chuyên sâu",
+  refund: "Hoàn trả lượt dùng",
+  admin_grant: "Hệ thống cộng lượt dùng",
+  expiry_reset: "Khởi tạo lại hạn dùng",
 };
 
 function ProfileSettingsSection({
@@ -264,7 +264,7 @@ function ProfileSettingsSection({
             />
           </div>
         </SettingsField>
-        <SettingsField label="Handle TikTok">
+        <SettingsField label="Tên kênh TikTok (@username)">
           <div className="relative">
             <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--gv-ink-4)]" strokeWidth={2} />
             <input
@@ -296,16 +296,16 @@ function ProfileSettingsSection({
       </div>
 
       <div>
-        <SectionLabel>Bảo mật</SectionLabel>
+        <SectionLabel>Bảo mật tài khoản</SectionLabel>
         <Card>
           <Row label="Đổi mật khẩu" onClick={() => {}} />
         </Card>
       </div>
 
       <div>
-        <SectionLabel>Tài liệu</SectionLabel>
+        <SectionLabel>Điều khoản & Hướng dẫn</SectionLabel>
         <Card>
-          <Row label="Tài liệu & pháp lý" onClick={goLearnMore} />
+          <Row label="Điều khoản sử dụng & Chính sách bảo mật" onClick={goLearnMore} />
         </Card>
       </div>
     </div>
@@ -345,7 +345,7 @@ function PlanPanel({
       : subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)
     : tierLabelFromProfile(profile ?? null);
   const subscriptionTierLabel = `Gói ${tierName}`;
-  const subscriptionCreditsLine = `${remaining} phân tích còn lại`;
+  const subscriptionCreditsLine = `${remaining} lượt phân tích còn lại`;
 
   if (loading && !profile) {
     return <div className="h-48 animate-pulse rounded-lg bg-[color:var(--gv-canvas-2)]" />;
@@ -361,7 +361,7 @@ function PlanPanel({
     >
       <Card className="p-6">
         <p className="gv-kicker text-[color:var(--gv-ink-3)]">
-          Gói hiện tại
+          Gói dịch vụ hiện tại
         </p>
         <div className="mt-1.5 mb-3.5 flex flex-wrap items-baseline gap-3">
           <h2 className="gv-tight text-[2.625rem] font-bold leading-none tracking-tight text-[color:var(--gv-ink)]">
@@ -373,22 +373,22 @@ function PlanPanel({
 
         {isFreeTier ? (
           <p className="mb-4 text-xs leading-relaxed text-[color:var(--gv-ink-3)]">
-            10 lượt phân tích sâu miễn phí (trọn đời)
+            Bạn có 10 lượt phân tích chuyên sâu miễn phí (trọn đời)
           </p>
         ) : showExpiredCopy ? (
           <p className="mb-4 text-xs font-medium text-[color:var(--gv-danger)]">
-            Gói đã hết hạn — gia hạn để tiếp tục phân tích sâu.
+            Gói của bạn đã hết hạn. Hãy gia hạn để tiếp tục sử dụng tính năng phân tích chuyên sâu nhé.
           </p>
         ) : creditsResetAt ? (
           <p className="mb-4 gv-kicker text-[color:var(--gv-ink-3)]">
-            Credits hết hạn: {formatVnDate(creditsResetAt)}
+            Hạn dùng lượt phân tích: {formatVnDate(creditsResetAt)}
           </p>
         ) : null}
 
         <div className="mb-5 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           <div>
             <p className="gv-kicker text-[color:var(--gv-ink-3)]">
-              Phân tích
+              Số lượt dùng
             </p>
             <p className="gv-tight text-[1.375rem] font-bold text-[color:var(--gv-ink)]">
               {remaining}/{cap}
@@ -396,7 +396,7 @@ function PlanPanel({
           </div>
           <div>
             <p className="gv-kicker text-[color:var(--gv-ink-3)]">
-              Đăng ký
+              Gói đang dùng
             </p>
             <p className="gv-tight text-[1.375rem] font-bold text-[color:var(--gv-ink)]">{tierName}</p>
           </div>
@@ -405,7 +405,7 @@ function PlanPanel({
               Trạng thái
             </p>
             <p className="gv-tight text-[1.375rem] font-bold text-[color:var(--gv-ink)]">
-              {showExpiredCopy ? "Hết hạn" : isFreeTier ? "Free" : "Hoạt động"}
+              {showExpiredCopy ? "Đã hết hạn" : isFreeTier ? "Miễn phí" : "Đang hoạt động"}
             </p>
           </div>
         </div>
@@ -422,16 +422,16 @@ function PlanPanel({
         <div className="flex flex-wrap gap-2">
           <Btn variant="ink" size="md" type="button" onClick={goToPricing}>
             <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
-            {isFreeTier || remaining <= 0 ? "Nâng cấp" : "Mở thêm phân tích"}
+            {isFreeTier || remaining <= 0 ? "Nâng cấp tài khoản" : "Mở thêm lượt dùng"}
           </Btn>
         </div>
       </Card>
 
       <div>
-        <SectionLabel>Chi tiết gói</SectionLabel>
+        <SectionLabel>Thông tin gói & Giao dịch</SectionLabel>
         <Card>
-          <Row label="Gói hiện tại" value={subscriptionTierLabel} onClick={goToPricing} />
-          <Row label="Lịch sử thanh toán" onClick={goToPricing} />
+          <Row label="Gói đang sử dụng" value={subscriptionTierLabel} onClick={goToPricing} />
+          <Row label="Xem lịch sử giao dịch" onClick={goToPricing} />
         </Card>
       </div>
 
@@ -441,11 +441,11 @@ function PlanPanel({
             <Zap className="h-4 w-4 text-[color:var(--gv-ink-2)]" strokeWidth={2.2} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="mb-0.5 text-sm font-bold text-[color:var(--gv-ink)]">Mở thêm phân tích</p>
-            <p className="text-xs text-[color:var(--gv-ink-3)]">Chọn gói phù hợp trên trang thanh toán.</p>
+            <p className="mb-0.5 text-sm font-bold text-[color:var(--gv-ink)]">Mua thêm lượt phân tích</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)]">Xem và lựa chọn các gói phân tích chuyên sâu tại trang bảng giá.</p>
           </div>
           <Btn variant="ink" size="sm" type="button" onClick={goToPricing} className="shrink-0">
-            Xem gói
+            Xem bảng giá
           </Btn>
         </div>
       </div>
@@ -576,14 +576,14 @@ function NichePanel({
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
     >
       <p className="text-sm text-[color:var(--gv-ink-3)]">
-        Chọn ngách bạn đang làm nội dung. Mọi gợi ý ở Trang chủ và Xu hướng sẽ bám theo lựa chọn này.
+        Chọn ngách nội dung bạn đang sáng tạo. Toàn bộ gợi ý kịch bản tại Trang chủ và số liệu tại mục Xu hướng sẽ tự động tối ưu hóa theo ngách này.
       </p>
       {nicheLoading ? (
         <div
           className="h-24 animate-pulse rounded-lg bg-[color:var(--gv-canvas-2)]"
           role="status"
           aria-busy="true"
-          aria-label="Đang tải danh sách ngách"
+          aria-label="Đang tải danh sách ngách nội dung..."
         />
       ) : (
         <div role="radiogroup" aria-label="Ngách của bạn" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -609,16 +609,15 @@ function NichePanel({
         <AlertDialogContent className="bg-[color:var(--gv-paper)] border-[color:var(--gv-rule)]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-[color:var(--gv-ink)]">
-              Đổi ngách sang {pendingNicheName ?? "ngách này"}?
+              Xác nhận chuyển sang ngách {pendingNicheName ?? "này"}?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[color:var(--gv-ink-3)]">
-              Trang chủ, Xu hướng và baseline đối chiếu sẽ cập nhật theo
-              ngách mới. Có thể mất vài phút để gợi ý mới sẵn sàng.
+              Hệ thống sẽ tối ưu lại kịch bản gợi ý tại Trang chủ, dữ liệu Xu hướng và các chỉ số so sánh đối chiếu theo ngách mới. Quá trình này có thể mất một vài phút để thiết lập.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="border-[color:var(--gv-rule)]">
-              Huỷ
+              Hủy
             </AlertDialogCancel>
             <Button type="button" variant="primary" onClick={confirmChange}>
               Đổi ngách
@@ -632,23 +631,23 @@ function NichePanel({
 
 const ALERT_DEFAULTS: { title: string; description: string; initial: boolean }[] = [
   {
-    title: "Hook mới bứt phá trong ngách",
-    description: "Khi 1 mẫu hook tăng >100% sử dụng tuần",
+    title: "Công thức hook mới bứt phá",
+    description: "Nhận thông báo khi có công thức hook mới đạt tăng trưởng sử dụng vượt trội trong tuần.",
     initial: true,
   },
   {
-    title: "Đối thủ post video view cao",
-    description: "Khi kênh trong shortlist post bài >2× view trung bình",
+    title: "Video bứt phá từ đối thủ",
+    description: "Nhận thông báo khi các kênh đối thủ trong danh sách theo dõi có video đạt lượt xem vượt trội gấp đôi mức trung bình kênh.",
     initial: true,
   },
   {
-    title: "Báo cáo tuần",
-    description: "Email tổng hợp gửi mỗi sáng thứ Hai",
+    title: "Báo cáo xu hướng tuần",
+    description: "Nhận email tổng hợp số liệu và phân tích xu hướng ngách vào mỗi sáng thứ Hai.",
     initial: false,
   },
   {
-    title: "Sound đang lên",
-    description: "Khi 1 sound được dùng >500 video trong ngách",
+    title: "Nhạc nền đang lên xu hướng",
+    description: "Nhận thông báo khi có nhạc nền (sound) đạt mốc trên 500 video sử dụng trong ngách.",
     initial: false,
   },
 ];
@@ -724,12 +723,12 @@ const HistoryPanel = memo(function HistoryPanel({
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.12 }}
     >
       <div>
-        <SectionLabel>Hoạt động gần đây</SectionLabel>
+        <SectionLabel>Lịch sử sử dụng lượt phân tích</SectionLabel>
         <Card>
           {loading ? (
             <HistoryPanelSkeleton />
           ) : !transactions?.length ? (
-            <div className="px-4 py-8 text-center text-sm text-[color:var(--gv-ink-3)]">Chưa có lịch sử phân tích.</div>
+            <div className="px-4 py-8 text-center text-sm text-[color:var(--gv-ink-3)]">Tài khoản của bạn chưa có lịch sử sử dụng lượt phân tích.</div>
           ) : (
             transactions.map((tx, idx) => {
               const label = REASON_LABELS[tx.reason] ?? tx.reason;
@@ -738,10 +737,10 @@ const HistoryPanel = memo(function HistoryPanel({
               const timeLabel = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
               const creditLabel =
                 tx.delta === 0
-                  ? "Miễn phí"
+                  ? "Miễn phí ✓"
                   : tx.delta < 0
-                    ? `−${Math.abs(tx.delta)} phân tích`
-                    : `+${tx.delta} phân tích`;
+                    ? `−${Math.abs(tx.delta)} lượt dùng`
+                    : `+${tx.delta} lượt dùng`;
               const isFree = tx.delta === 0;
               return (
                 <motion.div
@@ -814,7 +813,7 @@ function LogoutSection({
               className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5 shadow-2xl outline-none"
               aria-describedby={undefined}
             >
-              <Dialog.Title className="mb-4 font-bold text-[color:var(--gv-ink)]">Đăng xuất khỏi GetViews?</Dialog.Title>
+              <Dialog.Title className="mb-4 font-bold text-[color:var(--gv-ink)]">Bạn có chắc chắn muốn đăng xuất khỏi GetViews.vn?</Dialog.Title>
               <div className="flex gap-2.5">
                 <Dialog.Close asChild>
                   <button
@@ -867,7 +866,7 @@ export default function SettingsScreen() {
         <MobileShellStandalone />
         <div className="flex flex-1 items-center justify-center overflow-y-auto p-6">
           <div className="max-w-md space-y-3 text-center">
-            <p className="text-sm text-[color:var(--gv-ink-2)]">Không tải được thông tin tài khoản — thử lại.</p>
+            <p className="text-sm text-[color:var(--gv-ink-2)]">Không thể tải thông tin tài khoản. Vui lòng thử lại sau nhé.</p>
             <button
               type="button"
               onClick={() => void refetch()}

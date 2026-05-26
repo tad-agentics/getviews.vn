@@ -39,8 +39,8 @@ export const TrendsDouyinCard = memo(function TrendsDouyinCard() {
   // the count-less fallback so the card stays meaningful pre-cron.
   const headlineLine =
     patternCount > 0 && videoCount > 0
-      ? `${patternCount} pattern đang nổ ở TQ · ${videoCount} video đã sub VN`
-      : "Pattern đang nổ ở TQ · video đã sub VN";
+      ? `${patternCount} công thức thịnh hành ở TQ · ${videoCount} video đã dịch phụ đề`
+      : "Công thức thịnh hành ở TQ · video đã dịch phụ đề";
 
   return (
     <button

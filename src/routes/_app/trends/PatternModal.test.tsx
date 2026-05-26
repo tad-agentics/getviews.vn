@@ -81,7 +81,7 @@ describe("PatternModal — open state", () => {
     const { getByText, getAllByText } = wrap(
       <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
     );
-    expect(getByText(/47 video · 142\.0K lượt xem TB/)).toBeTruthy();
+    expect(getByText(/47 video · 142\.0K lượt xem trung bình/)).toBeTruthy();
     expect(getByText("Sau ___ tháng dùng")).toBeTruthy();
     // Sample hook appears in the description AND inside the takeaway —
     // expect ≥ 1.
@@ -96,7 +96,7 @@ describe("PatternModal — open state", () => {
     expect(getByText("CẤU TRÚC ĐIỂN HÌNH")).toBeTruthy();
     expect(getByText("GÓC CÒN TRỐNG")).toBeTruthy();
     // Stub copy explicitly says these sections are coming.
-    expect(getByText(/biên tập đang tổng hợp/)).toBeTruthy();
+    expect(getByText(/hệ thống đang tự động tổng hợp/)).toBeTruthy();
   });
 
   it("renders the sample switcher when ≥ 2 videos are available", () => {
@@ -249,7 +249,7 @@ describe("PatternModal — deck content (post-synth)", () => {
     const { getByText } = wrap(
       <PatternModal pattern={decked} nicheId={4} open onOpenChange={() => {}} />,
     );
-    expect(getByText(/đã có creator khai thác/)).toBeTruthy();
+    expect(getByText(/đã có nhà sáng tạo khai thác/)).toBeTruthy();
   });
 });
 

@@ -81,7 +81,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
       <header className="flex items-start justify-between gap-4 border-b border-[color:var(--gv-rule)] px-7 py-[18px]">
         <div className="min-w-0 flex-1">
           <p className="gv-mono mb-1.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
-            {pattern.instance_count} video · {avgViewsLabel} lượt xem TB
+            {pattern.instance_count} video · {avgViewsLabel} lượt xem trung bình
           </p>
           <DialogTitle className="gv-tight m-0 text-[24px] font-semibold leading-[1.05] tracking-[-0.02em] text-[color:var(--gv-ink)]">
             {pattern.display_name}
@@ -132,7 +132,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
               }
             }}
           >
-            Mổ video này → Tại sao nổ
+            Giải mã video này ➔ Tại sao lên xu hướng
             <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
           </Btn>
           {videos.length > 1 ? (
@@ -387,8 +387,7 @@ function Takeaway({
             ? `Công thức này đang chạy mạnh trong ngách. Hook tiêu biểu: «${hookSample}».`
             : "Công thức này đang chạy mạnh trong ngách của bạn."}{" "}
           <span className="text-[color:var(--gv-ink-3)]">
-            Khung cấu trúc 4 bước và góc trống sẽ được cập nhật khi pipeline
-            deck chạy xong — thường trong vài ngày.
+            Cấu trúc chi tiết và góc khai thác trống sẽ được cập nhật khi hệ thống hoàn tất phân tích sâu.
           </span>
         </p>
       )}
@@ -415,7 +414,7 @@ function StructureBlock({ structure }: { structure: string[] | null }) {
         </ol>
       ) : (
         <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
-          Đang chuẩn bị — biên tập đang tổng hợp 4 bước Hook / Setup / Body / Payoff cho pattern này.
+          Đang chuẩn bị — hệ thống đang tự động tổng hợp cấu trúc các bước Hook / Setup / Body / Payoff cho công thức này.
         </p>
       )}
     </div>
@@ -440,11 +439,11 @@ function GapAnglesBlock({
       </p>
       {!angles ? (
         <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
-          Đang chuẩn bị — danh sách các góc nội dung chưa creator nào khai thác sẽ xuất hiện ở đây.
+          Đang chuẩn bị — danh sách các góc nội dung chưa nhà sáng tạo nào khai thác sẽ xuất hiện ở đây.
         </p>
       ) : gapAngles.length === 0 ? (
         <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
-          Tất cả các góc trong pattern này đã có creator khai thác — chưa có cơ hội trống.
+          Tất cả các góc trong công thức này đã có nhà sáng tạo khai thác — chưa có cơ hội trống.
         </p>
       ) : (
         <ul className="m-0 flex flex-col gap-1.5 p-0">

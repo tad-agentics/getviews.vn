@@ -92,7 +92,7 @@ export const PatternCard = memo(function PatternCard({
                   background: "color-mix(in srgb, var(--gv-pos) 14%, transparent)",
                   color: "var(--gv-pos-deep)",
                 }}
-                title="View trung bình pattern này so với median của ngách trong 30 ngày qua"
+                title="Lượt xem trung bình của công thức này so với mức trung bình của ngách trong 30 ngày qua"
               >
                 ↑ {liftLabel} ngách
               </span>
@@ -103,7 +103,7 @@ export const PatternCard = memo(function PatternCard({
                   background: "color-mix(in srgb, var(--gv-warn,#d49a3b) 18%, transparent)",
                   color: "var(--gv-warn-deep,#7a4a00)",
                 }}
-                title={`Tín hiệu sớm — chỉ ${pattern.niche_video_count} video tham chiếu trong ngách, lift ${liftLabel ?? '—'}`}
+                title={`Tín hiệu sớm — chỉ có ${pattern.niche_video_count} video thực tế trong ngách sử dụng, hiệu số lượt xem ${liftLabel ?? '—'}`}
               >
                 Tín hiệu sớm{liftLabel ? ` · ↑${liftLabel}` : ""}
               </span>

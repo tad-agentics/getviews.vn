@@ -79,8 +79,8 @@ describe("TrendsRail", () => {
   it("renders honest breakout copy, multiplier, and format chip on rows", () => {
     mockUseTrendsRailVideos.mockReturnValue({ data: samplePayload(), isPending: false });
     wrap(<TrendsRail contentClassIds={[1, 2]} nicheScopeLabel="Làm đẹp" />);
-    expect(screen.getByText("Video organic đáng xem")).toBeTruthy();
-    expect(screen.getByText(/Top 5 breakout đăng trong 14 ngày/)).toBeTruthy();
+    expect(screen.getByText("Video tự phát triển đáng học hỏi")).toBeTruthy();
+    expect(screen.getByText(/Top 5 video bứt phá đăng trong 14 ngày/)).toBeTruthy();
     expect(screen.getByText("Breakout one")).toBeTruthy();
     expect(screen.getByText("2.4×")).toBeTruthy();
     expect(screen.getByText("Talking head")).toBeTruthy();

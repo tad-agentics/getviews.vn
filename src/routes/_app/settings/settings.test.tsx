@@ -136,7 +136,7 @@ describe("LogoutSection — dialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /Đăng xuất/i }));
     await waitFor(() => {
       expect(screen.getByRole("dialog")).toBeTruthy();
-      expect(screen.getByText("Đăng xuất khỏi GetViews?")).toBeTruthy();
+      expect(screen.getByText("Bạn có chắc chắn muốn đăng xuất khỏi GetViews.vn?")).toBeTruthy();
     });
   });
 
@@ -278,14 +278,14 @@ describe("PlanPanel — subscription copy", () => {
         <SettingsScreen />
       </Wrapper>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Gói & Thanh Toán" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gói & Giao dịch" }));
     return result;
   }
 
   it("shows free-tier lifetime copy when user has no subscription", async () => {
     await renderWithProfile({ subscription_tier: "free" });
     await waitFor(() => {
-      expect(screen.getAllByText(/10 lượt phân tích sâu miễn phí/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/10 lượt phân tích chuyên sâu miễn phí/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -293,7 +293,7 @@ describe("PlanPanel — subscription copy", () => {
     const pastDate = new Date(Date.now() - 86400_000).toISOString();
     await renderWithProfile({ subscription_tier: "starter", credits_reset_at: pastDate });
     await waitFor(() => {
-      expect(screen.getAllByText(/Gói đã hết hạn/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Gói của bạn đã hết hạn/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -301,7 +301,7 @@ describe("PlanPanel — subscription copy", () => {
     const futureDate = new Date(Date.now() + 30 * 86400_000).toISOString();
     await renderWithProfile({ subscription_tier: "starter", credits_reset_at: futureDate });
     await waitFor(() => {
-      expect(screen.getAllByText(/Credits hết hạn/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Hạn dùng lượt phân tích/i).length).toBeGreaterThan(0);
     });
   });
 });

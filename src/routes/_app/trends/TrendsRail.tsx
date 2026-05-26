@@ -137,17 +137,17 @@ export const TrendsRail = memo(function TrendsRail({
         data-testid="trends-rail"
       >
         <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
-          BREAKOUT GẦN ĐÂY
+          BỨT PHÁ GẦN ĐÂY
         </p>
         <h3
           id="trends-rail-breakouts"
           className="gv-tight m-0 mb-1 border-b border-[color:var(--gv-ink)] pb-2 text-[22px] font-semibold leading-none tracking-[-0.02em] text-[color:var(--gv-ink)]"
         >
-          Video organic đáng xem
+          Video tự phát triển đáng học hỏi
         </h3>
         <p className="gv-mono mb-3 text-[11px] leading-relaxed text-[color:var(--gv-ink-3)]">
-          Top 5 breakout đăng trong 14 ngày ({scopeHint}) — xếp theo hệ số so với trung bình kênh,
-          ưu tiên mẫu organic. Luôn xem trước, phân tích khi cần.
+          Top 5 video bứt phá đăng trong 14 ngày ({scopeHint}) — xếp theo hệ số tăng trưởng so với trung bình kênh,
+          ưu tiên các mẫu tự lên xu hướng tự nhiên. Luôn xem trước và phân tích khi cần.
         </p>
 
         {meta?.usedFallback && meta.eligibleCount < 5 ? (
@@ -155,8 +155,8 @@ export const TrendsRail = memo(function TrendsRail({
             className="mb-3 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-[11px] leading-snug text-[color:var(--gv-ink-3)]"
             data-testid="trends-rail-fallback-note"
           >
-            Một số video bổ sung chưa qua lọc boost. So format và hook, đừng
-            chỉ nhìn view tuyệt đối.
+            Một số video bổ sung chưa đạt đủ điều kiện bứt phá của hệ thống. Bạn hãy đối chiếu định dạng (format) và hook, đừng
+            chỉ nhìn vào lượng xem tuyệt đối nhé.
           </p>
         ) : null}
 
@@ -171,7 +171,7 @@ export const TrendsRail = memo(function TrendsRail({
           </div>
         ) : videos.length === 0 ? (
           <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-3 text-[12px] text-[color:var(--gv-ink-3)]">
-            Chưa có breakout nổi bật đăng trong 14 ngày qua. Quay lại sau.
+            Chưa có video bứt phá nổi bật nào được đăng trong 14 ngày qua. Bạn hãy quay lại sau nhé.
           </p>
         ) : (
           <ul className="flex flex-col gap-2.5">

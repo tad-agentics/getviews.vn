@@ -285,7 +285,7 @@ function VideoCard({
 }
 
 /* --- Kho video filter chips (design: outline dropdowns, solid black toggles) - */
-const PATTERN_CHIP_PLACEHOLDER = "Pattern";
+const PATTERN_CHIP_PLACEHOLDER = "Định dạng";
 
 /** Cao cố định khớp KhoTogglePill — toàn bộ chip trong toolbar "Bộ lọc kho video". */
 const KHO_FILTER_CHIP_H = "h-6";
@@ -818,8 +818,8 @@ export default function ExploreScreen() {
     <AppLayout active="trends" enableMobileSidebar>
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
         <TopBar
-          kicker="Báo cáo"
-          title="Xu Hướng Tuần Này"
+          kicker="XU HƯỚNG"
+          title="Ý tưởng & Xu hướng thịnh hành"
           right={
             <>
               <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
@@ -904,7 +904,7 @@ export default function ExploreScreen() {
             <div className="mb-3 flex min-w-0 flex-col gap-3 min-[1100px]:mb-4 min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-between min-[1100px]:gap-8">
               <div className="min-w-0 flex-1">
                 <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]">
-                  II — KHO VIDEO
+                  Phần II — Thư viện video
                 </p>
                 <h2 className="gv-tight m-0 max-w-full text-[clamp(20px,2.3vw,28px)] font-bold leading-[1.2] tracking-[-0.02em] text-[color:var(--gv-ink)]">
                 {selectedNicheName ? (
@@ -1054,20 +1054,20 @@ export default function ExploreScreen() {
 
             {isError ? (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
-                <p className="mb-4 text-sm text-[var(--ink)]">Không thể tải video — thử lại</p>
+                <p className="mb-4 text-sm text-[var(--ink)]">Không thể tải danh sách video. Vui lòng kiểm tra kết nối mạng và thử lại.</p>
                 <button
                   type="button"
                   onClick={() => void refetch()}
                   className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold text-[var(--ink)] hover:border-[var(--gv-ink)] transition-colors duration-[120ms]"
                 >
-                  Thử lại
+                  Tải lại
                 </button>
               </div>
             ) : null}
 
             {!isPending && !isError && videos.length === 0 ? (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-                <p className="text-sm text-[var(--gv-ink-3)]">Chưa có video trong khoảng này — thử lại sau.</p>
+                <p className="text-sm text-[var(--gv-ink-3)]">Không tìm thấy video nào phù hợp với bộ lọc hiện tại. Bạn hãy thử mở rộng khoảng thời gian hoặc thay đổi bộ lọc khác nhé.</p>
               </div>
             ) : null}
 
