@@ -1,6 +1,6 @@
 import type { ChannelDiagnosisFinding } from "@/lib/api-types";
 
-/** V5 audit rings — map finding_id → audit step footnote. */
+/** V5 audit rings — map finding_id → audit step (channel roll-up). */
 export const ACCOUNT_HEALTH_FINDING_IDS = new Set([
   "channel_view_ceiling_300",
   "channel_boost_outlier_share",
@@ -13,42 +13,91 @@ export const VONG2_FINDING_IDS = new Set([
   "channel_best_hour_underused",
 ]);
 
-export const VONG3_FINDING_IDS = new Set([
+/** Vòng 0 — pre-publish / compliance gates (V5 §2 Vòng 0). */
+export const VONG0_PREFLIGHT_FINDING_IDS = new Set([
   "channel_compliance_aggregate",
   "channel_restricted_keyword_exposure",
   "channel_ad_law_disclosure_gap",
   "channel_copyright_mute_risk",
 ]);
 
-export const VONG4_FINDING_IDS = new Set([
+/** Vòng 3 — peer format saturation / breakout ceiling (channel proxy). */
+export const VONG3_VIRAL_FINDING_IDS = new Set(["channel_peer_format_saturation"]);
+
+/** Vòng 4 — audience, seasonality, slang (V5 §2 tail). */
+export const VONG4_AUDIENCE_FINDING_IDS = new Set([
   "channel_recent_vs_peak_er_drop",
-  "channel_peer_format_saturation",
   "channel_mega_sale_dip",
   "channel_slang_staleness",
 ]);
 
-export const POLICY_RISK_FINDING_IDS = new Set([
-  ...VONG3_FINDING_IDS,
+/** @deprecated Renamed — use ``VONG0_PREFLIGHT_FINDING_IDS``. */
+export const VONG3_FINDING_IDS = VONG0_PREFLIGHT_FINDING_IDS;
+
+/** @deprecated Split into ``VONG3_VIRAL`` + ``VONG4_AUDIENCE``. */
+export const VONG4_FINDING_IDS = new Set([
+  ...VONG3_VIRAL_FINDING_IDS,
+  ...VONG4_AUDIENCE_FINDING_IDS,
 ]);
 
-export const AUDIT_RING_HINTS: Array<{ ids: Set<string>; text: string }> = [
+export const POLICY_RISK_FINDING_IDS = new Set([...VONG0_PREFLIGHT_FINDING_IDS]);
+
+export type AuditRingId = "v0" | "v1" | "v2" | "v3" | "v4";
+
+export type AuditRingDef = {
+  id: AuditRingId;
+  step: number;
+  title: string;
+  subtitle: string;
+  hint: string;
+  findingIds: Set<string>;
+};
+
+/** Five-ring audit map — V5-inspired KPI copy, channel finding IDs. */
+export const AUDIT_RINGS: readonly AuditRingDef[] = [
   {
-    ids: ACCOUNT_HEALTH_FINDING_IDS,
-    text: "Vòng 1 (sức khỏe tài khoản): nếu nhiều video kẹt ~300 view, mở TikTok → Cài đặt → Account Status. GetViews không đọc FYP %.",
+    id: "v0",
+    step: 0,
+    title: "Vòng 0 — Trước khi đăng",
+    subtitle: "Tiên quyết phân phối · disclosure · sound · OCR",
+    hint: "Rà caption/VO — disclosure #qc, tránh cụm hạn chế, dùng sound CML-safe trước khi chạy brand.",
+    findingIds: VONG0_PREFLIGHT_FINDING_IDS,
   },
   {
-    ids: VONG2_FINDING_IDS,
-    text: "Vòng 2 (format & persona): thống nhất 1–2 format chủ đạo; giữ backdrop/catchphrase ổn định qua 5 video tiếp.",
+    id: "v1",
+    step: 1,
+    title: "Vòng 1 — Hạt giống",
+    subtitle: "~100–500 view · phân phối tài khoản",
+    hint: "Nếu nhiều video kẹt ~300 view, mở TikTok → Cài đặt → Account Status. GetViews không đọc FYP %.",
+    findingIds: ACCOUNT_HEALTH_FINDING_IDS,
   },
   {
-    ids: VONG3_FINDING_IDS,
-    text: "Vòng 3 (compliance): rà caption/VO — disclosure #qc, tránh cụm hạn chế, dùng sound CML-safe trước khi chạy brand.",
+    id: "v2",
+    step: 2,
+    title: "Vòng 2 — Mở rộng",
+    subtitle: "Format · persona · cadence · khung giờ",
+    hint: "Thống nhất 1–2 format chủ đạo; giữ backdrop/catchphrase ổn định qua 5 video tiếp.",
+    findingIds: VONG2_FINDING_IDS,
   },
   {
-    ids: VONG4_FINDING_IDS,
-    text: "Vòng 4 (audience & ngách): so recent vs peak, tránh copy format bão hòa peer; cập nhật slang theo Gen Z ngách.",
+    id: "v3",
+    step: 3,
+    title: "Vòng 3 — Xu hướng",
+    subtitle: "Format peer · bão hòa ngách",
+    hint: "Tránh copy format đã bão hòa trong top corpus 7 ngày — thử biến thể hook/overlay.",
+    findingIds: VONG3_VIRAL_FINDING_IDS,
   },
-];
+  {
+    id: "v4",
+    step: 4,
+    title: "Vòng 4 — Ngách & audience",
+    subtitle: "Recent vs peak · mega sale · slang",
+    hint: "So recent vs peak, cập nhật slang Gen Z ngách; lên lịch tránh dip sale nếu có pattern.",
+    findingIds: VONG4_AUDIENCE_FINDING_IDS,
+  },
+] as const;
+
+const STRENGTH_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 export function policyRiskFindings(findings: ChannelDiagnosisFinding[]): ChannelDiagnosisFinding[] {
   return findings.filter((f) => POLICY_RISK_FINDING_IDS.has(f.finding_id));
@@ -58,17 +107,14 @@ export function accountHealthFindings(findings: ChannelDiagnosisFinding[]): Chan
   return findings.filter((f) => ACCOUNT_HEALTH_FINDING_IDS.has(f.finding_id));
 }
 
-/** Top strip — exclude findings with dedicated memo section tiles (§5.5 Wave 2). */
-export function summaryFindingsForStrip(findings: ChannelDiagnosisFinding[]): ChannelDiagnosisFinding[] {
-  return findings.filter(
-    (f) =>
-      !POLICY_RISK_FINDING_IDS.has(f.finding_id) && !ACCOUNT_HEALTH_FINDING_IDS.has(f.finding_id),
-  );
-}
-
-export function auditHintsForFindings(findings: ChannelDiagnosisFinding[]): string[] {
-  const ids = new Set(findings.map((f) => f.finding_id));
-  return AUDIT_RING_HINTS.filter(({ ids: ringIds }) => [...ringIds].some((id) => ids.has(id))).map(
-    (ring) => ring.text,
-  );
+export function findingsForRing(
+  ring: AuditRingDef,
+  findings: ChannelDiagnosisFinding[],
+): ChannelDiagnosisFinding[] {
+  return findings
+    .filter((f) => ring.findingIds.has(f.finding_id))
+    .sort(
+      (a, b) =>
+        (STRENGTH_ORDER[a.strength] ?? 9) - (STRENGTH_ORDER[b.strength] ?? 9),
+    );
 }

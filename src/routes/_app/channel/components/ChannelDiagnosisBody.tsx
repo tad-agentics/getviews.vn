@@ -6,7 +6,7 @@ import { Btn } from "@/components/v2/Btn";
 import type { useChannelDiagnose } from "@/hooks/useChannelDiagnose";
 import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromDeeplink } from "@/lib/scriptPrefill";
-import { ChannelFindingsStrip } from "./ChannelFindingsStrip";
+import { ChannelAuditRingsPanel } from "./ChannelAuditRingsPanel";
 import { ProvenanceLine } from "./ProvenanceLine";
 import { ScoreCard, ScoreCardSkeleton } from "./ScoreCard";
 import { SectionRenderer } from "./SectionRenderer";
@@ -162,9 +162,9 @@ export function ChannelDiagnosisBody({
             <ScoreCardSkeleton />
           ) : null}
           {diagnose.scoreCard ? <ScoreCard card={diagnose.scoreCard} /> : null}
-          {channelFindings.length > 0 ? (
-            <ChannelFindingsStrip findings={channelFindings} />
-          ) : null}
+          {(diagnose.scoreCard || channelFindings.length > 0) && (
+            <ChannelAuditRingsPanel findings={channelFindings} />
+          )}
           {diagnose.sections.map((section) => (
             <SectionRenderer
               key={section.section_id}
