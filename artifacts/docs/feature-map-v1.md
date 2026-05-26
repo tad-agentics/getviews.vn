@@ -944,16 +944,18 @@ flowchart LR
 
 ### 5.1 Định nghĩa hai mức
 
+**Trạng thái: ✅ Done (V1 core)** — audit 2026-05-23; gaps 1–3 patched same session.
+
 | | **Cơ bản (Nhanh)** | **Chuyên sâu (Sâu)** |
 |---|-------------------|----------------------|
 | **Use case** | “Kênh @x đang thế nào?” trước khi follow | Audit kênh mình / đối thủ cho brief |
 | **Input** | `@handle` | `@handle` + optional `video_url`, `force_refresh` |
-| **Output** | Median views, ER, cadence vs ngách (`ChannelBenchmarkStrip`); findings teaser; optional breakout tile | Score card v2, peers, narrative SSE, trajectory + **channel findings** V5 §2 (§5.3) |
-| **Cache** | Corpus rollup only (no full SSE) | `channel_diagnoses` **7 ngày** |
-| **Billing (§10)** | **0×** (Launch Phase 1 D2) | **3×** `decrement_credit` — ✅ FE/BE aligned @ W0-1 |
-| **Trạng thái code** | ✅ pill **Khám Kênh** → `/app/channel` quick-peek + `ChannelBenchmarkStrip` | ✅ pill → `/app/channel?depth=deep` SSE memo |
+| **Output** | Median views, ER, cadence vs ngách (`ChannelBenchmarkStrip`); findings teaser; optional breakout tile | Score card v2, peers, narrative SSE, trajectory + **`ChannelFindingsStrip`** (V5 §2) |
+| **Cache** | Corpus rollup only (no full SSE) | `channel_diagnoses` **7 ngày**; replay **0 credit**; `force_refresh=1` bypasses cache + **3 credit** fresh |
+| **Billing (§10)** | **0×** (Launch Phase 1 D2) | **3×** `decrement_credit` on cache miss — ✅ FE/BE aligned @ W0-1 |
+| **Trạng thái code** | ✅ pill **Khám Kênh** → `/app/channel` quick-peek + `ChannelBenchmarkStrip` | ✅ pill / intent → `/app/channel?depth=deep` SSE memo + findings tile |
 
-**Entry (shipped 2026-05-24):** Pill **Khám Kênh** + Cơ bản/Chuyên sâu trên Studio → [`planStudioComposerSubmit`](../../src/lib/studioComposer.ts) / [`planAnswerEntry`](../../src/routes/_app/intent-router.ts) → [`buildChannelStudioPath`](../../src/lib/channelStudioHandoff.ts) → `/app/channel`. Legacy `/app?handle=` redirects. Billing: `CHANNEL_SAU_CREDIT_COST=3` / `CHANNEL_DIAGNOSE_CREDIT_COST=3` @ W0-1.
+**Entry:** Pill **Khám Kênh** + Cơ bản/Chuyên sâu → [`planStudioComposerSubmit`](../../src/lib/studioComposer.ts) / [`planAnswerEntry`](../../src/routes/_app/intent-router.ts) (depth-aware channel redirect) → [`buildChannelStudioPath`](../../src/lib/channelStudioHandoff.ts) → `/app/channel`. Legacy `/app?handle=` redirects. `force_refresh` wired FE→`POST /channel/diagnose`. Migration `20260830000002_channel_diagnoses_findings.sql`.
 
 ### 5.2 Feature IDs
 

@@ -1,4 +1,5 @@
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
+import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
 
 /** Wave 1 — §3.1 URL handoff contract (`?q=&depth=&mode=&from=`). */
 export { parseAnswerHandoffParams } from "@/lib/answerHandoff";
@@ -371,7 +372,11 @@ export type AnswerEntryPlan =
   | { kind: "redirect"; to: string }
   | { kind: "session"; format: AnswerSessionFormat; intent_type: string };
 
-export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerEntryPlan {
+export function planAnswerEntry(
+  query: string,
+  priorAssistant: boolean,
+  depth?: AnswerHandoffDepth,
+): AnswerEntryPlan {
   const trimmed = query.trim();
   if (!trimmed) {
     return { kind: "session", format: "generic", intent_type: "follow_up_unclassifiable" };
@@ -399,8 +404,8 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
   if (dest === "channel") {
     const handleMatch = trimmed.match(/@([\w.]+)/);
     const to = handleMatch
-      ? buildChannelStudioPath({ handle: handleMatch[1] })
-      : "/app/channel";
+      ? buildChannelStudioPath({ handle: handleMatch[1], depth })
+      : buildChannelStudioPath({ depth });
     return { kind: "redirect", to };
   }
   const format: AnswerSessionFormat =

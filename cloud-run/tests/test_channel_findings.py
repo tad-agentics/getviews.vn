@@ -14,6 +14,7 @@ from getviews_pipeline.channel_findings import (
     format_distribution_from_corpus_rows,
     format_findings_for_prompt,
     optional_memo_sections_from_findings,
+    serialize_findings_for_api,
     synthesize_optional_section_from_findings,
 )
 
@@ -35,6 +36,22 @@ def _video(
         "caption": "test",
         "duration_sec": 20,
     }
+
+
+def test_serialize_findings_for_api():
+    videos = [_video(views=200, likes=1, comments=0, days_ago=i) for i in range(4)]
+    findings = build_channel_findings(
+        videos=videos,
+        channel_pattern={"global_avg_views": 500, "max_views": 2000},
+        recent_window_30d={"avg_views": 200, "video_count": 4},
+        inflection=None,
+    )
+    rows = serialize_findings_for_api(findings, limit=2)
+    assert len(rows) <= 2
+    if rows:
+        assert "finding_id" in rows[0]
+        assert "teaser" in rows[0]
+        assert "strength" in rows[0]
 
 
 def test_finding_channel_view_ceiling_300():

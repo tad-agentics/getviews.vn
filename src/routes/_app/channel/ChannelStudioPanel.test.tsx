@@ -71,6 +71,7 @@ describe("ChannelStudioPanel", () => {
     sections: [],
     recommendations: [],
     scoreCard: null,
+    channelFindings: [],
     channelPersona: null,
     peerSource: null as ChannelDiagnoseState["peerSource"],
     finalPayload: null,

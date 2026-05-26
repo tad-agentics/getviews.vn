@@ -981,6 +981,23 @@ def pick_channel_quick_peek(findings: list[ChannelFinding]) -> dict[str, str] | 
     return None
 
 
+def serialize_findings_for_api(
+    findings: list[ChannelFinding],
+    *,
+    limit: int = PROMPT_FINDINGS_CAP,
+) -> list[dict[str, str]]:
+    """API/SSE payload for deep channel findings tile (§5.1 gap 3)."""
+    return [
+        {
+            "finding_id": f.id,
+            "teaser": f.claim,
+            "strength": f.strength,
+            "section_hint": f.section_hint,
+        }
+        for f in findings[:limit]
+    ]
+
+
 def format_findings_for_prompt(findings: list[ChannelFinding]) -> str:
     """Render top findings for LLM context block."""
     if not findings:

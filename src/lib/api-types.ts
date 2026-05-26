@@ -1672,6 +1672,14 @@ export interface ChannelSection {
   next_video?: ChannelNextVideoConcept;
 }
 
+/** F5 + F4 — corpus quick-peek and deep diagnosis finding row. */
+export type ChannelDiagnosisFinding = {
+  finding_id: string;
+  teaser: string;
+  strength: string;
+  section_hint?: string;
+};
+
 /** Final payload from the `payload` event after streaming completes. */
 export interface ChannelDiagnosisPayload {
   trajectory_shape: TrajectoryShape;
@@ -1701,4 +1709,6 @@ export interface ChannelDiagnosisPayload {
   channel_persona?: ChannelPersona;
   /** corpus tier: content_class | niche_only | thin — null for pre-v2 cache rows */
   peer_source?: "content_class" | "niche_only" | "thin" | null;
+  /** V5 §2 evidence rows for deep findings tile (post-2026-05 cache rows). */
+  channel_findings?: ChannelDiagnosisFinding[];
 }

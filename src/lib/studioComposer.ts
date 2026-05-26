@@ -67,7 +67,7 @@ export function planStudioComposerSubmit(
     };
   }
 
-  const entry = planAnswerEntry(trimmed, false);
+  const entry = planAnswerEntry(trimmed, false, depth);
   if (entry.kind === "redirect") {
     return { kind: "navigate", to: entry.to };
   }

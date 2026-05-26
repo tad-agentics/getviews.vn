@@ -6,6 +6,7 @@ import { Btn } from "@/components/v2/Btn";
 import type { useChannelDiagnose } from "@/hooks/useChannelDiagnose";
 import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromDeeplink } from "@/lib/scriptPrefill";
+import { ChannelFindingsStrip } from "./ChannelFindingsStrip";
 import { ProvenanceLine } from "./ProvenanceLine";
 import { ScoreCard, ScoreCardSkeleton } from "./ScoreCard";
 import { SectionRenderer } from "./SectionRenderer";
@@ -73,6 +74,10 @@ export function ChannelDiagnosisBody({
   const isDone = diagnose.status === "done";
   const isStreaming = diagnose.status === "streaming";
   const isError = diagnose.status === "error";
+  const channelFindings = diagnose.channelFindings ?? [];
+  const hasEarlyDeepContent =
+    diagnose.scoreCard != null || channelFindings.length > 0;
+  const hasReportBody = hasEarlyDeepContent || diagnose.sections.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -137,7 +142,7 @@ export function ChannelDiagnosisBody({
         </div>
       </div>
 
-      {isStreaming && diagnose.sections.length === 0 && (
+      {isStreaming && !hasReportBody && (
         <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
           <StepProgress
             activeStepIndex={diagnose.activeStepIndex}
@@ -148,10 +153,18 @@ export function ChannelDiagnosisBody({
         </div>
       )}
 
-      {diagnose.sections.length > 0 && (
+      {hasReportBody && (
         <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 sm:px-7">
-          {isStreaming && !diagnose.scoreCard ? <ScoreCardSkeleton /> : null}
+          {isStreaming &&
+          !diagnose.scoreCard &&
+          channelFindings.length === 0 &&
+          diagnose.sections.length === 0 ? (
+            <ScoreCardSkeleton />
+          ) : null}
           {diagnose.scoreCard ? <ScoreCard card={diagnose.scoreCard} /> : null}
+          {channelFindings.length > 0 ? (
+            <ChannelFindingsStrip findings={channelFindings} />
+          ) : null}
           {diagnose.sections.map((section) => (
             <SectionRenderer
               key={section.section_id}

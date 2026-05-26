@@ -1,24 +1,26 @@
 /**
  * useChannelDiagnose — imperative SSE hook for POST /channel/diagnose.
  *
- * This is a custom hook (NOT useQuery). It opens a single SSE stream to the
- * Cloud Run `/channel/diagnose` endpoint, parses section-tagged events into
- * structured state, and exposes an imperative `start(handle, nicheId, videoUrl?)`
- * API. SSE reconnect uses TD-4: stream_id + seq, one retry, 45s idle timeout.
+ * Opens a single SSE stream to Cloud Run `/channel/diagnose`, parses events into
+ * structured state, and exposes `start(handle, nicheId, videoUrl?, options?)`.
+ * SSE reconnect uses TD-4: stream_id + seq, one retry, 45s idle timeout.
  *
  * Event types from the server:
- *   trajectory      { trajectory: TrajectoryShape }
- *   score_card      { data: ChannelScoreCardData, captions?: Record<string, string> }
- *   step_start      { index, label }
- *   step_done       { index, count? }
- *   section_start   { section_id, title, embedded_tiles?, embedded_creators? }
- *   text_chunk      { content }
- *   section_done    { section_id }
+ *   trajectory         { trajectory: TrajectoryShape }
+ *   score_card         { data: ChannelScoreCardData, captions?: Record<string, string> }
+ *   channel_findings   { findings: ChannelDiagnosisFinding[] }
+ *   step_start         { index, label }
+ *   step_done          { index, count? }
+ *   section_start      { section_id, title, embedded_tiles?, embedded_creators? }
+ *   text_chunk         { content }
+ *   section_done       { section_id }
  *   recommendation_item { index, title, body }
- *   cache_hit       (no extra fields)
- *   heartbeat       (every 10s keep-alive)
- *   payload         { payload: ChannelDiagnosisPayload }  // terminal before done
- *   done: true      terminal frame (with optional error)
+ *   cache_hit          (no extra fields)
+ *   heartbeat          (every 10s keep-alive)
+ *   payload            { payload: ChannelDiagnosisPayload }  // terminal before done
+ *   done: true         terminal frame (with optional error)
+ *
+ * Query params on start: `force_refresh=1` bypasses 7-day cache (fresh run, 3 credits).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -27,6 +29,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import type {
+  ChannelDiagnosisFinding,
   ChannelDiagnosisPayload,
   ChannelHashtagInsight,
   ChannelNextVideoConcept,
@@ -62,6 +65,8 @@ export interface ChannelDiagnoseState {
   recommendations: ChannelRecommendation[];
   /** Template + captions merged once `score_card` SSE arrives. */
   scoreCard: ChannelScoreCard | null;
+  /** V5 §2 findings tile — from `channel_findings` SSE or terminal payload. */
+  channelFindings: ChannelDiagnosisFinding[];
   channelPersona: ChannelPersona | null;
   peerSource: ChannelDiagnosisPayload["peer_source"];
   /** Final payload once `done: true` arrives (contains all sections + tiles). */
@@ -88,6 +93,7 @@ const INITIAL_STATE: ChannelDiagnoseState = {
   sections: [],
   recommendations: [],
   scoreCard: null,
+  channelFindings: [],
   channelPersona: null,
   peerSource: null,
   finalPayload: null,
@@ -151,9 +157,15 @@ export function useChannelDiagnose() {
    * @param handle  TikTok handle (with or without @).
    * @param nicheId Creator niche ID for corpus benchmarks.
    * @param videoUrl Optional target video URL (§4 video_vs_channel).
+   * @param options.forceRefresh Bypass 7-day cache (charges 3 credits on fresh run).
    */
   const start = useCallback(
-    async (handle: string, nicheId: number, videoUrl?: string) => {
+    async (
+      handle: string,
+      nicheId: number,
+      videoUrl?: string,
+      options?: { forceRefresh?: boolean },
+    ) => {
       // Abort any previous stream
       abortRef.current?.abort();
       const abort = new AbortController();
@@ -184,6 +196,7 @@ export function useChannelDiagnose() {
         url.searchParams.set("handle", handle);
         url.searchParams.set("niche_id", String(nicheId));
         if (videoUrl) url.searchParams.set("video_url", videoUrl);
+        if (options?.forceRefresh) url.searchParams.set("force_refresh", "1");
         if (resumeStreamId && resumeSeq > 0) {
           url.searchParams.set("resume_stream_id", resumeStreamId);
           url.searchParams.set("resume_from_seq", String(resumeSeq));
@@ -373,6 +386,17 @@ async function consumeDiagnoseSse(
         continue;
       }
 
+      if (eventType === "channel_findings") {
+        const rows = token.findings;
+        if (Array.isArray(rows)) {
+          setState((s) => ({
+            ...s,
+            channelFindings: rows as ChannelDiagnosisFinding[],
+          }));
+        }
+        continue;
+      }
+
       // --- Steps ---
       if (eventType === "step_start") {
         setState((s) => ({
@@ -481,6 +505,10 @@ async function consumeDiagnoseSse(
           ...s,
           finalPayload: pl,
           scoreCard: s.scoreCard ?? mergeScoreCardFromPayload(pl),
+          channelFindings:
+            pl.channel_findings && pl.channel_findings.length > 0
+              ? pl.channel_findings
+              : s.channelFindings,
           channelPersona: pl.channel_persona ?? s.channelPersona,
           peerSource: pl.peer_source ?? s.peerSource,
         }));
@@ -502,6 +530,10 @@ async function consumeDiagnoseSse(
             status: "done",
             finalPayload: fp,
             scoreCard: s.scoreCard ?? (fp ? mergeScoreCardFromPayload(fp) : null),
+            channelFindings:
+              fp?.channel_findings && fp.channel_findings.length > 0
+                ? fp.channel_findings
+                : s.channelFindings,
             channelPersona: fp?.channel_persona ?? s.channelPersona,
             peerSource: fp?.peer_source ?? s.peerSource,
             error: null,

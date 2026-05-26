@@ -166,7 +166,9 @@ export function ChannelStudioPanel({
     if (lastDiagnoseHandleRef.current === diagnoseKey && !forceRefreshPending) return;
     lastDiagnoseHandleRef.current = diagnoseKey;
     if (user?.id) pushChannelHistory(user.id, handleKey);
-    void diagnose.start(handleKey, nicheId, videoUrlInput || undefined);
+    void diagnose.start(handleKey, nicheId, videoUrlInput || undefined, {
+      forceRefresh: forceRefreshPending,
+    });
     if (forceRefreshPending) {
       setSearchParams(
         (prev) => {
@@ -331,7 +333,9 @@ export function ChannelStudioPanel({
               diagnose={diagnose}
               onRestart={() => {
                 lastDiagnoseHandleRef.current = null;
-                void diagnose.start(handleKey ?? "", nicheId, videoUrlInput || undefined);
+                void diagnose.start(handleKey ?? "", nicheId, videoUrlInput || undefined, {
+                  forceRefresh: true,
+                });
                 lastDiagnoseHandleRef.current = diagnoseKey;
               }}
               onChangeHandle={openHandle}

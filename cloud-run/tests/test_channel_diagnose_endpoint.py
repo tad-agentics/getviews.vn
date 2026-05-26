@@ -231,6 +231,7 @@ def _run_diagnose(
     niche_id: int = 1,
     video_url: str = "",
     cache_row: dict | None = None,
+    force_refresh: bool = False,
 ) -> list[dict[str, Any]]:
     """Run /channel/diagnose with mocked I/O and return parsed SSE events."""
 
@@ -338,6 +339,7 @@ def _run_diagnose(
                 "handle": handle,
                 "niche_id": niche_id,
                 "video_url": video_url,
+                "force_refresh": force_refresh,
             },
         )
     assert resp.status_code == 200
@@ -540,6 +542,61 @@ class TestChannelDiagnoseCacheHit:
         assert payload_evt["payload"].get("score_card", {}).get("percentile_in_niche") == 40
         assert payload_evt["payload"].get("score_card_captions", {}).get("percentile") == "caption test"
         assert any(e.get("type") == "score_card" for e in events)
+
+    def test_cache_replay_emits_channel_findings(self, app_with_mocks, fake_videos, fake_channel_pattern):
+        sections = [
+            {"section_id": "verdict", "title": "Kết luận", "text": "Cache text verdict."},
+            {"section_id": "recommendations", "title": "Khuyến nghị", "text": "Cache recs."},
+        ]
+        findings = [
+            {
+                "finding_id": "channel_view_ceiling_300",
+                "teaser": "Có dấu hiệu trần view.",
+                "strength": "high",
+                "section_hint": "account_health",
+            },
+        ]
+        cache_row = {
+            "trajectory_shape": "stagnant",
+            "sections": sections,
+            "recommendations": [],
+            "top_performers": [],
+            "worst_performers": [],
+            "ugc_creators": [],
+            "channel_pattern": {},
+            "inflection": None,
+            "creator_match": None,
+            "video_count": 15,
+            "computed_at": (datetime.now(tz=UTC) - timedelta(days=1)).isoformat(),
+            "channel_findings": findings,
+        }
+        events = _run_diagnose(
+            app_with_mocks, fake_videos, fake_channel_pattern,
+            "stagnant", cache_row=cache_row,
+        )
+        findings_evt = next((e for e in events if e.get("type") == "channel_findings"), None)
+        assert findings_evt is not None
+        assert findings_evt["findings"][0]["finding_id"] == "channel_view_ceiling_300"
+
+    def test_force_refresh_bypasses_cache_hit(self, app_with_mocks, fake_videos, fake_channel_pattern):
+        cache_row = {
+            "trajectory_shape": "stagnant",
+            "sections": [{"section_id": "verdict", "title": "Kết luận", "text": "Cached."}],
+            "recommendations": [],
+            "top_performers": [],
+            "worst_performers": [],
+            "ugc_creators": [],
+            "channel_pattern": {},
+            "inflection": None,
+            "creator_match": None,
+            "video_count": 15,
+            "computed_at": (datetime.now(tz=UTC) - timedelta(days=1)).isoformat(),
+        }
+        events = _run_diagnose(
+            app_with_mocks, fake_videos, fake_channel_pattern,
+            "stagnant", cache_row=cache_row, force_refresh=True,
+        )
+        assert not any(e.get("type") == "cache_hit" for e in events)
 
 
 # ---------------------------------------------------------------------------

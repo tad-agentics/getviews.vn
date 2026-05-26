@@ -44,4 +44,16 @@ describe("planStudioComposerSubmit", () => {
       expect(plan.to).not.toContain("mode=flop");
     }
   });
+
+  it("passes composer depth when channel intent detected on non-channel pill", () => {
+    const plan = planStudioComposerSubmit(
+      "video_flop",
+      "Soi kênh @rival — audit đối thủ",
+      "deep",
+    );
+    expect(plan).toEqual({
+      kind: "navigate",
+      to: "/app/channel?handle=rival&depth=deep",
+    });
+  });
 });

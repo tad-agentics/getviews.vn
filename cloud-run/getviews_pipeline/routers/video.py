@@ -346,6 +346,7 @@ def _persist_channel_diagnoses(
     next_video: dict[str, Any] | None = None,
     channel_persona: dict[str, Any] | None = None,
     peer_source: str | None = None,
+    channel_findings: list[dict[str, Any]] | None = None,
 ) -> None:
     payload_card = dict(score_card or {})
     if score_card_captions:
@@ -371,6 +372,7 @@ def _persist_channel_diagnoses(
             "next_video": next_video,
             "channel_persona": channel_persona or {},
             "peer_source": peer_source,
+            "channel_findings": channel_findings or [],
             "computed_at": datetime.now(tz=UTC).isoformat(),
         }).execute()
     except Exception as exc:
@@ -560,6 +562,7 @@ async def _run_channel_diagnose(
         build_channel_findings,
         format_distribution_from_corpus_rows,
         optional_memo_sections_from_findings,
+        serialize_findings_for_api,
         synthesize_optional_section_from_findings,
     )
 
@@ -576,6 +579,8 @@ async def _run_channel_diagnose(
         niche_format_distribution=format_distribution_from_corpus_rows(peer_corpus_rows),
     )
     optional_memo_sections = optional_memo_sections_from_findings(channel_findings)
+    findings_api = serialize_findings_for_api(channel_findings)
+    await step_queue.put({"type": "channel_findings", "findings": findings_api})
 
     context_str = build_channel_diagnosis_context(
         handle=handle,
@@ -773,6 +778,7 @@ async def _run_channel_diagnose(
         next_video=next_video_out,
         channel_persona=persona,
         peer_source=peer_source,
+        channel_findings=findings_api,
     )
 
     return {
@@ -795,6 +801,7 @@ async def _run_channel_diagnose(
         "next_video": next_video_out,
         "channel_persona": persona,
         "peer_source": peer_source,
+        "channel_findings": findings_api,
     }
 
 
@@ -803,6 +810,7 @@ async def channel_diagnose_endpoint(
     handle: str = Query(..., description="TikTok handle (with or without @)"),
     niche_id: int = Query(..., description="Creator niche ID for benchmarks"),
     video_url: str = Query("", description="Optional target video URL for §4"),
+    force_refresh: bool = Query(False, description="Bypass 7-day channel_diagnoses cache"),
     resume_stream_id: str | None = Query(None),
     resume_from_seq: int | None = Query(None, ge=0),
     user: dict[str, Any] = Depends(require_user),
@@ -849,9 +857,13 @@ async def channel_diagnose_endpoint(
         # --- Hello frame ---
         yield _sse({"stream_id": stream_id, "seq": 0, "hello": True, "done": False})
 
-        # --- 7-day cache lookup ---
+        # --- 7-day cache lookup (skipped when force_refresh) ---
         sb_svc = get_service_client()
-        cached_row = _fetch_channel_diagnoses_cache(sb_svc, handle_norm, video_url, niche_id)
+        cached_row = (
+            None
+            if force_refresh
+            else _fetch_channel_diagnoses_cache(sb_svc, handle_norm, video_url, niche_id)
+        )
         if cached_row:
             # Replay cached narrative via the same section-tagged event sequence
             seq = 1
@@ -870,6 +882,7 @@ async def channel_diagnose_endpoint(
             next_video_row = cached_row.get("next_video")
             channel_persona_row = cached_row.get("channel_persona") or {}
             peer_source_row = cached_row.get("peer_source")
+            findings_replay = cached_row.get("channel_findings") or []
 
             score_all = dict(cached_row.get("score_card") or {})
             score_captions_replay: dict[str, str] | None = None
@@ -888,6 +901,16 @@ async def channel_diagnose_endpoint(
                 if score_captions_replay:
                     sc_evt["captions"] = score_captions_replay
                 yield _sse(sc_evt)
+
+            if findings_replay:
+                seq += 1
+                yield _sse({
+                    "stream_id": stream_id,
+                    "seq": seq,
+                    "type": "channel_findings",
+                    "findings": findings_replay,
+                    "done": False,
+                })
 
             for section in sections:
                 sid = section.get("section_id", "")
@@ -951,6 +974,7 @@ async def channel_diagnose_endpoint(
                 "next_video": next_video_row,
                 "channel_persona": channel_persona_row,
                 "peer_source": peer_source_row,
+                "channel_findings": findings_replay,
             }, "done": False})
             seq += 1
             yield _sse({"stream_id": stream_id, "seq": seq, "done": True})

@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — §5.1 Channel Intelligence gaps (force_refresh, depth, findings tile)
+
+- **`POST /channel/diagnose`:** `force_refresh=1` bypasses 7-day `channel_diagnoses` cache (fresh run charges 3 credits; replay stays 0 credit).
+- **FE:** `planAnswerEntry` + composer forward `depth` on channel intent; `ChannelFindingsStrip` on deep SSE; findings/score card render before narrative sections.
+- **DB:** Migration `20260830000002` adds `channel_diagnoses.channel_findings` JSONB for cache replay. **Deploy order:** `db push` before Cloud Run.
+
 ## 2026-05-25 — Phantom frame_urls cleanup + ED cover extraction fix
 
 - **DB:** Migration `20260831000000` clears stale `frame_urls` on rows with `thumbnail_url IS NULL` (R2 HEAD audit: URLs pointed at missing objects).
