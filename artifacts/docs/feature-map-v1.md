@@ -1000,42 +1000,42 @@ flowchart LR
 
 **Không** fork sang V6 `VideoBody` — channel giữ memo SSE.
 
-#### 5.3.3 Backlog finding — Chuyên sâu kênh (V1)
+#### 5.3.3 Registry finding — Chuyên sâu kênh (V1)
+
+**Trạng thái: ✅ Done (V1 core)** — audit 2026-05-23; **14/14** @ [`build_channel_findings()`](../../cloud-run/getviews_pipeline/channel_findings.py) (P0 C1/W4-1 · P1 C2/Phase 2a–2c · P2 C3).
 
 Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `strength`, `claim`, `evidence`, `section_hint`).
 
 | Phase | `finding.id` | V5 | Data / rule |
 |-------|--------------|-----|-------------|
-| **P0** | `channel_view_ceiling_300` | §2.1 shadowban *proxy* | ≥3 video 90d: views ≤300 **và** ER không bù → *“có dấu hiệu trần phân phối ~300 view”* — **không** gọi shadowban chắc |
-| **P0** | `channel_format_entropy_high` | §2.2 niche inconsistency | Shannon trên `content_format` share > ngưỡng; so `format_distribution` ngách |
-| **P0** | `channel_recent_vs_peak_er_drop` | §2.2 audience mismatch | `recent_avg` views + ER proxy vs `peak` window |
+| **P0** | `channel_view_ceiling_300` | §2.1 shadowban *proxy* | ≥3 video 90d: views ≤300 **và** ER không bù (ngưỡng `er_threshold_pct`) → *“có dấu hiệu trần phân phối ~300 view”* — **không** gọi shadowban chắc |
+| **P0** | `channel_format_entropy_high` | §2.2 niche inconsistency | Shannon entropy ≥2.2 trên `content_format`; so `format_distribution` ngách |
+| **P0** | `channel_recent_vs_peak_er_drop` | §2.2 audience mismatch | `recent_avg` views + ER proxy vs `peak` window (view drop ≥25% hoặc ER drop ≥1pp) |
 | **P0** | `channel_peer_format_saturation` | §2.3 format saturation | Top 20 corpus 7d cùng `content_format` ≥70% → saturated |
-| **P1** | `channel_compliance_aggregate` | §2.4 | Roll-up `compliance_*` từ `analysis_json` N video gần nhất trên corpus |
-| **P1** | `channel_restricted_keyword_exposure` | §2.4 OCR/audio | Đếm video có `compliance_restricted_phrase` / OCR flags |
-| **P1** | `channel_ad_law_disclosure_gap` | §2.4 VN 2025 | % video `brand_deal`/`affiliate` thiếu disclosure signal |
-| **P1** | `channel_copyright_mute_risk` | §2.4 copyright | `sound_cml_strip_risk` aggregate trên kênh |
-| **P1** | `channel_posting_cadence_vs_peer` | Macro cadence | `posts_per_week` vs `niche_channel_benchmarks` (đã có score card) |
-| **P1** | `channel_best_hour_underused` | §1.5 timing (kênh) | `best_hour_ratio` từ `compute_posting_cadence` — đã có, đưa vào findings |
-| **P1** | `channel_boost_outlier_share` | §1.8 (kênh) | % video handle trên corpus `suspect_medium` (§4.7 M1) |
+| **P1** | `channel_compliance_aggregate` | §2.4 | Roll-up `compliance_*` từ `analysis_json` N video gần nhất trên corpus handle |
+| **P1** | `channel_restricted_keyword_exposure` | §2.4 OCR/audio | ≥2 video có `compliance_restricted_phrase` / OCR flags |
+| **P1** | `channel_ad_law_disclosure_gap` | §2.4 VN 2025 | ≥2 video `brand_deal`/`affiliate` thiếu disclosure signal |
+| **P1** | `channel_copyright_mute_risk` | §2.4 copyright | ≥2 video `sound_cml_strip_risk` trên handle corpus |
+| **P1** | `channel_posting_cadence_vs_peer` | Macro cadence | `posts_per_week` lag ≥20% vs `niche_channel_benchmarks` (score card) |
+| **P1** | `channel_best_hour_underused` | §1.5 timing (kênh) | `best_hour_ratio` ≥1.5 nhưng ≤35% post 30d trong khung mạnh |
+| **P1** | `channel_boost_outlier_share` | §1.8 (kênh) | ≥2 video hoặc ≥25% handle corpus `boost_attribution=suspect_medium` (§4.7 M1) |
 | **P2** | `channel_mega_sale_dip` | §2.3 cannibalization | View 7d overlap sale calendar (static ICT dates) + dip ≥40% |
-| **P2** | `channel_persona_drift` | §2.5 cross-niche drift | `content_class` đổi >1 lần trong 90d |
-| **P2** | `channel_slang_staleness` | §2.5 slang | Aggregate `persona_slang_dated` từ batch extract |
+| **P2** | `channel_persona_drift` | §2.5 cross-niche drift | `content_class` đổi ≥2 lần 90d **hoặc** ≥2 video `persona_consistency` drift (backdrop/costume/catchphrase/camera/speech) |
+| **P2** | `channel_slang_staleness` | §2.5 slang | ≥2 video handle corpus `analysis_json.slang_freshness_score == "dated"` — **data-dependent** batch extract |
 
-**Shipped @ Launch Phase 2a/2c:** P1 `channel_compliance_aggregate`, `channel_ad_law_disclosure_gap`, `channel_boost_outlier_share`; P2 `channel_persona_drift`, `channel_slang_staleness` (+ remaining P1/P2 in `channel_findings.py`). P0 unchanged @ W4-1.
-
-**Copy (§4.7.0):** ví dụ P0 — *“3/5 video gần nhất kẹt dưới ~300 view dù hook/format không đồng đều yếu — **có dấu hiệu** trần phân phối tài khoản; nên kiểm tra Account Status trong app TikTok, GetViews không đọc được FYP %.”*
+**Copy (§4.7.0):** claim P0 ceiling (as-built) — *“{n} video gần đây kẹt dưới ~300 view với ER thấp — **có dấu hiệu** trần phân phối tài khoản; GetViews không đọc được FYP %.”* Vòng 1 UX: [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) footnote → TikTok Account Status.
 
 #### 5.3.4 Map finding → narrative sections
 
-| `section_hint` | Finding types | Ghi chú prompt |
-|----------------|---------------|----------------|
-| `verdict` | ceiling, format entropy, trajectory | Mở memo — 1 finding mạnh nhất |
-| `what_falling` | mismatch, saturation, compliance aggregate | Bắt buộc trừ `breakout` / `new_account` |
-| `what_worked` | cadence OK, hashtag winners | Giữ logic trajectory hiện tại |
-| `competitive_landscape` | saturation, peer format gap | Đã có peer block |
-| `recommendations` | mọi `strength ≥ medium` | Block `--- NGỪNG LÀM ---` gắn compliance / format scatter |
-| `account_health` (mới) | `channel_view_ceiling_300`, boost share | Chỉ khi P0 firing |
-| `policy_risk` (mới) | compliance roll-up | Chỉ khi ≥1 video flag |
+| `section_hint` | Finding IDs (as-built) | Ghi chú |
+|----------------|--------------------------|---------|
+| `verdict` | `channel_view_ceiling_300` | Mở memo — finding mạnh nhất P0 ceiling |
+| `what_falling` | entropy, recent vs peak, cadence lag, mega sale, persona drift, slang | Bắt buộc trừ `breakout` / `new_account` |
+| `what_worked` | _(trajectory / hashtag winners — không finding riêng)_ | Giữ logic trajectory hiện tại |
+| `competitive_landscape` | `channel_peer_format_saturation` | Peer block + saturation claim |
+| `recommendations` | `channel_best_hour_underused` (+ mọi `strength ≥ medium` trong prompt) | Block `--- NGỪNG LÀM ---` gắn compliance / format scatter |
+| `account_health` (optional SSE) | `channel_view_ceiling_300`, `channel_boost_outlier_share` | Layer B — `optional_memo_sections_from_findings()`; ceiling `section_hint=verdict` nhưng vẫn gate SSE |
+| `policy_risk` (optional SSE) | compliance aggregate, restricted, ad-law gap, copyright mute | Layer B — khi ≥1 P1 compliance finding fire |
 
 #### 5.3.5 Data & reuse từ Trụ 1 / F8
 
@@ -1051,11 +1051,13 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 
 #### 5.3.6 Thứ tự build & acceptance
 
-| Sprint | Deliverable |
-|--------|-------------|
-| **C1** | `build_channel_findings()` + inject prompt; 4 finding P0 |
-| **C2** | P1 compliance + cadence + boost share; optional SSE `account_health` / `policy_risk` |
-| **C3** | P2 sale calendar + persona drift |
+**Trạng thái: ✅ Done** — C1–C3 landed; checklist below still holds.
+
+| Sprint | Deliverable | Status |
+|--------|-------------|--------|
+| **C1** | `build_channel_findings()` + inject prompt; 4 finding P0 | ✅ W4-1 |
+| **C2** | P1 compliance + cadence + boost share; optional SSE `account_health` / `policy_risk` | ✅ Phase 2a–2c |
+| **C3** | P2 sale calendar + persona drift + slang | ✅ |
 
 - [x] F4 prompt luôn nhận `<<<CHANNEL FINDINGS>>>` khi ≥1 finding — ✅ W4-1  
 - [x] Finding P0 có số (video count, view threshold, format %) — ✅ W4-1  
