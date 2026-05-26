@@ -309,7 +309,7 @@ describe("PlanPanel — subscription copy", () => {
     await renderWithProfile({ subscription_tier: "free" });
     fireEvent.click(screen.getByRole("button", { name: "Xem bảng giá" }));
     await waitFor(() => {
-      expect(screen.getByText(/Lựa chọn gói phân tích phù hợp/i)).toBeTruthy();
+      expect(screen.getAllByText(/Phổ biến nhất/i).length).toBeGreaterThan(0);
     });
     expect(screen.getByRole("heading", { name: "Gói & Giao dịch" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Quay lại gói & giao dịch/i })).toBeTruthy();
