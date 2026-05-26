@@ -232,16 +232,20 @@ def _run_diagnose(
     video_url: str = "",
     cache_row: dict | None = None,
     force_refresh: bool = False,
+    peer_source: str = "niche_only",
+    peer_creators: list | None = None,
+    handle_corpus_rows: list | None = None,
+    recent_window: dict | None = None,
 ) -> list[dict[str, Any]]:
     """Run /channel/diagnose with mocked I/O and return parsed SSE events."""
 
-    fake_recent_window = {
+    fake_recent_window = recent_window or {
         "avg_views": 55_000,
         "video_count": 5,
         "days": 30,
     }
     fake_inflection = None
-    fake_peer_raw = [
+    fake_peer_raw = peer_creators if peer_creators is not None else [
         {
             "handle": "competitor1",
             "followers": 50_000,
@@ -276,7 +280,7 @@ def _run_diagnose(
         patch(
             "getviews_pipeline.channel_diagnose.select_niche_peer_creators",
             new_callable=AsyncMock,
-            return_value=(fake_peer_raw, "niche_only", []),
+            return_value=(fake_peer_raw, peer_source, []),
         ),
         patch(
             "getviews_pipeline.channel_diagnose.derive_channel_persona",
@@ -330,6 +334,11 @@ def _run_diagnose(
         patch(
             "getviews_pipeline.routers.video.get_service_client",
             return_value=_make_fake_sb(),
+        ),
+        patch(
+            "getviews_pipeline.channel_diagnose.fetch_handle_corpus_for_findings",
+            new_callable=AsyncMock,
+            return_value=handle_corpus_rows or [],
         ),
     ):
         client = TestClient(app_with_mocks, raise_server_exceptions=False)
@@ -637,3 +646,92 @@ def test_trajectory_smoke(trajectory, app_with_mocks, fake_videos, fake_channel_
     # terminal done
     terminal = next((e for e in events if e.get("done") is True), None)
     assert terminal is not None, f"[{trajectory}] No terminal done=True"
+
+
+# ---------------------------------------------------------------------------
+# Section salience (§5.5 Wave 2)
+# ---------------------------------------------------------------------------
+
+class TestChannelSectionsSalience:
+    def test_thin_peers_skips_competitive_landscape(
+        self, app_with_mocks,
+    ):
+        from tests.test_channel_findings import _video
+
+        low_videos = [_video(views=150, likes=1, comments=0, days_ago=i) for i in range(4)]
+        low_pattern = {
+            "global_avg_views": 200,
+            "max_views": 500,
+            "total_videos": 4,
+            "formats": {
+                "product_closeup": {
+                    "count": 4,
+                    "avg_views": 200,
+                    "total_views": 800,
+                },
+            },
+        }
+        events = _run_diagnose(
+            app_with_mocks,
+            low_videos,
+            low_pattern,
+            trajectory="stagnant",
+            peer_source="thin",
+            peer_creators=[],
+            recent_window={"avg_views": 150, "video_count": 4, "days": 30},
+        )
+        started = {e["section_id"] for e in events if e.get("type") == "section_start"}
+        assert "competitive_landscape" not in started
+        assert "verdict" in started
+        assert "recommendations" in started
+
+    def test_emitted_sections_match_salience_selector(
+        self, app_with_mocks,
+    ):
+        from getviews_pipeline.channel_findings import ChannelFinding, select_channel_sections_to_emit
+        from tests.test_channel_findings import _video
+
+        low_videos = [_video(views=150, likes=1, comments=0, days_ago=i) for i in range(4)]
+        low_pattern = {
+            "global_avg_views": 200,
+            "max_views": 500,
+            "total_videos": 4,
+            "formats": {
+                "product_closeup": {
+                    "count": 4,
+                    "avg_views": 200,
+                    "total_views": 800,
+                },
+            },
+        }
+        events = _run_diagnose(
+            app_with_mocks,
+            low_videos,
+            low_pattern,
+            trajectory="stagnant",
+            peer_source="thin",
+            peer_creators=[],
+            recent_window={"avg_views": 150, "video_count": 4, "days": 30},
+        )
+        findings_evt = next(e for e in events if e.get("type") == "channel_findings")
+        traj_evt = next(e for e in events if e.get("type") == "trajectory")
+        rebuilt = [
+            ChannelFinding(
+                id=str(row["finding_id"]),
+                taxonomy_ref=str(row["finding_id"]),
+                strength=row["strength"],
+                claim=str(row["teaser"]),
+                evidence=[],
+                section_hint=str(row["section_hint"]),
+                salience=0.5,
+            )
+            for row in findings_evt["findings"]
+        ]
+        expected = select_channel_sections_to_emit(
+            rebuilt,
+            trajectory=str(traj_evt["trajectory"]),
+            has_ugc_peers=False,
+            peer_source="thin",
+        )
+        started = [e["section_id"] for e in events if e.get("type") == "section_start"]
+        assert started == expected

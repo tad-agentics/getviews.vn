@@ -562,6 +562,7 @@ async def _run_channel_diagnose(
         build_channel_findings,
         format_distribution_from_corpus_rows,
         optional_memo_sections_from_findings,
+        select_channel_sections_to_emit,
         serialize_findings_for_api,
         synthesize_optional_section_from_findings,
     )
@@ -579,6 +580,14 @@ async def _run_channel_diagnose(
         niche_format_distribution=format_distribution_from_corpus_rows(peer_corpus_rows),
     )
     optional_memo_sections = optional_memo_sections_from_findings(channel_findings)
+    sections_to_emit = select_channel_sections_to_emit(
+        channel_findings,
+        trajectory=trajectory,
+        video_url=video_url,
+        has_next_video_seed=bool(next_video_seed),
+        has_ugc_peers=bool(peer_creators_raw),
+        peer_source=peer_source,
+    )
     findings_api = serialize_findings_for_api(channel_findings)
     await step_queue.put({"type": "channel_findings", "findings": findings_api})
 
@@ -599,6 +608,7 @@ async def _run_channel_diagnose(
         next_video_concept=next_video_seed,
         channel_findings=channel_findings,
         optional_memo_sections=optional_memo_sections,
+        sections_to_emit=sections_to_emit,
     )
 
     from google.genai import types as genai_types
@@ -660,12 +670,6 @@ async def _run_channel_diagnose(
                 sections_raw.append(synth)
                 parsed_map[sid] = synth
 
-    order = [
-        "verdict", "what_worked", "what_falling", "video_vs_channel",
-        "competitive_landscape", "hashtag_insights", "next_video",
-        "account_health", "policy_risk", "recommendations",
-    ]
-
     tile_map: dict[str, list[dict[str, Any]]] = {
         "verdict": verdict_tiles,
         "what_worked": top_performers,
@@ -715,13 +719,7 @@ async def _run_channel_diagnose(
         for section in sections_ordered:
             await _emit_one(section)
     else:
-        for sid in order:
-            if sid == "what_falling" and trajectory in ("breakout", "new_account"):
-                continue
-            if sid == "video_vs_channel" and not video_url:
-                continue
-            if sid in ("account_health", "policy_risk") and sid not in optional_memo_sections:
-                continue
+        for sid in sections_to_emit:
             if sid == "hashtag_insights":
                 sec_title = get_default_title("hashtag_insights", trajectory)
                 hint = f"Dựa trên {len(videos)} video đã phân tích (caption public)."

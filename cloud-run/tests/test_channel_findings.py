@@ -8,12 +8,14 @@ import pytest
 
 from getviews_pipeline.channel_diagnose_prompts import build_channel_diagnosis_context
 from getviews_pipeline.channel_findings import (
+    ChannelFinding,
     _cohort_er_threshold_pct,
     _in_mega_sale_window,
     build_channel_findings,
     format_distribution_from_corpus_rows,
     format_findings_for_prompt,
     optional_memo_sections_from_findings,
+    select_channel_sections_to_emit,
     serialize_findings_for_api,
     synthesize_optional_section_from_findings,
 )
@@ -447,6 +449,113 @@ def test_synthesize_optional_section_fallback():
     assert synth is not None
     assert synth["section_id"] == "account_health"
     assert synth["text"]
+
+
+def test_select_channel_sections_to_emit_breakout_skips_what_falling():
+    videos = [_video(views=50_000, likes=500, comments=50, days_ago=i) for i in range(5)]
+    findings = build_channel_findings(
+        videos=videos,
+        channel_pattern={"global_avg_views": 40_000, "max_views": 80_000},
+        recent_window_30d={"avg_views": 50_000, "video_count": 5},
+        inflection=None,
+    )
+    sections = select_channel_sections_to_emit(
+        findings,
+        trajectory="breakout",
+        has_next_video_seed=True,
+        has_ugc_peers=True,
+    )
+    assert "what_falling" not in sections
+    assert "verdict" in sections
+    assert "competitive_landscape" in sections
+
+
+def test_select_channel_sections_to_emit_skips_landscape_when_thin_peers():
+    videos = [_video(views=150, likes=1, comments=0, days_ago=i) for i in range(4)]
+    findings = build_channel_findings(
+        videos=videos,
+        channel_pattern={"global_avg_views": 200, "max_views": 500},
+        recent_window_30d={"avg_views": 150, "video_count": 4},
+        inflection=None,
+    )
+    sections = select_channel_sections_to_emit(
+        findings,
+        trajectory="stagnant",
+        has_ugc_peers=False,
+        peer_source="thin",
+    )
+    assert "competitive_landscape" not in sections
+    assert "what_falling" in sections
+
+
+def test_select_channel_sections_to_emit_keeps_landscape_when_peer_source_not_thin():
+    videos = [_video(views=150, likes=1, comments=0, days_ago=i) for i in range(4)]
+    findings = build_channel_findings(
+        videos=videos,
+        channel_pattern={"global_avg_views": 200, "max_views": 500},
+        recent_window_30d={"avg_views": 150, "video_count": 4},
+        inflection=None,
+    )
+    sections = select_channel_sections_to_emit(
+        findings,
+        trajectory="stagnant",
+        has_ugc_peers=False,
+        peer_source="niche_only",
+    )
+    assert "competitive_landscape" in sections
+
+
+def test_select_channel_sections_to_emit_skips_what_falling_without_hint():
+    findings = [
+        ChannelFinding(
+            id="channel_compliance_aggregate",
+            taxonomy_ref="compliance",
+            strength="high",
+            claim="2/5 video có compliance flag.",
+            evidence=["v1", "v2"],
+            section_hint="policy_risk",
+            salience=0.9,
+        ),
+    ]
+    sections = select_channel_sections_to_emit(
+        findings,
+        trajectory="stagnant",
+        has_ugc_peers=False,
+        peer_source="thin",
+    )
+    assert "what_falling" not in sections
+    assert "policy_risk" in sections
+    assert "competitive_landscape" not in sections
+
+
+def test_prompt_includes_sections_to_emit():
+    videos = [_video(views=150, likes=1, comments=0, days_ago=i) for i in range(4)]
+    findings = build_channel_findings(
+        videos=videos,
+        channel_pattern={"global_avg_views": 200, "max_views": 500},
+        recent_window_30d={"avg_views": 150, "video_count": 4},
+        inflection=None,
+    )
+    sections = select_channel_sections_to_emit(
+        findings, trajectory="stagnant", has_ugc_peers=False,
+    )
+    ctx = build_channel_diagnosis_context(
+        handle="testchan",
+        videos=videos,
+        trajectory="stagnant",
+        channel_pattern={"global_avg_views": 200, "max_views": 500, "formats": {}},
+        recent_window_30d={"avg_views": 150, "video_count": 4},
+        inflection=None,
+        top_performers=[],
+        worst_performers=[],
+        creator_match=None,
+        ugc_creators=[],
+        niche_benchmarks=None,
+        channel_findings=findings,
+        sections_to_emit=sections,
+    )
+    assert "<<<SECTIONS TO EMIT>>>" in ctx
+    assert "verdict" in ctx
 
 
 def test_prompt_includes_optional_memo_sections():

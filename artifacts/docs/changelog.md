@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-23 — §5.5 Channel salience Wave 2 deep
+
+- **BE:** `select_channel_sections_to_emit()` gates memo SSE; prompt `<<<SECTIONS TO EMIT>>>`; wired in `/channel/diagnose`.
+- **FE:** Vòng 1–4 audit hints on `ChannelFindingsStrip`; `PolicyRiskStrip` on `policy_risk` section.
+
 ## 2026-05-23 — §5.3 Channel deep findings doc + Vòng 1 copy
 
 - **Docs:** `feature-map-v1.md` §5.3.1–§5.3.6 refreshed to as-built (14/14 finding registry, section map + salience cap, sprint status).

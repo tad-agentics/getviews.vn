@@ -8,16 +8,19 @@
  */
 
 import { SectionProseBlocks } from "@/components/SectionProseBlocks";
-import type { ChannelSection, ChannelRecommendation } from "@/lib/api-types";
+import type { ChannelSection, ChannelRecommendation, ChannelDiagnosisFinding } from "@/lib/api-types";
 import { VideoTileRow } from "./VideoTileRow";
 import { CreatorTileRow } from "./CreatorTileRow";
 import { RecommendationList } from "./NumberedRecommendation";
 import { HashtagInsightsBlock } from "./HashtagInsightsBlock";
 import { NextVideoCard, NextVideoCardEmpty } from "./NextVideoCard";
+import { PolicyRiskStrip } from "./PolicyRiskStrip";
+import { AccountHealthStrip } from "./AccountHealthStrip";
 
 interface SectionRendererProps {
   section: ChannelSection;
   recommendations?: ChannelRecommendation[];
+  channelFindings?: ChannelDiagnosisFinding[];
   /** Whether text is still streaming in (shows trailing cursor on the
    * active section only — not every visible section). True iff the
    * stream is in flight AND this section is the currently-active one
@@ -28,6 +31,7 @@ interface SectionRendererProps {
 export function SectionRenderer({
   section,
   recommendations = [],
+  channelFindings = [],
   streaming = false,
 }: SectionRendererProps) {
   const { section_id, title, text, embedded_tiles, embedded_creators, hashtag_insights, next_video } = section;
@@ -74,6 +78,52 @@ export function SectionRenderer({
         ) : (
           <NextVideoCardEmpty streaming={streaming} />
         )}
+      </div>
+    );
+  }
+
+  if (section_id === "account_health") {
+    return (
+      <div className="mb-6">
+        <h2 className="gv-type-h3 text-[color:var(--foreground)] leading-snug">{title}</h2>
+        <AccountHealthStrip findings={channelFindings} />
+        <div className="relative">
+          <SectionProseBlocks text={text} />
+          {streaming && !text && (
+            <p className="text-sm italic text-[color:var(--muted)] mt-2" aria-live="polite">
+              Đang viết phân tích…
+            </p>
+          )}
+          {streaming && text && (
+            <span
+              className="inline-block w-0.5 h-4 bg-[color:var(--primary)] animate-pulse ml-0.5 align-text-bottom"
+              aria-hidden
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (section_id === "policy_risk") {
+    return (
+      <div className="mb-6">
+        <h2 className="gv-type-h3 text-[color:var(--foreground)] leading-snug">{title}</h2>
+        <PolicyRiskStrip findings={channelFindings} />
+        <div className="relative">
+          <SectionProseBlocks text={text} />
+          {streaming && !text && (
+            <p className="text-sm italic text-[color:var(--muted)] mt-2" aria-live="polite">
+              Đang viết phân tích…
+            </p>
+          )}
+          {streaming && text && (
+            <span
+              className="inline-block w-0.5 h-4 bg-[color:var(--primary)] animate-pulse ml-0.5 align-text-bottom"
+              aria-hidden
+            />
+          )}
+        </div>
       </div>
     );
   }

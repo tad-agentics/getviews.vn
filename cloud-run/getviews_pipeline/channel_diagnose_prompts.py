@@ -153,9 +153,9 @@ nêu số video flag + hành động sửa caption/VO trước khi đăng tiếp
   §6 recommendations: focus vào chiến lược 30 video đầu tiên.
 
 === MANDATORY SECTIONS ===
-verdict, what_worked, competitive_landscape, next_video, recommendations là BẮT BUỘC.
-what_falling: BẮT BUỘC trừ breakout và new_account.
-video_vs_channel: CHỈ emit khi có THIS VIDEO trong context.
+Khi có block <<<SECTIONS TO EMIT>>>: CHỈ emit đúng các section trong danh sách — bỏ qua mọi section khác.
+Không có block đó: verdict, what_worked, competitive_landscape, next_video, recommendations là BẮT BUỘC;
+what_falling BẮT BUỘC trừ breakout và new_account; video_vs_channel CHỈ khi có THIS VIDEO.
 """
 
 # ---------------------------------------------------------------------------
@@ -274,6 +274,7 @@ def build_channel_diagnosis_context(
     next_video_concept: dict[str, Any] | None = None,
     channel_findings: list[Any] | None = None,
     optional_memo_sections: list[str] | None = None,
+    sections_to_emit: list[str] | None = None,
 ) -> str:
     """Build the user-facing context string with ``<<<BLOCK>>>`` delimiters.
 
@@ -481,6 +482,13 @@ def build_channel_diagnosis_context(
         block = format_findings_for_prompt(channel_findings)
         if block:
             blocks.append(block)
+
+    if sections_to_emit:
+        blocks.append(
+            "<<<SECTIONS TO EMIT>>>\n"
+            + "\n".join(f"- {sid}" for sid in sections_to_emit)
+            + "\n(Chỉ emit đúng các section trên — bỏ qua section không có trong danh sách.)"
+        )
 
     if optional_memo_sections:
         blocks.append(

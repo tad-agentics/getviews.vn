@@ -709,6 +709,57 @@ def _finding_channel_mega_sale_dip(
     )
 
 
+CHANNEL_MEMO_SECTION_ORDER: tuple[str, ...] = (
+    "verdict",
+    "what_worked",
+    "what_falling",
+    "video_vs_channel",
+    "competitive_landscape",
+    "hashtag_insights",
+    "next_video",
+    "account_health",
+    "policy_risk",
+    "recommendations",
+)
+
+_TRAJECTORY_SKIP_WHAT_FALLING = frozenset({"breakout", "new_account"})
+
+
+def select_channel_sections_to_emit(
+    findings: list[ChannelFinding],
+    *,
+    trajectory: str,
+    video_url: str | None = None,
+    has_next_video_seed: bool = False,
+    has_ugc_peers: bool = False,
+    peer_source: str | None = None,
+) -> list[str]:
+    """Salience-driven memo section list (§5.5 Wave 2 — channel analogue of V6 select)."""
+    hints = {f.section_hint for f in findings}
+    selected: set[str] = {"verdict", "what_worked", "recommendations", "hashtag_insights"}
+
+    if trajectory not in _TRAJECTORY_SKIP_WHAT_FALLING:
+        if not findings or "what_falling" in hints:
+            selected.add("what_falling")
+
+    if video_url:
+        selected.add("video_vs_channel")
+
+    if not findings:
+        selected.add("competitive_landscape")
+    elif has_ugc_peers or "competitive_landscape" in hints:
+        selected.add("competitive_landscape")
+    elif (peer_source or "") != "thin":
+        selected.add("competitive_landscape")
+
+    if has_next_video_seed:
+        selected.add("next_video")
+
+    selected.update(optional_memo_sections_from_findings(findings))
+
+    return [sid for sid in CHANNEL_MEMO_SECTION_ORDER if sid in selected]
+
+
 def optional_memo_sections_from_findings(
     findings: list[ChannelFinding],
 ) -> list[str]:

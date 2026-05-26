@@ -169,6 +169,7 @@ export function ChannelDiagnosisBody({
             <SectionRenderer
               key={section.section_id}
               section={section}
+              channelFindings={channelFindings}
               recommendations={
                 section.section_id === "recommendations" ? diagnose.recommendations : []
               }

@@ -1068,9 +1068,11 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 
 ### 5.5 Triết lý salience cho kênh (không phải “dùng V6”)
 
+**Trạng thái: ✅ Done (V1 + Wave 2 deep)** — audit 2026-05-23; `select_channel_sections_to_emit()` + `<<<SECTIONS TO EMIT>>>` + Vòng 1–4 UX + `PolicyRiskStrip`.
+
 **Chốt product:** Mục tiêu là **triết lý salience** — chỉ surface insight khi có bằng chứng đủ mạnh, xếp hạng, cap vào prompt, gate section theo context — **không** phải reuse stack V6 (`SECTION_POOL`, `VideoBody`, synthesis từng section).
 
-**Câu trả lời ngắn:** Pipeline kênh hôm nay **cứng** (memo + trajectory cố định). **Nên** thêm lớp salience riêng: `channel_findings[]` → gate → `<<<CHANNEL FINDINGS>>>` (§5.3). **Giữ** một lần Gemini + SSE memo hiện tại.
+**Câu trả lời ngắn:** Pipeline kênh = memo + trajectory cố định **+** lớp salience `channel_findings[]` → `select_channel_sections_to_emit()` → `<<<CHANNEL FINDINGS>>>` / `<<<SECTIONS TO EMIT>>>` (§5.3 / §5.5). **Giữ** một lần Gemini + SSE memo.
 
 **Triết lý salience (dùng chung video & kênh, implementation khác):**
 
@@ -1086,13 +1088,13 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 |---|-----------------------------------------------|--------------------------------------|
 | Đơn vị phân tích | 1 video + refs | Cả kênh (N video ED + corpus) |
 | Deterministic | `performance_tier`, refs, retention modeled | `classify_trajectory` (6 shape), `compute_score_card`, `build_channel_pattern`, tile rules theo trajectory |
-| “Signal” | `build_signal_manifest` → ~40+ extractors, salience/section | **Không có manifest** — chỉ 2 signal `channel_*` trong video path; channel endpoint **không** gọi registry |
-| LLM | `synthesize_diagnosis_v6_section_pool` — **theo section** đã chọn | **Một** `GenerateContent` memo dài — system prompt ~150 dòng quy định `=== verdict ===`, `=== what_falling ===`, … |
-| Output | `diagnosis_vi.sections[]` + `findings[]` JSON | Parse `=== section_id ===` từ prose; thứ tự cứng `order = [verdict, what_worked, …]` |
-| FE | `DiagnosisSectionRenderer` / `VideoBody` | `SectionRenderer` memo + `ScoreCard` SSE |
-| Biến thiên độ dài | `select_sections_to_emit` + salience | Chủ yếu **trajectory** (bỏ `what_falling` nếu breakout) + có/không `video_url` |
+| “Signal” | `build_signal_manifest` → ~40+ extractors, salience/section | **`build_channel_findings()`** (14 rules) + `select_channel_sections_to_emit()` — **không** gọi video manifest |
+| LLM | `synthesize_diagnosis_v6_section_pool` — **theo section** đã chọn | **Một** `GenerateContent` memo — `<<<SECTIONS TO EMIT>>>` + `<<<CHANNEL FINDINGS>>>` |
+| Output | `diagnosis_vi.sections[]` + `findings[]` JSON | Parse `=== section_id ===`; emit order = `select_channel_sections_to_emit()` |
+| FE | `DiagnosisSectionRenderer` / `VideoBody` | `SectionRenderer` + `ChannelFindingsStrip` + `PolicyRiskStrip` @ `policy_risk` |
+| Biến thiên độ dài | `select_sections_to_emit` + salience | `select_channel_sections_to_emit` + trajectory + optional `account_health` / `policy_risk` |
 
-→ Kênh = **memo tư vấn một lần**, cứng ở **tên section + framing trajectory**, không phải salience-driven section pool.
+→ Kênh = **memo tư vấn một lần**, salience-driven **findings + section gate** — không phải V6 section pool.
 
 #### 5.5.2 Vì sao salience ≠ port V6
 
@@ -1104,9 +1106,7 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 | **Data aggregate** | Channel finding = roll-up N video — không phải `user_analysis` một lần extract |
 | **Đã ship** | Cache `channel_diagnoses`, SSE `score_card`, tests `test_channel_diagnose_*` — rewrite rủi ro cao |
 
-#### 5.5.3 Nên làm gì thay vì full restructure (đề xuất V1)
-
-Áp dụng **cùng triết lý salience**, **khác implementation**:
+#### 5.5.3 As-built salience (Wave 2 deep — shipped)
 
 ```mermaid
 flowchart LR
@@ -1120,25 +1120,25 @@ flowchart LR
   videos --> det --> findings --> pick --> ctx --> llm --> parse
 ```
 
-| Bước salience | Video (hiện tại) | Kênh V1 (đề xuất) |
-|---------------|------------------|-------------------|
+| Bước salience | Video (V6) | Kênh (as-built) |
+|---------------|------------|-----------------|
 | Candidate pool | `build_signal_manifest` | `build_channel_findings()` — `taxonomy_ref` V5 §2 |
-| Gate | `applies()` + ngưỡng salience/section | `evidence_strength` + trajectory (vd. skip `what_falling` khi breakout) |
-| Cap vào LLM | `manifest_for_prompt` 3/5 | `<<<CHANNEL FINDINGS>>>` top N |
-| Render | V6 sections + `VideoBody` | **Memo SSE** — findings chỉ là input prompt |
-| Mở rộng | Thêm extractor → `section_id` | Thêm rule → `finding.id`; optional block `account_health` |
+| Gate | `applies()` + ngưỡng salience/section | `select_channel_sections_to_emit()` + trajectory |
+| Cap vào LLM | `manifest_for_prompt` 3/5 | `<<<CHANNEL FINDINGS>>>` top 8 salience |
+| Render | V6 sections + `VideoBody` | **Memo SSE** + `ChannelFindingsStrip` + `PolicyRiskStrip` |
+| Mở rộng | Thêm extractor → `section_id` | Thêm rule → `finding.id`; optional `account_health` / `policy_risk` |
 
 **Chia sẻ code (surgical):**
 
-- Dataclass `Evidence` / `Signal` (hoặc alias `ChannelFinding`) — cùng file `signals/base.py`
-- Copy contract §4.7.0 (“có dấu hiệu” + số)
-- Aggregate video `compliance_*`, `persona_*`, `boost_*` từ corpus theo `creator_handle` → channel findings (không re-run extract)
+- Copy contract §4.7.0 (“có dấu hiệu” + số) — ✅
+- Aggregate video `compliance_*`, `persona_*`, `boost_*` từ corpus → channel findings — ✅
+- `ChannelFinding` dataclass riêng (`evidence: list[str]`) — unify `Signal`/`Evidence` **deferred Wave 3+**
 
-**Không bắt buộc chia sẻ:** `SECTION_POOL`, `VideoBody`, per-section v6 synthesis — chỉ **pattern** salience + optional dataclass `Evidence`.
+**Không port:** `SECTION_POOL`, `VideoBody`, per-section v6 synthesis.
 
-#### 5.5.4 Phạm vi V1
+#### 5.5.4 Phạm vi V1 + Wave 2
 
-**§5.3 C1–C3** = đủ để kênh Chuyên sâu “salience-native” theo V5 Phần 2. Chỉ xem xét đổi UI/render (block giống video) nếu product yêu cầu riêng — ngoài phạm vi triết lý salience.
+**§5.3 C1–C3 + Wave 2 deep** = kênh Chuyên sâu salience-native theo V5 Phần 2. Vòng 1–4 audit hints @ `ChannelFindingsStrip`; compliance tile @ `PolicyRiskStrip`. Unify `ChannelFinding` ↔ `Signal` deferred.
 
 ---
 

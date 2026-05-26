@@ -10,14 +10,18 @@
  * - StepProgress: renders step label and trajectory badge
  */
 
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { ChannelSection, ChannelPerformerTile, ChannelUGCCreator, ChannelRecommendation } from "@/lib/api-types";
 import { SectionRenderer } from "./SectionRenderer";
 import { VideoTileRow } from "./VideoTileRow";
 import { CreatorTileRow } from "./CreatorTileRow";
 import { NumberedRecommendation, RecommendationList } from "./NumberedRecommendation";
 import { StepProgress } from "./StepProgress";
+
+afterEach(() => {
+  cleanup();
+});
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -134,6 +138,50 @@ describe("SectionRenderer", () => {
     });
     render(<SectionRenderer section={section} recommendations={[]} />);
     expect(screen.getByText("Raw recommendation text as fallback.")).toBeDefined();
+  });
+
+  it("renders PolicyRiskStrip for policy_risk section", () => {
+    const section = makeSection({
+      section_id: "policy_risk",
+      title: "Rủi ro chính sách",
+      text: "Memo prose.",
+    });
+    render(
+      <SectionRenderer
+        section={section}
+        channelFindings={[
+          {
+            finding_id: "channel_ad_law_disclosure_gap",
+            teaser: "Thiếu disclosure trên video brand.",
+            strength: "medium",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("Thiếu disclosure trên video brand.")).toBeDefined();
+    expect(screen.getByText("Memo prose.")).toBeDefined();
+  });
+
+  it("renders AccountHealthStrip for account_health section", () => {
+    const section = makeSection({
+      section_id: "account_health",
+      title: "Sức khỏe tài khoản",
+      text: "Memo prose.",
+    });
+    render(
+      <SectionRenderer
+        section={section}
+        channelFindings={[
+          {
+            finding_id: "channel_view_ceiling_300",
+            teaser: "Có dấu hiệu trần view.",
+            strength: "high",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("Có dấu hiệu trần view.")).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Sức khỏe tài khoản" })).toBeDefined();
   });
 });
 
