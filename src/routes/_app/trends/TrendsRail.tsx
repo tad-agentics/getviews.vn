@@ -189,6 +189,7 @@ export const TrendsRail = memo(function TrendsRail({
           if (!next) setPreviewVideo(null);
         }}
         onAnalyze={handleAnalyze}
+        analyzeLabel="Giải mã video này"
       />
     </>
   );

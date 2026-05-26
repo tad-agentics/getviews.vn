@@ -100,10 +100,10 @@ describe("TrendsRail", () => {
     wrap(<TrendsRail contentClassIds={[1]} nicheScopeLabel="Làm đẹp" />);
     fireEvent.click(screen.getByText("Breakout one"));
     await waitFor(() => {
-      expect(screen.getByText("Phân tích video này (1 credit)")).toBeTruthy();
+      expect(screen.getByText("Giải mã video này")).toBeTruthy();
     });
     expect(mockNavigate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Phân tích video này (1 credit)"));
+    fireEvent.click(screen.getByText("Giải mã video này"));
     expect(mockNavigate).toHaveBeenCalledTimes(1);
     expect(mockNavigate.mock.calls[0]![0]).toContain("from=trends");
   });

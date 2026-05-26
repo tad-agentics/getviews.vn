@@ -804,7 +804,7 @@ Sau mỗi báo cáo, FE render **2–4 CTA pill** từ [`intentCtaSuggestions.ts
 
 ### 4.11 UI/UX — Video Intelligence ✅
 
-**Trạng thái:** ✅ **Done (V1 core)** — Win/Flop `VideoBody` chrome @ W0/W1 · depth composer W3 @ `9cd0957` · locked-section teasers W3-5 · deep upgrade CTA in `IntentCtaRail` @ W5-1 (`f3054f5`). Post-V1: Trends label copy polish; auto-focus Tab Studio sau handoff.
+**Trạng thái:** ✅ **Done (V1 core)** — Win/Flop `VideoBody` chrome @ W0/W1 · depth composer W3 @ `9cd0957` · locked-section teasers W3-5 · deep upgrade CTA in `IntentCtaRail` @ W5-1 (`f3054f5`). Post-V1: auto-focus Tab Studio sau handoff.
 
 Tham chiếu [`artifacts/uiux-reference/`](../../artifacts/uiux-reference/) + [`VideoBody.tsx`](../../src/components/v2/answer/video/VideoBody.tsx).
 
@@ -843,7 +843,7 @@ Tham chiếu [`artifacts/uiux-reference/`](../../artifacts/uiux-reference/) + [`
 | Element | Spec | Trạng thái |
 |---------|------|------------|
 | Context | Tab **Xu hướng** (rail / kho), không Studio composer | ✅ |
-| Label | **“Giải mã video này”** (đề xuất) | ⚠️ As-built: **“Phân tích video này (1 credit)”** — `CorpusVideoPreviewDialog` default |
+| Label | **“Giải mã video này”** | ✅ `TrendsRail`, `ExploreScreen` → `analyzeLabel` |
 | Handoff | 1 tap → `depth=basic&mode=win&from=trends` — không depth picker | ✅ `TrendsRail`, `ExploreScreen` |
 | Auto-focus Tab Studio khi stream | V1.1 polish | ⏳ post-V1 |
 
@@ -853,7 +853,7 @@ sequenceDiagram
   participant Trends
   participant Answer
   participant BE
-  User->>Trends: preview breakout → Phân tích
+  User->>Trends: preview breakout → Giải mã video này
   Trends->>Answer: q=url depth=basic mode=win from=trends
   Answer->>BE: turn 1 depth=basic
   BE-->>Answer: VideoReport basic + locked_sections teasers
@@ -869,11 +869,13 @@ sequenceDiagram
 - [x] Deep upgrade qua CTA rail, không sticky body button — ✅ W5-1  
 - [x] Xu hướng 1 tap → basic win handoff — ✅ §4.10 / `trendsVideoHandoffPath`  
 - [x] Pill **Tạo kịch bản** ẩn depth picker — ✅ `QueryComposer` `studioPill === "script"`  
-- [ ] Trends dialog label “Giải mã video này” — ⏳ copy polish  
+- [x] Trends dialog label “Giải mã video này” — ✅ `TrendsRail`, `ExploreScreen`  
 - [ ] Auto-focus Tab Studio sau Trends handoff — ⏳ V1.1  
 
 
-### 4.12 Data & API contract
+### 4.12 Data & API contract ✅
+
+**Trạng thái:** ✅ **Done (V1 core)** — W3-1 cache PK `(video_id, analysis_depth)` · W3-2 whitelist/cap · W3-4 upsert/lookup · basic→deep synthesis-only @ `9cd0957`. Post-V1: `last_analysis_depth` column (optional); corpus dual `video_diagnostics` row on upgrade (on-demand đã có).
 
 #### 4.12.1 Persistence layers
 
@@ -889,55 +891,52 @@ flowchart LR
   AT --> History[history_union]
 ```
 
-| Store | V1 key | Payload / columns |
-|-------|--------|-------------------|
-| `video_diagnostics` | **`UNIQUE (video_id, analysis_depth)`** | `cached_response` JSONB (on-demand); granular cols corpus path — migration §4.12.3 |
-| `answer_turns` | per turn | `ReportV1` + echo `analysis_depth`, `source_entry`, `mode` |
-| `answer_sessions` | optional | `last_analysis_depth` — chỉ nếu resume cần; ưu tiên query params |
+| Store | V1 key | Payload / columns | Trạng thái |
+|-------|--------|-------------------|------------|
+| `video_diagnostics` | **`PK (video_id, analysis_depth)`** | `cached_response` JSONB (on-demand); corpus path dùng `video_corpus.analysis_json` | ✅ W3-1 migration |
+| `answer_turns` | per turn | `ReportV1` JSONB — echo `analysis_depth`, `source_entry`, `mode` trong payload | ✅ không cột riêng |
+| `answer_sessions` | optional | `last_analysis_depth` — resume | ⏳ deferred — ưu tiên query params |
 
-#### 4.12.2 As-built vs V1 gap
+#### 4.12.2 As-built vs V1
 
-| Topic | As-built | V1 spec |
-|-------|----------|---------|
-| Cache lookup | ✅ `.eq("video_id").eq("analysis_depth", depth)` — composite PK | Same |
-| `mode` win↔flop switch | Skip cache → full recompute ([`video_analyze.py`](../../cloud-run/getviews_pipeline/video_analyze.py) L1551–1556) | **V1 đề xuất giữ (D9)** — đơn giản; cost khi user đổi mode |
-| Extract | 1× / video | Không re-extract khi basic→deep |
-| Basic → Deep | ✅ On-demand: `_try_on_demand_basic_upgrade_source` rehydrates `extract_json` → synthesis-only; corpus: `analysis_json` row | Cache miss `deep` → synthesis-only (manifest + extract đã có) |
-| On-demand cache shape | ✅ `cached_response.extract_json` + `extract_schema_version` on basic persist | Server-only extract copy for upgrade |
+| Topic | V1 spec | Trạng thái |
+|-------|---------|------------|
+| Cache lookup | `.eq("video_id").eq("analysis_depth", depth)` | ✅ `video_analyze.py` |
+| `mode` win↔flop switch | Skip cache → recompute (**D9**) | ✅ `bypass_cache = mode_override` — intentional |
+| Extract | 1× / video; không re-extract basic→deep | ✅ on-demand `extract_json`; corpus `analysis_json` |
+| Basic → Deep | Synthesis-only upgrade | ✅ `_try_on_demand_basic_upgrade_source` · `test_on_demand_depth_upgrade.py` |
+| On-demand cache shape | `extract_json` + `extract_schema_version` on basic persist | ✅ W3-4 |
 
-#### 4.12.3 Migration sketch (F8 — implement sau doc approve)
+#### 4.12.3 Migration — W3-1 (shipped)
 
-```sql
--- V1: partition diagnosis cache by depth
-ALTER TABLE public.video_diagnostics
-  ADD COLUMN IF NOT EXISTS analysis_depth text NOT NULL DEFAULT 'deep'
-    CHECK (analysis_depth IN ('basic', 'deep'));
+**Applied:** [`20260827000000_video_diagnostics_analysis_depth.sql`](../../supabase/migrations/20260827000000_video_diagnostics_analysis_depth.sql)
 
--- Backfill existing rows as 'deep' (current behavior ≈ full pool)
--- Then add unique constraint (may require dedupe if multiple rows per video_id):
-CREATE UNIQUE INDEX IF NOT EXISTS video_diagnostics_video_id_depth_key
-  ON public.video_diagnostics (video_id, analysis_depth);
-```
-
-On-demand upsert: always set `analysis_depth` from request. Corpus path: write **both** rows when user upgrades basic→deep (deep synthesis pass).
+- Column `analysis_depth` `basic` \| `deep`, default `deep`, backfill existing rows
+- **PK** `(video_id, analysis_depth)` (spec sketch dùng UNIQUE INDEX — cùng invariant)
+- Index `(tiktok_url, analysis_depth)` for on-demand URL lookup
+- On-demand upsert: `on_conflict="video_id,analysis_depth"` + `analysis_depth` from request ✅
+- Corpus upgrade: synthesis từ `video_corpus.analysis_json` — **không** duplicate row trong `video_diagnostics` (on-demand path có basic+deep rows riêng)
 
 #### 4.12.4 API surface (BE)
 
-| Surface | Parameters | Default |
-|---------|------------|---------|
-| `build_video_report` / `append_turn` | `analysis_depth`, `mode?`, `source_entry?`; turn 2+ từ CTA: `intent_type`, `source_entry=intent_cta` | §4.10.1–§4.10.2 |
-| `run_video_diagnosis` (compare builder) | same | Side-by-side compare (internal, not HTTP) |
-| `manifest_for_prompt` | `depth` | cap 3 / 5 |
-| `select_sections_to_emit` | `depth` | whitelist if `basic` |
-| Billing | `decrement_credit` | ×1 basic, ×2 deep (§10) |
+| Surface | Parameters | Default | Trạng thái |
+|---------|------------|---------|------------|
+| `build_video_report` / `append_turn` | `analysis_depth`, `mode?`, `source_entry?`; CTA: `intent_type`, `source_entry=intent_cta` | §4.10 | ✅ |
+| Compare builder (`run_video_diagnosis` ×2) | same | internal | ✅ |
+| `manifest_for_prompt` | `depth` | cap 3 / 5 | ✅ `signals/registry.py` |
+| `select_sections_to_emit` | `depth` | whitelist if `basic` | ✅ `BASIC_SECTION_ALLOWLIST` |
+| Billing | `decrement_credit` | ×1 basic, ×2 deep video primary | ✅ `answer_session.py` |
 
-#### 4.12.5 Acceptance Win + depth (→ §13)
+#### 4.12.5 Acceptance (→ §13)
 
-- [x] Không `/stream` pipeline thứ hai cho Win — ✅ §4.9  
-- [x] `hit` vs `flop`: khác title + FE mode; **cùng** `diagnosis_vi` schema — ✅ as-built  
-- [x] Xu hướng: 1 tap → `depth=basic`, `mode=win` — ✅ W1-1  
-- [x] `basic` sections ⊆ `deep` sections (cùng URL) — ✅ W3-2  
-- [x] Cache basic/deep không trả nhầm payload — ✅ W3-1/W3-4  
+- [x] Cache partition `(video_id, analysis_depth)` — ✅ W3-1 migration  
+- [x] `basic` sections ⊆ `deep` (cùng URL) — ✅ W3-2 · `test_analysis_depth.py`  
+- [x] Cache basic/deep không trả nhầm payload — ✅ W3-4 · on-demand depth tests  
+- [x] Basic→deep không re-extract (on-demand) — ✅ `_try_on_demand_basic_upgrade_source`  
+- [x] Billing ×1 / ×2 theo depth — ✅ `answer_session.py`  
+- [ ] `answer_sessions.last_analysis_depth` — ⏳ post-V1 (optional)  
+
+**Cross-ref:** Win + depth UX acceptance §4.9.1 · handoff §4.10 · composer §4.11.
 
 ---
 

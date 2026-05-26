@@ -1110,6 +1110,7 @@ export default function ExploreScreen() {
             );
           }}
           showTikTokLinkButton={false}
+          analyzeLabel="Giải mã video này"
           description="Xem video TikTok trong nền tảng trước khi mở phân tích"
         />
       </div>
