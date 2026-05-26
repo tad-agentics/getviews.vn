@@ -32,11 +32,11 @@ function useThumbnailFailureCount() {
 
 const TIER_LABEL: Record<ClaimTier, string> = {
   none: "Chưa đủ ngưỡng",
-  reference_pool: "Pool tham chiếu (≥5 / 30d)",
+  reference_pool: "Thư viện tham chiếu (≥5 / 30d)",
   basic_citation: "Trích dẫn cơ bản (≥20)",
-  niche_norms: "Chuẩn ngách (≥30)",
+  niche_norms: "Chuẩn mảng nội dung (≥30)",
   hook_effectiveness: "Hiệu quả hook (≥50)",
-  trend_delta: "Delta xu hướng (≥100)",
+  trend_delta: "Tốc độ xu hướng (≥100)",
 };
 
 /** Default rows before "Xem thêm"; full list available via toggle. */
@@ -177,7 +177,7 @@ export function CorpusHealthPanel() {
     return (
       <div
         role="status"
-        aria-label="Đang tải corpus health"
+        aria-label="Đang tải dữ liệu sức khỏe thư viện"
         className="h-48 animate-pulse rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
       />
     );
@@ -186,7 +186,7 @@ export function CorpusHealthPanel() {
     const code = q.error instanceof Error ? q.error.message : "unknown";
     return (
       <p className="text-sm text-[color:var(--gv-danger)]">
-        Không tải được corpus health ({code}).
+        Không thể tải thông tin sức khỏe thư viện ({code}).
       </p>
     );
   }
@@ -223,7 +223,7 @@ export function CorpusHealthPanel() {
       {/* Tier distribution */}
       <div className="rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
         <p className="gv-kicker gv-kicker--dot mb-3">
-          Phân bố tier claim (theo video 30d / niche_id)
+          Phân bố phân hạng dữ liệu (theo video 30 ngày / mảng nội dung)
         </p>
         <TierHistogram histogram={summary.tier_histogram} total={summary.niches_total} />
       </div>
@@ -231,19 +231,19 @@ export function CorpusHealthPanel() {
       {/* Niche volume table — collapsed to first rows; expand to full list */}
       <div className="rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
         <p className="gv-kicker gv-kicker--dot gv-kicker--muted mb-3">
-          Bảng taxonomy — sắp theo lượng video 30 ngày
+          Danh sách mảng nội dung — Sắp xếp theo lượng video 30 ngày
         </p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-[color:var(--gv-rule)]">
-                <TH>Ngách (taxonomy)</TH>
+                <TH>Mảng nội dung (Taxonomy)</TH>
                 <TH>7 ngày</TH>
                 <TH>30 ngày</TH>
                 <TH>90 ngày</TH>
-                <TH>Ingest gần nhất</TH>
-                <TH>Mẫu trend</TH>
-                <TH>Tier claim</TH>
+                <TH>Thu thập gần nhất</TH>
+                <TH>Mẫu xu hướng</TH>
+                <TH>Phân hạng</TH>
               </tr>
             </thead>
             <tbody>
@@ -270,7 +270,7 @@ export function CorpusHealthPanel() {
       </div>
 
       <p className="gv-kicker text-[color:var(--gv-ink-3)]">
-        Cập nhật {new Date(as_of).toLocaleString("vi-VN")} · {niches.length} dòng taxonomy
+        Cập nhật {new Date(as_of).toLocaleString("vi-VN")} · {niches.length} mảng nội dung taxonomy
       </p>
     </div>
   );

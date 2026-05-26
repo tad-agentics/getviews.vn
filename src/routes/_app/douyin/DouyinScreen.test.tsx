@@ -125,8 +125,8 @@ describe("DouyinScreen — D4b §II surface", () => {
       refetch: vi.fn(),
     });
     _renderScreen();
-    expect(screen.getByText(/Kho Douyin · Đà Việt hoá/)).toBeTruthy();
-    expect(screen.getByText(/Trend Douyin/)).toBeTruthy();
+    expect(screen.getByText(/XU HƯỚNG DOUYIN · DỊCH NGHĨA VIỆT HÓA/)).toBeTruthy();
+    expect(screen.getByText(/Xu hướng Douyin/)).toBeTruthy();
     expect(screen.getByText("Wellness video 1")).toBeTruthy();
     expect(screen.getByText("Wellness video 2")).toBeTruthy();
     expect(screen.getByText("Tech video 1")).toBeTruthy();
@@ -139,12 +139,12 @@ describe("DouyinScreen — D4b §II surface", () => {
     });
     _renderScreen();
     // 3 total videos, 2 green (w1 + t1).
-    expect(screen.getByText("Video trong kho")).toBeTruthy();
+    expect(screen.getByText("Video tuyển chọn")).toBeTruthy();
     expect(screen.getByText("3")).toBeTruthy();
-    expect(screen.getByText("Dễ adapt (xanh)")).toBeTruthy();
+    expect(screen.getByText("Dễ chuyển thể (Xanh)")).toBeTruthy();
     expect(screen.getByText("2")).toBeTruthy();
     // §II header counter mirrors the visible-grid count.
-    expect(screen.getByText(/3 video — đã sub VN/)).toBeTruthy();
+    expect(screen.getByText(/3 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
   });
 
   it("filters the grid + hero stats when a niche chip is clicked", () => {
@@ -157,8 +157,8 @@ describe("DouyinScreen — D4b §II surface", () => {
     expect(screen.queryByText("Wellness video 1")).toBeNull();
     expect(screen.queryByText("Wellness video 2")).toBeNull();
     expect(screen.getByText("Tech video 1")).toBeTruthy();
-    expect(screen.getByText(/1 video — đã sub VN/)).toBeTruthy();
-    expect(screen.getByText(/ngách tech/)).toBeTruthy();
+    expect(screen.getByText(/1 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
+    expect(screen.getByText(/mảng tech/)).toBeTruthy();
   });
 
   it("renders the loading state while the feed is pending", () => {
@@ -177,7 +177,7 @@ describe("DouyinScreen — D4b §II surface", () => {
       isPending: false, isError: true, refetch,
     });
     _renderScreen();
-    expect(screen.getByText(/Không tải được/)).toBeTruthy();
+    expect(screen.getByText(/Không thể tải danh sách video/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Thử lại/ }));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
@@ -191,7 +191,7 @@ describe("DouyinScreen — D4b §II surface", () => {
     });
     _renderScreen();
     fireEvent.click(screen.getByRole("button", { name: "Tech" }));
-    expect(screen.getByText(/Không có video nào khớp bộ lọc/)).toBeTruthy();
+    expect(screen.getByText(/Không có video nào khớp với bộ lọc/)).toBeTruthy();
     // The empty-state CTA is "Xoá bộ lọc"; the §II header link is the
     // same copy — getAllByRole and click the first one.
     const resets = screen.getAllByRole("button", { name: /Xoá bộ lọc/ });
@@ -205,7 +205,7 @@ describe("DouyinScreen — D4b §II surface", () => {
       isPending: false, isError: false, refetch: vi.fn(),
     });
     _renderScreen();
-    expect(screen.getByText(/Chưa có video nào/)).toBeTruthy();
+    expect(screen.getByText(/Thư viện hiện chưa có video nào/)).toBeTruthy();
     // No filter is active → "Xoá bộ lọc" link / button absent.
     expect(screen.queryByRole("button", { name: /Xoá bộ lọc/ })).toBeNull();
   });
@@ -238,7 +238,7 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     expect(screen.queryByText("Wellness video 1")).toBeNull();
     expect(screen.queryByText("Wellness video 2")).toBeNull();
     expect(screen.getByText("Tech video 1")).toBeTruthy();
-    expect(screen.getByText(/1 video — đã sub VN/)).toBeTruthy();
+    expect(screen.getByText(/1 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
   });
 
   it("filters the grid via an adapt-level chip and excludes pending rows", () => {
@@ -314,7 +314,7 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     // Click resets back to ALL.
     fireEvent.click(resetLink);
     expect(screen.queryByRole("button", { name: /Xoá bộ lọc/ })).toBeNull();
-    expect(screen.getByText(/3 video — đã sub VN/)).toBeTruthy();
+    expect(screen.getByText(/3 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
   });
 
   it("auto-applies the user's primary niche when the slug has matches", () => {
@@ -350,14 +350,14 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     _renderScreen();
     // No modal mounted yet — the Adapt CTA isn't on the page.
     expect(
-      screen.queryByRole("button", { name: /Adapt sang VN → Kịch bản/ }),
+      screen.queryByRole("button", { name: /Chuyển thể sang VN → Kịch bản/ }),
     ).toBeNull();
     // Click the first card (article role=button).
     const cards = screen.getAllByRole("button", { name: /Wellness video 1/ });
     fireEvent.click(cards[0]!);
     // Modal opens — Adapt CTA + close X are now in the DOM.
     expect(
-      screen.getByRole("button", { name: /Adapt sang VN → Kịch bản/ }),
+      screen.getByRole("button", { name: /Chuyển thể sang VN → Kịch bản/ }),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Đóng" })).toBeTruthy();
   });
@@ -372,7 +372,7 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     _renderScreen();
     expect(screen.queryByText(/Đang lọc theo ngách bạn theo dõi/)).toBeNull();
     // Grid stays at full corpus.
-    expect(screen.getByText(/3 video — đã sub VN/)).toBeTruthy();
+    expect(screen.getByText(/3 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
   });
 });
 

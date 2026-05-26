@@ -68,8 +68,8 @@ export default function AdminScreen() {
           <section className="gv-fade-up">
             <SectionHeader
               kicker="CORPUS · TAXONOMY + CLAIM TIERS"
-              title="Sức khỏe corpus"
-              caption="Theo từng dòng niche_taxonomy (kho video đa ngách). Lượng video 7/30/90 ngày, tier claim, và số lỗi tải thumbnail 7 ngày — tín hiệu nhịp đập của pipeline nightly."
+              title="Sức khỏe thư viện nội dung (Corpus)"
+              caption="Theo từng mảng nội dung (niche_taxonomy). Số lượng video mới trong 7/30/90 ngày, phân hạng dữ liệu (claim tier) và số lượng lỗi tải ảnh thu nhỏ (thumbnail) trong 7 ngày qua — phản ánh nhịp hoạt động của quy trình chạy đêm (nightly pipeline)."
             />
             <CorpusHealthPanel />
           </section>
@@ -79,8 +79,8 @@ export default function AdminScreen() {
           <section className="gv-fade-up gv-fade-up-delay-1">
             <SectionHeader
               kicker="CORPUS · CONTENT CLASS + JUNCTION"
-              title="Sức khỏe content class"
-              caption="Theo từng content_class (trục pivot). Lượng video 7/30/90 ngày, ACQE viability tier, assignment tier histogram, và tỷ lệ junction miss (niche × class không có edge)."
+              title="Sức khỏe phân loại nội dung (Content Class)"
+              caption="Theo từng nhóm phân loại nội dung (content_class - trục xoay pivot). Số lượng video trong 7/30/90 ngày, mức độ khả thi ACQE, biểu đồ phân hạng và tỷ lệ bỏ lỡ liên kết (junction miss giữa mảng nội dung và phân loại)."
             />
             <CorpusClassHealthPanel />
           </section>
@@ -90,8 +90,8 @@ export default function AdminScreen() {
           <section className="gv-fade-up gv-fade-up-delay-2">
             <SectionHeader
               kicker="CORPUS · HI-13 BATCH API"
-              title="Gemini Batch extraction"
-              caption="Theo dõi nightly ingest qua Batch API: line thành công/thất bại, sync fallback, chi phí batch tier (~50%), và các lần chạy ingest/pilot gần nhất."
+              title="Trích xuất dữ liệu Gemini Batch"
+              caption="Theo dõi tiến trình thu thập dữ liệu hàng đêm qua Batch API: tỷ lệ thành công/thất bại, cơ chế đồng bộ dự phòng (sync fallback), tối ưu chi phí (~50%) và lịch sử các đợt chạy thử nghiệm gần nhất."
             />
             <Hi13BatchHealthPanel />
           </section>
@@ -101,8 +101,8 @@ export default function AdminScreen() {
           <section className="gv-fade-up gv-fade-up-delay-3">
             <SectionHeader
               kicker="ENSEMBLEDATA · USED UNITS"
-              title="Quỹ tín dụng"
-              caption="Units đã dùng mỗi UTC-day và projection 30 ngày — canh trần chi phí ~$80–90/tháng."
+              title="Hạn mức API EnsembleData"
+              caption="Số lượt (Units) đã dùng theo ngày (giờ UTC) và dự báo trong 30 ngày — kiểm soát để không vượt trần ngân sách ~$80–90/tháng."
             />
             <EnsembleCreditsPanel />
           </section>
@@ -112,8 +112,8 @@ export default function AdminScreen() {
           <section className="gv-fade-up gv-fade-up-delay-4">
             <SectionHeader
               kicker="CLOUD RUN · STDOUT TAIL"
-              title="Nhật ký"
-              caption="Lọc theo severity và cửa sổ thời gian; click để mở rộng payload."
+              title="Nhật ký hệ thống (Logs)"
+              caption="Lọc theo mức độ nghiêm trọng (severity) và khoảng thời gian; nhấp chọn để xem chi tiết thông tin lỗi (payload)."
               kickerTone="muted"
             />
             <LogsPanel />
@@ -124,8 +124,8 @@ export default function AdminScreen() {
           <section className="gv-fade-up gv-fade-up-delay-5">
             <SectionHeader
               kicker="MANUAL RUN · NIGHTLY PIPELINE"
-              title="Chạy thủ công"
-              caption="Re-kick các stage pipeline nightly khi cron lỗi: ingest · post-processing · refresh · layer0. Mỗi job confirm trước khi fire."
+              title="Kích hoạt thủ công"
+              caption="Chạy lại các bước trong quy trình hàng đêm khi cron gặp lỗi: thu thập (ingest) · xử lý hậu kỳ (post-processing) · làm mới dữ liệu (refresh) · đồng bộ layer 0. Cần xác nhận trước khi khởi chạy mỗi tác vụ."
             />
             <TriggersPanel />
           </section>

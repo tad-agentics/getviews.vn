@@ -120,13 +120,13 @@ export function LogsPanel() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <PillSelect
-          label="SEV"
+          label="MỨC ĐỘ"
           value={severity}
           onChange={(v) => setSeverity(v)}
           options={SEVERITIES.map((s) => ({ value: s, label: s }))}
         />
         <PillSelect
-          label="WINDOW"
+          label="KHOẢNG THỜI GIAN"
           value={minutes}
           onChange={(v) => setMinutes(v)}
           options={WINDOWS.map((w) => ({ value: w.minutes, label: w.label }))}
@@ -138,25 +138,25 @@ export function LogsPanel() {
           disabled={q.isFetching}
           className="ml-auto"
         >
-          {q.isFetching ? "Đang tải…" : "Refresh"}
+          {q.isFetching ? "Đang tải…" : "Làm mới"}
         </Btn>
       </div>
 
       {q.isLoading ? (
         <div
           role="status"
-          aria-label="Đang tải logs"
+          aria-label="Đang tải nhật ký hệ thống"
           className="h-48 animate-pulse rounded-[var(--gv-radius-md)] bg-[color:var(--gv-canvas-2)]"
         />
       ) : q.isError ? (
         <p className="text-sm text-[color:var(--gv-danger)]">
-          Không tải được logs ({q.error instanceof Error ? q.error.message : "unknown"}).
+          Không thể tải nhật ký hệ thống ({q.error instanceof Error ? q.error.message : "unknown"}).
         </p>
       ) : !q.data ? null : q.data.enabled === false ? (
         <DisabledCard reason={q.data.reason} hint={q.data.hint} />
       ) : q.data.entries.length === 0 ? (
         <p className="gv-mono text-[12px] text-[color:var(--gv-ink-3)]">
-          Không có log nào trong cửa sổ này (severity ≥ {severity}, {minutes}m).
+          Không ghi nhận nhật ký nào trong khoảng thời gian này (mức độ ≥ {severity}, {minutes} phút).
         </p>
       ) : (
         <div className="max-h-[420px] overflow-y-auto rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3">

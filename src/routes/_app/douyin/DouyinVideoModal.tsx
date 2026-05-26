@@ -261,7 +261,7 @@ function DouyinVideoModalBody({
 
           <div className="ml-auto">
             <Btn variant="ink" size="sm" type="button" onClick={handleAdaptToScript}>
-              Adapt sang VN → Kịch bản
+              Chuyển thể sang VN → Kịch bản
               <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
             </Btn>
           </div>
@@ -347,10 +347,10 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
   return (
     <section
       className="mb-5 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4"
-      aria-label="Đánh giá khả năng adapt"
+      aria-label="Đánh giá khả năng chuyển thể về Việt Nam"
     >
       <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
-        Khả năng adapt sang VN
+        Khả năng chuyển thể về Việt Nam
       </p>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span
@@ -364,7 +364,7 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
           {meta ? meta.short : "CHỜ"}
         </span>
         <span className="text-[12px] text-[color:var(--gv-ink-2)]">
-          {meta ? meta.label : "Đang chờ duyệt — synth chưa chấm row này."}
+          {meta ? meta.label : "Đang chờ duyệt — Hệ thống đang đánh giá cho video này."}
         </span>
       </div>
 
@@ -379,7 +379,7 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
           {eta ? (
             <div>
               <dt className="gv-kicker text-[color:var(--gv-ink-4)]">
-                ETA về VN
+                Thời gian về Việt Nam
               </dt>
               <dd className="gv-mono mt-0.5 text-[12px] text-[color:var(--gv-ink)]">
                 {eta}
@@ -389,7 +389,7 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
           {rise ? (
             <div>
               <dt className="gv-kicker text-[color:var(--gv-ink-4)]">
-                Đà ở CN (14 ngày)
+                Đà tăng tại Trung Quốc (14 ngày)
               </dt>
               <dd
                 className="gv-mono mt-0.5 text-[12px]"
@@ -412,9 +412,9 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
 function TranslatorNotesSection({ notes }: { notes: DouyinTranslatorNote[] }) {
   if (!notes || notes.length === 0) return null;
   return (
-    <section aria-label="Note văn hoá">
+    <section aria-label="Chú thích văn hóa">
       <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
-        Note văn hoá ({notes.length})
+        Chú thích văn hóa ({notes.length})
       </p>
       <ul className="space-y-2">
         {notes.map((note, idx) => (

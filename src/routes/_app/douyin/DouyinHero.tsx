@@ -44,7 +44,7 @@ export const DouyinHero = memo(function DouyinHero({
 
       {/* Kicker */}
       <p className="gv-mono mb-2.5 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-accent)]">
-        CN · Kho Douyin · Đà Việt hoá · Cập nhật mỗi 24h
+        TRUNG QUỐC · XU HƯỚNG DOUYIN · DỊCH NGHĨA VIỆT HÓA · CẬP NHẬT MỖI 24H
       </p>
 
       {/* H1 — accent highlight on "không cần VPN". */}
@@ -52,29 +52,28 @@ export const DouyinHero = memo(function DouyinHero({
         className="gv-tight m-0 mb-4 max-w-[720px] text-[42px] font-medium leading-[1.05] tracking-[-0.025em] text-[color:var(--gv-canvas)]"
         style={{ fontFamily: "var(--gv-font-display)" }}
       >
-        Trend Douyin{" "}
+        Xu hướng Douyin{" "}
         <span className="text-[color:var(--gv-accent)]">không cần VPN</span> —
-        đã sub VN, đã chấm khả năng adapt.
+        sẵn phụ đề Việt hóa, đánh giá khả năng chuyển thể.
       </h1>
 
       {/* Caption */}
       <p className="m-0 mb-5 max-w-[640px] text-[14px] leading-[1.5] text-[color:var(--gv-ink-3)]">
-        {totalInPool} video tuyển chọn từ Douyin · phụ đề tiếng Việt cứng · note
-        văn hoá · gắn cờ Xanh / Vàng / Đỏ theo khả năng đem về VN.
+        {totalInPool} video tuyển chọn từ Douyin · Phụ đề tiếng Việt hiển thị sẵn · Lưu ý văn hóa bổ ích · Đánh giá mức độ khả thi Xanh / Vàng / Đỏ khi chuyển thể về Việt Nam.
       </p>
 
       {/* Stats grid — 2 cols on mobile (avoid cramping at 360px),
           3 cols ≥sm. Top border separates from the caption. */}
       <div className="grid grid-cols-2 gap-5 border-t border-[color:color-mix(in_srgb,var(--gv-canvas)_18%,transparent)] pt-4 sm:grid-cols-3 sm:gap-9">
         <HeroNum
-          label="Video trong kho"
+          label="Video tuyển chọn"
           value={totalInPool}
-          sub={scopeLabel ? `ngách ${scopeLabel}` : "tất cả ngách"}
+          sub={scopeLabel ? `mảng ${scopeLabel}` : "tất cả các mảng"}
         />
         <HeroNum
-          label="Dễ adapt (xanh)"
+          label="Dễ chuyển thể (Xanh)"
           value={greenCount}
-          sub="dịch thẳng được"
+          sub="sử dụng được ngay"
         />
         <HeroNum
           label="Đã lưu"

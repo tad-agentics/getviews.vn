@@ -9,10 +9,10 @@ import {
 } from "@/hooks/useCorpusClassHealth";
 
 const TIER_LABEL: Record<AssignmentTierKey, string> = {
-  validated: "Validated (ACQE)",
-  low_conf: "Low confidence",
-  flagged: "Flagged",
-  null: "Chưa tier",
+  validated: "Đã xác thực (ACQE)",
+  low_conf: "Độ tin cậy thấp",
+  flagged: "Bị gắn cờ",
+  null: "Chưa phân hạng",
 };
 
 const COLLAPSED_ROWS = 10;
@@ -89,7 +89,7 @@ export function CorpusClassHealthPanel() {
     return (
       <div
         role="status"
-        aria-label="Đang tải corpus class health"
+        aria-label="Đang tải dữ liệu phân loại nội dung"
         className="h-48 animate-pulse rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
       />
     );
@@ -98,7 +98,7 @@ export function CorpusClassHealthPanel() {
     const code = q.error instanceof Error ? q.error.message : "unknown";
     return (
       <p className="text-sm text-[color:var(--gv-danger)]">
-        Không tải được corpus class health ({code}).
+        Không thể tải dữ liệu phân loại nội dung ({code}).
       </p>
     );
   }
@@ -121,15 +121,15 @@ export function CorpusClassHealthPanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-4">
-        <Bignum label="Class mỏng (<20 / 30d)" value={summary.classes_thin_under_20} />
-        <Bignum label="Class 0 corpus · 30d" value={summary.classes_zero_corpus_30d} />
+        <Bignum label="Phân loại mỏng (<20 / 30 ngày)" value={summary.classes_thin_under_20} />
+        <Bignum label="Phân loại trống · 30 ngày" value={summary.classes_zero_corpus_30d} />
         <Bignum label="Video · 7 ngày" value={summary.videos_7d_total} />
         <Bignum label="Video · 90 ngày" value={summary.videos_90d_total} />
       </div>
 
       <div className="rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
         <p className="gv-kicker gv-kicker--dot mb-3">
-          Phân bố assignment tier (video 30d)
+          Phân bố thứ hạng phân loại (video 30 ngày)
         </p>
         <div className="flex flex-col gap-2">
           {tierOrder.map((tier) => {
@@ -161,14 +161,14 @@ export function CorpusClassHealthPanel() {
 
       <div className="rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
         <p className="gv-kicker gv-kicker--dot gv-kicker--muted mb-3">
-          Bảng content class — sắp theo lượng video 30 ngày
+          Danh sách phân loại nội dung — Sắp xếp theo lượng video 30 ngày
         </p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-[color:var(--gv-rule)]">
-                <TH>Content class</TH>
-                <TH>Format axis</TH>
+                <TH>Nhóm phân loại</TH>
+                <TH>Trục định dạng (Format axis)</TH>
                 <TH>7 ngày</TH>
                 <TH>30 ngày</TH>
                 <TH>90 ngày</TH>

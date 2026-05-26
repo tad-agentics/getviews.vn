@@ -258,7 +258,7 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
           ) : null}
           {job.heavy ? (
             <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 gv-kicker text-[color:var(--gv-accent-deep)]">
-              heavy
+              tác vụ nặng (heavy)
             </span>
           ) : null}
         </div>
@@ -270,7 +270,7 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
               job.id === "ingest" && hasParams ? setShowForm(true) : startWith({})
             }
           >
-            Run
+            Chạy
           </Btn>
         ) : null}
       </div>
@@ -339,7 +339,7 @@ export function TriggersPanel() {
     return (
       <div
         role="status"
-        aria-label="Đang tải trigger catalog"
+        aria-label="Đang tải danh sách tác vụ"
         className="h-40 animate-pulse rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
       />
     );
@@ -348,7 +348,7 @@ export function TriggersPanel() {
     const msg = catalog.error instanceof Error ? catalog.error.message : "unknown";
     return (
       <p className="text-sm text-[color:var(--gv-danger)]">
-        Không tải được trigger catalog ({msg}).
+        Không thể tải danh sách tác vụ ({msg}).
       </p>
     );
   }

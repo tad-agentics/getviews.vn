@@ -220,14 +220,13 @@ function SectionHeader({ meta }: { meta: HeaderMeta }) {
     <header className="mb-3.5 flex flex-wrap items-baseline justify-between gap-3">
       <div className="min-w-0 flex-1">
         <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
-          § I — Tín hiệu sớm · CN · Pattern đang nổ ở TQ
+          § I — Tín hiệu sớm · Trung Quốc · Mẫu kịch bản đang thịnh hành
         </p>
         <h2 className="gv-tight m-0 text-[22px] font-medium leading-tight text-[color:var(--gv-ink)]">
-          3 pattern đi trước VN 4–10 tuần
+          3 mẫu kịch bản dẫn trước xu hướng Việt Nam
         </h2>
         <p className="m-0 mt-1.5 max-w-[620px] text-xs leading-snug text-[color:var(--gv-ink-3)]">
-          Cấu trúc lặp lại trên Douyin, đã sub VN, kèm note văn hoá và đánh giá khả
-          năng adapt. Click để mở deck đầy đủ.
+          Các cấu trúc nội dung lặp lại hiệu quả trên Douyin, sẵn phụ đề tiếng Việt, kèm lưu ý văn hóa và đánh giá khả năng chuyển thể. Click để xem chi tiết.
         </p>
       </div>
       {freshLabel ? (

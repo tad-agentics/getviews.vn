@@ -121,7 +121,7 @@ describe("DouyinPatternsSection", () => {
       />,
     );
     expect(screen.getByText(/§ I — Tín hiệu sớm/)).toBeTruthy();
-    expect(screen.getByText(/3 pattern đi trước VN 4–10 tuần/)).toBeTruthy();
+    expect(screen.getByText(/3 mẫu kịch bản dẫn trước xu hướng Việt Nam/)).toBeTruthy();
     // Per-niche heading rows.
     expect(screen.getByText("Wellness")).toBeTruthy();
     expect(screen.getByText("Tech")).toBeTruthy();

@@ -101,7 +101,7 @@ export function EnsembleCreditsPanel() {
     return (
       <div
         role="status"
-        aria-label="Đang tải ensemble credits"
+        aria-label="Đang tải dữ liệu hạn mức EnsembleData"
         className="h-48 animate-pulse rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
       />
     );
@@ -115,14 +115,14 @@ export function EnsembleCreditsPanel() {
             ENSEMBLE_DATA_API_KEY chưa được cấu hình
           </p>
           <p className="mt-1.5 gv-kicker leading-relaxed text-[color:var(--gv-ink-3)]">
-            Đặt env var trên Cloud Run và redeploy để panel này hoạt động.
+            Cấu hình biến môi trường trên Cloud Run và triển khai lại để kích hoạt bảng điều khiển này.
           </p>
         </div>
       );
     }
     return (
       <p className="text-sm text-[color:var(--gv-danger)]">
-        Không tải được EnsembleData usage ({msg}).
+        Không thể tải dữ liệu sử dụng EnsembleData ({msg}).
       </p>
     );
   }
@@ -148,15 +148,15 @@ export function EnsembleCreditsPanel() {
               value={`${formatInt(monthlyUsed)} / ${formatInt(monthly_budget)}`}
             />
             <Bignum
-              label="Runway"
-              value={runwayDays != null ? `${runwayDays}d` : "—"}
+              label="Số ngày duy trì dự kiến"
+              value={runwayDays != null ? `${runwayDays} ngày` : "—"}
               tone={runwayDays != null && runwayDays < 7 ? "danger" : "default"}
             />
           </>
         ) : (
           <>
-            <Bignum label="Projection · 30d" value={projection != null ? projection : "—"} />
-            <Bignum label="Budget" value="Chưa đặt" />
+            <Bignum label="Dự báo · 30 ngày" value={projection != null ? projection : "—"} />
+            <Bignum label="Ngân sách" value="Chưa thiết lập" />
           </>
         )}
       </div>
@@ -171,9 +171,9 @@ export function EnsembleCreditsPanel() {
       <EndpointHistory />
 
       <p className="gv-kicker text-[color:var(--gv-ink-3)]">
-        As of {new Date(as_of).toLocaleString("vi-VN")} · {days.length} ngày (UTC)
+        Tính đến {new Date(as_of).toLocaleString("vi-VN")} · {days.length} ngày (UTC)
         {monthly_budget == null
-          ? " · đặt ED_MONTHLY_UNIT_BUDGET env để thấy runway"
+          ? " · cấu hình biến môi trường ED_MONTHLY_UNIT_BUDGET để xem số ngày duy trì dự kiến"
           : ""}
       </p>
     </div>

@@ -102,7 +102,7 @@ describe("EnsembleCreditsPanel — branches", () => {
     creditsState.isLoading = true;
     render(<EnsembleCreditsPanel />);
     expect(
-      screen.getByRole("status", { name: /Đang tải ensemble credits/i }),
+      screen.getByRole("status", { name: /Đang tải dữ liệu hạn mức EnsembleData/i }),
     ).toBeTruthy();
   });
 
@@ -117,7 +117,7 @@ describe("EnsembleCreditsPanel — branches", () => {
     creditsState.isError = true;
     creditsState.error = new Error("http_503");
     render(<EnsembleCreditsPanel />);
-    expect(screen.getByText(/Không tải được EnsembleData usage/)).toBeTruthy();
+    expect(screen.getByText(/Không thể tải dữ liệu sử dụng EnsembleData/)).toBeTruthy();
   });
 
   it("renders Projection · 30d + 'Chưa đặt' when no monthly_budget is configured", () => {
@@ -126,8 +126,8 @@ describe("EnsembleCreditsPanel — branches", () => {
       monthly_budget: null,
     });
     render(<EnsembleCreditsPanel />);
-    expect(screen.getByText("Projection · 30d")).toBeTruthy();
-    expect(screen.getByText("Chưa đặt")).toBeTruthy();
+    expect(screen.getByText("Dự báo · 30 ngày")).toBeTruthy();
+    expect(screen.getByText("Chưa thiết lập")).toBeTruthy();
     // "Today" → 300; rendered with vi-VN locale formatting.
     expect(screen.getByText("300")).toBeTruthy();
   });
@@ -141,9 +141,9 @@ describe("EnsembleCreditsPanel — branches", () => {
     });
     render(<EnsembleCreditsPanel />);
     expect(screen.getByText("Tháng này")).toBeTruthy();
-    expect(screen.getByText("Runway")).toBeTruthy();
+    expect(screen.getByText("Số ngày duy trì dự kiến")).toBeTruthy();
     // 7 days × 1000 units = 7000 used; runway = (50000-7000) / (1000) = 43d.
-    expect(screen.getByText("43d")).toBeTruthy();
+    expect(screen.getByText("43 ngày")).toBeTruthy();
   });
 
   it("flags Runway with the danger tone when < 7 days remain", () => {
@@ -156,10 +156,10 @@ describe("EnsembleCreditsPanel — branches", () => {
       monthly_budget: 50_000,
     });
     const { container } = render(<EnsembleCreditsPanel />);
-    const runwayValue = screen.getByText("4d");
+    const runwayValue = screen.getByText("4 ngày");
     expect(runwayValue.className).toMatch(/--gv-danger/);
     // Sanity — only one runway counter on screen.
-    expect(container.textContent).toContain("Runway");
+    expect(container.textContent).toContain("Số ngày duy trì dự kiến");
   });
 
   it("renders one bar per day in the 14-day chart and dims failed days", () => {

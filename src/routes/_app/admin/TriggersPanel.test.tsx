@@ -93,12 +93,12 @@ describe("TriggersPanel", () => {
     expect(screen.getByText("Corpus ingest (/batch/ingest)")).toBeTruthy();
     expect(screen.getByText("Weekly analytics")).toBeTruthy();
     expect(screen.getByText("Corpus freshness refresh")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Run" }).length).toBe(3);
+    expect(screen.getAllByRole("button", { name: "Chạy" }).length).toBe(3);
   });
 
   it("non-ingest param job (e.g. refresh) → Run opens confirm directly — no dead-end showForm", () => {
     renderPanel();
-    const runs = screen.getAllByRole("button", { name: "Run" });
+    const runs = screen.getAllByRole("button", { name: "Chạy" });
     fireEvent.click(runs[2]);
 
     expect(screen.getByRole("button", { name: "Xác nhận chạy" })).toBeTruthy();
@@ -109,7 +109,7 @@ describe("TriggersPanel", () => {
   it("no-param job → Run opens confirm directly (no inline form)", () => {
     renderPanel();
     // Click the Run button on the analytics card (second one).
-    const runs = screen.getAllByRole("button", { name: "Run" });
+    const runs = screen.getAllByRole("button", { name: "Chạy" });
     fireEvent.click(runs[1]);
 
     // Confirm prompt is now on screen, mutateAsync hasn't been called yet.
@@ -121,7 +121,7 @@ describe("TriggersPanel", () => {
 
   it("param job (ingest) → Run opens inline form first, then confirm on submit", () => {
     renderPanel();
-    const runs = screen.getAllByRole("button", { name: "Run" });
+    const runs = screen.getAllByRole("button", { name: "Chạy" });
     fireEvent.click(runs[0]);
 
     // Inline form for niche_ids + deep_pool is visible.
@@ -140,7 +140,7 @@ describe("TriggersPanel", () => {
 
   it("ingest form rejects non-numeric niche_ids and keeps the form open", () => {
     renderPanel();
-    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Chạy" })[0]);
 
     const input = screen.getByPlaceholderText("1, 3, 7") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "1, abc, 7" } });
@@ -153,12 +153,12 @@ describe("TriggersPanel", () => {
 
   it("Hủy on confirm closes without calling mutateAsync", () => {
     renderPanel();
-    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Chạy" })[1]);
     fireEvent.click(screen.getByRole("button", { name: "Hủy" }));
 
     expect(mockMutateAsync).not.toHaveBeenCalled();
     // Run button is back.
-    expect(screen.getAllByRole("button", { name: "Run" }).length).toBe(3);
+    expect(screen.getAllByRole("button", { name: "Chạy" }).length).toBe(3);
   });
 
   it("confirm → 202 accepted → polling state (awaiting worker)", async () => {
@@ -169,7 +169,7 @@ describe("TriggersPanel", () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Chạy" })[1]);
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
 
     await waitFor(() => {
@@ -203,7 +203,7 @@ describe("TriggersPanel", () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Chạy" })[1]);
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
 
     await screen.findByText(/Xong — kết quả/);
@@ -230,7 +230,7 @@ describe("TriggersPanel", () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Chạy" })[1]);
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
 
     await screen.findByText(/ensemble_daily_budget_exceeded/);
@@ -245,7 +245,7 @@ describe("TriggersPanel", () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Chạy" })[1]);
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
 
     // No polling UI — jumps straight to the result block.
@@ -257,7 +257,7 @@ describe("TriggersPanel", () => {
     mockMutateAsync.mockRejectedValue(new Error("http_500"));
 
     renderPanel();
-    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Chạy" })[1]);
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
 
     await screen.findByText(/http_500/);

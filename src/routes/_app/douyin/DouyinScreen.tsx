@@ -222,11 +222,11 @@ function DouyinScreenMain() {
 
           {/* §II header — kicker + count + Xoá bộ lọc */}
           <p className="gv-mono mb-1.5 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
-            § II — Kho video lẻ · Browse theo ngách
+            § II — Thư viện video lẻ · Khám phá theo mảng nội dung
           </p>
           <div className="mb-3.5 flex items-baseline justify-between gap-3">
             <h2 className="gv-tight m-0 text-[22px] font-medium leading-tight text-[color:var(--gv-ink)]">
-              {visibleVideos.length} video — đã sub VN
+              {visibleVideos.length} video — Sẵn phụ đề tiếng Việt
             </h2>
             {filtersActive ? (
               <button
@@ -326,10 +326,10 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] py-12 text-center">
       <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
-        Không tải được
+        Không thể tải danh sách video
       </p>
       <p className="mb-5 text-[14px] text-[color:var(--gv-ink-2)]">
-        Thử lại sau ít phút — pipeline cập nhật mỗi 24h.
+        Vui lòng thử lại sau ít phút — dữ liệu mới được cập nhật tự động mỗi ngày.
       </p>
       <Btn variant="ink" size="sm" type="button" onClick={onRetry}>
         Thử lại
@@ -348,12 +348,12 @@ function EmptyState({
   return (
     <div className="rounded-lg border border-dashed border-[color:var(--gv-rule)] py-20 text-center">
       <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-ink-3)]">
-        Không tìm thấy
+        Không tìm thấy video nào
       </p>
       <p className="mb-5 text-[14px] text-[color:var(--gv-ink-3)]">
         {hasFilter
-          ? "Không có video nào khớp bộ lọc đang chọn."
-          : "Chưa có video nào — quay lại sau."}
+          ? "Không có video nào khớp với bộ lọc hiện tại."
+          : "Thư viện hiện chưa có video nào, vui lòng quay lại sau."}
       </p>
       {hasFilter ? (
         <Btn variant="ghost" size="sm" type="button" onClick={onResetFilter}>

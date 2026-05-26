@@ -50,7 +50,7 @@ function formatUsd(n: number) {
 }
 
 function RunRow({ row }: { row: Hi13RunRow }) {
-  const label = row.job_name === "batch/hi13-pilot" ? "Pilot HI-13" : "Ingest nightly";
+  const label = row.job_name === "batch/hi13-pilot" ? "Chạy thử nghiệm HI-13 (Pilot)" : "Thu thập hàng đêm (Nightly Ingest)";
   const started = row.started_at
     ? new Date(row.started_at).toLocaleString("vi-VN", { hour12: false })
     : "—";
@@ -92,7 +92,7 @@ export function Hi13BatchHealthPanel() {
     return (
       <div
         role="status"
-        aria-label="Đang tải HI-13 batch health"
+        aria-label="Đang tải dữ liệu Gemini Batch"
         className="h-48 animate-pulse rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
       />
     );
@@ -101,7 +101,7 @@ export function Hi13BatchHealthPanel() {
     const code = q.error instanceof Error ? q.error.message : "unknown";
     return (
       <p className="text-sm text-[color:var(--gv-danger)]">
-        Không tải được HI-13 batch health ({code}).
+        Không thể tải dữ liệu Gemini Batch ({code}).
       </p>
     );
   }
@@ -141,12 +141,12 @@ export function Hi13BatchHealthPanel() {
           <table className="w-full min-w-[640px] border-collapse px-4">
             <thead>
               <tr className="border-b border-[color:var(--gv-rule)]">
-                <TH>Job</TH>
+                <TH>Tác vụ (Job)</TH>
                 <TH>Bắt đầu</TH>
                 <TH>Trạng thái</TH>
-                <TH>Line OK</TH>
-                <TH>Line lỗi</TH>
-                <TH>Fallback sync</TH>
+                <TH>Dòng xử lý OK (Line OK)</TH>
+                <TH>Dòng gặp lỗi (Line Fail)</TH>
+                <TH>Đồng bộ dự phòng (Fallback Sync)</TH>
               </tr>
             </thead>
             <tbody>

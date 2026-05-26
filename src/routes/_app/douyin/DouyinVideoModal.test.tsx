@@ -102,7 +102,7 @@ describe("DouyinVideoModal — populated row", () => {
     expect(screen.getByText("14.0K")).toBeTruthy(); // saves
     expect(screen.getByText("0:30")).toBeTruthy(); // duration (30s → 0:30)
     // Adapt strip
-    expect(screen.getByText(/Khả năng adapt sang VN/)).toBeTruthy();
+    expect(screen.getByText(/Khả năng chuyển thể về Việt Nam/)).toBeTruthy();
     expect(screen.getByText("Dịch thẳng")).toBeTruthy();
     expect(screen.getByText(/Routine ngủ phù hợp/)).toBeTruthy();
     expect(screen.getByText("2–4 tuần")).toBeTruthy();
@@ -110,7 +110,7 @@ describe("DouyinVideoModal — populated row", () => {
     // adapt strip "Đà ở CN" cell — both source the same cn_rise_pct.
     expect(screen.getAllByText("+35%").length).toBeGreaterThanOrEqual(1);
     // Translator notes — 2 rows + tags
-    expect(screen.getByText(/Note văn hoá \(2\)/)).toBeTruthy();
+    expect(screen.getByText(/Chú thích văn hóa \(2\)/)).toBeTruthy();
     expect(screen.getByText("TỪ NGỮ")).toBeTruthy();
     expect(screen.getByText("BỐI CẢNH")).toBeTruthy();
   });
@@ -118,7 +118,7 @@ describe("DouyinVideoModal — populated row", () => {
   it("navigates to /app/answer with composer prefill on Adapt CTA click", () => {
     const { onOpenChange } = _renderModal();
     fireEvent.click(
-      screen.getByRole("button", { name: /Adapt sang VN → Kịch bản/ }),
+      screen.getByRole("button", { name: /Chuyển thể sang VN → Kịch bản/ }),
     );
     expect(navigate).toHaveBeenCalledTimes(1);
     const arg = navigate.mock.calls[0]![0] as string;
@@ -207,6 +207,6 @@ describe("DouyinVideoModal — pending / sparse rows", () => {
     // Modal shell still mounts (Radix portal), but body is empty —
     // none of the populated-row signals appear.
     expect(screen.queryByText(/Note văn hoá/)).toBeNull();
-    expect(screen.queryByRole("button", { name: /Adapt sang VN/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Chuyển thể sang VN/ })).toBeNull();
   });
 });
