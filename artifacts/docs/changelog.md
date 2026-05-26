@@ -1,5 +1,17 @@
 # Changelog — GetViews.vn
 
+## 2026-05-25 — Phantom frame_urls cleanup + ED cover extraction fix
+
+- **DB:** Migration `20260831000000` clears stale `frame_urls` on rows with `thumbnail_url IS NULL` (R2 HEAD audit: URLs pointed at missing objects).
+- **`ensemble.cover_url_from_aweme_detail`:** Shared cover ladder (`dynamic_cover`, carousel slide) for backfill + `corpus_context.refresh_stale_thumbnails`.
+- **`/batch/backfill-thumbnails`:** Response adds `ed_missing_post`, `ed_no_cover`, `ed_upload_failed` counters. See `artifacts/issues/thumbnail-backfill-ed-zero.md`.
+
+## 2026-05-25 — Class-loop discovery seed + per-class ingest metrics
+
+- **`hashtag_class_map.seed_class_discovery_sync`:** Seeds `hashtag_class_map` from `niche_taxonomy` + `hashtag_niche_map` (via junction) + corpus hashtags; backfills empty `signal_hashtags` on active targets. Nightly maintenance calls this first.
+- **`POST /batch/seed-class-hashtags`:** One-shot ops endpoint (batch secret).
+- **`batch/ingest` observability:** `batch_job_runs.summary.niche_results` now persisted with `content_class_id`, `pool_raw`, `candidates_found`, `hashtags_queried` per class.
+
 ## 2026-05-23 — WebP ingest guard + thumbnail display cascade
 
 - **`r2.resolve_ingest_thumbnail_url`:** Shared ingest helper — skip only when `thumbnails/{id}.webp` exists on R2; re-upserts promote legacy `.png` DB URLs via frame/legacy-PNG transcode; stale R2 DB URLs never used as CDN mirror sources. Wired in `corpus_ingest` + `douyin_ingest`.

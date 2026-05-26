@@ -187,6 +187,7 @@ async def batch_ingest(
             "niches_remaining": summary.niches_remaining,
             "content_class_ids_planned": summary.content_class_ids_planned,
             "remaining_content_class_ids": summary.remaining_content_class_ids,
+            "niche_results": summary.niche_results,
             "hi13": {
                 "batch_line_ok": summary.hi13_batch_line_ok,
                 "batch_line_fail": summary.hi13_batch_line_fail,
@@ -734,23 +735,57 @@ async def batch_r2_janitor(
     return JSONResponse({"ok": True, **result})
 
 
+@router.post("/batch/seed-class-hashtags")
+async def batch_seed_class_hashtags(
+    request: Request,
+    _caller: dict | None = Depends(require_batch_caller),
+    active_only: bool = Query(True, description="Only seed active content_class_ingest_targets"),
+    backfill_signal: bool = Query(
+        True,
+        description="Write signal_hashtags on targets that have none",
+    ),
+) -> JSONResponse:
+    """Seed hashtag_class_map + signal_hashtags for class-loop corpus discovery."""
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.hashtag_class_map import seed_class_discovery_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info(
+        "POST /batch/seed-class-hashtags active_only=%s backfill_signal=%s",
+        active_only,
+        backfill_signal,
+    )
+    client = get_service_client()
+    async with record_job_run(client, "batch/seed-class-hashtags") as obs_summary:
+        obs_summary["active_only"] = active_only
+        obs_summary["backfill_signal_hashtags"] = backfill_signal
+        try:
+            from getviews_pipeline.runtime import run_sync
+
+            result = await run_sync(
+                seed_class_discovery_sync,
+                client,
+                active_only=active_only,
+                backfill_signal_hashtags=backfill_signal,
+            )
+        except Exception as exc:
+            logger.exception("Seed class hashtags failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(result)
+
+    return JSONResponse({"ok": True, **result})
+
+
 def _cover_url_from_ensemble_post(post: dict[str, Any] | None) -> str | None:
     """First TikTok cover URL from an EnsembleData post payload."""
+    from getviews_pipeline.ensemble import cover_url_from_aweme_detail
+
     if not post or not isinstance(post, dict):
         return None
     detail = post.get("aweme_detail") or post
     if not isinstance(detail, dict):
         return None
-    video = detail.get("video") or {}
-    if not isinstance(video, dict):
-        return None
-    cover = video.get("origin_cover") or video.get("cover") or {}
-    if not isinstance(cover, dict):
-        return None
-    cover_urls = cover.get("url_list") or []
-    if isinstance(cover_urls, list) and len(cover_urls) > 0 and isinstance(cover_urls[0], str):
-        return cover_urls[0]
-    return None
+    return cover_url_from_aweme_detail(detail)
 
 
 @router.post("/batch/backfill-thumbnails")
@@ -878,6 +913,7 @@ async def batch_backfill_thumbnails(
             return None
 
     from_frame = from_cdn = from_ed = nulled = failed = 0
+    ed_missing_post = ed_no_cover = ed_upload_failed = 0
     CHUNK = 10
     for i in range(0, len(to_backfill), CHUNK):
         chunk = to_backfill[i: i + CHUNK]
@@ -978,8 +1014,20 @@ async def batch_backfill_thumbnails(
         for row in need_ed:
             vid = str(row["video_id"])
             post = fresh_by_id.get(vid)
+            if not post:
+                ed_missing_post += 1
+                try:
+                    _set_thumb(vid, None)
+                    nulled += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[backfill-thumbnails] DB patch failed (null) for %s: %s", vid, exc,
+                    )
+                    failed += 1
+                continue
             cover = _cover_url_from_ensemble_post(post)
             if not cover:
+                ed_no_cover += 1
                 try:
                     _set_thumb(vid, None)
                     nulled += 1
@@ -1004,6 +1052,7 @@ async def batch_backfill_thumbnails(
                     )
                     failed += 1
             else:
+                ed_upload_failed += 1
                 try:
                     _set_thumb(vid, None)
                     nulled += 1
@@ -1015,8 +1064,9 @@ async def batch_backfill_thumbnails(
 
     logger.info(
         "[backfill-thumbnails] done — from_frame=%d from_cdn=%d from_ed=%d "
-        "nulled=%d failed=%d total=%d",
-        from_frame, from_cdn, from_ed, nulled, failed, len(to_backfill),
+        "nulled=%d failed=%d ed_missing_post=%d ed_no_cover=%d ed_upload_failed=%d total=%d",
+        from_frame, from_cdn, from_ed, nulled, failed,
+        ed_missing_post, ed_no_cover, ed_upload_failed, len(to_backfill),
     )
     return JSONResponse({
         "ok": True,
@@ -1025,6 +1075,9 @@ async def batch_backfill_thumbnails(
         "from_ed": from_ed,
         "nulled": nulled,
         "failed": failed,
+        "ed_missing_post": ed_missing_post,
+        "ed_no_cover": ed_no_cover,
+        "ed_upload_failed": ed_upload_failed,
         "total": len(to_backfill),
         "ed_fallback": ed_fallback,
         "limit": limit,

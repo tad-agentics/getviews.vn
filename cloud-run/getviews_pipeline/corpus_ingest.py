@@ -267,6 +267,10 @@ class IngestResult:
     hi13_sync_fallback: int = 0
     hi13_batch_jobs_ok: int = 0
     hi13_batch_jobs_failed: int = 0
+    content_class_id: int | None = None
+    pool_raw: int = 0
+    candidates_found: int = 0
+    hashtags_queried: int = 0
 
 
 @dataclass
@@ -2797,6 +2801,9 @@ async def ingest_niche(
     result = IngestResult(
         ingest_loop_niche_id=ingest_loop_niche_id, niche_name=niche_name,
     )
+    loop_cc = niche.get("_loop_content_class_id")
+    if loop_cc is not None:
+        result.content_class_id = int(loop_cc)
 
     logger.info(
         "[corpus] niche=%s id=%d — fetching pool",
@@ -2816,6 +2823,13 @@ async def ingest_niche(
         result.errors.append(f"pool_fetch: {exc}")
         result.failed += 1
         return result
+
+    result.pool_raw = len(pool)
+    ht_limit = _hashtag_fetch_limit_for_ingest_loop(int(niche["id"]))
+    fetch_hashtags = _resolve_pool_hashtags(
+        niche, hashtag_yields_for_niche or {}, ht_limit, client,
+    )
+    result.hashtags_queried = len(fetch_hashtags)
 
     if existing_video_ids is not None:
         existing_ids = existing_video_ids
@@ -3072,6 +3086,7 @@ async def ingest_niche(
 
     # Merge video + carousel candidates
     candidates = candidates + carousel_candidates
+    result.candidates_found = len(candidates)
 
     # Sprint 8.5 — surface how many awemes the news/aggregator
     # blocklist filtered this pass. Visible in cron logs so ops can
@@ -4064,10 +4079,14 @@ async def run_batch_ingest(
                 summary.niches_processed += 1
                 summary.niche_results.append({
                     "ingest_loop_niche_id": res.ingest_loop_niche_id,
+                    "content_class_id": res.content_class_id,
                     "niche_name": res.niche_name,
                     "inserted": res.inserted,
                     "skipped": res.skipped,
                     "failed": res.failed,
+                    "pool_raw": res.pool_raw,
+                    "candidates_found": res.candidates_found,
+                    "hashtags_queried": res.hashtags_queried,
                     "errors": res.errors,
                     "hi13_batch_line_ok": res.hi13_batch_line_ok,
                     "hi13_batch_line_fail": res.hi13_batch_line_fail,

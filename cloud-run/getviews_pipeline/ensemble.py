@@ -856,6 +856,40 @@ def detect_content_type(aweme_detail: dict[str, Any]) -> ContentType:
     return "video"
 
 
+def _first_cover_url_from_video_obj(video: dict[str, Any]) -> str | None:
+    """First CDN URL from TikTok ``video.*_cover`` fields (order is load-bearing)."""
+    if not isinstance(video, dict):
+        return None
+    for key in ("origin_cover", "cover", "dynamic_cover", "ai_dynamic_cover"):
+        cover = video.get(key)
+        if not isinstance(cover, dict):
+            continue
+        urls = cover.get("url_list") or []
+        if isinstance(urls, list) and urls and isinstance(urls[0], str):
+            u = urls[0].strip()
+            if u:
+                return u
+    return None
+
+
+def cover_url_from_aweme_detail(detail: dict[str, Any] | None) -> str | None:
+    """Fresh cover CDN URL from an EnsembleData ``aweme_detail`` / post dict.
+
+    Video posts: ``video.origin_cover`` → ``cover`` → ``dynamic_cover`` → carousel
+    first slide via ``extract_image_url_lists``. Used by thumbnail backfill and
+    ``corpus_context.refresh_stale_thumbnails``.
+    """
+    if not detail or not isinstance(detail, dict):
+        return None
+    url = _first_cover_url_from_video_obj(detail.get("video") or {})
+    if url:
+        return url
+    image_lists = extract_image_url_lists(detail)
+    if image_lists and image_lists[0]:
+        return image_lists[0][0]
+    return None
+
+
 def parse_metadata(aweme_detail: dict[str, Any]) -> VideoMetadata:
     video_id = str(aweme_detail.get("aweme_id", "") or "")
     desc = str(aweme_detail.get("desc", "") or "")
@@ -868,9 +902,7 @@ def parse_metadata(aweme_detail: dict[str, Any]) -> VideoMetadata:
     video = aweme_detail.get("video") or {}
     duration_sec = _float_sec_from_ms(video.get("duration"))
 
-    cover = video.get("origin_cover") or video.get("cover") or {}
-    cover_urls: list[str] = cover.get("url_list") or []
-    thumbnail_url: str | None = cover_urls[0] if cover_urls else None
+    thumbnail_url = cover_url_from_aweme_detail(aweme_detail)
 
     stats = aweme_detail.get("statistics") or {}
     views = _int(stats.get("play_count"))

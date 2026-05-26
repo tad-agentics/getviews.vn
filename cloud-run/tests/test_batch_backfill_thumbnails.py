@@ -150,6 +150,9 @@ def test_frame_copy_path_skips_cdn_and_writes_r2_url(client: TestClient) -> None
         "total": 1,
         "ed_fallback": True,
         "limit": None,
+        "ed_missing_post": 0,
+        "ed_no_cover": 0,
+        "ed_upload_failed": 0,
     }
     cdn_mock.assert_not_awaited()
     assert fake_sb.video_corpus.updates == [

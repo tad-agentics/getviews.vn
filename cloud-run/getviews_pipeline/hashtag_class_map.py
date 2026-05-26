@@ -10,6 +10,277 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+_SEED_SIGNAL_HASHTAG_LIMIT = 15
+_SEED_MAP_HASHTAG_LIMIT = 25
+
+
+def _norm_hashtag(ht: str) -> str:
+    return str(ht or "").strip().lstrip("#").lower()
+
+
+def _dominant_legacy_niche_for_class_sync(client: Any, content_class_id: int) -> int | None:
+    """Representative ``ingest_loop_niche_id`` from corpus rows for this class."""
+    try:
+        res = (
+            client.table("video_corpus")
+            .select("ingest_loop_niche_id")
+            .eq("content_class_id", int(content_class_id))
+            .not_.is_("ingest_loop_niche_id", "null")
+            .limit(200)
+            .execute()
+        )
+        counts: dict[int, int] = {}
+        for row in res.data or []:
+            nid = row.get("ingest_loop_niche_id")
+            if nid is not None:
+                counts[int(nid)] = counts.get(int(nid), 0) + 1
+        if counts:
+            return max(counts.items(), key=lambda x: x[1])[0]
+    except Exception as exc:
+        logger.debug("[hashtag_class_map] dominant legacy niche cc=%s: %s", content_class_id, exc)
+    return None
+
+
+def _legacy_niche_ids_for_class_sync(client: Any, content_class_id: int) -> set[int]:
+    """Legacy ``niche_taxonomy.id`` set linked to a content class via junction + corpus."""
+    from getviews_pipeline.profile_niches import legacy_niche_id_for_creator_niche
+
+    out: set[int] = set()
+    dom = _dominant_legacy_niche_for_class_sync(client, content_class_id)
+    if dom is not None:
+        out.add(dom)
+    try:
+        rows = (
+            client.table("creator_niche_content_classes")
+            .select("creator_niche_id")
+            .eq("content_class_id", int(content_class_id))
+            .execute()
+            .data
+            or []
+        )
+        for row in rows:
+            leg = legacy_niche_id_for_creator_niche(int(row["creator_niche_id"]))
+            if leg is not None:
+                out.add(int(leg))
+    except Exception as exc:
+        logger.debug("[hashtag_class_map] junction legacy niches cc=%s: %s", content_class_id, exc)
+    return out
+
+
+def _hashtags_from_niche_taxonomy_sync(client: Any, legacy_niche_ids: set[int]) -> list[str]:
+    if not legacy_niche_ids:
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    try:
+        rows = (
+            client.table("niche_taxonomy")
+            .select("signal_hashtags")
+            .in_("id", sorted(legacy_niche_ids))
+            .execute()
+            .data
+            or []
+        )
+        for row in rows:
+            for raw in row.get("signal_hashtags") or []:
+                h = _norm_hashtag(raw)
+                if h and h not in seen:
+                    seen.add(h)
+                    out.append(h)
+    except Exception as exc:
+        logger.debug("[hashtag_class_map] niche_taxonomy hashtags: %s", exc)
+    return out
+
+
+def _hashtags_from_niche_map_sync(client: Any, legacy_niche_ids: set[int], *, limit: int) -> list[str]:
+    if not legacy_niche_ids:
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    try:
+        rows = (
+            client.table("hashtag_niche_map")
+            .select("hashtag, occurrences")
+            .in_("niche_id", sorted(legacy_niche_ids))
+            .eq("is_generic", False)
+            .order("occurrences", desc=True)
+            .limit(limit * 2)
+            .execute()
+            .data
+            or []
+        )
+        for row in rows:
+            h = _norm_hashtag(row.get("hashtag") or "")
+            if h and h not in seen:
+                seen.add(h)
+                out.append(h)
+            if len(out) >= limit:
+                break
+    except Exception as exc:
+        logger.debug("[hashtag_class_map] hashtag_niche_map fetch: %s", exc)
+    return out
+
+
+def _corpus_hashtags_for_class_sync(
+    client: Any,
+    content_class_id: int,
+    *,
+    limit: int = 15,
+) -> list[str]:
+    """Top hashtags observed on indexed corpus rows for this class (all-time)."""
+    tag_counts: dict[str, int] = {}
+    offset = 0
+    page_size = 500
+    try:
+        while offset < 2000:
+            rows = (
+                client.table("video_corpus")
+                .select("hashtags")
+            .eq("content_class_id", int(content_class_id))
+            .range(offset, offset + page_size - 1)
+                .execute()
+                .data
+                or []
+            )
+            if not rows:
+                break
+            for row in rows:
+                for tag in row.get("hashtags") or []:
+                    h = _norm_hashtag(tag)
+                    if h:
+                        tag_counts[h] = tag_counts.get(h, 0) + 1
+            if len(rows) < page_size:
+                break
+            offset += page_size
+    except Exception as exc:
+        logger.debug("[hashtag_class_map] corpus hashtag scan cc=%s: %s", content_class_id, exc)
+    return [h for h, _ in sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:limit]]
+
+
+def _upsert_map_seeds_sync(
+    client: Any,
+    *,
+    content_class_id: int,
+    seeds: list[tuple[str, float, str]],
+) -> int:
+    """Upsert ``(hashtag, confidence, source)`` tuples into ``hashtag_class_map``."""
+    written = 0
+    now = datetime.now(UTC).isoformat()
+    for h, conf, source in seeds[:_SEED_MAP_HASHTAG_LIMIT]:
+        if not h:
+            continue
+        try:
+            client.table("hashtag_class_map").upsert({
+                "hashtag": h,
+                "content_class_id": int(content_class_id),
+                "confidence": conf,
+                "source": source,
+                "last_seen_at": now,
+                "occurrences": 1,
+            }, on_conflict="hashtag,content_class_id").execute()
+            written += 1
+        except Exception as exc:
+            logger.debug("[hashtag_class_map] seed upsert #%s cc=%s: %s", h, content_class_id, exc)
+    return written
+
+
+def collect_seeds_for_class_sync(
+    client: Any,
+    *,
+    content_class_id: int,
+    signal_hashtags: list[str] | None = None,
+) -> list[str]:
+    """Ordered unique hashtag seeds for one content class (no DB writes)."""
+    merged: list[str] = []
+    seen: set[str] = set()
+
+    def _add(tags: list[str]) -> None:
+        for raw in tags:
+            h = _norm_hashtag(raw)
+            if h and h not in seen:
+                seen.add(h)
+                merged.append(h)
+
+    legacy_ids = _legacy_niche_ids_for_class_sync(client, content_class_id)
+    _add(_hashtags_from_niche_taxonomy_sync(client, legacy_ids))
+    _add(_hashtags_from_niche_map_sync(client, legacy_ids, limit=_SEED_MAP_HASHTAG_LIMIT))
+    _add(list(signal_hashtags or []))
+    _add(_corpus_hashtags_for_class_sync(client, content_class_id, limit=15))
+    _add(fetch_map_hashtags_for_class_sync(client, content_class_id, limit=_SEED_MAP_HASHTAG_LIMIT))
+    return merged[:_SEED_MAP_HASHTAG_LIMIT]
+
+
+def seed_class_discovery_sync(
+    client: Any,
+    *,
+    active_only: bool = True,
+    backfill_signal_hashtags: bool = True,
+    content_class_ids: list[int] | None = None,
+) -> dict[str, int]:
+    """Seed ``hashtag_class_map`` (+ optional ``signal_hashtags``) for ingest targets.
+
+    Sources (priority order): ``niche_taxonomy.signal_hashtags`` via junction,
+    ``hashtag_niche_map``, existing target ``signal_hashtags``, corpus hashtags,
+    existing class-map rows.
+    """
+    summary = {
+        "classes_processed": 0,
+        "map_rows_written": 0,
+        "signal_hashtags_updated": 0,
+    }
+    try:
+        q = client.table("content_class_ingest_targets").select(
+            "content_class_id, signal_hashtags, active",
+        )
+        if active_only:
+            q = q.eq("active", True)
+        if content_class_ids:
+            q = q.in_("content_class_id", content_class_ids)
+        targets = q.limit(200).execute().data or []
+    except Exception as exc:
+        logger.error("[hashtag_class_map] seed targets fetch failed: %s", exc)
+        return summary
+
+    for t in targets:
+        cc_id = int(t["content_class_id"])
+        signal = list(t.get("signal_hashtags") or [])
+        seeds = collect_seeds_for_class_sync(client, content_class_id=cc_id, signal_hashtags=signal)
+        if not seeds:
+            continue
+        summary["classes_processed"] += 1
+        seed_tuples: list[tuple[str, float, str]] = []
+        legacy_ids = _legacy_niche_ids_for_class_sync(client, cc_id)
+        tax_set = set(_hashtags_from_niche_taxonomy_sync(client, legacy_ids))
+        map_set = set(_hashtags_from_niche_map_sync(client, legacy_ids, limit=_SEED_MAP_HASHTAG_LIMIT))
+        for h in seeds:
+            if h in tax_set:
+                seed_tuples.append((h, 0.65, "niche_taxonomy_seed"))
+            elif h in map_set:
+                seed_tuples.append((h, 0.60, "hashtag_niche_map"))
+            else:
+                seed_tuples.append((h, 0.55, "class_discovery_seed"))
+        summary["map_rows_written"] += _upsert_map_seeds_sync(
+            client, content_class_id=cc_id, seeds=seed_tuples,
+        )
+        if backfill_signal_hashtags and not signal:
+            try:
+                client.table("content_class_ingest_targets").update({
+                    "signal_hashtags": seeds[:_SEED_SIGNAL_HASHTAG_LIMIT],
+                    "updated_at": datetime.now(UTC).isoformat(),
+                }).eq("content_class_id", cc_id).execute()
+                summary["signal_hashtags_updated"] += 1
+            except Exception as exc:
+                logger.warning("[hashtag_class_map] signal_hashtags backfill cc=%s: %s", cc_id, exc)
+
+    logger.info(
+        "[hashtag_class_map] seed_class_discovery — classes=%d map_rows=%d signal_backfill=%d",
+        summary["classes_processed"],
+        summary["map_rows_written"],
+        summary["signal_hashtags_updated"],
+    )
+    return summary
+
+
 _cache: dict[str, list[tuple[int, float]]] = {}
 _cache_ts: float = 0.0
 _cache_lock = asyncio.Lock()
@@ -277,7 +548,18 @@ def pick_hashtags_for_class(
 
 def run_hashtag_map_maintenance_sync(client: Any) -> dict[str, int]:
     """Nightly learn/prune/yield refresh for all active ingest targets."""
-    summary = {"yield_updated": 0, "pruned": 0, "expanded": 0}
+    summary: dict[str, int] = {
+        "yield_updated": 0,
+        "pruned": 0,
+        "expanded": 0,
+        "seed_classes": 0,
+        "seed_map_rows": 0,
+        "seed_signal_backfill": 0,
+    }
+    seed_out = seed_class_discovery_sync(client, active_only=True, backfill_signal_hashtags=True)
+    summary["seed_classes"] = seed_out["classes_processed"]
+    summary["seed_map_rows"] = seed_out["map_rows_written"]
+    summary["seed_signal_backfill"] = seed_out["signal_hashtags_updated"]
     summary["yield_updated"] = update_yields_from_global_rpc_sync(client)
     summary["pruned"] = prune_stale_map_entries_sync(client)
     try:
@@ -294,10 +576,12 @@ def run_hashtag_map_maintenance_sync(client: Any) -> dict[str, int]:
         targets = []
     for t in targets:
         cc = int(t["content_class_id"])
-        if t.get("viability_tier") in ("Thin", "Dormant"):
-            summary["expanded"] += expand_trending_seeds_sync(
-                client,
-                content_class_id=cc,
-                signal_hashtags=t.get("signal_hashtags") or [],
-            )
+        existing = fetch_map_hashtags_for_class_sync(client, cc, limit=3)
+        if existing:
+            continue
+        summary["expanded"] += expand_trending_seeds_sync(
+            client,
+            content_class_id=cc,
+            signal_hashtags=t.get("signal_hashtags") or [],
+        )
     return summary
