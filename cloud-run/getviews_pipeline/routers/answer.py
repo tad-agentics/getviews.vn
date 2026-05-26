@@ -17,6 +17,7 @@ from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.deps import require_user
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.session_store import get_stream_chunks, put_stream_chunks
+from getviews_pipeline.supabase_client import user_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -145,114 +146,152 @@ async def answer_append_turn(
             else:
                 logger.info("[answer/turns] resume cache miss stream_id=%s — running fresh", resume_stream_id)
 
-        # Emit a hello frame before any heavy work starts. Two reasons:
-        #   (a) The client's retry gate (Boolean(resumeStreamId)) gets
-        #       a real stream_id within milliseconds — any later drop is
-        #       now recoverable via the replay buffer instead of a hard
-        #       stream_failed at the client.
-        #   (b) Bytes flow before the long video-extraction phase
-        #       (download + Files API upload + ACTIVE poll), so mobile
-        #       carriers / proxies don't kill the TCP during the
-        #       zero-byte window.
-        # Fires on fresh runs AND on resume-with-cache-miss fallthrough,
-        # but NOT on a successful replay (where the cached items
-        # themselves are the early bytes).
-        yield _sse_line({"stream_id": stream_id, "seq": 0, "hello": True, "done": False})
-
-        # Run append_turn as a concurrent task so we can emit heartbeat
-        # frames every 10 s while it blocks. Video Gemini analysis takes
-        # 60–120 s; without heartbeats the client SSE_IDLE_TIMEOUT_MS
-        # (45 s) fires, the retry misses the in-flight replay cache, and
-        # a second append_turn runs → double credit deduction (TD-1).
-        step_queue: asyncio.Queue = asyncio.Queue()
-        stream_cache: list[dict[str, Any]] = []
-
-        append_task = asyncio.create_task(
-            run_sync(
-                append_turn,
-                user["user_id"],
-                user["access_token"],
-                session_id,
-                query=body.query,
-                kind=body.kind,
-                classifier_confidence_score=body.classifier_confidence_score,
-                intent_id=body.intent_id,
-                intent_type_override=body.intent_type,
-                cta_id=body.cta_id,
-                video_mode=body.video_mode,
-                analysis_depth=body.analysis_depth,
-                source_entry=body.source_entry,
-                step_queue=step_queue,
-                main_loop=main_loop,
+        # TD-3 atomic lock BEFORE launching append_turn (mirrors
+        # /channel/diagnose, video.py). ``begin_processing`` flips
+        # ``profiles.is_processing`` and returns the prior value; True means
+        # a concurrent request (double-click, second tab, still-live
+        # reconnect on another pod) already holds it — bail before a second
+        # ``append_turn`` so we never double-charge. Phase C removed /stream
+        # (which carried this lock); /answer/turns is now the sole SSE paid
+        # path and must hold it too. The 60s replay cache covers reconnects;
+        # this lock covers concurrency.
+        sb_lock = user_supabase(user["access_token"])
+        try:
+            lock_resp = await run_sync(
+                lambda: sb_lock.rpc("begin_processing", {"p_user_id": user["user_id"]}).execute(),
             )
-        )
-        _HB = 10.0
-        while not append_task.done():
+        except Exception as exc:
+            logger.warning("[answer/turns] begin_processing failed user=%s: %s", user["user_id"], exc)
+            seq += 1
+            yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "stream_failed"})
+            return
+        if lock_resp.data is True:
+            # Concurrent request from this user already holds the lock.
+            # ``already_processing`` is the in-band error string useSessionStream
+            # maps to the same UX as the old /stream HTTP 409.
+            seq += 1
+            yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "already_processing"})
+            return
+
+        async def _release_lock() -> None:
+            try:
+                await run_sync(
+                    lambda: sb_lock.rpc("end_processing", {"p_user_id": user["user_id"]}).execute(),
+                )
+            except Exception as exc:
+                logger.warning("[answer/turns] end_processing failed user=%s: %s", user["user_id"], exc)
+
+        try:
+            # Emit a hello frame before any heavy work starts. Two reasons:
+            #   (a) The client's retry gate (Boolean(resumeStreamId)) gets
+            #       a real stream_id within milliseconds — any later drop is
+            #       now recoverable via the replay buffer instead of a hard
+            #       stream_failed at the client.
+            #   (b) Bytes flow before the long video-extraction phase
+            #       (download + Files API upload + ACTIVE poll), so mobile
+            #       carriers / proxies don't kill the TCP during the
+            #       zero-byte window.
+            # Fires on fresh runs AND on resume-with-cache-miss fallthrough,
+            # but NOT on a successful replay (where the cached items
+            # themselves are the early bytes).
+            yield _sse_line({"stream_id": stream_id, "seq": 0, "hello": True, "done": False})
+
+            # Run append_turn as a concurrent task so we can emit heartbeat
+            # frames every 10 s while it blocks. Video Gemini analysis takes
+            # 60–120 s; without heartbeats the client SSE_IDLE_TIMEOUT_MS
+            # (45 s) fires, the retry misses the in-flight replay cache, and
+            # a second append_turn runs → double credit deduction (TD-1).
+            step_queue: asyncio.Queue = asyncio.Queue()
+            stream_cache: list[dict[str, Any]] = []
+
+            append_task = asyncio.create_task(
+                run_sync(
+                    append_turn,
+                    user["user_id"],
+                    user["access_token"],
+                    session_id,
+                    query=body.query,
+                    kind=body.kind,
+                    classifier_confidence_score=body.classifier_confidence_score,
+                    intent_id=body.intent_id,
+                    intent_type_override=body.intent_type,
+                    cta_id=body.cta_id,
+                    video_mode=body.video_mode,
+                    analysis_depth=body.analysis_depth,
+                    source_entry=body.source_entry,
+                    step_queue=step_queue,
+                    main_loop=main_loop,
+                )
+            )
+            _HB = 10.0
+            while not append_task.done():
+                while True:
+                    try:
+                        event = step_queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+                    if event is None:
+                        break
+                    seq += 1
+                    item = {"seq": seq, **event}
+                    stream_cache.append(item)
+                    yield _sse_line({"stream_id": stream_id, **item, "done": False})
+
+                done_set, _ = await asyncio.wait({append_task}, timeout=_HB)
+                if not done_set:
+                    seq += 1
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "heartbeat": True, "done": False})
+
             while True:
                 try:
                     event = step_queue.get_nowait()
                 except asyncio.QueueEmpty:
                     break
                 if event is None:
-                    break
+                    continue
                 seq += 1
                 item = {"seq": seq, **event}
                 stream_cache.append(item)
                 yield _sse_line({"stream_id": stream_id, **item, "done": False})
 
-            done_set, _ = await asyncio.wait({append_task}, timeout=_HB)
-            if not done_set:
-                seq += 1
-                yield _sse_line({"stream_id": stream_id, "seq": seq, "heartbeat": True, "done": False})
-
-        while True:
             try:
-                event = step_queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
-            if event is None:
-                continue
-            seq += 1
-            item = {"seq": seq, **event}
-            stream_cache.append(item)
-            yield _sse_line({"stream_id": stream_id, **item, "done": False})
-
-        try:
-            out = append_task.result()
-        except PermissionError:
-            seq += 1
-            yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "session_not_found"})
-            return
-        except RuntimeError as exc:
-            if str(exc) == "insufficient_credits":
+                out = append_task.result()
+            except PermissionError:
                 seq += 1
-                yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "insufficient_credits"})
+                yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "session_not_found"})
                 return
-            raise
-        except Exception as exc:
-            logger.exception("[answer/turns] append failed: %s", exc)
+            except RuntimeError as exc:
+                if str(exc) == "insufficient_credits":
+                    seq += 1
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "insufficient_credits"})
+                    return
+                raise
+            except Exception as exc:
+                logger.exception("[answer/turns] append failed: %s", exc)
+                seq += 1
+                yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "stream_failed"})
+                return
+
             seq += 1
-            yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "stream_failed"})
-            return
+            report_payload = out.get("payload", out)
+            turn_meta = out.get("turn")
+            payload_seq = seq
+            payload_item = {"seq": payload_seq, "payload": report_payload, "turn": turn_meta}
 
-        seq += 1
-        report_payload = out.get("payload", out)
-        turn_meta = out.get("turn")
-        payload_seq = seq
-        payload_item = {"seq": payload_seq, "payload": report_payload, "turn": turn_meta}
+            seq += 1
+            done_seq = seq
+            done_item = {"seq": done_seq, "delta": "", "done": True}
 
-        seq += 1
-        done_seq = seq
-        done_item = {"seq": done_seq, "delta": "", "done": True}
+            # Populate the replay cache BEFORE yielding. A client that
+            # disconnects during the yield phase and immediately retries will
+            # find a hot cache and replay instead of re-running append_turn
+            # (closes the yield-phase window of TD-1 double-deduction).
+            put_stream_chunks(stream_id, stream_cache + [payload_item, done_item])
 
-        # Populate the replay cache BEFORE yielding. A client that
-        # disconnects during the yield phase and immediately retries will
-        # find a hot cache and replay instead of re-running append_turn
-        # (closes the yield-phase window of TD-1 double-deduction).
-        put_stream_chunks(stream_id, stream_cache + [payload_item, done_item])
-
-        yield _sse_line({"stream_id": stream_id, **payload_item, "done": False})
-        yield _sse_line({"stream_id": stream_id, **done_item})
+            yield _sse_line({"stream_id": stream_id, **payload_item, "done": False})
+            yield _sse_line({"stream_id": stream_id, **done_item})
+        finally:
+            await _release_lock()
 
     # X-Accel-Buffering: no — without it, Cloud Run's HTTP fronting
     # layer buffered the entire response body until the generator
