@@ -52,27 +52,27 @@ function buildFaqs(corpusLabel: string) {
   return [
   {
     q: "Cái này khác gì ChatGPT?",
-    a: `ChatGPT không có data TikTok thực và không xem được video. Hỏi "hook nào đang hot trong skincare" — ChatGPT sẽ bịa một câu trả lời nghe hợp lý nhưng không dựa trên video nào thật. GetViews trả lời từ ${corpusLabel} video thật, view thật — bạn có thể bấm vào xem để kiểm chứng ngay.`,
+    a: `ChatGPT không có dữ liệu TikTok thực tế và không thể xem nội dung video. Khi hỏi "hook nào đang thịnh hành trong mảng skincare", ChatGPT sẽ tự soạn một câu trả lời nghe có vẻ hợp lý nhưng không dựa trên bất kỳ số liệu thực tế nào. GetViews phân tích trực tiếp từ ${corpusLabel} video thật, lượt xem thật — bạn có thể bấm vào xem để kiểm chứng ngay lập tức.`,
   },
   {
-    q: "Tôi không rành AI, dùng có khó không?",
-    a: "Không cần biết AI. Bạn chỉ cần gõ câu hỏi như nhắn tin — \"hook nào đang hot trong niche ẩm thực?\" hay \"phân tích kênh @tenkenhdoithu\" — GetViews tự xử lý phần còn lại và trả về kết quả cụ thể, có dẫn chứng video.",
+    q: "Tôi không rành về AI, dùng có khó không?",
+    a: "Hoàn toàn đơn giản và không cần kiến thức về AI. Bạn chỉ cần đặt câu hỏi như nhắn tin bình thường — ví dụ: \"hook nào đang hot trong ngách ẩm thực?\" hoặc \"phân tích kênh @tenkenhdoithu\" — GetViews sẽ tự động xử lý và trả về kết quả phân tích rõ ràng kèm video dẫn chứng cụ thể.",
   },
   {
-    q: "Tôi mua khóa học rồi, có cần dùng thêm cái này không?",
-    a: "Khóa học dạy tư duy nền tảng: thuật toán, cách quay, cách edit. Rất tốt. Nhưng không thể nói tuần này mẫu video nào đang \"cắn\" đề xuất trong đúng niche của bạn. GetViews lấp đúng chỗ đó: data tươi, cập nhật liên tục, không đoán mò.",
+    q: "Tôi đã mua khóa học rồi, có cần dùng thêm GetViews không?",
+    a: "Các khóa học dạy tư duy nền tảng cực kỳ hữu ích như cách xây dựng thuật toán, cách quay dựng, cắt dựng. Nhưng khóa học không thể cho bạn biết chính xác trong tuần này, định dạng video nào đang được đề xuất tối ưu nhất trong ngách của bạn. GetViews giải quyết chính xác bài toán đó bằng dữ liệu thực tế cập nhật liên tục, không phỏng đoán cảm tính.",
   },
   {
-    q: "Khác gì Kalodata hay Shoplus?",
-    a: "Kalodata và Shoplus tập trung vào bán hàng — sản phẩm nào chạy, doanh số bao nhiêu. GetViews tập trung vào nội dung — TẠI SAO video đó view cao, hook mở đầu như thế nào, nhịp cắt và format ra sao. Hai loại công cụ bổ trợ nhau, không thay thế nhau.",
+    q: "Khác gì các nền tảng như Kalodata hay Shoplus?",
+    a: "Kalodata và Shoplus tập trung phân tích thương mại điện tử — sản phẩm nào bán chạy, doanh số bao nhiêu. Còn GetViews tập trung phân tích sâu về nội dung sáng tạo — lý do vì sao video đó đạt lượt xem cao, cấu trúc hook mở đầu ra sao, nhịp độ cắt cảnh và định dạng thể hiện như thế nào. Hai công cụ này bổ trợ hiệu quả cho nhau chứ không thay thế nhau.",
   },
   {
-    q: "1 credit tính như thế nào?",
-    a: "Lướt xu hướng, tìm KOL, hỏi đáp thông thường — miễn phí hoàn toàn, không giới hạn. 1 credit dùng cho phân tích sâu: soi video frame-by-frame, phân tích toàn bộ kênh đối thủ, hoặc viết brief chi tiết cho video tiếp theo.",
+    q: "Một lượt phân tích được tính như thế nào?",
+    a: "Các tính năng lướt xem xu hướng, tìm kiếm nhà sáng tạo (KOL) và hỏi đáp thông thường là hoàn toàn miễn phí, không giới hạn lượt dùng. Bạn chỉ cần dùng lượt phân tích khi cần thực hiện phân tích chuyên sâu: rà soát video từng khung hình (frame-by-frame), chẩn đoán chi tiết kênh đối thủ, hoặc tự động viết kịch bản chi tiết cho video tiếp theo.",
   },
   {
     q: "Thanh toán có phức tạp không?",
-    a: "Không. MoMo, VNPay, chuyển khoản ngân hàng hoặc thẻ Visa/Mastercard. Thanh toán xong là dùng được ngay — không cần chờ duyệt, không cần xác minh thêm.",
+    a: "Không hề phức tạp. Bạn có thể thanh toán thuận tiện qua MoMo, VNPay, chuyển khoản ngân hàng tự động hoặc thẻ quốc tế Visa/Mastercard. Sau khi thanh toán thành công, lượt dùng sẽ được cộng ngay lập tức vào tài khoản để bạn sử dụng ngay.",
   },
 ];
 }
@@ -84,8 +84,8 @@ const testimonials = [
     niche: "Review đồ gia dụng",
     followers: "~50K",
     quote:
-      "Quăng link video bị flop vào, 1 phút sau biết ngay lỗi: hook chậm 2.3 giây, không có mặt người ở đầu. Sửa lại đúng theo gợi ý — video sau lên thẳng 89K view.",
-    stat: "89K view",
+      "Quăng link video bị flop vào, 1 phút sau biết ngay lỗi: hook chậm 2.3 giây, không có mặt người ở đầu. Sửa lại đúng theo gợi ý — video sau lên thẳng 89K lượt xem.",
+    stat: "89K lượt xem",
   },
   {
     initials: "LH",
@@ -93,8 +93,8 @@ const testimonials = [
     niche: "Làm đẹp · Skincare",
     followers: "~120K",
     quote:
-      "Trước đây toàn phải screenshot thủ công rồi quên sạch. Giờ chỉ cần hỏi \"hook nào hot tuần này\" — AI lọc ra luôn 5 mẫu view cao nhất, kèm link video gốc để học theo.",
-    stat: "3.2x avg views",
+      "Trước đây toàn phải tự lướt lưu video thủ công rồi quên sạch. Giờ chỉ cần hỏi \"hook nào hot tuần này\" — hệ thống lọc ra luôn 5 mẫu đạt lượt xem cao nhất, kèm link video gốc để học theo.",
+    stat: "X3.2 lượt xem TB",
   },
   {
     initials: "TN",
@@ -102,19 +102,19 @@ const testimonials = [
     niche: "Công nghệ / Tech",
     followers: "~30K",
     quote:
-      "Phân tích strategy của 3 đối thủ lớn chỉ trong 2 câu lệnh. Đỡ mất công ngồi \"soi\" tay cả buổi. Tiết kiệm được ít nhất 4-5 tiếng nghiên cứu mỗi tuần.",
+      "Phân tích chiến lược nội dung của 3 đối thủ lớn chỉ trong 2 câu lệnh. Đỡ mất công ngồi mò mẫm cả buổi tối. Tiết kiệm được ít nhất 4-5 tiếng nghiên cứu mỗi tuần.",
     stat: "−4h/tuần",
   },
 ];
 
 const hookTicker = [
-  '"Cảnh Báo: Đừng mua trước khi xem" · 2.4M view · Skincare',
-  '"3 sai lầm khiến da sạm đi buổi sáng" · 1.8M view · Làm đẹp',
-  '"Tôi đã mua thử để bạn không mất tiền" · 1.2M view · Review',
-  '"So sánh công tâm giữa hai siêu phẩm" · 610K view · Tech',
-  '"Sự thật về sản phẩm này không ai nói..." · 890K view · Food',
-  '"Thử nghiệm thực tế sau 30 ngày dùng:" · 750K view · Gia dụng',
-  '"Đừng làm điều này nếu bạn đang dùng..." · 3.1M view · Skincare',
+  '"Cảnh Báo: Đừng mua trước khi xem" · 2.4M lượt xem · Skincare',
+  '"3 sai lầm khiến da sạm đi buổi sáng" · 1.8M lượt xem · Làm đẹp',
+  '"Tôi đã mua thử để bạn không mất tiền" · 1.2M lượt xem · Review',
+  '"So sánh công tâm giữa hai siêu phẩm" · 610K lượt xem · Tech',
+  '"Sự thật về sản phẩm này không ai nói..." · 890K lượt xem · Food',
+  '"Thử nghiệm thực tế sau 30 ngày dùng:" · 750K lượt xem · Gia dụng',
+  '"Đừng làm điều này nếu bạn đang dùng..." · 3.1M lượt xem · Skincare',
 ];
 
 const painPoints = [
@@ -128,7 +128,7 @@ const painPoints = [
   },
   {
     title: "Video flop không rõ nguyên nhân",
-    body: "Đầu tư quay dựng cả ngày, đăng lên lẹt đẹt 500 view. Không biết lỗi ở hook, nội dung hay format. Nhìn video đối thủ lên xu hướng mà không biết họ làm gì khác mình.",
+    body: "Đầu tư quay dựng cả ngày, đăng lên lẹt đẹt 500 lượt xem. Không biết lỗi ở hook, nội dung hay định dạng video. Nhìn video đối thủ lên xu hướng mà không biết họ làm gì khác mình.",
   },
 ];
 
@@ -302,7 +302,7 @@ function SolutionCardsSection() {
                 );
               })}
             </div>
-            <p className="text-xs text-[color:var(--gv-ink-3)]">Lọc KOL theo niche, view trung bình và tỉ lệ engagement</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)]">Lọc nhà sáng tạo (KOL/KOC) theo mảng nội dung, lượt xem trung bình và tỷ lệ tương tác thực</p>
           </motion.div>
 
           {/* ── Card 3: Hook Showcase — chat bubble + sparkline ──────── */}
@@ -312,14 +312,14 @@ function SolutionCardsSection() {
             whileHover={{ y: -4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] cursor-pointer"
           >
-            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Hook nào view cao nhất tuần này?"</p>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Công thức hook nào nhiều lượt xem nhất tuần này?"</p>
             <div className="flex gap-3 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-3">
               <div className="flex-shrink-0 overflow-hidden rounded-lg bg-[color:var(--gv-canvas-2)]" style={{ width: 48, height: 64 }}>
                 <VideoThumb id={HOOK_EXAMPLE.id} className="h-full w-full" />
               </div>
               <div className="flex flex-col justify-center gap-1 min-w-0">
                 <p className="text-sm font-semibold text-[color:var(--gv-ink)] line-clamp-2">"{HOOK_EXAMPLE.phrase}"</p>
-                <p className="text-xs text-[color:var(--gv-accent)] font-mono font-semibold">{HOOK_EXAMPLE.views} views</p>
+                <p className="text-xs text-[color:var(--gv-accent)] font-mono font-semibold">{HOOK_EXAMPLE.views} lượt xem</p>
               </div>
             </div>
             {/* Sparkline — pure SVG, no chart lib */}
@@ -459,7 +459,7 @@ function LiveDemoSection({
           Nắm bắt xu hướng,<br />cập nhật theo từng giờ
         </h2>
         <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
-          Đừng đoán mò nội dung. Hãy xem chiến lược nào đang đẩy view ổn định cho đối thủ.
+          Đừng phỏng đoán cảm tính. Hãy xem cấu trúc và chiến lược nội dung nào đang thúc đẩy lượng lượt xem tăng trưởng ổn định cho đối thủ.
         </p>
 
         <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mb-6">
@@ -639,10 +639,10 @@ function InfraGrid({ corpusLabel }: { corpusLabel: string }) {
 }
 
 const SAMPLE_QUERIES = [
-  "Hook nào đang top view trong niche làm đẹp?",
-  "Soi kênh @đối_thủ — họ đang làm gì?",
-  "Tại sao video này chỉ 500 view?",
-  "Viết brief KOL cho chiến dịch skincare",
+  "Công thức hook nào đang dẫn đầu lượt xem trong mảng làm đẹp?",
+  "Phân tích kênh @đối_thủ — họ đang làm gì hiệu quả?",
+  "Tại sao video này chỉ đạt 500 lượt xem?",
+  "Viết kịch bản KOL chi tiết cho mảng skincare",
 ];
 
 function CredibilitySection({ corpusLabel }: { corpusLabel: string }) {
@@ -653,16 +653,16 @@ function CredibilitySection({ corpusLabel }: { corpusLabel: string }) {
         {/* Left — credibility copy */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--gv-ink-3)] mb-4">
-            Tại sao chúng tôi xây GetViews
+            Tại sao chúng tôi xây dựng GetViews
           </p>
           <h2
             className="gv-landing-h3-tight font-extrabold text-[color:var(--gv-ink)] mb-5 leading-tight"
           >
-            Bắt đầu tăng view{" "}
+            Bắt đầu tăng trưởng lượt xem{" "}
             <span className="text-[color:var(--gv-accent)]">ngay hôm nay</span>
           </h2>
           <p className="text-sm text-[color:var(--gv-ink-3)] leading-relaxed mb-6">
-            Chúng tôi là những creator đã tự xây kênh TikTok từ 0 — và nhận ra rằng mọi quyết định nội dung đều đang được đưa ra dựa trên cảm tính. GetViews được xây để thay đổi điều đó: mỗi gợi ý đều có video thật làm bằng chứng, bạn bấm vào kiểm chứng được luôn.
+            Chúng tôi là những nhà sáng tạo nội dung tự xây kênh TikTok từ con số 0 — và thấu hiểu sâu sắc việc đưa ra quyết định nội dung theo cảm tính dễ dẫn đến thất bại như thế nào. GetViews ra đời để thay đổi điều đó: toàn bộ gợi ý phân tích đều có dẫn chứng video thực tế làm bằng chứng trực quan, hỗ trợ bạn kiểm chứng trực tiếp chỉ bằng một cú chạm.
           </p>
           <Link
             to="/login"
@@ -714,18 +714,18 @@ function HowItWorksSection() {
   const steps = [
     {
       num: "01",
-      title: "Quăng link TikTok vào",
-      body: "Dán link video của bạn hoặc bất kỳ đối thủ nào. GetViews tự động \"xem\" và trích xuất dữ liệu.",
+      title: "Dán liên kết TikTok",
+      body: "Dán đường dẫn video của bạn hoặc của bất kỳ đối thủ cạnh tranh nào. GetViews sẽ tự động rà soát, trích xuất dữ liệu hình ảnh và âm thanh.",
     },
     {
       num: "02",
-      title: "Đối chiếu với Data thực",
-      body: "AI so sánh video đó với hàng nghìn video view cao khác trong cùng niche ngay tại thời điểm hiện tại.",
+      title: "Đối chiếu dữ liệu thực tế",
+      body: "Hệ thống so sánh video đó với hàng nghìn video nhiều lượt xem khác trong cùng mảng nội dung ngay tại thời điểm hiện tại.",
     },
     {
       num: "03",
-      title: "Nhận \"đề bài\" để leo view",
-      body: "Biết ngay vì sao video flop, cần sửa hook ở giây thứ mấy, hay chuyển sang format nào để lên xu hướng.",
+      title: "Nhận chẩn đoán & tối ưu",
+      body: "Biết rõ lý do vì sao video bị flop, cần tối ưu lại công thức hook ở giây thứ mấy, hay áp dụng định dạng nào để lên xu hướng dễ dàng hơn.",
     },
   ];
 
@@ -811,7 +811,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   to="/login"
                   className="inline-flex items-center justify-center rounded-lg bg-[color:var(--gv-paper)] px-5 py-2 text-sm font-medium text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:bg-[color:var(--gv-canvas-2)] active:scale-95"
                 >
-                  Soi Video Miễn Phí
+                  Phân tích miễn phí
                 </Link>
               </div>
             </div>
@@ -849,10 +849,10 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 </h1>
 
                 <p className="text-lg text-[color:var(--gv-ink-3)] mb-8 max-w-lg leading-relaxed">
-                  Quăng link video → Nhận phân tích sau 1 phút. Biết ngay{" "}
+                  Dán đường dẫn video → Nhận kết quả chẩn đoán sau 1 phút. Biết rõ ngay{" "}
                   <span className="font-semibold text-[color:var(--gv-ink)]">lỗi ở đâu</span>,{" "}
-                  <span className="font-semibold text-[color:var(--gv-ink)]">hook nào hot</span>,{" "}
-                  <span className="font-semibold text-[color:var(--gv-ink)]">format nào cắn đề xuất</span>. Dựa trên số liệu thực, không đoán mò.
+                  <span className="font-semibold text-[color:var(--gv-ink)]">công thức hook nào đang hot</span>,{" "}
+                  <span className="font-semibold text-[color:var(--gv-ink)]">định dạng nào cắn đề xuất</span>. Dựa trên số liệu thực tế, không phỏng đoán cảm tính.
                 </p>
 
                 {/* CTA Input */}
@@ -869,7 +869,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                     to="/login"
                     className="inline-flex w-full items-center justify-center rounded-xl bg-[color:var(--gv-ink)] px-8 py-4 text-base font-semibold text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-ink-2)] active:scale-[0.98]"
                   >
-                    Soi Video Miễn Phí →
+                    Phân tích video miễn phí ngay →
                   </Link>
                 </div>
 
@@ -925,7 +925,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="font-bold text-[color:var(--danger)]">✕</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[color:var(--gv-ink)] mb-1">Hook vào quá chậm (2.3s)</p>
-                        <p className="text-xs text-[color:var(--gv-ink-3)]">Top video view cao thường mở màn ở 0.5s</p>
+                        <p className="text-xs text-[color:var(--gv-ink-3)]">Top video nhiều lượt xem thường mở màn ở 0.5s</p>
                       </div>
                     </div>
                   </div>
@@ -934,7 +934,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="font-bold text-[color:var(--danger)]">✕</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[color:var(--gv-ink)] mb-1">Thiếu "mặt người" ở đầu</p>
-                        <p className="text-xs text-[color:var(--gv-ink-3)]">89% video top view mở bằng mặt chính chủ</p>
+                        <p className="text-xs text-[color:var(--gv-ink-3)]">89% video nhiều lượt xem mở bằng mặt chính chủ</p>
                       </div>
                     </div>
                   </div>
@@ -943,7 +943,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="font-bold text-[color:var(--success)]">✓</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[color:var(--gv-ink)] mb-1">Dùng Hook "Cảnh Báo" là chuẩn</p>
-                        <p className="text-xs text-[color:var(--gv-ink-3)]">Mẫu này tăng 340% view so với "Kể Chuyện"</p>
+                        <p className="text-xs text-[color:var(--gv-ink-3)]">Mẫu này tăng 340% lượt xem so với "Kể Chuyện"</p>
                       </div>
                     </div>
                   </div>
@@ -1081,21 +1081,21 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             viewport={{ once: true }}
             transition={{ duration: 0.4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-6 md:p-8 mb-6"
-            aria-label="TRƯỚC 2.000 view · video review nồi chiên — SAU 45.000 view · quay lại theo gợi ý"
+            aria-label="TRƯỚC 2.000 lượt xem · video review nồi chiên — SAU 45.000 lượt xem · quay lại theo gợi ý"
           >
             <div className="grid md:grid-cols-[1fr_80px_1fr] gap-6 items-center">
               <div>
                 <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">Trước</p>
                 <div className="gv-landing-stat font-mono font-bold text-[color:var(--gv-ink-3)] mb-1">2.000</div>
-                <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">view · video review nồi chiên</p>
+                <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">lượt xem · video review nồi chiên</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-[color:var(--danger)]">✕</span>
-                    <span className="text-sm text-[color:var(--gv-ink-3)]">Hook chậm 2.3 giây</span>
+                    <span className="text-sm text-[color:var(--gv-ink-3)]">Hook vào chậm 2.3 giây</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-[color:var(--danger)]">✕</span>
-                    <span className="text-sm text-[color:var(--gv-ink-3)]">Không có mặt người 3 giây đầu</span>
+                    <span className="text-sm text-[color:var(--gv-ink-3)]">Không có mặt người trong 3 giây đầu</span>
                   </div>
                 </div>
               </div>
@@ -1107,23 +1107,23 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 <p className="text-xs text-[color:var(--gv-ink-3)] font-mono text-center">GetViews</p>
               </div>
               <div>
-                <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">Sau khi fix</p>
+                <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">Sau khi tối ưu</p>
                 <div className="gv-landing-stat font-mono font-bold text-[color:var(--gv-ink)] mb-1">45.000</div>
-                <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">view · quay lại theo gợi ý</p>
+                <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">lượt xem · dựng lại theo gợi ý</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-[color:var(--success)]">✓</span>
-                    <span className="text-sm text-[color:var(--gv-ink-3)]">Mặt nhìn camera từ frame 0</span>
+                    <span className="text-sm text-[color:var(--gv-ink-3)]">Xuất hiện mặt người ngay từ giây đầu tiên</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-[color:var(--success)]">✓</span>
-                    <span className="text-sm text-[color:var(--gv-ink-3)]">Hook &ldquo;Cảnh Báo&rdquo; đúng pattern niche</span>
+                    <span className="text-sm text-[color:var(--gv-ink-3)]">Áp dụng Hook &ldquo;Cảnh Báo&rdquo; đúng mảng nội dung</span>
                   </div>
                 </div>
               </div>
             </div>
             <p className="text-xs font-mono text-[color:var(--gv-ink-3)] mt-6 pt-4 border-t border-[color:var(--gv-rule)]">
-              412 video review đồ gia dụng · 7 ngày · Updated 4h ago
+              Phân tích từ 412 video review đồ gia dụng · 7 ngày qua · Cập nhật 4 giờ trước
             </p>
           </motion.div>
 
@@ -1277,15 +1277,15 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       <section className="px-4 py-20 md:py-24 bg-[color:var(--gv-ink)]">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="gv-landing-h2 font-extrabold text-white mb-6 leading-tight">
-            Dán 1 link. Xem GetViews nói gì.
+            Chỉ cần dán link video. Trải nghiệm GetViews ngay.
           </h2>
           <Link
             to="/login"
             className="inline-flex items-center justify-center rounded-xl bg-[color:var(--gv-paper)] px-10 py-4 text-base font-semibold text-[color:var(--gv-ink)] transition-all duration-[120ms] hover:bg-[color:var(--gv-canvas-2)] active:scale-95"
           >
-            Soi Video Miễn Phí
+            Phân tích video miễn phí
           </Link>
-          <p className="text-sm text-white/60 mt-4">10 lần miễn phí · Không cần thẻ</p>
+          <p className="text-sm text-white/60 mt-4">Tặng 10 lượt phân tích chuyên sâu · Không cần thẻ tín dụng</p>
         </div>
       </section>
 
