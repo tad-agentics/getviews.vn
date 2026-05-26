@@ -9,12 +9,11 @@ import re
 import statistics as stats_module
 import time
 from collections import Counter
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme
-from getviews_pipeline.claim_tiers import PATTERN_SPREAD_MIN_INSTANCES
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
     content_class_id_for_reference_pool,
@@ -28,26 +27,13 @@ from getviews_pipeline.corpus_context import (
     resolve_niche_id_cached,
 )
 from getviews_pipeline.corpus_ingest import classify_format
-from getviews_pipeline.creator_enrich import (
-    default_actions,
-    derive_red_flags,
-    detect_commerce,
-    extract_contact,
-    needs_product_context,
-    rate_ballpark_for_tier,
-    tier_from_followers,
-)
 from getviews_pipeline.enum_labels_vi import carousel_subformat_vi
 from getviews_pipeline.gemini import (
     synthesize_diagnosis_carousel_v2,
     synthesize_diagnosis_v2,
 )
 from getviews_pipeline.hashtag_niche_map import (
-    _refresh_cache as _refresh_hashtag_cache,
-)
-from getviews_pipeline.hashtag_niche_map import (
     classify_from_hashtags,
-    score_niche_match,
 )
 from getviews_pipeline.helpers import (
     _author_key,
@@ -56,7 +42,6 @@ from getviews_pipeline.helpers import (
     filter_recency,
     infer_niche_from_hashtags,
     merge_aweme_lists,
-    select_reference_videos,
 )
 from getviews_pipeline.intents import QueryIntent
 from getviews_pipeline.output_redesign import FORMAT_ANALYSIS_WEIGHTS, hook_type_vi
@@ -69,7 +54,6 @@ from getviews_pipeline.services.extraction import (
 from getviews_pipeline.settings import settings as pipeline_settings
 from getviews_pipeline.step_events import (
     emit,
-    emit_pipeline_error,
     emit_sentinel,
     label_for_corpus_query,
     step_count,
@@ -1194,6 +1178,15 @@ _NICHE_TAXONOMY_LABELS: list[str] = [
 ]
 
 
+# Generic hashtags that carry no niche signal — reject so keyword/hashtag
+# search falls back to a sensible default. (Restored: the Phase C teardown
+# dropped this definition but left _niche_query_terms using it → NameError.)
+_NICHE_SEARCH_STOPWORDS: frozenset[str] = frozenset({
+    "trendingtiktok", "trending", "viral", "tiktok", "foryou", "fyp",
+    "xuhuong", "thinhhanh", "hot", "xinh", "dep",
+})
+
+
 def _niche_query_terms(niche: str) -> str:
     """Return a clean search term for EnsembleData keyword/hashtag search.
 
@@ -1297,6 +1290,15 @@ def _coverage_dict(
         "source": source,
         "freshness_days": freshness_days,
     }
+
+
+# VN phrases that signal the user wants content-direction suggestions.
+# (Restored: the Phase C teardown dropped this definition but left
+# _wants_directions using it → NameError.)
+_DIRECTION_KEYWORDS = (
+    "gợi ý", "định dạng", "ý tưởng", "hướng content",
+    "kịch bản", "cho tôi", "cho mình", "ý kiến",
+)
 
 
 def _wants_directions(user_message: str) -> bool:
