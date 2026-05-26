@@ -25,5 +25,5 @@ export function formatRitualWhyWorks(raw: string | null | undefined): string {
 }
 
 export function formatRitualShotLabel(shotCount: number, lengthSec: number): string {
-  return `SCRIPT SẴN · ${shotCount} shot · ${lengthSec}s`;
+  return `KỊCH BẢN SẴN · ${shotCount} cảnh · ${lengthSec}s`;
 }

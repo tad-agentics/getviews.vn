@@ -161,7 +161,7 @@ describe("ChannelStudioPanel", () => {
     fireEvent.change(screen.getByLabelText(/Handle hoặc URL kênh TikTok/), {
       target: { value: "@creator" },
     });
-    const submit = screen.getByRole("button", { name: /Khám/i }) as HTMLButtonElement;
+    const submit = screen.getByRole("button", { name: /Phân tích/i }) as HTMLButtonElement;
     expect(submit.disabled).toBe(false);
   });
 

@@ -205,7 +205,7 @@ describe("HomeScreen", () => {
       .getAllByRole("heading", { level: 1 })
       .find((el) => (el.textContent ?? "").includes("Hôm nay"))!;
     expect(headline.textContent).toContain("2 hook");
-    expect(headline.textContent).toContain("mới đang nổ");
+    expect(headline.textContent).toContain("mới đang lên xu hướng");
     expect(headline.textContent).not.toContain("đang có gì mới");
   });
 
@@ -248,7 +248,7 @@ describe("HomeScreen", () => {
   it("does not show duplicate pill row below composer", () => {
     renderHome();
     expect(screen.queryByText("Phím tắt")).toBeNull();
-    expect(screen.getAllByRole("button", { name: "Khám Video flop" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Sửa video flop" })).toHaveLength(1);
   });
 
   it("does not downgrade Chuyên sâu while profile credits are still loading", () => {
@@ -257,7 +257,7 @@ describe("HomeScreen", () => {
       isPending: true,
     });
     renderHome();
-    fireEvent.click(screen.getByRole("button", { name: "Khám Kênh" }));
+    fireEvent.click(screen.getByRole("button", { name: "Soi kênh đối thủ" }));
     fireEvent.click(screen.getByRole("button", { name: "Chuyên sâu" }));
     expect(screen.getByRole("button", { name: "Chuyên sâu" }).getAttribute("aria-pressed")).toBe(
       "true",

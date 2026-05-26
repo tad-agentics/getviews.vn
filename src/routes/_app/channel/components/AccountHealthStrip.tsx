@@ -17,7 +17,7 @@ export function AccountHealthStrip({ findings }: { findings: ChannelDiagnosisFin
       className="mb-4 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-4 py-3"
       aria-label="Sức khỏe tài khoản từ dữ liệu"
     >
-      <p className="gv-kicker mb-2.5 text-[color:var(--gv-ink-3)]">Phân phối · từ view pattern</p>
+      <p className="gv-kicker mb-2.5 text-[color:var(--gv-ink-3)]">Phân phối · từ quy luật view</p>
       <ul className="m-0 flex list-none flex-col gap-2 p-0">
         {healthFindings.map((f, index) => (
           <li
@@ -32,7 +32,7 @@ export function AccountHealthStrip({ findings }: { findings: ChannelDiagnosisFin
         ))}
       </ul>
       <p className="mb-0 mt-2.5 text-[11px] leading-snug text-[color:var(--gv-ink-3)]">
-        Vòng 1: mở TikTok → Cài đặt → Account Status. GetViews không đọc FYP %.
+        Vòng 1: Hãy mở TikTok → Cài đặt → Trạng thái tài khoản (Account Status) để kiểm tra. GetViews không tự đọc được tỷ lệ FYP (xu hướng).
       </p>
     </div>
   );

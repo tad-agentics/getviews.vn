@@ -299,7 +299,7 @@ export default function HomeScreen() {
                     <span style={{ color: "var(--gv-accent-2-deep, var(--gv-accent-2))" }}>
                       {newHookCount} hook
                     </span>{" "}
-                    mới đang nổ.
+                    mới đang lên xu hướng.
                   </>
                 ) : (
                   "đang có gì mới."

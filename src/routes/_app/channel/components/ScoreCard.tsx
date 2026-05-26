@@ -32,7 +32,7 @@ export function ScoreCard({ card }: ScoreCardProps) {
     },
     {
       key: "trajectory",
-      label: "Quỹ đạo",
+      label: "Đà phát triển",
       value: `${(card.trajectory_delta_pct ?? 0) > 0 ? "+" : ""}${card.trajectory_delta_pct ?? 0}% vs đỉnh`,
       caption: c.trajectory,
     },

@@ -373,7 +373,7 @@ function PlanPanel({
 
         {isFreeTier ? (
           <p className="mb-4 text-xs leading-relaxed text-[color:var(--gv-ink-3)]">
-            10 lần phân tích sâu miễn phí (lifetime)
+            10 lượt phân tích sâu miễn phí (trọn đời)
           </p>
         ) : showExpiredCopy ? (
           <p className="mb-4 text-xs font-medium text-[color:var(--gv-danger)]">

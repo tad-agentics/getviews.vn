@@ -29,9 +29,9 @@ export function ChannelAuditRingsPanel({ findings }: { findings: ChannelDiagnosi
       className="mb-5 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-4 py-4"
       aria-label="Kiểm toán theo Vòng"
     >
-      <p className="gv-kicker mb-1 text-[color:var(--gv-ink-3)]">Kiểm toán theo Vòng · Chuyên sâu</p>
+      <p className="gv-kicker mb-1 text-[color:var(--gv-ink-3)]">Chẩn đoán 5 bước (Kiểm toán theo Vòng) · Chuyên sâu</p>
       <p className="mb-4 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
-        Năm tầng kiểm tra thuật toán — map finding kênh vào bước cần xử lý trước.
+        5 mức độ kiểm tra thuật toán — xếp loại các lỗi của kênh theo thứ tự cần ưu tiên xử lý.
       </p>
       <ol className="m-0 flex list-none flex-col gap-3 p-0">
         {AUDIT_RINGS.map((ring) => {
@@ -85,7 +85,7 @@ export function ChannelAuditRingsPanel({ findings }: { findings: ChannelDiagnosi
                     </ul>
                   ) : (
                     <p className="mb-2.5 mt-1 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
-                      Chưa thấy dấu hiệu chặn ở tầng này từ corpus kênh.
+                      Chưa phát hiện dấu hiệu bất thường nào từ video của kênh.
                     </p>
                   )}
 

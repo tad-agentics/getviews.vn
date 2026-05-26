@@ -32,7 +32,7 @@ export function ChannelNhanhPanel({
     return (
       <div className="flex items-center gap-2 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-8 text-sm text-[color:var(--gv-ink-3)]">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-        Đang đọc kho corpus cho {at}…
+        Đang tìm dữ liệu video cho {at}…
       </div>
     );
   }
@@ -74,7 +74,7 @@ export function ChannelNhanhPanel({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard label="Median lượt xem" value={data.median_views != null ? formatVN(data.median_views) : "—"} />
+        <StatCard label="View trung bình" value={data.median_views != null ? formatVN(data.median_views) : "—"} />
         <StatCard label="Hook chính" value={data.dominant_hook ? hookNameVI(data.dominant_hook) : "—"} />
         <StatCard
           label="Video nổi bật gần nhất"

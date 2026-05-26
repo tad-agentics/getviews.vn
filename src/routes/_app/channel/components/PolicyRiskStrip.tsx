@@ -17,7 +17,7 @@ export function PolicyRiskStrip({ findings }: { findings: ChannelDiagnosisFindin
       className="mb-4 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-4 py-3"
       aria-label="Rủi ro chính sách từ dữ liệu"
     >
-      <p className="gv-kicker mb-2.5 text-[color:var(--gv-ink-3)]">Compliance · từ corpus kênh</p>
+      <p className="gv-kicker mb-2.5 text-[color:var(--gv-ink-3)]">Tuân thủ chính sách · từ video của kênh</p>
       <ul className="m-0 flex list-none flex-col gap-2 p-0">
         {policyFindings.map((f, index) => (
           <li

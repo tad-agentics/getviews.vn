@@ -50,8 +50,8 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
       <SectionHeader
         kicker="GỢI Ý HÔM NAY"
         kickerTone="accent"
-        title="Từ sẵn-quay đến cảm-hứng"
-        caption="Gợi ý video cụ thể để quay ngay hôm nay, công thức hook để bạn biến tấu theo phong cách của mình, và bài học thực tế từ kênh khác để đối chiếu."
+        title="Ý tưởng sẵn quay & Cảm hứng sáng tạo"
+        caption="Gợi ý chi tiết video bạn có thể quay ngay hôm nay, các công thức hook hiệu quả nhất để bạn biến tấu theo phong cách riêng, cùng những ý tưởng bứt phá thực tế từ đối thủ để tham khảo."
         className="!mb-10"
       />
 
@@ -61,10 +61,10 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
       <div className="mb-10 scroll-mt-20" data-tier="01">
         <TierHeader
           num="I"
-          tag="HÔM NAY QUAY NGAY"
+          tag="Ý TƯỞNG ĂN LIỀN"
           tagTone="accent"
-          title="3 video tiếp theo bạn nên làm"
-          caption="Tổng hợp từ pattern thắng 7 ngày qua. Cả 3 ý tưởng đều có kịch bản sẵn — bấm dòng để mở trong Phân tích."
+          title="3 video tiếp theo bạn nên quay"
+          caption="Tổng hợp từ các định dạng (format) thành công nhất 7 ngày qua. Cả 3 ý tưởng đều có sẵn kịch bản chi tiết — bấm vào dòng bất kỳ để xem."
         />
         <StudioHero nicheId={patternScope?.legacyNicheId ?? null} />
       </div>
@@ -72,10 +72,10 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
       <div className="mb-10 scroll-mt-20" data-tier="02">
         <TierHeader
           num="II"
-          tag="CÔNG THỨC NỀN"
+          tag="CÔNG THỨC HOOK"
           tagTone="pos"
           title={tier02Title}
-          caption="Khung hook thắng 7 ngày qua — ba gợi ý phía trên bám theo các công thức này. Giữ cấu trúc, thay chủ đề theo phong cách kênh bạn."
+          caption="Khung tiêu đề (hook) thu hút người xem nhất 7 ngày qua — ba ý tưởng gợi ý ở trên đều được phát triển dựa theo các công thức này. Hãy giữ nguyên cấu trúc và thay đổi chủ đề theo phong cách của bạn."
         />
         <HooksTable embedded patternScope={patternScope} />
       </div>
@@ -83,10 +83,10 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
       <div className="scroll-mt-20" data-tier="03">
         <TierHeader
           num="III"
-          tag="CẢM HỨNG"
+          tag="CẢM HỨNG BỨT PHÁ"
           tagTone="ink"
-          title="3 video breakout trong ngách của bạn"
-          caption="Breakout trong ngách bạn (Tier III) — khác rail 7 ngày và format khác ngách ở tab Xu hướng."
+          title="3 video bứt phá nổi bật trong ngách"
+          caption="Tuyển chọn video đạt lượng xem vượt trội so với trung bình kênh của đối thủ — học hỏi cách làm khác biệt để tạo nội dung độc đáo cho riêng bạn."
           right={SEE_ALL_TRENDS}
         />
         <BreakoutGrid embedded creatorNicheId={creatorNicheId} />

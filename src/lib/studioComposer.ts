@@ -10,10 +10,10 @@ import { planAnswerEntry } from "@/routes/_app/intent-router";
 export type StudioComposerPill = "video_flop" | "video_win" | "channel" | "script";
 
 export const STUDIO_COMPOSER_PILLS: { id: StudioComposerPill; label: string }[] = [
-  { id: "video_flop", label: "Khám Video flop" },
-  { id: "video_win", label: "Khám Video win" },
-  { id: "channel", label: "Khám Kênh" },
-  { id: "script", label: "Tạo kịch bản" },
+  { id: "video_flop", label: "Sửa video flop" },
+  { id: "video_win", label: "Học video viral" },
+  { id: "channel", label: "Soi kênh đối thủ" },
+  { id: "script", label: "Viết kịch bản" },
 ];
 
 const TIKTOK_URL_IN_TEXT =
@@ -22,13 +22,13 @@ const TIKTOK_URL_IN_TEXT =
 export function studioComposerPlaceholder(pill: StudioComposerPill, nicheLabel: string): string {
   switch (pill) {
     case "video_flop":
-      return `Dán URL TikTok video flop trong ngách ${nicheLabel}…`;
+      return `Dán link video bị flop trong ngách ${nicheLabel} để tìm lỗi…`;
     case "video_win":
-      return `Dán URL TikTok video đang chạy trong ngách ${nicheLabel}…`;
+      return `Dán link video đang lên xu hướng trong ngách ${nicheLabel} để giải mã…`;
     case "channel":
-      return "@handle hoặc dán link profile TikTok…";
+      return "Nhập @username hoặc dán link kênh TikTok để phân tích…";
     case "script":
-      return `Mô tả video cần kịch bản trong ngách ${nicheLabel}…`;
+      return `Mô tả ý tưởng video trong ngách ${nicheLabel} để viết kịch bản…`;
   }
 }
 
@@ -91,7 +91,7 @@ export function composerDepthTitles(pill: StudioComposerPill): {
   deep: string;
 } {
   if (pill === "channel") {
-    return { basic: "Đọc corpus · 0 credit", deep: "Memo SSE · 3 credit" };
+    return { basic: "Xem nhanh sẵn có · 0 credit", deep: "Chẩn đoán chi tiết · 3 credit" };
   }
-  return { basic: "Giải mã nhanh · 1 credit", deep: "Đầy đủ góc · 2 credit" };
+  return { basic: "Phân tích nhanh · 1 credit", deep: "Phân tích chuyên sâu · 2 credit" };
 }

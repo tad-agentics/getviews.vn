@@ -182,7 +182,7 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
             ) : null}
             {showUrlChip ? (
               <span className="rounded-md border border-[var(--gv-rule)] px-2 py-0.5 gv-kicker text-[var(--gv-ink-4)]">
-                URL detected
+                Đã nhận link TikTok ✓
               </span>
             ) : null}
             {corpusCount != null ? (

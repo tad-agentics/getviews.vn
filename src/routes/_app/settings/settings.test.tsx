@@ -285,7 +285,7 @@ describe("PlanPanel — subscription copy", () => {
   it("shows free-tier lifetime copy when user has no subscription", async () => {
     await renderWithProfile({ subscription_tier: "free" });
     await waitFor(() => {
-      expect(screen.getAllByText(/10 lần phân tích sâu miễn phí/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/10 lượt phân tích sâu miễn phí/i).length).toBeGreaterThan(0);
     });
   });
 

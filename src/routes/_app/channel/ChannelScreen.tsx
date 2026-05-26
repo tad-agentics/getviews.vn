@@ -14,7 +14,7 @@ export default function ChannelScreen() {
   return (
     <AppLayout active="home" enableMobileSidebar>
       <div className="min-h-full w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
-        <TopBar kicker="SOI KÊNH" title="Khám kênh TikTok" />
+        <TopBar kicker="SOI KÊNH" title="Phân tích kênh TikTok" />
         <main className="gv-home-wrap mx-auto w-full max-w-[880px] px-4 pb-16 pt-2 sm:px-6">
           <ChannelStudioPanel defaultHandle={tiktokHandle} />
         </main>

@@ -107,7 +107,7 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3.5 text-white">
           <div className="flex items-start justify-between gap-2">
             <span className="rounded px-2 py-0.5 gv-kicker text-white bg-[color:var(--gv-accent)]">
-              {isBreakout ? "BREAKOUT" : "ĐANG NỔI"}
+              {isBreakout ? "BỨT PHÁ" : "ĐANG THỊNH HÀNH"}
             </span>
             {dur ? <span className="gv-kicker opacity-95">{dur}</span> : null}
           </div>
@@ -179,7 +179,7 @@ export const BreakoutGrid = memo(function BreakoutGrid({
           <SectionHeader
             kicker="BIÊN TẬP CHỌN"
             title="3 video bứt phá"
-            caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
+            caption="Lượng xem vượt trội gấp 10 lần so với trung bình kênh trong 48 giờ qua."
             right={headerRight}
           />
         ) : null}
@@ -202,13 +202,13 @@ export const BreakoutGrid = memo(function BreakoutGrid({
           <SectionHeader
             kicker="BIÊN TẬP CHỌN"
             title="3 video bứt phá"
-            caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
+            caption="Lượng xem vượt trội gấp 10 lần so với trung bình kênh trong 48 giờ qua."
             right={headerRight}
           />
         ) : null}
         <p className="mt-0 max-w-prose text-[14px] leading-relaxed text-[color:var(--gv-ink-3)]">
-          Chưa có video trong kho dữ liệu để hiển thị. Khi pipeline cập nhật breakout và lượt xem, ba
-          video nổi bật sẽ xuất hiện tại đây. Bạn có thể xem xu hướng rộng hơn ở mục{" "}
+          Chưa có video bứt phá nào trong kho dữ liệu tuần này. Khi hệ thống cập nhật các video bứt phá mới nhất,
+          nội dung sẽ xuất hiện tại đây. Bạn có thể xem các video thịnh hành khác ở mục{" "}
           <Link to="/app/trends" className="font-semibold text-[color:var(--gv-ink)] underline-offset-2 hover:underline">
             Xu hướng
           </Link>
@@ -224,7 +224,7 @@ export const BreakoutGrid = memo(function BreakoutGrid({
         <SectionHeader
           kicker="BIÊN TẬP CHỌN"
           title="3 video bứt phá"
-          caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
+          caption="Lượng xem vượt trội gấp 10 lần so với trung bình kênh trong 48 giờ qua."
           right={headerRight}
         />
       ) : null}

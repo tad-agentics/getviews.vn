@@ -12,7 +12,7 @@ describe("ChannelAuditRingsPanel", () => {
   it("renders all five audit rings with clear state when no findings", () => {
     render(<ChannelAuditRingsPanel findings={[]} />);
     expect(screen.getByText(/Vòng 0 — Trước khi đăng/)).toBeTruthy();
-    expect(screen.getByText(/Vòng 4 — Ngách & audience/)).toBeTruthy();
+    expect(screen.getByText(/Vòng 4 — Ngách & khán giả/)).toBeTruthy();
     expect(screen.getAllByText(/— chưa có tín hiệu/).length).toBe(5);
   });
 
@@ -93,7 +93,7 @@ describe("ChannelAuditRingsPanel", () => {
         ]}
       />,
     );
-    const v4 = screen.getByText(/Vòng 4 — Ngách & audience/).closest("li");
+    const v4 = screen.getByText(/Vòng 4 — Ngách & khán giả/).closest("li");
     expect(v4?.textContent).toContain("View gần đây thấp hơn peak.");
   });
 });

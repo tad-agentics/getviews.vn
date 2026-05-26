@@ -53,7 +53,7 @@ describe("QueryComposer (C.1.0)", () => {
         showUrlChip
       />,
     );
-    expect(screen.getByText("URL detected")).toBeTruthy();
+    expect(screen.getByText("Đã nhận link TikTok ✓")).toBeTruthy();
   });
 
   it("disables Gửi and blocks submit when disabled", () => {
@@ -143,8 +143,8 @@ describe("QueryComposer (C.1.0)", () => {
         onStudioPillChange={vi.fn()}
       />,
     );
-    expect(screen.getByRole("button", { name: "Khám Kênh" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Khám Video flop" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Soi kênh đối thủ" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sửa video flop" })).toBeTruthy();
   });
 
   it("does not disable Chuyên sâu on Khám Kênh while credits are unknown", () => {

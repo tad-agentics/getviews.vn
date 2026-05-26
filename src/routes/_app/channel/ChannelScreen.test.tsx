@@ -31,7 +31,7 @@ describe("ChannelScreen", () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    expect(screen.getByText("Khám kênh TikTok")).toBeTruthy();
+    expect(screen.getByText("Phân tích kênh TikTok")).toBeTruthy();
     expect(screen.getByTestId("channel-panel")).toBeTruthy();
   });
 });

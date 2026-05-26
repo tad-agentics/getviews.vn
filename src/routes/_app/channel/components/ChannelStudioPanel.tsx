@@ -247,7 +247,7 @@ export function ChannelStudioPanel({
                     : "cursor-not-allowed bg-[color:var(--gv-ink-2)] opacity-60")
                 }
               >
-                Khám
+                Phân tích
                 <ArrowRight className="h-3 w-3" strokeWidth={2.4} aria-hidden />
               </button>
             </form>

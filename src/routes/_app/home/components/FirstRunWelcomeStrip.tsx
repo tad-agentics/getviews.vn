@@ -40,8 +40,8 @@ export const FirstRunWelcomeStrip = memo(function FirstRunWelcomeStrip({
           style={{ textWrap: "pretty" }}
         >
           Chào {firstName} — đây là toàn cảnh ngách{" "}
-          <strong className="font-semibold">{nicheLabel}</strong> 14 ngày qua. Hồ sơ kênh của bạn đang được dựng, sẽ có thêm{" "}
-          <em className="gv-serif-italic">so sánh riêng</em> trong 24h.
+          <strong className="font-semibold">{nicheLabel}</strong> 14 ngày qua. Hệ thống đang tải dữ liệu kênh của bạn, phân tích{" "}
+          <em className="gv-serif-italic">so sánh riêng</em> sẽ hoàn tất trong 24h tới.
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">

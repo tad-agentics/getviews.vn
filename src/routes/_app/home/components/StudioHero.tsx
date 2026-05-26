@@ -70,14 +70,14 @@ export const StudioHero = memo(function StudioHero({
           {analysisErrorCopy(error)}
         </p>
         <p className="mt-1.5">
-          Gợi ý hôm nay tải từ máy chủ phân tích. Kiểm tra kết nối rồi thử lại — nếu vừa đổi ngách, có thể cần vài phút để job tạo kịch bản chạy.
+          Gợi ý kịch bản hôm nay đang gặp chút sự cố tải dữ liệu. Hãy kiểm tra mạng rồi thử lại nhé — nếu bạn vừa đổi ngách, hệ thống có thể cần vài phút để chuẩn bị kịch bản mới cho bạn.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Btn variant="ghost" size="sm" type="button" onClick={() => void refetch()}>
-            Thử tải lại
+            Tải lại gợi ý
           </Btn>
           <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/trends")}>
-            Khám phá ngách
+            Khám phá ngách khác
           </Btn>
         </div>
       </div>
@@ -89,19 +89,19 @@ export const StudioHero = memo(function StudioHero({
     return (
       <div className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
         <p className="m-0 text-[14px] font-medium text-[color:var(--gv-ink)]">
-          {isNicheStale ? "Kịch bản mới đang chuẩn bị cho ngách này" : "Đang tạo kịch bản cho ngày đầu"}
+          {isNicheStale ? "Đang chuẩn bị ý tưởng mới cho ngách này" : "Đang tạo kịch bản cho ngày đầu tiên"}
         </p>
         <p className="mt-1.5">
           {isNicheStale
-            ? "Lần tạo kế tiếp sẽ có 3 kịch bản theo ngách bạn vừa chọn."
-            : "Job hệ thống tạo kịch bản mỗi tối — sáng hôm sau sẽ thấy. Nếu lâu không có, bấm Thử tải lại."}
+            ? "Hệ thống đang chuẩn bị 3 kịch bản tùy biến riêng cho ngách bạn vừa lựa chọn."
+            : "Hệ thống tự động xây dựng kịch bản mới mỗi tối — sáng mai bạn hãy vào xem nhé. Nếu chờ lâu chưa thấy, bạn có thể bấm nút Tải lại gợi ý bên dưới."}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Btn variant="ghost" size="sm" type="button" onClick={() => void refetch()}>
-            Thử tải lại
+            Tải lại gợi ý
           </Btn>
           <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/trends")}>
-            Khám phá ngách
+            Khám phá ngách khác
           </Btn>
         </div>
       </div>
@@ -258,7 +258,7 @@ const RitualEvidenceStrip = memo(function RitualEvidenceStrip({
         aria-controls={`ritual-evidence-${rank}`}
         className="gv-mono inline-flex items-center gap-1 text-[11px] font-medium gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-2)] transition-colors"
       >
-        Xem {ids.length} video tương tự
+        Xem {ids.length} video thực tế
         <ChevronDown
           className={"h-3 w-3 transition-transform " + (expanded ? "rotate-180" : "")}
           strokeWidth={2.2}
@@ -281,11 +281,11 @@ const RitualEvidenceStrip = memo(function RitualEvidenceStrip({
             </div>
           ) : isError || !videos ? (
             <p className="text-[11px] text-[color:var(--gv-ink-3)]">
-              Không tải được video tham chiếu — thử lại sau.
+              Không tải được video tham khảo — vui lòng thử lại sau.
             </p>
           ) : visibleCount === 0 ? (
             <p className="text-[11px] text-[color:var(--gv-ink-3)]">
-              Chưa có thumbnail cho hook này — kịch bản vẫn dùng được.
+              Đang cập nhật hình ảnh cho hook này — kịch bản vẫn dùng được bình thường.
             </p>
           ) : (
             <ul className="flex gap-2" aria-label={`Video chứng minh hook #${rank}`}>

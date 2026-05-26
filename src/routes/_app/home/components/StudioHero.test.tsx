@@ -99,7 +99,7 @@ describe("StudioHero", () => {
       refetch: vi.fn(),
     });
     const { getByText } = wrap(<StudioHero nicheId={4} />);
-    expect(getByText(/SCRIPT SẴN · 5 shot · 22s/)).toBeTruthy();
+    expect(getByText(/KỊCH BẢN SẴN · 5 cảnh · 22s/)).toBeTruthy();
   });
 
   it("renders the TẠO KỊCH BẢN CTA", () => {
@@ -128,7 +128,7 @@ describe("StudioHero", () => {
       refetch: vi.fn(),
     });
     const { getByText } = wrap(<StudioHero nicheId={4} />);
-    expect(getByText(/Đang tạo kịch bản cho ngày đầu/)).toBeTruthy();
+    expect(getByText(/Đang tạo kịch bản cho ngày đầu tiên/)).toBeTruthy();
   });
 
   it("renders the niche-stale variant of the empty stub", () => {
@@ -141,7 +141,7 @@ describe("StudioHero", () => {
       refetch: vi.fn(),
     });
     const { getByText } = wrap(<StudioHero nicheId={4} />);
-    expect(getByText(/Kịch bản mới đang chuẩn bị cho ngách này/)).toBeTruthy();
+    expect(getByText(/Đang chuẩn bị ý tưởng mới cho ngách này/)).toBeTruthy();
   });
 
   it("renders pulse-style skeletons while pending", () => {
@@ -157,7 +157,7 @@ describe("StudioHero", () => {
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });
 
-  it("renders the 'Xem N video tương tự' trigger only when evidence_video_ids has rows (L2.2 Sprint 4)", () => {
+  it("renders the 'Xem N video thực tế' trigger only when evidence_video_ids has rows (L2.2 Sprint 4)", () => {
     mockUseDailyRitual.mockReturnValue({
       data: sampleRitual({
         scripts: [
@@ -175,7 +175,7 @@ describe("StudioHero", () => {
       refetch: vi.fn(),
     });
     const { getAllByText } = wrap(<StudioHero nicheId={4} />);
-    const triggers = getAllByText(/Xem 4 video tương tự/);
+    const triggers = getAllByText(/Xem 4 video thực tế/);
     // Only the first script has evidence — exactly one trigger renders.
     expect(triggers).toHaveLength(1);
   });
@@ -225,7 +225,7 @@ describe("StudioHero", () => {
     const { getByText, queryByText, container } = wrap(<StudioHero nicheId={4} />);
     // Pre-click: thumbnails not in DOM.
     expect(queryByText("1.5M")).toBeNull();
-    fireEvent.click(getByText(/Xem 2 video tương tự/));
+    fireEvent.click(getByText(/Xem 2 video thực tế/));
     // Post-click: views labels render for both items.
     expect(getByText("1.5M")).toBeTruthy();
     expect(getByText("25.0K")).toBeTruthy();

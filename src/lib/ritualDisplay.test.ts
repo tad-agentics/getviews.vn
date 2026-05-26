@@ -23,6 +23,6 @@ describe("ritualDisplay", () => {
   });
 
   it("formatRitualShotLabel keeps shot lowercase", () => {
-    expect(formatRitualShotLabel(4, 20)).toBe("SCRIPT SẴN · 4 shot · 20s");
+    expect(formatRitualShotLabel(4, 20)).toBe("KỊCH BẢN SẴN · 4 cảnh · 20s");
   });
 });
