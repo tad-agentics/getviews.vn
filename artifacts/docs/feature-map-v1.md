@@ -984,7 +984,7 @@ flowchart LR
 | **2.4 Compliance (kênh)** | Corpus roll-up | **✅ Shipped (P1)** | `channel_compliance_aggregate` + restricted / ad-law / mute → `policy_risk` SSE |
 | **2.5 Persona / signature** | Persona + score card + drift | **⚠️ Partial–Mostly** | `channel_persona`, cadence/hour findings; chưa profile-visit proxy |
 | **2.5 Slang staleness** | Corpus `slang_freshness_score` | **✅ Data-dependent** | `channel_slang_staleness` — fire khi batch extract có field |
-| **Audit flow Vòng 0–4** | Trajectory + score card + findings | **⚠️ Partial UX** | Vòng 1 hint khi ceiling finding (`ChannelFindingsStrip` footnote); chưa full Vòng 2–4 map |
+| **Audit flow Vòng 0–4** | Trajectory + score card + findings | **✅ Done (V1 core)** | [`ChannelAuditRingsPanel`](../../src/routes/_app/channel/components/ChannelAuditRingsPanel.tsx) — 5 ring stepper + finding teasers + KPI copy; hiện khi có `score_card` hoặc findings |
 
 **14/14 finding IDs** trong [`channel_findings.py`](../../cloud-run/getviews_pipeline/channel_findings.py) — chi tiết phase @ §5.3.3. Deep UI: [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) (SSE `channel_findings`, cache `20260830000002`).
 
@@ -995,8 +995,8 @@ flowchart LR
 | Lớp | Cách làm F4 | Consumer |
 |-----|-------------|----------|
 | **A — Prompt inject** | `format_findings_for_prompt()` → `<<<CHANNEL FINDINGS>>>` trong `channel_diagnose_prompts.py` (top 8) | LLM memo: `verdict`, `what_falling`, `recommendations` |
-| **A′ — SSE tile** | `serialize_findings_for_api()` → event `channel_findings`; persist JSONB @ `20260830000002` | FE [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) (Vòng 1 footnote khi ceiling/boost) |
-| **B — Section SSE (tùy chọn)** | `optional_memo_sections_from_findings()` gate; prompt yêu cầu `=== account_health ===` / `=== policy_risk ===`; `_parse_sections_from_narrative`; fallback `synthesize_optional_section_from_findings()` nếu LLM bỏ sót | FE `SectionRenderer` (prose generic — chưa tile riêng compliance) |
+| **A′ — SSE tile** | `serialize_findings_for_api()` → event `channel_findings`; persist JSONB @ `20260830000002` | FE [`ChannelAuditRingsPanel`](../../src/routes/_app/channel/components/ChannelAuditRingsPanel.tsx) + optional memo strips |
+| **B — Section SSE (tùy chọn)** | `optional_memo_sections_from_findings()` gate; prompt yêu cầu `=== account_health ===` / `=== policy_risk ===`; `_parse_sections_from_narrative`; fallback `synthesize_optional_section_from_findings()` nếu LLM bỏ sót | FE `SectionRenderer` + [`PolicyRiskStrip`](../../src/routes/_app/channel/components/PolicyRiskStrip.tsx) / [`AccountHealthStrip`](../../src/routes/_app/channel/components/AccountHealthStrip.tsx) |
 
 **Không** fork sang V6 `VideoBody` — channel giữ memo SSE.
 
@@ -1074,7 +1074,7 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 |----------|----------|
 | Section gate BE | `select_channel_sections_to_emit()` + emit loop @ [`video.py`](../../cloud-run/getviews_pipeline/routers/video.py) |
 | Prompt gate | `<<<SECTIONS TO EMIT>>>` @ [`channel_diagnose_prompts.py`](../../cloud-run/getviews_pipeline/channel_diagnose_prompts.py) |
-| Findings tile | [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) — Vòng 1–4 hints; policy/account excluded from top strip (`summaryFindingsForStrip`) |
+| Findings tile | [`ChannelAuditRingsPanel`](../../src/routes/_app/channel/components/ChannelAuditRingsPanel.tsx) — Vòng 0–4 stepper + finding teasers; [`ChannelFindingsStrip`](../../src/routes/_app/channel/components/ChannelFindingsStrip.tsx) delegates to panel |
 | Optional memo tiles | [`PolicyRiskStrip`](../../src/routes/_app/channel/components/PolicyRiskStrip.tsx) @ `policy_risk` · [`AccountHealthStrip`](../../src/routes/_app/channel/components/AccountHealthStrip.tsx) @ `account_health` |
 | Tests | `test_channel_findings.py` (salience) · `test_channel_diagnose_endpoint.py::TestChannelSectionsSalience` · channel component vitest |
 | Deferred | Unify `ChannelFinding` ↔ `Signal`/`Evidence` — Wave 3+ |
@@ -1152,8 +1152,8 @@ flowchart LR
 - [x] `select_channel_sections_to_emit()` — trajectory + finding hints + `peer_source=thin` landscape skip — ✅ `c6ec9afa`
 - [x] `what_falling` chỉ emit khi không có finding **hoặc** có finding `section_hint=what_falling` — ✅ audit C1
 - [x] `<<<SECTIONS TO EMIT>>>` trong prompt + emit order khớp salience — ✅ BE + endpoint test
-- [x] Vòng 1–4 audit hints @ `ChannelFindingsStrip` (`channelFindingGroups.ts`) — ✅
-- [x] Compliance / account findings không duplicate trên top strip — ✅ `summaryFindingsForStrip`
+- [x] Vòng 0–4 audit panel @ `ChannelAuditRingsPanel` + `channelFindingGroups.ts` — ✅
+- [x] Compliance / account findings hiện ở Vòng panel + memo strips (`PolicyRiskStrip` / `AccountHealthStrip`) — không duplicate teaser trên strip cũ
 - [x] `PolicyRiskStrip` @ `policy_risk` · `AccountHealthStrip` @ `account_health` — ✅
 - [ ] Unify `ChannelFinding` ↔ `Signal`/`Evidence` — deferred Wave 3+
 
@@ -1209,27 +1209,75 @@ flowchart LR
 
 Kịch bản **đủ quay** — không chỉ hook one-liner.
 
+**Trạng thái: ✅ Done (V1 core — prod)** — golden path W2-1a/b/c · scene intelligence wired `b49e6b3d` (2026-05-23) · Vercel `main`.
+
+| Hạng mục | Evidence |
+|----------|----------|
+| Entry + router | `/app/answer` `format=script`; legacy `/app/script` → redirect; `scriptPrefillFromRitual` / `scriptPrefillFromPattern` / `scriptPrefillFromDeeplink` |
+| BE synthesis | `build_script_report()` → `synthesize_script_narrative_vi()` @ [`report_script.py`](../../cloud-run/getviews_pipeline/report_script.py); primary script turn **3×** `decrement_credit` @ [`answer_session.py`](../../cloud-run/getviews_pipeline/answer_session.py) |
+| FE narrative body | [`ScriptBody.tsx`](../../src/components/v2/answer/script/ScriptBody.tsx) — headline → `DiagnosisSectionRenderer` sections → 6-shot rail |
+| Draft / shoot / export | [`ScriptActionsBar`](../../src/components/v2/answer/script/ScriptActionsBar.tsx) + `?shoot=` [`ScriptShootPanel`](../../src/components/v2/answer/script/ScriptShootPanel.tsx); `draft_scripts.source_session_id` |
+| Scene intel BE | Nightly [`scene_intelligence_refresh.py`](../../cloud-run/getviews_pipeline/scene_intelligence_refresh.py) · `GET /script/scene-intelligence` @ [`routers/script.py`](../../cloud-run/getviews_pipeline/routers/script.py) |
+| Scene intel FE | [`useSceneIntelligence`](../../src/hooks/useSceneIntelligence.ts) + [`SceneIntelligencePanel`](../../src/components/v2/SceneIntelligencePanel.tsx) in `ScriptBody`; join key `intel_scene_type` on each shot @ [`script_generate.py`](../../cloud-run/getviews_pipeline/script_generate.py) |
+| Merge helpers | [`scriptEditorMerge.ts`](../../src/lib/scriptEditorMerge.ts) (`reportShotsToEditorShots`, `mergeSceneIntelIntoShots`) · [`scriptEditorFallbacks.ts`](../../src/lib/scriptEditorFallbacks.ts) |
+| Session niche | `AnswerScreen` → `sessionNicheId` (`answer_sessions.niche_id` fallback profile) → `ContinuationTurn` → `ScriptBody` |
+| Tests | `ScriptBody.test.tsx` · `SceneIntelligencePanel.test.tsx` · `scriptEditorMerge.test.ts` · `test_report_script_narrative.py` |
+| Deferred | Regenerate/edit shot as follow-up turn **1×** (CTA matrix UI); clip refs populated when `shot.references[]` non-empty |
+
 ### 7.1 Output contract V1
 
 | Thành phần | Mô tả |
 |------------|--------|
 | Hook đọc được | Câu mở từ ritual / generate |
-| Shot list | N scene + timing; chip scene intel khi có |
-| Meta | Duration, sound gợi ý, CTA |
+| Narrative | `narrative_vi` (`_schema_version: script_v1`) — `hook_analysis`, `script_structure`, `next_video` |
+| Shot list | 6 cảnh + timing; **`SceneIntelligencePanel`** khi nightly `scene_intelligence.scene_type` khớp `intel_scene_type` (read-only, free) |
+| Meta | Duration, tone, niche label, hook delay |
 | Export | Draft + shoot panel in Answer (`?shoot=`); legacy `/app/script/shoot/:id` redirects |
 
 ### 7.2 Feature ID
 
 | ID | Tên | Trạng thái | Evidence |
 |----|-----|------------|----------|
-| **F7** | Script Studio (golden path) | **Partial** | `script.py`, `useScriptSceneIntelligence`, ritual `scriptPrefillFromRitual` |
+| **F7** | Script Studio (golden path + scene intel) | **✅ Done (V1 core)** | Table above; W2-1a/b/c + `b49e6b3d` |
 
 ### 7.3 Billing
 
 | Hành động | Credit |
 |-----------|--------|
 | Mở draft từ ritual (prefill) | Free |
-| Generate / shot list sâu | **3×** `decrement_credit` (`answer_session.py` script kind) |
+| Generate / shot list sâu (primary script turn) | **3×** `decrement_credit` (`answer_session.py` script kind) |
+| Fetch `scene_intelligence` on script turn | Free (TanStack Query, fail-open) |
+
+#### 7.4 As-built flow (Answer session)
+
+```mermaid
+flowchart LR
+  entry[Studio_pill_/_CTA_prefill] --> router[intent-router_planAnswerEntry]
+  router --> session[answer_session_script_kind_3x]
+  session --> report[build_script_report_+_narrative_vi]
+  report --> body[ScriptBody_sections_+_shot_rail]
+  niche[session_niche_id] --> intel[GET_script_scene-intelligence]
+  intel --> merge[mergeSceneIntelIntoShots]
+  merge --> panel[SceneIntelligencePanel_per_active_shot]
+```
+
+**Phân tách data (không nhầm với video extract):**
+
+| Nguồn | Bảng / field | Dùng ở đâu |
+|-------|--------------|------------|
+| Video extract | `scenes[]` trong `analysis_json` | F1/F2 editing signals — **không** phải F7 panel |
+| Nightly batch | `scene_intelligence` (per `niche_id` × `scene_type`) | F7 pacing tips, overlay samples, corpus/winner duration |
+
+#### 7.5 Acceptance (V1 core)
+
+- [x] Không surface `/app/script` — redirect + composer prefill — ✅ W2-1a
+- [x] Script turn có `narrative_vi` + sections trước shot rail — ✅ W2-1b (`ScriptBody.test.tsx`)
+- [x] Save draft + shoot + export trong Answer shell — ✅ W2-1c (`ScriptActionsBar`, `?shoot=`)
+- [x] Ritual / pattern → script prefill ≤2 tap — ✅ §13B + `scriptPrefillFromRitual`
+- [x] `SceneIntelligencePanel` render khi `intel_scene_type` khớp nightly row — ✅ `b49e6b3d`
+- [x] Scene intel fetch fail-open — panel ẩn, shot rail vẫn render — ✅ `useSceneIntelligence` + `ScriptBody`
+- [x] Không duplicate corpus ref strip khi panel hiện — ✅ `ScriptBody` guards `showScenePanel`
+- [ ] Regenerate shot / edit follow-up **1×** credit — ⏳ CTA matrix post-V1
 
 ---
 
@@ -1412,7 +1460,7 @@ Giảm cost **ngoài** cắt V1 feature: chủ yếu **ít video ingest hơn** h
 | F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel?handle=…&depth=deep` — pill Khám Kênh |
 | F5 | Soi kênh Nhanh | 2 | Basic | ✅ | `/app/channel?handle=…` Cơ bản; Trends peek W5-4 |
 | F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · ✅ handoff W1-1 | `/app/trends` §3.2.1 + `CrossNicheBreakoutLane` |
-| F7 | Script (Answer sessions) | 4 | — | ✅ | `/app/answer` script turns; legacy `/app/script` redirect |
+| F7 | Script (Answer sessions) | 4 | — | ✅ V1 core | `/app/answer` script turns; scene intel @ `b49e6b3d`; legacy `/app/script` redirect |
 | F8 | Data plane | 5 | — | ✅ | batch + claim tiers; HI-11 route ✅; M4 `stats_history` @ Launch 2b |
 
 Legend: **✅ shipped** = in prod code today · **◐ partial** = surface live, spec gap remains · **🔨 V1 build** = in vision, not in code
@@ -1461,7 +1509,7 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 | Kênh | `/channel/diagnose` + `/channel/quick-peek` | ✅ pill → `/app/channel`; `HomeMyChannelSection` gỡ |
 | Studio home | `HomeSuggestionsToday` 3 tầng §3.1.1 | **Không** khối channel — composer 4 pill §3.1.2 |
 | Studio shell | App layout, composer | 4 pill §3.1.2; Cơ bản/Chuyên sâu |
-| Script | `script.py`, scene intel | Golden path từ F6 / `goWinScript` |
+| Script | `report_script.py`, `script_generate.py`, scene intel | Golden path từ F6 / ritual / `goWinScript`; panel wired @ `b49e6b3d` |
 | Data | `/batch/*`, `video_diagnostics` | §4.12 migration; §4.7 M1–M4 |
 
 **FE files (handoff audit):** `AnswerScreen`, `ExploreScreen`, `TrendsRail`, `CrossNicheBreakoutLane`, `PatternModal`, `GenericEvidenceGrid`, `SceneIntelligencePanel`, `IdeaBlock` — §4.10.
@@ -1496,6 +1544,7 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [x] Mọi handle → pill **Khám Kênh** → `/app/channel` Cơ bản/Chuyên sâu; **không** khối Studio — ✅ 2026-05-24
 - [x] Kho / pattern tile → Answer handoff §4.10 (không paste URL thủ công) — ✅ W1-1/W1-2
 - [x] Ritual Studio tier I → **Script Studio** ≤2 tap — ✅ W2-1a (Answer prefill)
+- [x] Script turn — `SceneIntelligencePanel` khi có nightly `scene_intelligence` khớp shot — ✅ `b49e6b3d`
 - [x] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier — ✅ Launch Phase 0 (`launch-phase0-corpus-health.json`; `api/chat.ts` humility sweep)
 - [x] **§8.7:** 5–8 ngách hero đạt tier tối thiểu `reference_pool` (≥5 video/30d); ưu tiên `niche_norms` / `hook_effectiveness` cho ngách launch — ✅ G3 IDs 1,2,3,4,5,8,9,11 @ `trend_delta` (`launch-phase0-g3-hero.json`, `launch-phase0-corpus-health.json`)
 - [x] **§8.7:** Xu hướng — mỗi ngách hero có ≥1 `video_patterns` card không rỗng; Kho + `ConfidenceStrip` khớp tier — ✅ Phase 0 QA (`launch-phase0-baseline.json`; thin heroes none)
