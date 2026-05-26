@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router";
 
 import { ScriptBody } from "./ScriptBody";
 import type { ScriptReportPayload } from "@/lib/api-types";
+import { useSceneIntelligence } from "@/hooks/useSceneIntelligence";
 
 vi.mock("@/hooks/useScriptSave", () => ({
   useScriptSave: () => ({ mutate: vi.fn(), isPending: false, data: null }),
@@ -12,6 +14,10 @@ vi.mock("@/hooks/useScriptSave", () => ({
 
 vi.mock("@/components/v2/answer/script/ScriptExportModal", () => ({
   ScriptExportModal: () => null,
+}));
+
+vi.mock("@/hooks/useSceneIntelligence", () => ({
+  useSceneIntelligence: vi.fn(() => ({ data: undefined })),
 }));
 
 const sampleReport: ScriptReportPayload = {
@@ -60,16 +66,58 @@ const sampleReport: ScriptReportPayload = {
   related_questions: [],
 };
 
+function renderScriptBody(report: ScriptReportPayload = sampleReport, nicheId = 4) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>
+        <ScriptBody report={report} nicheId={nicheId} />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe("ScriptBody narrative-first", () => {
   it("renders narrative headline before shot rail", () => {
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={qc}>
-        <ScriptBody report={sampleReport} />
-      </QueryClientProvider>,
-    );
+    renderScriptBody();
     expect(screen.getByText(/Serum C — hook cảnh báo/)).toBeTruthy();
     expect(screen.getByText(/Hook 0–3 giây/)).toBeTruthy();
     expect(screen.getByText(/Cảnh 1 \/ 1/)).toBeTruthy();
+  });
+
+  it("renders scene intelligence panel when scene_type matches active shot", () => {
+    vi.mocked(useSceneIntelligence).mockReturnValue({
+      data: {
+        niche_id: 4,
+        scenes: [
+          {
+            niche_id: 4,
+            scene_type: "face_to_camera",
+            corpus_avg_duration: 2.8,
+            winner_avg_duration: 2.4,
+            winner_overlay_style: "white sans 28pt · bottom-center",
+            overlay_samples: ["ĐỪNG MUA SERUM NÀY"],
+            tip: "Hook cận mặt trong 3 giây — giữ khung ổn định.",
+            reference_video_ids: [],
+            sample_size: 45,
+            computed_at: "2026-05-23T00:00:00Z",
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useSceneIntelligence>);
+
+    renderScriptBody({
+      ...sampleReport,
+      shots: [
+        {
+          ...sampleReport.shots![0]!,
+          intel_scene_type: "face_to_camera",
+        },
+      ],
+    });
+
+    expect(screen.getByText(/Hook cận mặt trong 3 giây/)).toBeTruthy();
+    expect(screen.getByText(/SHOT 01 · PHÂN TÍCH CẤU TRÚC/)).toBeTruthy();
+    expect(screen.queryByText(/Tham khảo corpus/)).toBeNull();
   });
 });

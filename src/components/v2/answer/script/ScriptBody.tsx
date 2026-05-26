@@ -1,6 +1,7 @@
 /**
  * Phase C — 6-shot script report inside answer sessions (Studio).
  * Wave 2 — narrative-first: headline → sections → shot rail.
+ * F7 — scene intelligence panel when nightly ``scene_intelligence`` matches shot type.
  */
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Video } from "lucide-react";
@@ -8,6 +9,8 @@ import { ChevronLeft, ChevronRight, Video } from "lucide-react";
 import { DiagnosisSectionRenderer } from "@/components/diagnosis/DiagnosisSectionRenderer";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { Btn } from "@/components/v2/Btn";
+import { SceneIntelligencePanel } from "@/components/v2/SceneIntelligencePanel";
+import { useSceneIntelligence } from "@/hooks/useSceneIntelligence";
 import type {
   DiagnosisSectionVi,
   ScriptReportPayload,
@@ -15,6 +18,13 @@ import type {
   ScriptShotReferenceData,
   ScriptVoLineData,
 } from "@/lib/api-types";
+import { scriptEditorFallbacks } from "@/lib/scriptEditorFallbacks";
+import {
+  mergeSceneIntelIntoShots,
+  referenceClipsFromEditorShot,
+  reportShotsToEditorShots,
+  sceneRowForShot,
+} from "@/lib/scriptEditorMerge";
 import { ScriptActionsBar } from "./ScriptActionsBar";
 
 function formatVoStamp(t: ScriptVoLineData["t"], fallback: number): string {
@@ -59,10 +69,13 @@ function breakoutLabel(ref: ScriptShotReferenceData, shot: ScriptShotCardData): 
 export function ScriptBody({
   report,
   sessionId = null,
+  nicheId = null,
   onOpenShoot,
 }: {
   report: ScriptReportPayload;
   sessionId?: string | null;
+  /** Session or profile niche — drives free ``GET /script/scene-intelligence``. */
+  nicheId?: number | null;
   onOpenShoot?: (draftId: string) => void;
 }) {
   const shots = report.shots ?? [];
@@ -70,6 +83,20 @@ export function ScriptBody({
   const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
   const safeIdx = Math.min(Math.max(0, idx), Math.max(0, shots.length - 1));
   const shot = shots[safeIdx];
+
+  const { data: sceneIntel } = useSceneIntelligence(nicheId);
+
+  const editorShots = useMemo(() => {
+    const fallbacks = scriptEditorFallbacks(report.duration);
+    const mapped = reportShotsToEditorShots(shots, fallbacks);
+    return mergeSceneIntelIntoShots(mapped, sceneIntel?.scenes);
+  }, [shots, report.duration, sceneIntel?.scenes]);
+
+  const activeEditorShot = editorShots[safeIdx];
+  const sceneRow = activeEditorShot
+    ? sceneRowForShot(sceneIntel?.scenes, activeEditorShot.intelSceneType)
+    : undefined;
+  const showScenePanel = Boolean(sceneRow && activeEditorShot);
 
   const narrative = report.narrative_vi;
   const headline = narrative?.headline_vi?.trim() || report.hook;
@@ -201,7 +228,7 @@ export function ScriptBody({
             </div>
           ) : null}
 
-          {shot.references && shot.references.length > 0 ? (
+          {shot.references && shot.references.length > 0 && !showScenePanel ? (
             <div className="mt-5 border-t border-[color:var(--gv-rule)] pt-4">
               <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
                 Tham khảo corpus
@@ -241,6 +268,25 @@ export function ScriptBody({
                   );
                 })}
               </ul>
+            </div>
+          ) : null}
+
+          {showScenePanel && activeEditorShot && sceneRow ? (
+            <div className="mt-5 border-t border-[color:var(--gv-rule)] pt-4">
+              <SceneIntelligencePanel
+                shot={activeEditorShot}
+                shotIndex={safeIdx}
+                overlaySamples={sceneRow.overlay_samples ?? []}
+                referenceClips={referenceClipsFromEditorShot(activeEditorShot).map((clip) => ({
+                  video_id: clip.video_id,
+                  thumbnail_url: clip.thumbnail_url,
+                  creator_handle: clip.handle,
+                  label: clip.label,
+                  duration_sec: clip.duration_sec,
+                }))}
+                sceneSampleSize={sceneRow.sample_size}
+                overlayCorpusCount={sceneRow.sample_size}
+              />
             </div>
           ) : null}
 

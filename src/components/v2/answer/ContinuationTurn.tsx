@@ -136,6 +136,7 @@ function ReportPayloadBody({
   sessionIntentType,
   videoStreamProgress,
   sessionId,
+  sessionNicheId,
   onOpenScriptShoot,
   analysisDepth,
   showDeepUpsell,
@@ -151,6 +152,7 @@ function ReportPayloadBody({
     narrativeReady: VideoAnswerNarrativeReadyPayload | null;
   };
   sessionId?: string | null;
+  sessionNicheId?: number | null;
   onOpenScriptShoot?: (draftId: string) => void;
   analysisDepth?: AnswerHandoffDepth | null;
   showDeepUpsell?: boolean;
@@ -221,6 +223,7 @@ function ReportPayloadBody({
           <ScriptBody
             report={payload.report}
             sessionId={sessionId ?? null}
+            nicheId={sessionNicheId ?? null}
             onOpenShoot={onOpenScriptShoot}
           />
         </AnswerBlock>
@@ -273,6 +276,7 @@ export function ContinuationTurn({
   sessionIntentType,
   videoStreamProgress,
   sessionId,
+  sessionNicheId,
   onOpenScriptShoot,
   analysisDepth,
   showDeepUpsell,
@@ -286,6 +290,7 @@ export function ContinuationTurn({
     narrativeReady: VideoAnswerNarrativeReadyPayload | null;
   };
   sessionId?: string | null;
+  sessionNicheId?: number | null;
   onOpenScriptShoot?: (draftId: string) => void;
   analysisDepth?: AnswerHandoffDepth | null;
   showDeepUpsell?: boolean;
@@ -302,6 +307,7 @@ export function ContinuationTurn({
         sessionIntentType={sessionIntentType}
         videoStreamProgress={videoStreamProgress}
         sessionId={sessionId}
+        sessionNicheId={sessionNicheId}
         onOpenScriptShoot={onOpenScriptShoot}
         analysisDepth={analysisDepth}
         showDeepUpsell={showDeepUpsell}

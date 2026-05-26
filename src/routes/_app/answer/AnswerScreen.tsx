@@ -246,6 +246,7 @@ export default function AnswerScreen() {
 
   const turns: AnswerTurnRow[] = detailQuery.data?.turns ?? [];
   const sessionIntentType = detailQuery.data?.session?.intent_type;
+  const sessionNicheId = detailQuery.data?.session?.niche_id ?? defaultProfileNicheId ?? null;
 
   const lastPayload = useMemo(() => lastPayloadFromTurns(turns), [turns]);
 
@@ -966,6 +967,7 @@ export default function AnswerScreen() {
                       key={t.id}
                       turn={t}
                       sessionId={sessionId}
+                      sessionNicheId={sessionNicheId}
                       onOpenScriptShoot={openScriptShoot}
                       sessionIntentType={sessionIntentType}
                       videoStreamProgress={
