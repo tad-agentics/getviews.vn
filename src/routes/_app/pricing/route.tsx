@@ -1,23 +1,10 @@
-import { lazy, Suspense } from "react";
+import { Navigate } from "react-router";
 import type { MetaFunction } from "react-router";
 import { pageMeta } from "@/lib/pageTitle";
 
 export const meta: MetaFunction = () => pageMeta("Bảng giá");
 
-const PricingScreen = lazy(() => import("./PricingScreen"));
-
+/** Legacy URL — pricing lives in Settings → Gói & Giao dịch. */
 export default function PricingRoute() {
-  return (
-    <Suspense
-      fallback={
-        <div
-          role="status"
-          aria-label="Đang tải"
-          className="min-h-[40vh] flex-1 animate-pulse rounded-lg bg-[var(--surface-alt)]"
-        />
-      }
-    >
-      <PricingScreen />
-    </Suspense>
-  );
+  return <Navigate to="/app/settings?section=billing&pricing=1" replace />;
 }

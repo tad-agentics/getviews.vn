@@ -72,12 +72,12 @@ export function SceneIntelligencePanel({
           <span
             className={`gv-kicker ${slow ? "text-[color:var(--gv-accent)]" : "text-[rgb(0,159,250)]"}`}
           >
-            {slow ? `▲ dài hơn ${(span - shot.winnerAvg).toFixed(1)}s` : "✓ đúng nhịp ngách"}
+            {slow ? `▲ dài hơn ${(span - shot.winnerAvg).toFixed(1)}s` : "✓ đúng nhịp mảng"}
           </span>
         </div>
         <MiniBarCompare yoursSec={span} corpusSec={shot.corpusAvg} winnerSec={shot.winnerAvg} />
         <p className="mt-2.5 text-[11px] leading-[1.5] text-[color:var(--gv-ink-3)]">
-          Ngách trung bình <span className="gv-mono text-[color:var(--gv-ink-2)]">{shot.corpusAvg}s</span> · winner{" "}
+          Mảng trung bình <span className="gv-mono text-[color:var(--gv-ink-2)]">{shot.corpusAvg}s</span> · winner{" "}
           <span className="gv-mono text-[rgb(0,159,250)]">{shot.winnerAvg}s</span>
         </p>
       </div>

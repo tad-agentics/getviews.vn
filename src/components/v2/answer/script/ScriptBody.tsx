@@ -231,7 +231,7 @@ export function ScriptBody({
           {shot.references && shot.references.length > 0 && !showScenePanel ? (
             <div className="mt-5 border-t border-[color:var(--gv-rule)] pt-4">
               <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
-                Tham khảo corpus
+                Thư viện tham khảo
               </p>
               <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
                 {shot.references.map((ref, ri) => {

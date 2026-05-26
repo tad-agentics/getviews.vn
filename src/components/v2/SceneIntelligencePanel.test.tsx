@@ -70,7 +70,7 @@ describe("SceneIntelligencePanel", () => {
     expect(getByText(/▲ dài hơn 2\.0s/)).toBeTruthy();
   });
 
-  it("renders the 'đúng nhịp ngách' tick when span is within winnerAvg × 1.2", () => {
+  it("renders the 'đúng nhịp mảng' tick when span is within winnerAvg × 1.2", () => {
     // span = 5; winnerAvg = 5; 5 ≤ 6 → on pace.
     const { getAllByText } = renderPanel({
       shot: makeShot({ t0: 0, t1: 5, winnerAvg: 5 }),
@@ -80,7 +80,7 @@ describe("SceneIntelligencePanel", () => {
     });
     // Copy appears in the header pill; using getAllByText avoids the
     // multiple-match error if an ancestor's textContent matches too.
-    expect(getAllByText(/đúng nhịp ngách/).length).toBeGreaterThan(0);
+    expect(getAllByText(/đúng nhịp mảng/).length).toBeGreaterThan(0);
   });
 
   it("shows the thin-corpus banner when sceneSampleSize < 30", () => {

@@ -1,5 +1,5 @@
-import { memo, useState, useCallback, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { memo, useState, useCallback, useMemo, useEffect, lazy, Suspense } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, Zap, Check, User, Mail, Activity } from "lucide-react";
@@ -43,6 +43,16 @@ const SETTINGS_SECTIONS = [
 ] as const;
 
 type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]["id"];
+
+type BillingSubview = "overview" | "pricing";
+
+const PricingContentLazy = lazy(() =>
+  import("../pricing/PricingScreen").then((m) => ({ default: m.PricingContent })),
+);
+
+function billingSearchParams(showPricing: boolean): Record<string, string> {
+  return showPricing ? { section: "billing", pricing: "1" } : { section: "billing" };
+}
 
 const sectionVariants = {
   initial: { opacity: 0, y: 18 },
@@ -313,12 +323,12 @@ function ProfileSettingsSection({
 }
 
 function PlanPanel({
-  navigate,
+  onShowPricing,
   profile,
   subscription,
   loading,
 }: {
-  navigate: (path: string) => void;
+  onShowPricing: () => void;
   profile: ProfileRow | null | undefined;
   subscription: { tier: string; expires_at: string; credits_granted: number } | null | undefined;
   loading: boolean;
@@ -329,8 +339,6 @@ function PlanPanel({
     () => (cap > 0 ? Math.min(100, Math.round((remaining / cap) * 100)) : 0),
     [remaining, cap],
   );
-
-  const goToPricing = useCallback(() => navigate("/app/pricing"), [navigate]);
 
   const tierRaw = profile?.subscription_tier ?? "free";
   const isFreeTier = tierRaw === "free" && !subscription;
@@ -420,7 +428,7 @@ function PlanPanel({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Btn variant="ink" size="md" type="button" onClick={goToPricing}>
+          <Btn variant="ink" size="md" type="button" onClick={onShowPricing}>
             <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
             {isFreeTier || remaining <= 0 ? "Nâng cấp tài khoản" : "Mở thêm lượt dùng"}
           </Btn>
@@ -430,8 +438,8 @@ function PlanPanel({
       <div>
         <SectionLabel>Thông tin gói & Giao dịch</SectionLabel>
         <Card>
-          <Row label="Gói đang sử dụng" value={subscriptionTierLabel} onClick={goToPricing} />
-          <Row label="Xem lịch sử giao dịch" onClick={goToPricing} />
+          <Row label="Gói đang sử dụng" value={subscriptionTierLabel} onClick={onShowPricing} />
+          <Row label="Xem lịch sử giao dịch" onClick={onShowPricing} />
         </Card>
       </div>
 
@@ -444,7 +452,7 @@ function PlanPanel({
             <p className="mb-0.5 text-sm font-bold text-[color:var(--gv-ink)]">Mua thêm lượt phân tích</p>
             <p className="text-xs text-[color:var(--gv-ink-3)]">Xem và lựa chọn các gói phân tích chuyên sâu tại trang bảng giá.</p>
           </div>
-          <Btn variant="ink" size="sm" type="button" onClick={goToPricing} className="shrink-0">
+          <Btn variant="ink" size="sm" type="button" onClick={onShowPricing} className="shrink-0">
             Xem bảng giá
           </Btn>
         </div>
@@ -842,6 +850,7 @@ function LogoutSection({
 
 export default function SettingsScreen() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: profile, isPending: profileLoading, isError: profileError, refetch } = useProfile();
   const { data: subscription } = useSubscription();
@@ -851,7 +860,52 @@ export default function SettingsScreen() {
   const logout = useLogout();
 
   const userEmail = user?.email ?? "";
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>("profile");
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>(() => {
+    const section = searchParams.get("section");
+    if (section === "billing" || section === "niches" || section === "alerts" || section === "profile") {
+      return section;
+    }
+    return "profile";
+  });
+  const [billingSubview, setBillingSubview] = useState<BillingSubview>(() =>
+    searchParams.get("pricing") === "1" ? "pricing" : "overview",
+  );
+
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (section === "billing" || section === "niches" || section === "alerts" || section === "profile") {
+      setActiveSection(section);
+    }
+    setBillingSubview(searchParams.get("pricing") === "1" ? "pricing" : "overview");
+  }, [searchParams]);
+
+  const showBillingPricing = useCallback(() => {
+    setActiveSection("billing");
+    setBillingSubview("pricing");
+    setSearchParams(billingSearchParams(true), { replace: true });
+  }, [setSearchParams]);
+
+  const hideBillingPricing = useCallback(() => {
+    setBillingSubview("overview");
+    setSearchParams(billingSearchParams(false), { replace: true });
+  }, [setSearchParams]);
+
+  const selectSection = useCallback(
+    (id: SettingsSectionId) => {
+      setActiveSection(id);
+      if (id === "billing") {
+        setBillingSubview("overview");
+        setSearchParams(billingSearchParams(false), { replace: true });
+      } else {
+        setBillingSubview("overview");
+        const next = new URLSearchParams(searchParams);
+        next.delete("section");
+        next.delete("pricing");
+        setSearchParams(next, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams],
+  );
 
   const goLearnMore = useCallback(() => navigate("/app/learn-more"), [navigate]);
 
@@ -895,7 +949,7 @@ export default function SettingsScreen() {
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => setActiveSection(s.id)}
+                    onClick={() => selectSection(s.id)}
                     className={`min-h-[44px] rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors duration-[120ms] ${
                       activeSection === s.id
                         ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
@@ -940,15 +994,29 @@ export default function SettingsScreen() {
               {activeSection === "alerts" ? <AlertsPanel /> : null}
 
               {activeSection === "billing" ? (
-                <div className="space-y-8">
-                  <PlanPanel
-                    navigate={navigate}
-                    profile={profile}
-                    subscription={subscription ?? undefined}
-                    loading={profileLoading}
-                  />
-                  <HistoryPanel transactions={transactions} loading={txLoading} />
-                </div>
+                billingSubview === "pricing" ? (
+                  <Suspense
+                    fallback={
+                      <div
+                        role="status"
+                        aria-label="Đang tải bảng giá"
+                        className="h-48 animate-pulse rounded-lg bg-[color:var(--gv-canvas-2)]"
+                      />
+                    }
+                  >
+                    <PricingContentLazy embedded onBack={hideBillingPricing} />
+                  </Suspense>
+                ) : (
+                  <div className="space-y-8">
+                    <PlanPanel
+                      onShowPricing={showBillingPricing}
+                      profile={profile}
+                      subscription={subscription ?? undefined}
+                      loading={profileLoading}
+                    />
+                    <HistoryPanel transactions={transactions} loading={txLoading} />
+                  </div>
+                )
               ) : null}
             </div>
           </div>

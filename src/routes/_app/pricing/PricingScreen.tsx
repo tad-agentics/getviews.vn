@@ -462,7 +462,13 @@ function PricingSkeleton() {
   );
 }
 
-function PricingContent() {
+export type PricingContentProps = {
+  /** Render inside Settings billing tab — tighter top spacing, optional back control. */
+  embedded?: boolean;
+  onBack?: () => void;
+};
+
+export function PricingContent({ embedded = false, onBack }: PricingContentProps = {}) {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>("annual");
   const currentPlans = plans[period];
@@ -484,8 +490,17 @@ function PricingContent() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-      <div className="max-w-4xl mx-auto px-4 lg:px-6 pt-14 lg:pt-6 pb-8">
+    <div className={embedded ? "w-full" : "flex-1 overflow-y-auto"} style={{ scrollbarWidth: "thin" }}>
+      <div className={`max-w-4xl mx-auto px-0 sm:px-2 pb-8 ${embedded ? "pt-0" : "px-4 lg:px-6 pt-14 lg:pt-6"}`}>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="mb-6 min-h-[44px] text-sm font-medium text-[color:var(--gv-ink-2)] transition-colors duration-[120ms] hover:text-[color:var(--gv-ink)]"
+          >
+            ← Quay lại gói & giao dịch
+          </button>
+        ) : null}
         <div className="text-center mb-10">
           <p className="gv-mono text-[10px] font-semibold gv-kicker tracking-[0.16em] text-[color:var(--gv-accent-deep)] mb-1">
             BẢNG GIÁ DỊCH VỤ

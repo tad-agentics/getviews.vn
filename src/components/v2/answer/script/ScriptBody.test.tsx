@@ -118,6 +118,6 @@ describe("ScriptBody narrative-first", () => {
 
     expect(screen.getByText(/Hook cận mặt trong 3 giây/)).toBeTruthy();
     expect(screen.getByText(/SHOT 01 · PHÂN TÍCH CẤU TRÚC/)).toBeTruthy();
-    expect(screen.queryByText(/Tham khảo corpus/)).toBeNull();
+    expect(screen.queryByText(/Thư viện tham khảo/)).toBeNull();
   });
 });

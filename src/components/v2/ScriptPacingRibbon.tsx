@@ -28,12 +28,12 @@ export function ScriptPacingRibbon({ shots, activeShot, onSelectShot }: ScriptPa
           </div>
           <p className="text-sm leading-snug text-[color:var(--gv-ink-2)]">
             Tempo kịch bản vs{" "}
-            <span className="text-[color:var(--gv-chart-benchmark)]">video thắng trong ngách</span>
+            <span className="text-[color:var(--gv-chart-benchmark)]">video thắng trong mảng</span>
           </p>
         </div>
         <div className="flex items-center gap-2.5">
           <LegendDot colorVar="--gv-accent" label="Của bạn" />
-          <LegendDot colorVar="--gv-chart-benchmark" label="Ngách" />
+          <LegendDot colorVar="--gv-chart-benchmark" label="Mảng" />
         </div>
       </div>
 

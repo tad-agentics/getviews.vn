@@ -304,4 +304,14 @@ describe("PlanPanel — subscription copy", () => {
       expect(screen.getAllByText(/Hạn dùng lượt phân tích/i).length).toBeGreaterThan(0);
     });
   });
+
+  it("shows pricing inline in billing tab when Xem bảng giá is clicked", async () => {
+    await renderWithProfile({ subscription_tier: "free" });
+    fireEvent.click(screen.getByRole("button", { name: "Xem bảng giá" }));
+    await waitFor(() => {
+      expect(screen.getByText(/Lựa chọn gói phân tích phù hợp/i)).toBeTruthy();
+    });
+    expect(screen.getByRole("heading", { name: "Gói & Giao dịch" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Quay lại gói & giao dịch/i })).toBeTruthy();
+  });
 });

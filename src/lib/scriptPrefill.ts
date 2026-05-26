@@ -85,7 +85,7 @@ export function scriptPrefillFromDeeplink(opts: {
     const name = handle ? `@${handle}` : "kênh";
     const formatLabel = fmt || "format chính";
     return answerComposerPath(
-      `Viết kịch bản TikTok theo format ${formatLabel} cho ${name}.`,
+      `Viết kịch bản TikTok theo định dạng ${formatLabel} cho ${name}.`,
     );
   }
   const topic = opts.topic?.trim();

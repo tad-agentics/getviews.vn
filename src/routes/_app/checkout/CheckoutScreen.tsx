@@ -77,7 +77,7 @@ export default function CheckoutScreen() {
   }, [defaultMethod]);
 
   if (!plan || !ORDER_COPY[plan]) {
-    return <Navigate to="/app/pricing" replace />;
+    return <Navigate to="/app/settings?section=billing&pricing=1" replace />;
   }
 
   const order = ORDER_COPY[plan];
@@ -123,7 +123,7 @@ export default function CheckoutScreen() {
           <div className="max-w-xl mx-auto p-4 lg:p-6 space-y-6">
             <button
               type="button"
-              onClick={() => navigate("/app/pricing")}
+              onClick={() => navigate("/app/settings?section=billing&pricing=1")}
               className="mt-14 lg:mt-0 inline-flex min-h-[44px] min-w-[44px] items-center text-sm text-[var(--muted)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
             >
               ← Quay lại
