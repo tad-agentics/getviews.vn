@@ -90,7 +90,8 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
       onSubmit();
     };
 
-    const depthVisible = showDepthPicker ?? !followUpSlot;
+    const depthVisible =
+      (showDepthPicker ?? !followUpSlot) && studioPill !== "script";
     const depthTitles = composerDepthTitles(studioPill ?? "video_flop");
     const showStudioPills = studioPill != null && onStudioPillChange != null && !followUpSlot;
     const channelDeepDisabled =

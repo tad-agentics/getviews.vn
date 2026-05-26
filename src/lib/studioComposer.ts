@@ -75,7 +75,7 @@ export function planStudioComposerSubmit(
   if (pill === "script") {
     return {
       kind: "navigate",
-      to: buildAnswerHandoffPath({ q: trimmed, depth, from: "composer" }),
+      to: buildAnswerHandoffPath({ q: trimmed, from: "composer", includeDepth: false }),
     };
   }
 

@@ -22,6 +22,16 @@ describe("planStudioComposerSubmit", () => {
     }
   });
 
+  it("routes Tạo kịch bản to /app/answer without depth param", () => {
+    const plan = planStudioComposerSubmit("script", "Kịch bản review son 30s", "deep");
+    expect(plan.kind).toBe("navigate");
+    if (plan.kind === "navigate") {
+      expect(plan.to).toContain("/app/answer?");
+      expect(plan.to).toContain("from=composer");
+      expect(plan.to).not.toContain("depth=");
+    }
+  });
+
   it("does not attach mode=flop for generic text without TikTok URL", () => {
     const plan = planStudioComposerSubmit(
       "video_flop",

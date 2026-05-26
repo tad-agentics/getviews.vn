@@ -107,6 +107,20 @@ describe("QueryComposer (C.1.0)", () => {
     expect(onDepth).toHaveBeenCalledWith("deep");
   });
 
+  it("hides depth pills when studio pill is Tạo kịch bản", () => {
+    render(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        studioPill="script"
+        onStudioPillChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Cơ bản" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Chuyên sâu" })).toBeNull();
+  });
+
   it("hides depth pills when showDepthPicker is false", () => {
     render(
       <QueryComposer

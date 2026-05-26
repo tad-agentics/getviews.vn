@@ -10,6 +10,8 @@ export type AnswerHandoffParams = {
   depth?: AnswerHandoffDepth;
   mode?: AnswerHandoffMode;
   from?: string;
+  /** §4.11.2 — script composer omits depth (billing §7, not video basic/deep). */
+  includeDepth?: boolean;
 };
 
 export type ParsedAnswerHandoff = {
@@ -23,10 +25,11 @@ export function buildAnswerHandoffPath({
   depth = "basic",
   mode,
   from,
+  includeDepth = true,
 }: AnswerHandoffParams): string {
   const params = new URLSearchParams();
   params.set("q", q);
-  params.set("depth", depth);
+  if (includeDepth) params.set("depth", depth);
   if (mode) params.set("mode", mode);
   if (from) params.set("from", from);
   return `/app/answer?${params.toString()}`;

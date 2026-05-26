@@ -665,146 +665,187 @@ Flop-tier video: các signal `win_*` salience &lt; 0.5 hoặc không export — 
 - [x] Signal mới có `taxonomy_ref` + `evidence[]` với số từ ctx — ✅ Launch Phase 2a/2c new signals (`test_phase2a_p1_video_signals.py`, `test_phase2c_p1_p2_video_signals.py`)
 - [x] Deep report trung bình ≥**2** signal/section trong prompt so với basic (sample 10 video QA) — ✅ `test_analysis_depth_486_sample.py` + `launch-phase2-signal-density-486.json` @ `b479f64`
 
-### 4.9 Video Win — JTBD & quyết định kiến trúc
+### 4.9 Video Win — JTBD & quyết định kiến trúc ✅
+
+**Trạng thái:** ✅ **Done** — W0 Win signals + W1 handoff + W3 depth/cache + `VideoBody` chrome @ `9cd0957` / W1-1 / `f3054f5`. Acceptance §4.9.1; entry contract §4.10.
 
 **JTBD:** User thấy video nổi (Xu hướng / FYP / đối thủ) → **chắt lọc insight một lần đọc** (“vì sao chạy”, “công thức gì”, “quay tiếp thế nào”) — thay doomscroll xem đi xem lại.
 
-**Quyết định V1 (đã chốt):**
+**Quyết định V1 (đã chốt — shipped):**
 
-| Câu hỏi | Trả lời |
-|---------|---------|
-| Pipeline Win riêng? | **Không** — cùng V6 §4.0 |
-| Cơ bản / Chuyên sâu cho Win? | **Có** — cùng whitelist §4.2; default **Cơ bản** từ Xu hướng |
-| Cache | `(video_id, analysis_depth)` — **không** nhân theo `performance_tier` (§4.12) |
-| Signal Win | §4.8.3 **W0** — `tier_gate=hit` |
+| Câu hỏi | Trả lời | Trạng thái |
+|---------|---------|------------|
+| Pipeline Win riêng? | **Không** — cùng V6 §4.0 | ✅ `video_analyze` → `synthesize_diagnosis_v6` |
+| Cơ bản / Chuyên sâu cho Win? | **Có** — cùng whitelist §4.2; default **Cơ bản** từ Xu hướng | ✅ W3 `analysis_depth`; Trends `depth=basic` @ W1-1 |
+| Cache | `(video_id, analysis_depth)` — **không** nhân theo `performance_tier` (§4.12) | ✅ W3-1 migration + `video_analyze.py` |
+| Signal Win | §4.8.3 **W0** — `tier_gate=hit` | ✅ `signals/win.py` (5 signals) + unit tests |
 
-**Pipeline (một đường):** `extract` → tier refine → `build_signal_manifest` → `select_sections_to_emit(depth)` → `synthesize_diagnosis_v6` → `VideoBody`.
+**Pipeline (một đường):** `extract` → tier refine → `build_signal_manifest` → `select_sections_to_emit(depth)` → `synthesize_diagnosis_v6` → `VideoBody`. ✅ As-built — không fork Win.
 
 **Win vs Flop trong code (không fork):**
 
-| Knob | Flop | Win (`tier` ≈ `hit`) |
-|------|------|----------------------|
-| `extract_video_errors` | `extraction_mode=flop` | `extraction_mode=win` |
-| Title `diagnosis` | “VẤN ĐỀ CHÍNH” | “CƠ CHẾ CHẠY ĐÚNG” |
-| FE chrome | `FlopDiagnosisStrip`, view scenarios | Lessons, breakout chip, `goWinScript` |
-| Signals | flop-heavy §4.8.2 | + `win_*` §4.8.3 W0 |
+| Knob | Flop | Win (`tier` ≈ `hit`) | Trạng thái |
+|------|------|----------------------|------------|
+| `extract_video_errors` | `extraction_mode=flop` | `extraction_mode=win` | ✅ `video_analyze.py` |
+| Title `diagnosis` | “VẤN ĐỀ CHÍNH” | “CƠ CHẾ CHẠY ĐÚNG” | ✅ `diagnose_sections.py` |
+| FE chrome | `FlopDiagnosisStrip`, view scenarios | Lessons, breakout chip, `goWinScript` | ✅ `VideoBody.tsx` |
+| Signals | flop-heavy §4.8.2 | + `win_*` §4.8.3 W0 | ✅ `signals/registry.py` |
 
-**Entry as-built vs V1 target:** §4.10.
+**Entry as-built vs V1 target:** §4.10 — ✅ shipped.
 
-### 4.10 Entry points & navigation contract
+**Post-V1 (nhỏ, không block §4.9):** `next_video` chưa có flop signal “quay tiếp” (§4.8.3); `mode` win↔flop không share cache row — full recompute on override (§14 **D9**, V1.1 polish).
+
+#### 4.9.1 Acceptance (→ §13)
+
+- [x] Không `/stream` pipeline thứ hai cho Win — ✅ cùng V6 §4.0  
+- [x] `hit` vs `flop`: khác title + FE mode; **cùng** `diagnosis_vi` schema — ✅ `diagnose_sections.py` + `VideoBody.tsx`  
+- [x] Xu hướng: 1 tap → `depth=basic`, `mode=win`, `from=trends` — ✅ W1-1 `answerHandoff.ts`  
+- [x] Win W0 signals `tier_gate=hit` — ✅ `signals/win.py` @ W0 + W3 backlog signals  
+- [x] `extraction_mode=win` vs `flop` — ✅ `video_analyze.py`  
+- [x] FE: lessons + breakout chip + `goWinScript` vs `FlopDiagnosisStrip` — ✅ `VideoBody.tsx` + tests  
+
+### 4.10 Entry points & navigation contract ✅
+
+**Trạng thái:** ✅ **Done (V1 core)** — W1 handoffs + W3 Studio composer + W5-1 CTA rail @ `f3054f5` + W5-2 headline parity @ `d9e4628`. Post-V1: Douyin video handoff, `script_save_draft` CTA pill, `studio_pill` URL param (hiện telemetry-only).
 
 **Shell:** §3 — Tab **Studio** (gợi ý 3 tầng + 4 pill) · Tab **Xu hướng** (công thức + kho).
 
-| Entry | Route / handoff V1 | Default `depth` | Default `mode` | `source_entry` |
-|-------|-------------------|-----------------|----------------|----------------|
-| Studio pill **Khám Video win** | `/app/answer?q={url}` | nút composer (default `basic`) | `win` (từ pill) | `composer` |
-| Studio pill **Khám Video flop** | `/app/answer?q={url}` | nút composer (default `basic`) | `flop` (từ pill) | `composer` |
-| Studio pill **Khám Kênh** | `/app/channel?handle=…` | depth picker → Nhanh/Sâu | — | `composer` + `planAnswerEntry` |
-| Studio pill **Tạo kịch bản** | `/app/answer?q=…` (composer prefill) | — | — | `composer` |
-| Tab Xu hướng (TikTok) — “Giải mã video này” | `/app/answer?q={url}&depth=basic&mode=win&from=trends` | `basic` (fixed) | `win` | `trends` |
-| Tab Xu hướng (Douyin) — card tương tự | handoff video nếu có URL VN map | `basic` | `win` | `trends_douyin` |
-| Evidence tile, IdeaBlock, SceneIntel | `prefillUrl` → `?q=` | inherit pill + composer | inherit pill | `evidence` |
+| Entry | Route / handoff V1 | Default `depth` | Default `mode` | `source_entry` | Trạng thái |
+|-------|-------------------|-----------------|----------------|----------------|------------|
+| Studio pill **Khám Video win** | `/app/answer?q={url}` | nút composer (default `basic`) | `win` (từ pill) | `composer` | ✅ `studioComposer.ts` |
+| Studio pill **Khám Video flop** | `/app/answer?q={url}` | nút composer (default `basic`) | `flop` (từ pill) | `composer` | ✅ |
+| Studio pill **Khám Kênh** | `/app/channel?handle=…` | depth picker → Nhanh/Sâu | — | `composer` + `planAnswerEntry` | ✅ @ 2026-05-24 |
+| Studio pill **Tạo kịch bản** | `/app/answer?q=…` (composer prefill) | — | — | `composer` | ✅ |
+| Tab Xu hướng (TikTok) — “Giải mã video này” | `/app/answer?q={url}&depth=basic&mode=win&from=trends` | `basic` (fixed) | `win` | `trends` | ✅ `trendsVideoHandoffPath` · `TrendsRail` |
+| Tab Xu hướng (Douyin) — card tương tự | handoff video nếu có URL VN map | `basic` | `win` | `trends_douyin` | ⏳ Wave 2 — card → `/app/douyin` only |
+| Evidence tile, SceneIntel | `prefillUrl` / `inheritHandoffFromSearch` → `?q=` | inherit depth/mode | inherit | `evidence` | ✅ `GenericEvidenceGrid`, `SceneIntelligencePanel` |
+| IdeaBlock drill-down | `?q=` aweme_id / URL | `basic` | `win` | `ideas` | ✅ (analytics `from=ideas`, không `evidence`) |
 
 **Implementation status (incremental V1):**
 
 | File | V1 contract | Status |
 |------|-------------|--------|
-| [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx) | Turn 1: pill/params; turn 2+: **IntentCtaRail** (ẩn `FollowUpComposer` free text) | ✅ W1 + W3 entry + **W5-1** CTA rail @ `f3054f5` |
-| [`intent-router.ts`](../../src/routes/_app/intent-router.ts) | Turn 1: `detectIntent` → `planAnswerEntry`; turn 2+ CTA: **`intent_type` explicit** (bypass free-text classify) | ✅ invariant @ W2-1a |
-| [`QueryComposer.tsx`](../../src/components/QueryComposer.tsx) | Entry Studio: 4 pill + Cơ bản/Chuyên sâu — **không** follow-up slot chat | ✅ W3-0 |
-| [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx), handoff helpers | Full query: `depth=basic&mode=win&from=trends` | ✅ W1-1 (`answerHandoff.ts`) |
+| [`studioComposer.ts`](../../src/lib/studioComposer.ts), [`HomeScreen.tsx`](../../src/routes/_app/home/HomeScreen.tsx) | 4 pill + depth → handoff path | ✅ W3-0 |
+| [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx) | Turn 1: pill/params; turn 2+: **IntentCtaRail** (ẩn `FollowUpComposer` free text) | ✅ W1 + W3 + **W5-1** @ `f3054f5` |
+| [`IntentCtaRail.tsx`](../../src/components/v2/answer/IntentCtaRail.tsx), [`intentCtaSuggestions.ts`](../../src/lib/intentCtaSuggestions.ts) | Matrix §4.10.2 + compare URL mini-prompt | ✅ W5-1 + unit tests |
+| [`intent-router.ts`](../../src/routes/_app/intent-router.ts) | Turn 1: `detectIntent` → `planAnswerEntry`; turn 2+ CTA: **`intent_type` explicit** | ✅ W2-1a |
+| [`answer_session.py`](../../cloud-run/getviews_pipeline/answer_session.py) | `append_turn`: `source_entry=intent_cta` + `intent_type_override` skip classify | ✅ W5-1 |
+| [`QueryComposer.tsx`](../../src/components/v2/QueryComposer.tsx) | Entry Studio: 4 pill + Cơ bản/Chuyên sâu — **không** follow-up slot chat | ✅ W3-0 |
+| [`answerHandoff.ts`](../../src/lib/answerHandoff.ts), [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx) | `depth=basic&mode=win&from=trends` | ✅ W1-1 |
 | [`channelStudioHandoff.ts`](../../src/lib/channelStudioHandoff.ts), [`/app/channel`](../../src/routes/_app/channel/route.tsx) | Pill Khám Kênh + `@handle` → `/app/channel` | ✅ 2026-05-24 |
-| `TrendsRail`, `PatternModal`, `GenericEvidenceGrid`, `SceneIntelligencePanel`, `IdeaBlock` | Align bảng entry trên | ✅ W1-1/W1-2 |
+| `TrendsRail`, `PatternModal`, `GenericEvidenceGrid`, `SceneIntelligencePanel`, `IdeaBlock` | Handoff helpers align entry table | ✅ W1-1/W1-2 (`PatternModal` dùng `from=pattern`) |
 
 **Query param contract:**
 
-| Param | Values | Default nếu omit | Ghi chú |
-|-------|--------|------------------|---------|
-| `depth` | `basic` \| `deep` | `basic` | Invalid → `basic` |
-| `mode` | `win` \| `flop` | BE: `detect_mode_from_query` → `is_flop_mode` | Explicit `mode` ưu tiên heuristic |
-| `from` | `trends` \| `trends_douyin` \| `composer` \| `evidence` \| `intent_cta` | `composer` | Analytics; không đổi pipeline |
-| `studio_pill` | `video_flop` \| `video_win` \| `channel` \| `script` | theo pill §3.1 | FE routing / analytics |
-| `q` | URL hoặc aweme_id | — | Existing |
+| Param | Values | Default nếu omit | Ghi chú | Trạng thái |
+|-------|--------|------------------|---------|------------|
+| `depth` | `basic` \| `deep` | `basic` | Invalid → `basic` | ✅ `parseAnswerHandoffParams` |
+| `mode` | `win` \| `flop` | BE: `detect_mode_from_query` → `is_flop_mode` | Explicit `mode` ưu tiên heuristic | ✅ |
+| `from` | `trends` \| `trends_douyin` \| `composer` \| `evidence` \| `intent_cta` \| `ideas` \| `pattern` | `composer` | Analytics; không đổi pipeline | ✅ (`trends_douyin` chưa set từ FE) |
+| `studio_pill` | `video_flop` \| `video_win` \| `channel` \| `script` | theo pill §3.1 | **Telemetry** (`logUsage`) — chưa trên URL handoff | ⚠️ post-V1 nếu cần deep-link analytics |
+| `q` | URL hoặc aweme_id | — | Existing | ✅ |
 
-**UI labels (tiếng Việt):** “Cơ bản” / “Chuyên sâu” — không English trong product.
+**UI labels (tiếng Việt):** “Cơ bản” / “Chuyên sâu” — không English trong product. ✅
 
 #### 4.10.1 Intent scope — giữ router; follow-up = CTA pill
 
-| | V1 (đã chốt) | Build — **W5-1** / **W5-2** |
-|---|-----|------------------------------|
-| **`INTENT_DESTINATIONS`** | **Giữ nguyên** mọi intent trong router — không xóa row | Thêm intent = thêm row + thêm CTA matrix §4.10.2 |
-| **Turn 1 (entry)** | Studio 4 pill · handoff `?q=` · depth/mode/from → `detectIntent` → `planAnswerEntry` | ✅ W1–W3 |
-| **Turn 2+ (follow-up)** | **CTA intent pill** — nhãn tiếng Việt cố định, `intent_type` + payload known; **không** composer chat tự do · **không** `follow_up_unclassifiable` từ free text | `IntentCtaRail` thay `FollowUpComposer`; ẩn input text sau báo cáo |
-| **`TimelineRail`** | Giữ — xem/lui giữa các turn trong session | — |
-| **Output format** | Mỗi `AnswerSessionFormat` body riêng — có thể lệch narrative | **W5-2:** chuẩn hóa `narrative_vi` / renderer parity |
+| | V1 (đã chốt) | Build | Trạng thái |
+|---|-----|-------|------------|
+| **`INTENT_DESTINATIONS`** | **Giữ nguyên** mọi intent trong router — không xóa row | Thêm intent = thêm row + CTA matrix §4.10.2 | ✅ |
+| **Turn 1 (entry)** | Studio 4 pill · handoff `?q=` · depth/mode/from → `detectIntent` → `planAnswerEntry` | W1–W3 | ✅ |
+| **Turn 2+ (follow-up)** | **CTA intent pill** — nhãn tiếng Việt cố định, `intent_type` + payload known; **không** composer chat tự do | `IntentCtaRail` thay `FollowUpComposer` khi `turnCount > 0` | ✅ W5-1 @ `f3054f5` |
+| **`TimelineRail`** | Giữ — xem/lui giữa các turn trong session | — | ✅ |
+| **Output format** | Mỗi `AnswerSessionFormat` body riêng | **W5-2:** `narrative_vi.headline_vi` BE + `ReportNarrativeHeadline` (generic/video/script); pattern/timing/ideas giữ headline component riêng | ✅ headline parity @ `d9e4628` |
 
 **Không làm:** free-text follow-up trong Answer; thu hẹp router; xóa intent khỏi matrix.
 
 #### 4.10.2 Intent CTA matrix (follow-up — gợi ý theo format hiện tại)
 
-Sau mỗi báo cáo, FE render **2–3 CTA pill** từ bảng gợi ý (có thể lọc theo context: URL đã có, `mode`, tier, credits). Tap CTA → `append_turn` cùng session với `intent_type` explicit (+ prefill `q` / state khi cần URL thứ hai) — **không** qua classify câu hỏi tự do.
+Sau mỗi báo cáo, FE render **2–4 CTA pill** từ [`intentCtaSuggestions.ts`](../../src/lib/intentCtaSuggestions.ts) (lọc theo URL, `mode`, `depth`, prerequisites). Tap CTA → `append_turn` cùng session với `intent_type` explicit — **không** qua classify câu hỏi tự do. ✅ As-built @ W5-1.
 
-| Sau format / turn | CTA pill (ví dụ user-facing) | `intent_type` / hành vi |
-|-------------------|------------------------------|-------------------------|
-| **`video`** (flop/win) | **Tạo kịch bản** | `shot_list` → `answer:script` (context từ video vừa phân tích) |
-| | **So sánh với video khác** | `compare_videos` → `/app/compare` hoặc turn compare (pin video A, nhập URL B) |
-| | **Phân tích chuyên sâu** | Cùng URL, `depth=deep` — phiên/turn mới, billing 2× |
-| | *(flop)* **Sửa hook — tạo biến thể** | `hook_variants` → `answer:ideas` |
-| | *(win)* **Giờ đăng tốt** | `timing` / `content_calendar` → `answer:timing` |
-| **`script`** | **Quay kịch bản** | shoot panel in Answer (`?shoot=`) |
-| | **Phân tích video mẫu** | `video_diagnosis` với URL reference từ session |
-| | **Lưu bản nháp** | persist `draft_scripts` (W2-1c) |
-| **`pattern`** | **Tạo kịch bản theo công thức** | `shot_list` |
-| | **Giải mã video viral** | handoff `video_diagnosis` + URL từ evidence tile |
-| **`timing`** | **Lên lịch tuần này** | `content_calendar` |
-| | **Tạo kịch bản slot hot** | `shot_list` |
-| **`ideas`** | **Viết kịch bản đủ quay** | `shot_list` |
-| | **So sánh hook A/B** | `compare_videos` (2 URL) |
+| Sau format / turn | CTA pill (ví dụ user-facing) | `intent_type` / hành vi | Trạng thái |
+|-------------------|------------------------------|-------------------------|------------|
+| **`video`** (flop/win) | **Tạo kịch bản** | `shot_list` → turn script trong session | ✅ |
+| | **So sánh với video khác** | `compare_videos` → dual URL trên `/app/answer` (format `compare`) | ✅ (không redirect `/app/compare`) |
+| | **Phân tích chuyên sâu** | Cùng URL, `depth=deep` — handoff / billing 2× | ✅ |
+| | *(flop)* **Sửa hook — tạo biến thể** | `hook_variants` → `answer:ideas` | ✅ |
+| | *(win)* **Giờ đăng tốt** | `timing` → `answer:timing` | ✅ |
+| **`script`** | **Quay kịch bản** | shoot panel in Answer (`?shoot=`) | ✅ |
+| | **Phân tích video mẫu** | `video_diagnosis` handoff + URL session | ✅ |
+| | **Lưu bản nháp** | persist `draft_scripts` (W2-1c) | ⏳ post-V1 — id trong types, chưa trong matrix UI |
+| **`pattern`** | **Tạo kịch bản theo công thức** | `shot_list` | ✅ |
+| | **Giải mã video viral** | handoff `video_diagnosis` + URL evidence | ✅ |
+| **`timing`** | **Lên lịch tuần này** | `content_calendar` | ✅ |
+| | **Tạo kịch bản slot hot** | `shot_list` | ✅ |
+| **`ideas`** | **Viết kịch bản đủ quay** | `shot_list` | ✅ |
+| | **So sánh hook A/B** | `compare_videos` (2 URL) | ✅ |
+| **`compare`** | *(none)* | Session đã side-by-side | ✅ matrix rỗng |
 
 **Quy tắc product:**
-- Mỗi format **≥2, ≤4** CTA visible; ưu tiên JTBD sau turn vừa xong.
-- Copy CTA = **động từ + object** (“Tạo kịch bản”, “So sánh với video khác”) — không câu hỏi mở.
-- CTA disabled khi thiếu prerequisite (vd. compare cần URL thứ hai → mini prompt **chỉ URL**, không chat).
-- `source_entry` / analytics: `intent_cta` + `parent_format` + `cta_id`.
+- Mỗi format **≥2, ≤4** CTA visible; ưu tiên JTBD sau turn vừa xong. ✅
+- Copy CTA = **động từ + object** — không câu hỏi mở. ✅
+- CTA disabled khi thiếu prerequisite (compare → mini prompt **chỉ URL**). ✅
+- Analytics: `source_entry=intent_cta` + `cta_id` + `intent_type`. ✅
 
-**Implement gợi ý:** FE — `intentCtaSuggestions.ts` (matrix + filters); `IntentCtaRail.tsx` thay `FollowUpComposer` khi `sessionId` + report done; BE — `append_turn` nhận optional `intent_type` override từ CTA (skip re-classify).
+**As-built:** FE — `intentCtaSuggestions.ts`, `IntentCtaRail.tsx`; BE — `answer_session.py` `intent_type_override` @ W5-1.
 
-### 4.11 UI/UX — Video Intelligence
+**Post-V1 (không block §4.10):** Douyin `from=trends_douyin` video handoff; pill **Lưu bản nháp** trên format `script`; `studio_pill` trên URL nếu cần attribution deep-link.
+
+#### 4.10.3 Acceptance (→ §13)
+
+- [x] Studio 4 pill → đúng route (`/app/answer` hoặc `/app/channel`) + `from=composer` — ✅ `studioComposer.ts`  
+- [x] Xu hướng TikTok 1 tap → `depth=basic`, `mode=win`, `from=trends` — ✅ `answerHandoff.ts` + `TrendsRail`  
+- [x] Turn 2+ không free-text follow-up — `IntentCtaRail` khi `turnCount > 0` — ✅ `AnswerScreen.tsx` @ W5-1  
+- [x] CTA tap → `intent_type` explicit, BE skip classify — ✅ `answer_session.py` + `useSessionStream`  
+- [x] Compare CTA → dual URL compare session (không chat) — ✅ `IntentCtaRail` mini-prompt  
+- [x] Evidence / SceneIntel inherit depth/mode — ✅ `inheritHandoffFromSearch`  
+- [ ] Douyin card → answer handoff `trends_douyin` — ⏳ Wave 2  
+- [ ] Script CTA **Lưu bản nháp** — ⏳ post-V1  
+
+### 4.11 UI/UX — Video Intelligence ✅
+
+**Trạng thái:** ✅ **Done (V1 core)** — Win/Flop `VideoBody` chrome @ W0/W1 · depth composer W3 @ `9cd0957` · locked-section teasers W3-5 · deep upgrade CTA in `IntentCtaRail` @ W5-1 (`f3054f5`). Post-V1: Trends label copy polish; auto-focus Tab Studio sau handoff.
 
 Tham chiếu [`artifacts/uiux-reference/`](../../artifacts/uiux-reference/) + [`VideoBody.tsx`](../../src/components/v2/answer/video/VideoBody.tsx).
 
 #### 4.11.1 Chrome theo framing (Win vs Flop)
 
-| UI | Win | Flop |
-|----|-----|------|
-| Tier chip | `performance_tier=hit` breakout | Flop / unknown humility |
-| Section `diagnosis` | “CƠ CHẾ CHẠY ĐÚNG” | “VẤN ĐỀ CHÍNH” |
-| Strip / scenarios | `winLessons`, bright spot | `FlopDiagnosisStrip`, `viewScenarios` |
-| Primary CTA (trong báo cáo) | Một trong các pill §4.10.2 (vd. “Quay theo công thức”) | Một trong các pill §4.10.2 (vd. “Tạo kịch bản”) |
-| Secondary | “Phân tích chuyên sâu” (Basic) | “So sánh với video khác” · “Sửa hook” |
+| UI | Win | Flop | Trạng thái |
+|----|-----|------|------------|
+| Tier chip | `performance_tier=hit` breakout | Flop / unknown humility | ✅ `PerformanceTierChip.tsx` |
+| Section `diagnosis` | “CƠ CHẾ CHẠY ĐÚNG” | “VẤN ĐỀ CHÍNH” | ✅ `diagnose_sections.py` → `DiagnosisSectionRenderer` |
+| Strip / scenarios | `winLessons`, BREAKOUT chip | `FlopDiagnosisStrip`, `viewScenarios` | ✅ `VideoBody.tsx` |
+| In-body primary CTA | “Tạo kịch bản từ video này” + Copy hook | *(none in header)* | ✅ Win-only header actions |
+| Post-report CTAs | §4.10.2 pills (`IntentCtaRail`) | §4.10.2 pills (So sánh · Sửa hook · …) | ✅ W5-1 — không sticky trong body |
 
 #### 4.11.2 Nút Cơ bản / Chuyên sâu (composer — Tab Studio)
 
-| Element | Spec |
-|---------|------|
-| Vị trí | **Composer Tab Studio** — luôn visible; áp dụng khi pill **Khám Video flop**, **Khám Video win**, hoặc **Khám Kênh** |
-| Không áp dụng | Pill **Tạo kịch bản** (billing script §7); handoff từ Tab Xu hướng (`from=trends` → `depth=basic` cố định, không hỏi lại) |
-| UI | Hai **nút** (không modal): **Cơ bản** · **Chuyên sâu** |
-| Copy gợi ý | Cơ bản — “Giải mã nhanh · 1 credit” · Chuyên sâu — “Đầy đủ góc · 2 credit” (video); kênh theo §10 |
-| Default | Cơ bản |
-| Pill flop/win | Chỉ preset `mode`; **không** thay nút depth |
+| Element | Spec | Trạng thái |
+|---------|------|------------|
+| Vị trí | **Composer Tab Studio** — visible khi pill **Khám Video flop/win** hoặc **Khám Kênh** | ✅ `QueryComposer.tsx` + `HomeScreen.tsx` |
+| Không áp dụng | Pill **Tạo kịch bản** (ẩn depth picker; URL không có `depth`); handoff Tab Xu hướng (`from=trends` → `depth=basic` cố định) | ✅ `QueryComposer` + `includeDepth: false` @ script pill |
+| UI | Hai **nút** (không modal): **Cơ bản** · **Chuyên sâu** | ✅ |
+| Copy gợi ý | Video: “Giải mã nhanh · 1 credit” / “Đầy đủ góc · 2 credit”; kênh: “Đọc corpus · 0 credit” / “Memo SSE · 3 credit” | ✅ `composerDepthTitles()` |
+| Default | Cơ bản | ✅ `analysisDepth` state |
+| Pill flop/win | Chỉ preset `mode`; **không** thay nút depth | ✅ `videoModeForPill()` |
 
 #### 4.11.3 Post–Cơ bản upsell
 
-- Sticky CTA: “Phân tích chuyên sâu (2 credit)” — gọi lại cùng URL, `depth=deep`.  
-- Teaser cards: locked sections từ full manifest (Âm thanh, Editing, Douyin, Boost…) — §4.2; **không** synthesize sẵn.
+| Element | Spec | Trạng thái |
+|---------|------|------------|
+| Deep upgrade CTA | “Phân tích chuyên sâu (2 credit)” — cùng URL, `depth=deep` | ✅ **`IntentCtaRail`** @ W5-1 (không sticky trong `VideoBody`) |
+| Teaser cards | Locked sections từ manifest (Âm thanh, Editing, …) — §4.2; không synthesize sẵn | ✅ `VideoDeepUpsell.tsx` + `locked_sections` @ W3-5 |
+
+**As-built (W5-1):** `VideoDeepUpsell` = teaser pills only; deep tap → `onRequestDeepAnalysis()` / CTA `video_deep` trong rail.
 
 #### 4.11.4 Tab Xu hướng — card CTA
 
-- Context: user ở **Tab Xu hướng** (công thức / kho / rail), không Tab Studio.  
-- Label đề xuất: **“Giải mã video này”**.  
-- **1 tap** → `/app/answer?...&depth=basic&mode=win&from=trends` — **không** hiện nút Cơ bản/Chuyên sâu (đã default basic).  
-- Optional polish: auto-focus **Tab Studio** khi stream bắt đầu (V1.1).
+| Element | Spec | Trạng thái |
+|---------|------|------------|
+| Context | Tab **Xu hướng** (rail / kho), không Studio composer | ✅ |
+| Label | **“Giải mã video này”** (đề xuất) | ⚠️ As-built: **“Phân tích video này (1 credit)”** — `CorpusVideoPreviewDialog` default |
+| Handoff | 1 tap → `depth=basic&mode=win&from=trends` — không depth picker | ✅ `TrendsRail`, `ExploreScreen` |
+| Auto-focus Tab Studio khi stream | V1.1 polish | ⏳ post-V1 |
 
 ```mermaid
 sequenceDiagram
@@ -812,13 +853,25 @@ sequenceDiagram
   participant Trends
   participant Answer
   participant BE
-  User->>Trends: tap breakout card
-  Trends->>Answer: q=url depth=basic mode=win
-  Answer->>BE: append_turn depth=basic
-  BE-->>Answer: VideoReport basic sections
-  User->>Answer: tap Chuyen_sau
+  User->>Trends: preview breakout → Phân tích
+  Trends->>Answer: q=url depth=basic mode=win from=trends
+  Answer->>BE: turn 1 depth=basic
+  BE-->>Answer: VideoReport basic + locked_sections teasers
+  User->>Answer: IntentCtaRail Phân tích chuyên sâu
   Answer->>BE: depth=deep synthesis_only
 ```
+
+#### 4.11.5 Acceptance (→ §13)
+
+- [x] Win vs Flop chrome không fork pipeline — ✅ `VideoBody.tsx` + `diagnose_sections.py`  
+- [x] Studio composer Cơ bản/Chuyên sâu + credit tooltips — ✅ `QueryComposer.tsx`  
+- [x] Basic report → locked-section teasers (không full synthesize) — ✅ `VideoDeepUpsell` @ W3-5  
+- [x] Deep upgrade qua CTA rail, không sticky body button — ✅ W5-1  
+- [x] Xu hướng 1 tap → basic win handoff — ✅ §4.10 / `trendsVideoHandoffPath`  
+- [x] Pill **Tạo kịch bản** ẩn depth picker — ✅ `QueryComposer` `studioPill === "script"`  
+- [ ] Trends dialog label “Giải mã video này” — ⏳ copy polish  
+- [ ] Auto-focus Tab Studio sau Trends handoff — ⏳ V1.1  
+
 
 ### 4.12 Data & API contract
 

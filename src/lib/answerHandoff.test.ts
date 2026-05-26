@@ -37,6 +37,17 @@ describe("answerHandoff", () => {
     expect(path).toMatch(/q=a\+b|q=a%20b/);
   });
 
+  it("buildAnswerHandoffPath omits depth when includeDepth is false", () => {
+    const path = buildAnswerHandoffPath({
+      q: "brief",
+      from: "composer",
+      includeDepth: false,
+    });
+    expect(path).toContain("/app/answer?");
+    expect(path).not.toContain("depth=");
+    expect(path).toContain("from=composer");
+  });
+
   it("scriptRouteRedirectPath maps legacy script deeplink to Answer", () => {
     const sp = new URLSearchParams("topic=abc&hook=def&duration=30");
     const path = scriptRouteRedirectPath(sp);
