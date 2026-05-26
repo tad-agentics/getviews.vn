@@ -2,7 +2,7 @@
 
 ## 2026-05-23 — §5.3 Channel deep findings doc + Vòng 1 copy
 
-- **Docs:** `feature-map-v1.md` §5.3.1–§5.3.6 refreshed to as-built (14/14 finding registry, section map, sprint status).
+- **Docs:** `feature-map-v1.md` §5.3.1–§5.3.6 refreshed to as-built (14/14 finding registry, section map + salience cap, sprint status).
 - **FE:** `ChannelFindingsStrip` Vòng 1 footnote when `channel_view_ceiling_300` or `channel_boost_outlier_share` present (Account Status — no FYP % claim).
 
 ## 2026-05-23 — §5.1 Channel Intelligence gaps (force_refresh, depth, findings tile)

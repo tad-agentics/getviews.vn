@@ -1027,15 +1027,17 @@ Mỗi dòng = một entry trong `channel_findings[]` (`id`, `taxonomy_ref`, `str
 
 #### 5.3.4 Map finding → narrative sections
 
+**Trạng thái: ✅ Done (V1 core)** — audit 2026-05-23; khớp `section_hint` + Layer B gating @ [`channel_findings.py`](../../cloud-run/getviews_pipeline/channel_findings.py) / [`video.py`](../../cloud-run/getviews_pipeline/routers/video.py).
+
 | `section_hint` | Finding IDs (as-built) | Ghi chú |
 |----------------|--------------------------|---------|
-| `verdict` | `channel_view_ceiling_300` | Mở memo — finding mạnh nhất P0 ceiling |
+| `verdict` | `channel_view_ceiling_300` | Finding duy nhất `section_hint=verdict`; verdict section luôn render — LLM dùng top findings (salience, cap 8) |
 | `what_falling` | entropy, recent vs peak, cadence lag, mega sale, persona drift, slang | Bắt buộc trừ `breakout` / `new_account` |
 | `what_worked` | _(trajectory / hashtag winners — không finding riêng)_ | Giữ logic trajectory hiện tại |
 | `competitive_landscape` | `channel_peer_format_saturation` | Peer block + saturation claim |
-| `recommendations` | `channel_best_hour_underused` (+ mọi `strength ≥ medium` trong prompt) | Block `--- NGỪNG LÀM ---` gắn compliance / format scatter |
-| `account_health` (optional SSE) | `channel_view_ceiling_300`, `channel_boost_outlier_share` | Layer B — `optional_memo_sections_from_findings()`; ceiling `section_hint=verdict` nhưng vẫn gate SSE |
-| `policy_risk` (optional SSE) | compliance aggregate, restricted, ad-law gap, copyright mute | Layer B — khi ≥1 P1 compliance finding fire |
+| `recommendations` | `channel_best_hour_underused` (+ findings khác qua `<<<CHANNEL FINDINGS>>>` top 8 salience) | Block `--- NGỪNG LÀM ---` gắn compliance / format scatter |
+| `account_health` (optional SSE) | `channel_view_ceiling_300` (`section_hint=verdict`), `channel_boost_outlier_share` (`section_hint=account_health`) | Layer B — `optional_memo_sections_from_findings()` gate theo finding **ID**, không chỉ `section_hint` |
+| `policy_risk` (optional SSE) | compliance aggregate, restricted, ad-law gap, copyright mute (mỗi cái `section_hint=policy_risk`) | Layer B — khi ≥1 P1 compliance finding fire |
 
 #### 5.3.5 Data & reuse từ Trụ 1 / F8
 
