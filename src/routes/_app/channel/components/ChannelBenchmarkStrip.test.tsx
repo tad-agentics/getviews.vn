@@ -31,8 +31,8 @@ const samplePeek: ChannelQuickPeek = {
 describe("ChannelBenchmarkStrip", () => {
   it("renders three benchmark rows when summary + benchmarks present", () => {
     render(<ChannelBenchmarkStrip data={samplePeek} />);
-    expect(screen.getByLabelText(/So sánh kênh với ngách/i)).toBeTruthy();
-    expect(screen.getByText(/View trung bình/i)).toBeTruthy();
+    expect(screen.getByLabelText(/So sánh kênh với mảng nội dung/i)).toBeTruthy();
+    expect(screen.getByText(/Lượt xem trung bình/i)).toBeTruthy();
     expect(screen.getByText(/Tương tác/i)).toBeTruthy();
     expect(screen.getByText(/Tần suất đăng/i)).toBeTruthy();
   });

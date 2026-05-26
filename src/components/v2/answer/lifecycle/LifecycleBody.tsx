@@ -33,16 +33,16 @@ const MODE_HEADERS: Record<
   { kicker: string; title: string }
 > = {
   format: {
-    kicker: "Chu trình format",
-    title: "Format nào đang lên, format nào đang chững",
+    kicker: "Chu trình định dạng",
+    title: "Định dạng nào đang lên, định dạng nào đang chững",
   },
   hook_fatigue: {
-    kicker: "Hook fatigue",
+    kicker: "Độ mỏi hook",
     title: "Hook này còn dùng được không",
   },
   subniche: {
-    kicker: "Ngách con",
-    title: "Ngách con đang lên trong ngách lớn",
+    kicker: "Mảng nội dung con",
+    title: "Mảng con đang lên trong mảng lớn",
   },
 };
 
@@ -99,7 +99,7 @@ function LifecycleCellCard({
   // subniche mode. Never render the row when the field is null.
   let suppLine: string | null = null;
   if (mode === "format" && cell.retention_pct != null) {
-    suppLine = `Retention ${Math.round(cell.retention_pct)}%`;
+    suppLine = `Tỷ lệ giữ chân ${Math.round(cell.retention_pct)}%`;
   } else if (mode === "subniche" && cell.instance_count != null) {
     suppLine = `${cell.instance_count.toLocaleString("vi-VN")} creator đang làm`;
   }
@@ -120,7 +120,7 @@ function LifecycleCellCard({
         {cell.name}
       </p>
       <div className="mt-2 flex flex-wrap gap-3 gv-kicker text-[color:var(--gv-ink-3)]">
-        <span>Health {cell.health_score}/100</span>
+        <span>Sức khỏe {cell.health_score}/100</span>
         {suppLine ? <span>·</span> : null}
         {suppLine ? <span>{suppLine}</span> : null}
       </div>
@@ -144,10 +144,10 @@ function RefreshMovesList({ moves }: { moves: RefreshMoveData[] }) {
   return (
     <section>
       <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
-        Refresh
+        Cách làm mới
       </p>
       <h3 className="gv-serif mb-3 text-[17px] text-[color:var(--gv-ink)]">
-        Cách làm mới cell đang yếu
+        Cách làm mới nội dung đang yếu
       </h3>
       <ul className="space-y-2">
         {moves.map((m) => (

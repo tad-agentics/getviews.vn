@@ -35,7 +35,7 @@ export function FormatCardsGrid({
   return (
     <section className="mb-6">
       <h3 className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-        Format đang hoạt động trong ngách này
+        Định dạng đang hiệu quả trong mảng nội dung này
       </h3>
       <div
         className={
@@ -78,7 +78,7 @@ export function FormatCardsGrid({
               {hasEvidence ? (
                 <>
                   <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
-                    Minh chứng trong kho
+                    Minh chứng trong thư viện
                   </p>
                   <EvidenceVideoEmbed
                     aweme_id={card.evidence_aweme_id ?? null}
@@ -88,7 +88,7 @@ export function FormatCardsGrid({
                 </>
               ) : (
                 <p className="mb-2 text-[11px] leading-snug text-[color:var(--gv-ink-3)]">
-                  Chưa có video minh chứng từ kho cho format này.
+                  Chưa có video minh chứng từ thư viện cho định dạng này.
                 </p>
               )}
               {moreExamples.length >= 1 ? (

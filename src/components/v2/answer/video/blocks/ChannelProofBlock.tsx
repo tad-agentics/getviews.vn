@@ -24,8 +24,8 @@ type PerFormatEntry = {
 function fmtRange(entry: PerFormatEntry): string {
   const lo = formatViews(entry.min_views);
   const hi = formatViews(entry.max_views);
-  if (lo === hi) return `${lo} views`;
-  return `${lo} · ${hi} views`;
+  if (lo === hi) return `${lo} lượt xem`;
+  return `${lo} · ${hi} lượt xem`;
 }
 
 function atHandle(raw: string | null | undefined): string {
@@ -114,11 +114,11 @@ export function ChannelProofBlock({
   const patternNote = (() => {
     if (!analyzedEntry) return null;
     if (isBestFormat) {
-      return `Video này dùng format '${analyzedFormat}' — đây là format hoạt động tốt nhất trên kênh.`;
+      return `Video này dùng định dạng '${analyzedFormat}' — đây là định dạng hoạt động tốt nhất trên kênh.`;
     }
     const ratio = bestEntry[1].avg_views / Math.max(analyzedEntry[1].avg_views, 1);
     const times = ratio >= 2 ? `${Math.round(ratio)}×` : "cao hơn đáng kể";
-    return `Mỗi lần bạn đăng '${analyzedFormat}' thì lượt xem thấp hơn '${bestEntry[0].replace(/_/g, " ")}' khoảng ${times}. Đây là pattern nhất quán trong ${bestEntry[1].n} video gần nhất.`;
+    return `Mỗi lần bạn đăng định dạng '${analyzedFormat}' thì lượt xem thấp hơn '${bestEntry[0].replace(/_/g, " ")}' khoảng ${times}. Đây là quy luật nhất quán trong ${bestEntry[1].n} video gần nhất.`;
   })();
 
   const handle = atHandle(creatorHandle);

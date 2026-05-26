@@ -27,7 +27,7 @@ export function TimingBody({
   report: TimingReportPayload;
   sessionIntentType?: string;
 }) {
-  const legendFooter = `Dữ liệu từ ${report.confidence.sample_size} video · ngách ${
+  const legendFooter = `Dữ liệu từ ${report.confidence.sample_size} video · mảng nội dung ${
     report.confidence.niche_scope ?? "—"
   }`;
 

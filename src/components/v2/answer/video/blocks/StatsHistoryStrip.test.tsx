@@ -21,7 +21,7 @@ describe("StatsHistoryStrip", () => {
         ]}
       />,
     );
-    expect(screen.getByText(/Spike rồi phẳng/)).toBeTruthy();
+    expect(screen.getByText(/Tăng vọt rồi đi ngang/)).toBeTruthy();
     expect(screen.getByText("1.0K")).toBeTruthy();
     expect(screen.getByText("5.0K")).toBeTruthy();
   });

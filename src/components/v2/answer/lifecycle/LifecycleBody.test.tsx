@@ -79,19 +79,19 @@ function renderBody(report: LifecycleReportPayload) {
 // ── Header copy driven by mode ────────────────────────────────────────────
 
 describe("LifecycleBody mode header", () => {
-  it("format mode shows 'Chu trình format' kicker", () => {
+  it("format mode shows 'Chu trình định dạng' kicker", () => {
     renderBody(mkReport({ mode: "format" }));
-    expect(screen.getByText("Chu trình format")).toBeTruthy();
+    expect(screen.getByText("Chu trình định dạng")).toBeTruthy();
   });
 
-  it("hook_fatigue mode shows 'Hook fatigue' kicker", () => {
+  it("hook_fatigue mode shows 'Độ mỏi hook' kicker", () => {
     renderBody(mkReport({ mode: "hook_fatigue" }));
-    expect(screen.getByText("Hook fatigue")).toBeTruthy();
+    expect(screen.getByText("Độ mỏi hook")).toBeTruthy();
   });
 
-  it("subniche mode shows 'Ngách con' kicker", () => {
+  it("subniche mode shows 'Mảng nội dung con' kicker", () => {
     renderBody(mkReport({ mode: "subniche" }));
-    expect(screen.getByText("Ngách con")).toBeTruthy();
+    expect(screen.getByText("Mảng nội dung con")).toBeTruthy();
   });
 });
 
@@ -118,7 +118,7 @@ describe("LifecycleBody supplementary cell fields", () => {
         cells: [mkCell({ retention_pct: 73 })],
       }),
     );
-    expect(screen.getByText(/Retention 73%/)).toBeTruthy();
+    expect(screen.getByText(/Tỷ lệ giữ chân 73%/)).toBeTruthy();
   });
 
   it("format mode omits retention row when retention_pct is null", () => {
@@ -128,7 +128,7 @@ describe("LifecycleBody supplementary cell fields", () => {
         cells: [mkCell({ retention_pct: null })],
       }),
     );
-    expect(screen.queryByText(/Retention/)).toBeNull();
+    expect(screen.queryByText(/Tỷ lệ giữ chân/)).toBeNull();
   });
 
   it("subniche mode surfaces instance_count with VN locale formatting", () => {
@@ -151,7 +151,7 @@ describe("LifecycleBody supplementary cell fields", () => {
       }),
     );
     // Even when present in data, hook_fatigue mode ignores them.
-    expect(screen.queryByText(/Retention/)).toBeNull();
+    expect(screen.queryByText(/Tỷ lệ giữ chân/)).toBeNull();
     expect(screen.queryByText(/creator đang làm/)).toBeNull();
   });
 });
@@ -201,8 +201,8 @@ describe("LifecycleBody delta formatting", () => {
 describe("LifecycleBody refresh moves", () => {
   it("does not render the refresh section when moves is empty", () => {
     renderBody(mkReport({ refresh_moves: [] }));
-    expect(screen.queryByText("Refresh")).toBeNull();
-    expect(screen.queryByText(/Cách làm mới cell đang yếu/)).toBeNull();
+    expect(screen.queryByText("Cách làm mới")).toBeNull();
+    expect(screen.queryByText(/Cách làm mới nội dung đang yếu/)).toBeNull();
   });
 
   it("renders each refresh move with effort label when moves are present", () => {

@@ -38,13 +38,13 @@ export function StatsHistoryStrip({
   return (
     <section
       className="mb-4 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
-      aria-label="Diễn biến view theo thời gian"
+      aria-label="Diễn biến lượt xem theo thời gian"
     >
       <p className="gv-kicker mb-2 text-[color:var(--gv-ink-3)]">
         Diễn biến sau đăng
         {spikeFlat ? (
           <span className="ml-2 rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 text-[color:var(--gv-accent-deep)]">
-            Spike rồi phẳng
+            Tăng vọt rồi đi ngang
           </span>
         ) : null}
       </p>

@@ -29,9 +29,9 @@ export function FlopDiagnosisStrip({
   const isContentClass = nicheMeta?.benchmark_axis === "content_class";
   const cohortLabel =
     nicheMeta?.cohort_label?.trim() ||
-    (isContentClass ? "Cùng format TB" : "Ngách TB");
-  const retSuffix = isContentClass ? "ret cùng format" : "ret ngách TB";
-  const winnersLabel = isContentClass ? "video cùng format" : "video thắng trong ngách";
+    (isContentClass ? "Cùng định dạng TB" : "Mảng trung bình");
+  const retSuffix = isContentClass ? "giữ chân cùng định dạng" : "giữ chân mảng TB";
+  const winnersLabel = isContentClass ? "video cùng định dạng" : "video thắng trong mảng";
   const nicheRet =
     nicheMeta?.avg_retention != null
       ? `${Math.round(nicheMeta.avg_retention * 100)}% ${retSuffix}`
@@ -43,8 +43,8 @@ export function FlopDiagnosisStrip({
     isCarousel && meta.save_rate != null && !Number.isNaN(meta.save_rate)
       ? (() => {
           const pct = meta.save_rate <= 1 ? meta.save_rate * 100 : meta.save_rate;
-          if (pct >= 3) return "save carousel ≥3% — ngưỡng phân phối tốt";
-          return "save carousel dưới 3% — thử tăng giá trị từng slide";
+          if (pct >= 3) return "tỷ lệ lưu carousel ≥3% — ngưỡng phân phối tốt";
+          return "tỷ lệ lưu carousel dưới 3% — thử tăng giá trị từng slide";
         })()
       : null;
 
@@ -52,7 +52,7 @@ export function FlopDiagnosisStrip({
     <div className="border-t-2 border-[color:var(--gv-ink)] pt-5">
       <div className="flex flex-wrap gap-x-4 gap-y-1 font-[family-name:var(--gv-font-mono)] text-xs text-[color:var(--gv-ink-3)]">
         <span>
-          {formatViews(meta.views)} view · {retLabel} · save {savePct}
+          {formatViews(meta.views)} lượt xem · {retLabel} · tỷ lệ lưu {savePct}
           {carouselSaveHint ? ` · ${carouselSaveHint}` : ""}
         </span>
         <span className="text-[color:var(--gv-ink-4)]">/</span>

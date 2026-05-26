@@ -272,8 +272,8 @@ describe("VideoBody render", () => {
 
   it("renders the diagnosis strip in flop mode (with niche cohort)", () => {
     renderInRouter(makeFlopReport());
-    expect(screen.getByText(/So sánh với 30 video thắng trong ngách/)).toBeTruthy();
-    expect(screen.getByText(/Ngách TB:/)).toBeTruthy();
+    expect(screen.getByText(/So sánh với 30 video thắng trong mảng/)).toBeTruthy();
+    expect(screen.getByText(/Mảng trung bình:/)).toBeTruthy();
   });
 
   it("flips diagnosis strip to 'cùng format' when benchmark_axis = content_class", () => {
@@ -291,8 +291,8 @@ describe("VideoBody render", () => {
       },
     });
     renderInRouter(cc);
-    expect(screen.getByText(/So sánh với 30 video cùng format/)).toBeTruthy();
-    expect(screen.getByText(/Cùng format TB:/)).toBeTruthy();
+    expect(screen.getByText(/So sánh với 30 video cùng định dạng/)).toBeTruthy();
+    expect(screen.getByText(/Cùng định dạng TB:/)).toBeTruthy();
   });
 
   it("shows en dash for cohort TB views when avg_views is zero and winners pool exists", () => {
@@ -306,7 +306,7 @@ describe("VideoBody render", () => {
       },
     });
     renderInRouter(r);
-    expect(screen.getByText(/Ngách TB:\s*—/)).toBeTruthy();
+    expect(screen.getByText(/Mảng trung bình:\s*—/)).toBeTruthy();
   });
 
   it("shows en dash for cohort TB views when avg_views is null", () => {
@@ -320,7 +320,7 @@ describe("VideoBody render", () => {
       },
     });
     renderInRouter(r);
-    expect(screen.getByText(/Ngách TB:\s*—/)).toBeTruthy();
+    expect(screen.getByText(/Mảng trung bình:\s*—/)).toBeTruthy();
   });
 
   it("renders 'Chưa có nhóm đối chiếu' fallback when niche cohort < 10", () => {
@@ -348,13 +348,13 @@ describe("VideoBody render", () => {
 
   it("renders the win-mode action row (Copy hook + Tạo kịch bản)", () => {
     renderInRouter(makeWinReport());
-    expect(screen.getByText(/Copy hook/)).toBeTruthy();
+    expect(screen.getByText(/Sao chép hook/)).toBeTruthy();
     expect(screen.getByText(/Tạo kịch bản từ video này/)).toBeTruthy();
   });
 
   it("does NOT render the win-mode action row in flop mode", () => {
     renderInRouter(makeFlopReport());
-    expect(screen.queryByText(/Copy hook/)).toBeNull();
+    expect(screen.queryByText(/Sao chép hook/)).toBeNull();
     expect(screen.queryByText(/Tạo kịch bản từ video này/)).toBeNull();
   });
 
@@ -655,8 +655,8 @@ describe("VideoBody render", () => {
       }),
       { analysisDepth: "deep" },
     );
-    expect(screen.getByLabelText("Diễn biến view theo thời gian")).toBeTruthy();
-    expect(screen.getByText(/Spike rồi phẳng/)).toBeTruthy();
+    expect(screen.getByLabelText("Diễn biến lượt xem theo thời gian")).toBeTruthy();
+    expect(screen.getByText(/Tăng vọt rồi đi ngang/)).toBeTruthy();
     expect(screen.getByText("1.0K")).toBeTruthy();
   });
 
@@ -685,7 +685,7 @@ describe("VideoBody render", () => {
       }),
       { analysisDepth: "deep" },
     );
-    expect(screen.getByLabelText("Diễn biến view theo thời gian")).toBeTruthy();
+    expect(screen.getByLabelText("Diễn biến lượt xem theo thời gian")).toBeTruthy();
     expect(screen.getByText("2.0K")).toBeTruthy();
   });
 
@@ -704,7 +704,7 @@ describe("VideoBody render", () => {
       }),
       { analysisDepth: "basic" },
     );
-    expect(screen.queryByLabelText("Diễn biến view theo thời gian")).toBeNull();
+    expect(screen.queryByLabelText("Diễn biến lượt xem theo thời gian")).toBeNull();
   });
 
   it("renders BoostAttributionBlock after boost_attribution section", () => {
@@ -733,8 +733,8 @@ describe("VideoBody render", () => {
         },
       }),
     );
-    expect(screen.getByLabelText("Phân loại nguồn view")).toBeTruthy();
-    expect(screen.getByText(/Loại khỏi pool tham chiếu organic/)).toBeTruthy();
+    expect(screen.getByLabelText("Phân loại nguồn lượt xem")).toBeTruthy();
+    expect(screen.getByText(/Loại khỏi nhóm tham chiếu tự nhiên/)).toBeTruthy();
     expect(screen.getAllByText("View spike").length).toBeGreaterThanOrEqual(1);
   });
 

@@ -15,7 +15,7 @@ describe("BoostAttributionBlock", () => {
     render(
       <BoostAttributionBlock attribution="suspect_medium" referenceEligible={false} />,
     );
-    expect(screen.getByLabelText("Phân loại nguồn view")).toBeTruthy();
-    expect(screen.getByText(/Loại khỏi pool tham chiếu organic/)).toBeTruthy();
+    expect(screen.getByLabelText("Phân loại nguồn lượt xem")).toBeTruthy();
+    expect(screen.getByText(/Loại khỏi nhóm tham chiếu tự nhiên/)).toBeTruthy();
   });
 });

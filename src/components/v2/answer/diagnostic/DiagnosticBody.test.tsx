@@ -165,9 +165,9 @@ describe("DiagnosticBody header", () => {
     ).toBeTruthy();
   });
 
-  it("surfaces the 'Chẩn đoán URL-less' kicker", () => {
+  it("surfaces the 'Chẩn đoán nhanh (không dùng link)' kicker", () => {
     renderBody(mkReport());
-    expect(screen.getByText("Chẩn đoán URL-less")).toBeTruthy();
+    expect(screen.getByText("Chẩn đoán nhanh (không dùng link)")).toBeTruthy();
   });
 });
 
@@ -274,7 +274,7 @@ describe("DiagnosticBody niche execution tip", () => {
       "Dùng hook câu hỏi 1.2s + product shot ngay sau để bắt trend tuần này.";
     renderBody(mkReport({ niche_execution_tip: tip }));
 
-    expect(screen.getByText("Gợi ý ngách · tuần này")).toBeTruthy();
+    expect(screen.getByText("Gợi ý mảng nội dung · tuần này")).toBeTruthy();
     expect(screen.getByText(tip)).toBeTruthy();
 
     // Brutalist surface applied on the callout wrapper — keeps the
@@ -285,7 +285,7 @@ describe("DiagnosticBody niche execution tip", () => {
 
   it("hides the callout entirely when the tip is null", () => {
     renderBody(mkReport({ niche_execution_tip: null }));
-    expect(screen.queryByText("Gợi ý ngách · tuần này")).toBeNull();
+    expect(screen.queryByText("Gợi ý mảng nội dung · tuần này")).toBeNull();
     expect(screen.queryByTestId("niche-execution-tip")).toBeNull();
   });
 

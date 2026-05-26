@@ -29,7 +29,7 @@ export function NicheInsightCard({ insight }: { insight: NicheInsightData | null
   return (
     <section>
       <p className="gv-kicker gv-kicker--dot mb-2 text-[color:var(--gv-accent-deep)]">
-        Gợi ý ngách tuần này
+        Gợi ý mảng nội dung tuần này
       </p>
       <article className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
         <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">

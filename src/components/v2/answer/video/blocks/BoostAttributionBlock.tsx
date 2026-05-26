@@ -31,9 +31,9 @@ export function BoostAttributionBlock({
   return (
     <section
       className="mb-4 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
-      aria-label="Phân loại nguồn view"
+      aria-label="Phân loại nguồn lượt xem"
     >
-      <p className="gv-kicker mb-2 text-[color:var(--gv-ink-3)]">Nguồn view & tham chiếu corpus</p>
+      <p className="gv-kicker mb-2 text-[color:var(--gv-ink-3)]">Nguồn lượt xem & tham chiếu thư viện nội dung</p>
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={`gv-mono rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide ${
@@ -46,11 +46,11 @@ export function BoostAttributionBlock({
         </span>
         {referenceEligible === false ? (
           <span className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
-            Loại khỏi pool tham chiếu organic
+            Loại khỏi nhóm tham chiếu tự nhiên (organic)
           </span>
         ) : referenceEligible === true ? (
           <span className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
-            Đủ điều kiện pool tham chiếu
+            Đủ điều kiện làm nhóm tham chiếu
           </span>
         ) : null}
       </div>
@@ -78,7 +78,7 @@ export function BoostAttributionBlock({
         </ul>
       ) : (
         <p className="mt-2 text-sm leading-relaxed text-[color:var(--gv-ink-2)]">
-          View cao nhưng tương tác mỏng so cohort — kiểm tra nguồn traffic trước khi coi hook/ER là chuẩn organic.
+          Lượt xem cao nhưng tương tác mỏng so với nhóm (cohort) — kiểm tra nguồn lưu lượng trước khi coi hook/ER là chuẩn tự nhiên (organic).
         </p>
       )}
     </section>

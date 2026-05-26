@@ -39,9 +39,9 @@ function buildRows(data: ChannelQuickPeek): BenchmarkRow[] {
   return [
     {
       key: "views",
-      label: "View trung bình",
+      label: "Lượt xem trung bình",
       userLabel: formatVN(viewsUser),
-      nicheLabel: `Ngách: ${formatVN(viewsP50)}`,
+      nicheLabel: `Mảng nội dung: ${formatVN(viewsP50)}`,
       rank: benchmarkRankLabel(viewsUser, viewsP50, viewsP75),
       barPct: benchmarkBarPct(viewsUser, viewsP75),
     },
@@ -49,7 +49,7 @@ function buildRows(data: ChannelQuickPeek): BenchmarkRow[] {
       key: "engagement",
       label: "Tương tác",
       userLabel: formatEngagementPct(erUser),
-      nicheLabel: `vs ngách ${formatEngagementPct(erP50)}`,
+      nicheLabel: `vs mảng ${formatEngagementPct(erP50)}`,
       rank: benchmarkRankLabel(erUser, erP50, erP75),
       barPct: benchmarkBarPct(erUser, erP75),
     },
@@ -72,9 +72,9 @@ export function ChannelBenchmarkStrip({ data }: { data: ChannelQuickPeek }) {
   return (
     <div
       className="mb-5 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-4 py-4"
-      aria-label="So sánh kênh với ngách"
+      aria-label="So sánh kênh với mảng nội dung"
     >
-      <p className="gv-kicker mb-3 text-[color:var(--gv-ink-3)]">Tóm tắt kênh · so với ngách</p>
+      <p className="gv-kicker mb-3 text-[color:var(--gv-ink-3)]">Tóm tắt kênh · so với mảng nội dung</p>
       <ul className="m-0 flex list-none flex-col gap-4 p-0">
         {rows.map((row) => (
           <li key={row.key}>

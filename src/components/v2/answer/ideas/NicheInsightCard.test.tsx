@@ -35,7 +35,7 @@ describe("NicheInsightCard", () => {
     render(<NicheInsightCard insight={make()} />);
     expect(screen.getByText(/Mở bằng kết quả before\/after/)).toBeTruthy();
     expect(screen.getByText(/POV demo × before\/after/)).toBeTruthy();
-    expect(screen.getByText(/Gợi ý ngách tuần này/)).toBeTruthy();
+    expect(screen.getByText(/Gợi ý mảng nội dung tuần này/)).toBeTruthy();
   });
 
   it("renders nothing when execution_tip is missing — protects against rendering an empty card", () => {

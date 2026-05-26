@@ -32,7 +32,7 @@ function OutlierStoryBanner({ story }: { story: OutlierStory }) {
       <p className="text-[17px] leading-snug text-[color:var(--gv-ink)]">
         <span className="font-semibold">{story.creator_handle}</span> đạt{" "}
         <span className="font-mono font-bold text-[color:var(--gv-accent)]">
-          {formatViews(story.views)} view
+          {formatViews(story.views)} lượt xem
         </span>{" "}
         — gấp{" "}
         <span className="font-mono font-bold">
@@ -110,7 +110,7 @@ function ABPairStrip({ pair }: { pair: PatternABPair }) {
         <p className="text-[12px] text-[color:var(--gv-ink-2)]">
           Hook thắng vượt hook thua{" "}
           <span className="font-mono font-bold text-[color:var(--gv-ink)]">{pair.delta}×</span> — cùng creator,
-          cùng ngách, khác hook.
+          cùng mảng nội dung, khác hook.
         </p>
       </div>
     </div>

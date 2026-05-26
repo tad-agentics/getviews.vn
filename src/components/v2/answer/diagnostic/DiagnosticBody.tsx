@@ -137,7 +137,7 @@ function NicheExecutionTipCallout({ tip }: { tip: string }) {
       data-testid="niche-execution-tip"
     >
       <p className="gv-mono gv-uc text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-3)]">
-        Gợi ý ngách · tuần này
+        Gợi ý mảng nội dung · tuần này
       </p>
       <p className="gv-serif mt-1.5 text-[17px] leading-snug text-[color:var(--gv-ink)]">
         {tip}
@@ -178,7 +178,7 @@ export function DiagnosticBody({ report }: { report: DiagnosticReportPayload }) 
       {/* A1 — staggered fade-up (per design pack ``screens/answer.jsx`` §reveal). */}
       <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
         <p className="gv-mono mb-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
-          Chẩn đoán URL-less
+          Chẩn đoán nhanh (không dùng link)
         </p>
         <h3 className="gv-serif mb-2 text-[22px] leading-tight text-[color:var(--gv-ink)]">
           5 hạng mục — không có link video

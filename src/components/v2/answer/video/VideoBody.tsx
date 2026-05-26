@@ -391,7 +391,7 @@ export function VideoBody({
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Btn variant="ghost" size="sm" type="button" onClick={() => void copyHook()}>
               <Copy className="h-3.5 w-3.5" strokeWidth={1.7} />
-              Copy hook
+              Sao chép hook
             </Btn>
             <Btn variant="ink" size="sm" type="button" onClick={goWinScript}>
               Tạo kịch bản từ video này
