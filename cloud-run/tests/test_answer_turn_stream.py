@@ -31,6 +31,20 @@ def _clear_stream_buffer() -> None:
     session_store._stream_chunks.clear()  # type: ignore[attr-defined]
 
 
+@pytest.fixture(autouse=True)
+def _acquire_processing_lock():
+    """TD-3: stub begin_processing to acquire (prior value False) and
+    end_processing to no-op. The answer-turn path now takes the same
+    per-user lock /channel/diagnose uses, so the generator calls
+    user_supabase(...).rpc("begin_processing") before launching work."""
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    client.rpc.return_value.execute.return_value.data = False
+    with patch("getviews_pipeline.routers.answer.user_supabase", return_value=client):
+        yield
+
+
 @pytest.mark.asyncio
 async def test_fresh_run_emits_payload_then_done() -> None:
     from getviews_pipeline.routers.answer import AnswerTurnAppendBody, answer_append_turn
