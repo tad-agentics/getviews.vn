@@ -9,6 +9,7 @@ from getviews_pipeline.corpus_ingest import _route_niche_and_class_override
 from getviews_pipeline.junction_content_class import (
     content_class_id_for_creator_niche_format,
     primary_content_class_id_by_niche_and_format,
+    primary_creator_niche_id_for_content_class,
 )
 
 
@@ -20,6 +21,10 @@ def test_junction_lookup_beauty_tutorial_lowest_cc_id() -> None:
 
 def test_junction_lookup_carousel_tutorial() -> None:
     assert content_class_id_for_creator_niche_format(1, "tutorial_carousel") == 75
+
+
+def test_primary_creator_niche_for_beauty_class() -> None:
+    assert primary_creator_niche_id_for_content_class(1) == 1
 
 
 def test_primary_map_covers_hi16_grid() -> None:
@@ -56,12 +61,15 @@ def test_shadow_mode_returns_hashtag_baseline(monkeypatch: pytest.MonkeyPatch) -
             },
         },
     }
-    nid, cc = _route_niche_and_class_override(analysis, 9, video_id="v")
+    nid, cc = _route_niche_and_class_override(
+        analysis, 9, video_id="v", loop_content_class_id=1
+    )
     assert nid == 9
     assert cc is None
 
 
-def test_route_mode_gemini_wins(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_route_mode_in_niche_class_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Route maps format_axis within loop niche — legacy niche unchanged."""
     monkeypatch.setattr(gv_config, "NICHE_RESOLVER_MODE", "route")
     analysis = {
         "content_type": "video",
@@ -75,9 +83,65 @@ def test_route_mode_gemini_wins(monkeypatch: pytest.MonkeyPatch) -> None:
             "scenes": [],
         },
     }
-    nid, cc = _route_niche_and_class_override(analysis, 9, video_id="v")
-    assert nid == 2  # legacy Beauty (Skincare)
+    nid, cc = _route_niche_and_class_override(
+        analysis,
+        9,
+        video_id="v",
+        loop_content_class_id=1,
+        loop_legacy_niche_id=2,
+    )
+    assert nid == 9
     assert cc == 1
+
+
+def test_route_mode_cross_niche_gemini_uses_loop_not_inferred_class(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Gemini beauty + loop gym — legacy niche unchanged; class from gym junction."""
+    monkeypatch.setattr(gv_config, "NICHE_RESOLVER_MODE", "route")
+    analysis = {
+        "content_type": "video",
+        "analysis": {
+            "niche_classification": {
+                "creator_niche_slug": "beauty",
+                "format_axis": "tutorial",
+                "confidence": 0.95,
+            },
+        },
+    }
+    nid, cc = _route_niche_and_class_override(
+        analysis,
+        8,
+        video_id="v-gym",
+        loop_content_class_id=56,
+        loop_legacy_niche_id=8,
+    )
+    assert nid == 8
+    assert cc == 56
+
+
+def test_route_mode_format_missing_in_loop_niche(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Gemini format not seeded for loop niche → no override."""
+    monkeypatch.setattr(gv_config, "NICHE_RESOLVER_MODE", "route")
+    analysis = {
+        "content_type": "video",
+        "analysis": {
+            "niche_classification": {
+                "creator_niche_slug": "beauty",
+                "format_axis": "live_commerce",
+                "confidence": 0.95,
+            },
+        },
+    }
+    nid, cc = _route_niche_and_class_override(
+        analysis,
+        8,
+        video_id="v-gym-fmt",
+        loop_content_class_id=56,
+        loop_legacy_niche_id=8,
+    )
+    assert nid == 8
+    assert cc is None
 
 
 def test_route_mode_carousel_prefers_carousel_format_axis(
@@ -98,8 +162,14 @@ def test_route_mode_carousel_prefers_carousel_format_axis(
             "scenes": [],
         },
     }
-    nid, cc = _route_niche_and_class_override(analysis, 9, video_id="v-carousel")
-    assert nid == 2
+    nid, cc = _route_niche_and_class_override(
+        analysis,
+        9,
+        video_id="v-carousel",
+        loop_content_class_id=1,
+        loop_legacy_niche_id=2,
+    )
+    assert nid == 9
     assert cc == 75
 
 
@@ -140,7 +210,13 @@ def test_route_mode_td6_rejects_non_junction_content_class(
             },
         },
     }
-    nid, cc = _route_niche_and_class_override(analysis, 9, video_id="v-td6")
+    nid, cc = _route_niche_and_class_override(
+        analysis,
+        9,
+        video_id="v-td6",
+        loop_content_class_id=1,
+        loop_legacy_niche_id=2,
+    )
     assert nid == 9
     assert cc is None
     assert get_hi11_junction_reject_count() >= 1

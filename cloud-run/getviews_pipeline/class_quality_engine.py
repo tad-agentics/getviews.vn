@@ -826,8 +826,12 @@ def run_acqe_nightly(client: Any) -> dict[str, Any]:
     target_updates = 0
     discovery_relax = False
 
+    from getviews_pipeline.config import RETIRED_CONTENT_CLASS_IDS
+
     for t in targets:
         cc_id = int(t["content_class_id"])
+        if cc_id in RETIRED_CONTENT_CLASS_IDS:
+            continue
         m = metrics.get(cc_id, {"sample_30d": 0, "ingest_7d": 0})
         tier = _tier_for_class(m["sample_30d"], m["ingest_7d"])
         if tier in ("Thin", "Dormant"):

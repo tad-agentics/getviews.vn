@@ -1166,7 +1166,7 @@ def _content_class_for(legacy_niche_id: int, content_format: str | None) -> int 
             return 70
         if cf in ("storytelling", "pov", "comedy_skit"):
             return 72
-        return 69
+        return 72
     # ── Home (legacy 20 — cold DB only)
     if legacy_niche_id == 20:
         if cf == "tutorial":
@@ -1548,26 +1548,40 @@ def _route_niche_and_class_override(
     hashtag_resolved_nid: int,
     *,
     video_id: str,
+    loop_content_class_id: int | None = None,
+    loop_legacy_niche_id: int | None = None,
 ) -> tuple[int, int | None]:
-    """HI-11 routing — optional Gemini-primary niche + junction ``content_class_id``.
+    """HI-11 routing — in-niche ``content_class_id`` only (no cross-niche legacy move).
 
-    When ``NICHE_RESOLVER_MODE=route`` and Gemini two-axis classification clears
-    confidence + junction checks, returns representative legacy ``niche_id`` and
-    junction-derived ``content_class_id``. Otherwise returns
-    ``(hashtag_resolved_nid, None)`` so ``_build_corpus_row`` keeps the ladder.
+    When ``NICHE_RESOLVER_MODE=route`` and Gemini clears confidence, map
+    ``format_axis`` onto the ingest loop's primary ``creator_niche`` junction.
+    Legacy ``niche_id`` stays ``hashtag_resolved_nid``; only ``content_class_id``
+    may override. Cross-niche Gemini slugs are ignored for routing.
     """
     from getviews_pipeline.config import NICHE_RESOLVER_MODE
     from getviews_pipeline.junction_content_class import (
         content_class_id_for_creator_niche_format,
         creator_niche_has_content_class,
+        primary_creator_niche_id_for_content_class,
     )
     from getviews_pipeline.profile_niches import (
+        CREATOR_NICHE_ID_TO_SLUG,
         CREATOR_NICHE_SLUG_TO_ID,
-        legacy_niche_id_for_creator_niche,
+        creator_niche_id_for_legacy_niche,
     )
     from getviews_pipeline.two_axis_taxonomy import junction_has_pair
 
     if NICHE_RESOLVER_MODE != "route":
+        return hashtag_resolved_nid, None
+
+    loop_cn = primary_creator_niche_id_for_content_class(loop_content_class_id)
+    if loop_cn is None and loop_legacy_niche_id is not None:
+        loop_cn = creator_niche_id_for_legacy_niche(int(loop_legacy_niche_id))
+    if loop_cn is None:
+        return hashtag_resolved_nid, None
+
+    loop_slug = CREATOR_NICHE_ID_TO_SLUG.get(loop_cn)
+    if not loop_slug:
         return hashtag_resolved_nid, None
 
     analysis_json = analysis.get("analysis") or {}
@@ -1582,85 +1596,85 @@ def _route_niche_and_class_override(
     except (TypeError, ValueError):
         conf = 0.0
 
-    slug_raw = nc.get("creator_niche_slug")
-    slug = str(slug_raw).strip() if slug_raw is not None else ""
-    inferred: int | None = CREATOR_NICHE_SLUG_TO_ID.get(slug)
-    if conf < _GEMINI_NICHE_CONFIDENCE_FLOOR or inferred is None:
+    if conf < _GEMINI_NICHE_CONFIDENCE_FLOOR:
         return hashtag_resolved_nid, None
+
+    gem_slug_raw = nc.get("creator_niche_slug")
+    gem_slug = str(gem_slug_raw).strip() if gem_slug_raw is not None else ""
+    inferred: int | None = CREATOR_NICHE_SLUG_TO_ID.get(gem_slug) if gem_slug else None
+    if inferred is not None and inferred != loop_cn:
+        logger.info(
+            "[corpus] hi11 in_niche_only ignore_gemini_niche video_id=%s "
+            "loop_creator_niche_id=%s gemini_slug=%s",
+            video_id or "?",
+            loop_cn,
+            gem_slug,
+        )
 
     if is_carousel:
         fmt_raw = nc.get("carousel_format_axis") or nc.get("format_axis")
     else:
         fmt_raw = nc.get("format_axis")
     fmt_axis = str(fmt_raw).strip() if fmt_raw is not None else ""
-    if not fmt_axis or not junction_has_pair(slug, fmt_axis):
+    if not fmt_axis or not junction_has_pair(loop_slug, fmt_axis):
         _record_hi11_junction_reject(
             video_id=video_id,
-            creator_niche_id=inferred,
+            creator_niche_id=loop_cn,
             content_class_id=None,
             reason="junction_pair_miss",
         )
         logger.warning(
             "[corpus] hi11 route skip video_id=%s junction_miss_or_empty "
-            "niche_slug=%s format_axis=%s",
+            "loop_slug=%s format_axis=%s",
             video_id or "?",
-            slug,
+            loop_slug,
             fmt_axis,
         )
         return hashtag_resolved_nid, None
 
-    cc_id = content_class_id_for_creator_niche_format(inferred, fmt_axis)
+    cc_id = content_class_id_for_creator_niche_format(loop_cn, fmt_axis)
     if cc_id is None:
         _record_hi11_junction_reject(
             video_id=video_id,
-            creator_niche_id=inferred,
+            creator_niche_id=loop_cn,
             content_class_id=None,
             reason="no_cc_row",
         )
         logger.warning(
-            "[corpus] hi11 route skip video_id=%s no_cc_row creator_niche_id=%s "
+            "[corpus] hi11 route skip video_id=%s no_cc_row loop_creator_niche_id=%s "
             "format_axis=%s",
             video_id or "?",
-            inferred,
+            loop_cn,
             fmt_axis,
         )
         return hashtag_resolved_nid, None
 
-    if not creator_niche_has_content_class(inferred, cc_id):
+    if not creator_niche_has_content_class(loop_cn, cc_id):
         _record_hi11_junction_reject(
             video_id=video_id,
-            creator_niche_id=inferred,
+            creator_niche_id=loop_cn,
             content_class_id=cc_id,
             reason="td6_junction_miss",
         )
         logger.warning(
             "[corpus] hi11 route skip video_id=%s td6_junction_miss "
-            "creator_niche_id=%s content_class_id=%s format_axis=%s",
+            "loop_creator_niche_id=%s content_class_id=%s format_axis=%s",
             video_id or "?",
-            inferred,
+            loop_cn,
             cc_id,
             fmt_axis,
         )
         return hashtag_resolved_nid, None
 
-    leg = legacy_niche_id_for_creator_niche(inferred)
-    if leg is None:
-        logger.warning(
-            "[corpus] hi11 route skip video_id=%s no_legacy_niche creator_niche_id=%s",
-            video_id or "?",
-            inferred,
-        )
-        return hashtag_resolved_nid, None
-
     logger.info(
-        "[corpus] hi11 route gemini_two_axis video_id=%s legacy_niche=%s "
+        "[corpus] hi11 route in_niche_class video_id=%s loop_creator_niche_id=%s "
         "content_class_id=%s hashtag_baseline=%s",
         video_id or "?",
-        leg,
+        loop_cn,
         cc_id,
         hashtag_resolved_nid,
     )
-    return leg, cc_id
+    return hashtag_resolved_nid, cc_id
 
 
 def _build_corpus_row(
@@ -2570,6 +2584,8 @@ async def _ingest_candidate_awemes(
             analysis,
             resolved_nid,
             video_id=vid,
+            loop_content_class_id=aweme.get("_ingest_loop_content_class_id"),
+            loop_legacy_niche_id=loop_nid,
         )
         row = _build_corpus_row(
             aweme,
@@ -4299,6 +4315,8 @@ def _legacy_niche_id_for_class_sync(client: Any, content_class_id: int) -> int:
 
 def fetch_ingest_targets_sync(client: Any) -> list[dict[str, Any]]:
     """Active content_class_ingest_targets shaped like niche_taxonomy rows."""
+    from getviews_pipeline.config import RETIRED_CONTENT_CLASS_IDS
+
     targets = (
         client.table("content_class_ingest_targets")
         .select("content_class_id, signal_hashtags, daily_vpn, active, priority, viability_tier")
@@ -4312,18 +4330,26 @@ def fetch_ingest_targets_sync(client: Any) -> list[dict[str, Any]]:
     try:
         cc_rows = (
             client.table("content_classifications")
-            .select("id, name_vn, slug")
+            .select("id, name_vn, slug, active")
+            .eq("active", True)
             .execute()
             .data
             or []
         )
-        cc_meta = {int(r["id"]): r for r in cc_rows}
+        cc_meta = {
+            int(r["id"]): r for r in cc_rows
+            if int(r["id"]) not in RETIRED_CONTENT_CLASS_IDS
+        }
     except Exception:
         pass
     out: list[dict[str, Any]] = []
     for t in targets:
         cc_id = int(t["content_class_id"])
+        if cc_id in RETIRED_CONTENT_CLASS_IDS:
+            continue
         meta = cc_meta.get(cc_id, {})
+        if not meta:
+            continue
         leg_nid = _legacy_niche_id_for_class_sync(client, cc_id)
         out.append({
             "id": leg_nid,

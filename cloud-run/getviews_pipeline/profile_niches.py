@@ -26,6 +26,25 @@ from typing import Any
 # ``artifacts/docs/two-axis-niche-cutover-runbook.md``).
 
 # Slug → creator_niches.id — mirrors seed; used by HI-11 shadow ingest + Gemini mapping.
+CREATOR_NICHE_ID_TO_SLUG: dict[int, str] = {
+    1: "beauty",
+    2: "fashion",
+    3: "food",
+    4: "lifestyle",
+    5: "comedy",
+    6: "family",
+    7: "education",
+    8: "tech_gaming",
+    9: "business",
+    10: "wellness",
+    11: "travel",
+    12: "auto",
+    14: "gym_fitness",
+    15: "music_dance",
+    16: "real_estate",
+    17: "art_craft",
+}
+
 CREATOR_NICHE_SLUG_TO_ID: dict[str, int] = {
     "beauty": 1,
     "fashion": 2,

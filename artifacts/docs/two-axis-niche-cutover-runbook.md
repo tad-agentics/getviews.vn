@@ -23,7 +23,7 @@
 | Confidence floor | `_GEMINI_NICHE_CONFIDENCE_FLOOR = 0.6` |
 
 - **`shadow`:** Hashtag/class map stays canonical; telemetry columns populated. Cloud Logging: `niche shadow disagree`.
-- **`route`:** If confidence ≥ 0.6 + `junction_has_pair` + TD-6 pass → write junction `content_class_id`. Else hashtag ladder.
+- **`route`:** If confidence ≥ 0.6 + `junction_has_pair` + TD-6 pass → write junction `content_class_id` **within ingest loop primary `creator_niche` only** (2026-05-27 — no cross-niche legacy move from Gemini slug). Else hashtag ladder.
 
 ### Rolling automated eval
 

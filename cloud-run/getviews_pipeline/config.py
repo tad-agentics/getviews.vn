@@ -214,6 +214,9 @@ if _niche_resolver_mode not in ("shadow", "route"):
     _niche_resolver_mode = "shadow"
 NICHE_RESOLVER_MODE: str = _niche_resolver_mode
 
+# Retired content_classifications.id — never ingest or ACQE-reactivate.
+RETIRED_CONTENT_CLASS_IDS: frozenset[int] = frozenset({69})  # pets_cute_compilation
+
 # ── EnsembleData metering & unit estimates ([ed-meter] logs) ─────────────────
 # Override per endpoint after calibrating vs ED dashboard
 # (artifacts/docs/ed-pricing-map.md).

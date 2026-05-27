@@ -159,7 +159,7 @@ Source of truth code: [`cloud-run/getviews_pipeline/two_axis_taxonomy.py`](../..
 | 66 | auto_moto_culture | Văn hoá moto | vlog_daily | auto |
 | 67 | auto_modification | Mod xe / tuning | tutorial | auto |
 | 68 | auto_news_industry | Tin tức ngành xe | talking_head_advice | auto |
-| 69 | pets_cute_compilation | Pet cute / funny | montage_highlights | pets |
+| ~~69~~ | ~~pets_cute_compilation~~ | **RETIRED 2026-05-27** — use 23 (lifestyle aesthetic) or 72 (pets storytelling) | — | — |
 | 70 | pets_care_tips | Mẹo chăm pet | talking_head_advice | pets |
 | 71 | pets_training | Huấn luyện pet | tutorial | pets |
 | 72 | pets_owner_storytelling | POV chủ pet | pov_storytelling | pets |
@@ -280,7 +280,7 @@ creator_niche_content_classes (creator_niche_id, content_class_id, is_primary)
 | 26 | comedy_observational (class slug) | ✓ — `format_axis = pov_storytelling`; not the observational format token |
 | 28–29 | music_cover_singing, music_dance_choreography | secondary — canonical home is music_dance (15) |
 | 49 | ecommerce_shopee_review | secondary — Wave 4; canonical home is business (9) |
-| 69–74 | pets_cute_compilation … home_renovation_diy | ✓ — primary under lifestyle (ex-pets_home) |
+| 70–74 | pets_care … home_renovation_diy | ✓ — primary under lifestyle (ex-pets_home); **69 retired** |
 | 73 | home_decor_inspiration | ✓ primary lifestyle; also secondary business (9) via Wave 4 |
 
 #### family (id 6)

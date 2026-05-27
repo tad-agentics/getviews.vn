@@ -175,7 +175,7 @@ def _apply_taxonomy_feedback_fixes(
     fix = root / "supabase/migrations/20260823000003_taxonomy_feedback_fixes.sql"
     if not fix.is_file():
         return edges
-    promote_ids = {24, 25, 26, 27, 69, 70, 71, 72, 73, 74}
+    promote_ids = {24, 25, 26, 27, 70, 71, 72, 73, 74}
     out: list[tuple[int, int, bool]] = []
     for cn, cc, is_primary in edges:
         if cn == 4 and cc in promote_ids:
@@ -231,3 +231,23 @@ def creator_niche_has_content_class(creator_niche_id: int, content_class_id: int
     if creator_niche_id <= 0 or content_class_id <= 0:
         return False
     return (int(creator_niche_id), int(content_class_id)) in _junction_niche_class_pairs()
+
+
+@lru_cache(maxsize=1)
+def _primary_creator_niche_by_content_class() -> dict[int, int]:
+    """``content_class_id`` → primary ``creator_niche_id`` (lowest id tie-break)."""
+    out: dict[int, int] = {}
+    for cn_id, cc_id, is_primary in _junction_edges():
+        if not is_primary:
+            continue
+        prev = out.get(cc_id)
+        if prev is None or cn_id < prev:
+            out[cc_id] = cn_id
+    return out
+
+
+def primary_creator_niche_id_for_content_class(content_class_id: int | None) -> int | None:
+    """Primary UX niche for an ingest-loop class, or ``None`` if no junction primary."""
+    if content_class_id is None:
+        return None
+    return _primary_creator_niche_by_content_class().get(int(content_class_id))
