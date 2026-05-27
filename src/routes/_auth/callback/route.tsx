@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { supabase } from "@/lib/supabase";
+import { consumePostLoginNext } from "@/lib/postLoginRedirect";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export default function AuthCallback() {
           navigate("/login?error=oauth", { replace: true });
           return;
         }
-        navigate("/app", { replace: true });
+        navigate(consumePostLoginNext(), { replace: true });
         return;
       }
 
@@ -32,7 +33,7 @@ export default function AuthCallback() {
         data: { session },
       } = await supabase.auth.getSession();
       if (cancelled) return;
-      navigate(session ? "/app" : "/login", { replace: true });
+      navigate(session ? consumePostLoginNext() : "/login", { replace: true });
     };
 
     void finish();

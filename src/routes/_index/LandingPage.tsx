@@ -1,7 +1,10 @@
-import { useState, useEffect, type ReactNode } from "react";
-import { Link } from "react-router";
+import { useCallback, useMemo, useState, useEffect, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router";
+import { buildAnswerHandoffPath } from "@/lib/answerHandoff";
 import { r2FrameUrl } from "@/lib/r2";
 import { formatCorpusMarketingCount } from "@/lib/formatters";
+import { buildLoginPath } from "@/lib/postLoginRedirect";
+import { nonTikTokUrlValidationMessage } from "@/lib/tiktokUrl";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown, Database, Play, Globe, Zap, Search, MessageCircle, ExternalLink, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/Input";
@@ -645,7 +648,13 @@ const SAMPLE_QUERIES = [
   "Viết kịch bản KOL chi tiết cho mảng skincare",
 ];
 
-function CredibilitySection({ corpusLabel }: { corpusLabel: string }) {
+function CredibilitySection({
+  corpusLabel,
+  loginPath,
+}: {
+  corpusLabel: string;
+  loginPath: string;
+}) {
   return (
     <section className="px-4 py-16 bg-[color:var(--gv-paper)]">
       <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
@@ -665,7 +674,7 @@ function CredibilitySection({ corpusLabel }: { corpusLabel: string }) {
             Chúng tôi là những nhà sáng tạo nội dung tự xây kênh TikTok từ con số 0 — và thấu hiểu sâu sắc việc đưa ra quyết định nội dung theo cảm tính dễ dẫn đến thất bại như thế nào. GetViews ra đời để thay đổi điều đó: toàn bộ gợi ý phân tích đều có dẫn chứng video thực tế làm bằng chứng trực quan, hỗ trợ bạn kiểm chứng trực tiếp chỉ bằng một cú chạm.
           </p>
           <Link
-            to="/login"
+            to={loginPath}
             className="inline-flex items-center justify-center rounded-lg bg-[color:var(--gv-accent)] px-6 py-3 text-sm font-medium text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-accent-deep)] active:scale-95"
           >
             Thử miễn phí — không cần thẻ
@@ -773,11 +782,34 @@ interface LandingStats {
   corpus_indexed_count: number | null;
 }
 
+function landingLoginPath(pastedUrl?: string): string {
+  const q = pastedUrl?.trim();
+  if (!q) return buildLoginPath();
+  return buildLoginPath(buildAnswerHandoffPath({ q, from: "landing" }));
+}
+
 export default function LandingPage({ stats }: { stats: LandingStats }) {
+  const navigate = useNavigate();
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "biannual" | "annual">("annual");
   const [stickyVisible, setStickyVisible] = useState(false);
+  const [heroUrl, setHeroUrl] = useState("");
+  const [heroUrlError, setHeroUrlError] = useState<string | null>(null);
   const corpusLabel = formatCorpusMarketingCount(stats.corpus_indexed_count);
   const faqs = buildFaqs(corpusLabel);
+  const loginPath = useMemo(() => landingLoginPath(heroUrl), [heroUrl]);
+
+  const goToLogin = useCallback(() => {
+    const raw = heroUrl.trim();
+    if (raw) {
+      const invalid = nonTikTokUrlValidationMessage(raw);
+      if (invalid) {
+        setHeroUrlError(invalid);
+        return;
+      }
+    }
+    setHeroUrlError(null);
+    navigate(landingLoginPath(raw));
+  }, [heroUrl, navigate]);
 
   useEffect(() => {
     const handleScroll = () => setStickyVisible(window.scrollY > 480);
@@ -808,7 +840,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
               <div className="flex items-center gap-4">
                 <span className="text-xs text-white/60 hidden sm:block">Không cần thẻ tín dụng</span>
                 <Link
-                  to="/login"
+                  to={loginPath}
                   className="inline-flex items-center justify-center rounded-lg bg-[color:var(--gv-paper)] px-5 py-2 text-sm font-medium text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:bg-[color:var(--gv-canvas-2)] active:scale-95"
                 >
                   Phân tích miễn phí
@@ -860,17 +892,37 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-1.5 shadow-sm mb-3 transition-all duration-200 hover:border-[color:var(--gv-ink)]/30 hover:shadow-md">
                     <div className="flex items-center gap-2 px-3 py-2">
                       <Input
+                        type="url"
+                        inputMode="url"
+                        autoComplete="url"
                         placeholder="https://tiktok.com/@..."
+                        value={heroUrl}
+                        onChange={(e) => {
+                          setHeroUrl(e.target.value);
+                          if (heroUrlError) setHeroUrlError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            goToLogin();
+                          }
+                        }}
                         className="flex-1 border-0 bg-transparent text-base focus:outline-none focus:ring-0 placeholder:text-[color:var(--gv-ink-4)]"
                       />
                     </div>
                   </div>
-                  <Link
-                    to="/login"
+                  {heroUrlError ? (
+                    <p className="mb-2 text-sm text-[color:var(--destructive)]" role="alert">
+                      {heroUrlError}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={goToLogin}
                     className="inline-flex w-full items-center justify-center rounded-xl bg-[color:var(--gv-ink)] px-8 py-4 text-base font-semibold text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-ink-2)] active:scale-[0.98]"
                   >
                     Phân tích video miễn phí ngay →
-                  </Link>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-4 text-xs text-[color:var(--gv-ink-3)]">
@@ -1062,7 +1114,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
 
       {/* ── Infrastructure + Credibility ─────────────────────────── */}
       <InfraGrid corpusLabel={corpusLabel} />
-      <CredibilitySection corpusLabel={corpusLabel} />
+      <CredibilitySection corpusLabel={corpusLabel} loginPath={loginPath} />
 
       {/* ── Results ─────────────────────────────────────────────── */}
       <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
@@ -1216,7 +1268,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 </div>
                 <p className="text-xs text-[color:var(--gv-ink-3)] mb-5" style={{ lineHeight: "1.5" }}>{plan.credits}</p>
                 <Link
-                  to="/login"
+                  to={loginPath}
                   className={`inline-flex w-full items-center justify-center rounded-lg px-6 py-3 text-sm font-medium transition-all duration-[120ms] ease-out active:scale-95 ${
                     plan.popular
                       ? "bg-[color:var(--gv-accent)] text-white hover:bg-[color:var(--gv-accent-deep)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100"
@@ -1280,7 +1332,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             Chỉ cần dán link video. Trải nghiệm GetViews ngay.
           </h2>
           <Link
-            to="/login"
+            to={loginPath}
             className="inline-flex items-center justify-center rounded-xl bg-[color:var(--gv-paper)] px-10 py-4 text-base font-semibold text-[color:var(--gv-ink)] transition-all duration-[120ms] hover:bg-[color:var(--gv-canvas-2)] active:scale-95"
           >
             Phân tích video miễn phí

@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-27 — Marketing → login funnel fix
+
+- **Fix:** Vercel SPA rewrite `__spa-fallback.html` → `index.html` so `/login` renders auth (was dead-end landing). Landing hero URL + Enter → `/login?next=/app/answer?...`; `postLoginRedirect` persists `next` through OAuth.
+
 ## 2026-05-27 — Answer CTA rail (drop duplicate composer)
 
 - **UI:** Sticky `IntentCtaRail` only after a report turn — removed duplicate `FollowUpComposer` (kicker + pills + Gửi). Kicker →「Tiếp tục nghiên cứu」; spacing on sticky footer. Initial composer kept for empty session.

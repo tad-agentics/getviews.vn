@@ -14,6 +14,11 @@ import { Input } from "@/components/ui/Input";
 import { Btn } from "@/components/v2/Btn";
 import { cn } from "@/components/ui/utils";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
+import {
+  consumePostLoginNext,
+  persistPostLoginNextFromSearch,
+  postLoginPathFromSearch,
+} from "@/lib/postLoginRedirect";
 
 const COPY_BTN_FACEBOOK = "Đăng nhập với Facebook";
 const COPY_BTN_GOOGLE = "Đăng nhập với Google";
@@ -138,12 +143,18 @@ export default function LoginRoute() {
   const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
+    persistPostLoginNextFromSearch(searchParams);
+  }, [searchParams]);
+
+  useEffect(() => {
     if (callbackErrorHandled.current) return;
     if (searchParams.get("error") !== "oauth") return;
     callbackErrorHandled.current = true;
     setOauthError({ target: "general", message: COPY_ERROR_OAUTH });
     navigate("/login", { replace: true });
   }, [navigate, searchParams]);
+
+  const postAuthPath = postLoginPathFromSearch(searchParams);
 
   const redirectTo =
     typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "/auth/callback";
@@ -193,7 +204,7 @@ export default function LoginRoute() {
       if (error) {
         setEmailError(error.message);
       } else {
-        navigate("/app", { replace: true });
+        navigate(consumePostLoginNext(), { replace: true });
       }
     },
     [email, password, isRegister, navigate],
@@ -202,7 +213,7 @@ export default function LoginRoute() {
   const anyLoading = loadingFb || loadingGoogle || loadingEmail;
 
   if (!authLoading && user) {
-    return <Navigate to="/app" replace />;
+    return <Navigate to={postAuthPath} replace />;
   }
 
   const inputFieldClass =

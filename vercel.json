@@ -8,7 +8,7 @@
     },
     {
       "source": "/((?!api|assets|icons|fonts|screenshots|manifest\\.json|sw\\.js|robots\\.txt|sitemap\\.xml).*)",
-      "destination": "/__spa-fallback.html"
+      "destination": "/index.html"
     }
   ]
 }
