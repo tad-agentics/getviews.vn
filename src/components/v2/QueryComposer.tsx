@@ -10,7 +10,6 @@ import { TooltipContent, TooltipRoot, TooltipTrigger } from "@/components/ui/too
 import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
 import {
   STUDIO_COMPOSER_PILLS,
-  composerDepthHint,
   composerDepthTooltip,
   type StudioComposerPill,
 } from "@/lib/studioComposer";
@@ -135,10 +134,6 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
     const depthVisible =
       (showDepthPicker ?? !followUpSlot) && studioPill !== "script";
     const pillForDepth = studioPill ?? "video_flop";
-    const depthHint =
-      depthVisible && studioPill != null
-        ? composerDepthHint(pillForDepth, analysisDepth, creditsRemaining)
-        : null;
     const basicTooltip = composerDepthTooltip(
       pillForDepth,
       "basic",
@@ -181,20 +176,6 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
           <p className="mt-1 gv-kicker text-[var(--gv-ink-4)]">
             NGHIÊN CỨU · {nicheLabel}
           </p>
-        ) : null}
-        {depthHint ? (
-          <div
-            id="composer-depth-hint"
-            className="mt-3 space-y-1 border-t border-[color:var(--gv-rule-2)] pt-3 text-[11px] leading-snug text-[color:var(--gv-ink-3)]"
-          >
-            <p className="m-0 font-medium text-[color:var(--gv-ink-2)]">{depthHint.activeLine}</p>
-            <p className="m-0 text-[color:var(--gv-ink-4)]">{depthHint.compareLine}</p>
-            {depthHint.creditsLine ? (
-              <p className="m-0 font-[family-name:var(--gv-font-mono)] text-[color:var(--gv-ink-3)]">
-                {depthHint.creditsLine}
-              </p>
-            ) : null}
-          </div>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--gv-rule)] px-3 py-2">
@@ -242,7 +223,6 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
               className="flex shrink-0 items-center gap-1.5"
               role="group"
               aria-label="Mức phân tích"
-              aria-describedby={depthHint ? "composer-depth-hint" : undefined}
             >
               <DepthPillWithTooltip
                 label="Cơ bản"

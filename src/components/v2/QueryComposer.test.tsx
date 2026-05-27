@@ -94,23 +94,6 @@ describe("QueryComposer (C.1.0)", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("shows visible depth hint with cost and comparison before submit", () => {
-    renderComposer(
-      <QueryComposer
-        value=""
-        onChange={vi.fn()}
-        onSubmit={vi.fn()}
-        studioPill="channel"
-        onStudioPillChange={vi.fn()}
-        analysisDepth="deep"
-        creditsRemaining={9}
-      />,
-    );
-    expect(screen.getByText(/Chuyên sâu · 3 credit\/lần/)).toBeTruthy();
-    expect(screen.getByText(/Cơ bản · 0 credit/)).toBeTruthy();
-    expect(screen.getByText(/còn 9 credit/)).toBeTruthy();
-  });
-
   it("renders Cơ bản / Chuyên sâu depth pills by default", () => {
     renderComposer(
       <QueryComposer value="" onChange={vi.fn()} onSubmit={vi.fn()} />,
