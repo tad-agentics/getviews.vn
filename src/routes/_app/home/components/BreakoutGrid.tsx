@@ -1,6 +1,7 @@
 import { memo, useRef, useState, useCallback } from "react";
 import { Link } from "react-router";
 import { ArrowRight } from "lucide-react";
+import { CarouselBadge } from "@/components/CarouselBadge";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { formatViews } from "@/lib/formatters";
@@ -109,7 +110,11 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
             <span className="rounded px-2 py-0.5 gv-kicker text-white bg-[color:var(--gv-accent)]">
               {isBreakout ? "BỨT PHÁ" : "ĐANG THỊNH HÀNH"}
             </span>
-            {dur ? <span className="gv-kicker opacity-95">{dur}</span> : null}
+            {v.content_type === "carousel" ? (
+              <CarouselBadge className="border-white/40 bg-black/45 text-white" />
+            ) : dur ? (
+              <span className="gv-kicker opacity-95">{dur}</span>
+            ) : null}
           </div>
           <div className="min-h-0 flex-1 flex flex-col justify-end pt-8">
             {v.hook_phrase ? (

@@ -1,10 +1,14 @@
 import { supabase } from "@/lib/supabase";
 
+/** HI-16 carousel format buckets — junction-linked to every creator niche; topic = ``inferred_creator_niche_id``. */
+export const CAROUSEL_FORMAT_CLASS_IDS = [75, 76, 77, 78, 79] as const;
+
 /** PostgREST query builder subset used for ``video_corpus`` niche scoping. */
 export type CorpusNicheFilterableQuery = {
   eq: (column: string, value: number) => CorpusNicheFilterableQuery;
   in: (column: string, values: number[]) => CorpusNicheFilterableQuery;
   not: (column: string, operator: string, value: null) => CorpusNicheFilterableQuery;
+  or: (filters: string) => CorpusNicheFilterableQuery;
 };
 
 export type VideoCorpusNicheScope = {
@@ -42,21 +46,37 @@ export async function fetchContentClassIdsForCreatorNiche(
 }
 
 /**
+ * Carousel format classes (75–79) are shared across all UX niches. When browsing
+ * a creator niche, require ``inferred_creator_niche_id`` to match so a tech
+ * carousel does not appear under Âm nhạc · Vũ đạo.
+ */
+export function applyCarouselTopicGuard<T extends Pick<CorpusNicheFilterableQuery, "or">>(
+  query: T,
+  creatorNicheId: number,
+): T {
+  const carouselIds = CAROUSEL_FORMAT_CLASS_IDS.join(",");
+  return query.or(
+    `content_class_id.not.in.(${carouselIds}),inferred_creator_niche_id.eq.${creatorNicheId}`,
+  ) as unknown as T;
+}
+
+/**
  * Class-first browse: ``content_class_id IN (...)`` when junction classes exist.
  * Phase C: no ``video_corpus.niche_id`` fallback — empty junction returns unscoped query.
  */
 export function applyVideoCorpusNicheFilter<T extends CorpusNicheFilterableQuery>(
   query: T,
-  scope: {
-    legacyNicheId?: number | null;
-    contentClassIds?: number[];
-  },
+  scope: VideoCorpusNicheScope,
 ): T {
+  let q = query;
   const classIds = scope.contentClassIds ?? [];
   if (classIds.length > 0) {
-    return query.in("content_class_id", classIds) as T;
+    q = q.in("content_class_id", classIds) as T;
   }
-  return query;
+  if (scope.creatorNicheId != null && scope.creatorNicheId > 0) {
+    q = applyCarouselTopicGuard(q, scope.creatorNicheId) as T;
+  }
+  return q;
 }
 
 /**

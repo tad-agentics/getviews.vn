@@ -1,6 +1,7 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
+import { CarouselBadge } from "@/components/CarouselBadge";
 import {
   CorpusVideoPreviewDialog,
   type CorpusVideoPreviewItem,
@@ -90,17 +91,19 @@ function previewItemForVideo(video: TrendsRailVideo): CorpusVideoPreviewItem {
 export const TrendsRail = memo(function TrendsRail({
   contentClassIds,
   legacyNicheId = null,
+  creatorNicheId = null,
   nicheScopeLabel,
   layout = "sidebar",
 }: {
   contentClassIds: number[];
   legacyNicheId?: number | null;
+  creatorNicheId?: number | null;
   nicheScopeLabel?: string | null;
   /** sidebar = compact rows; inline = same content, used in mobile main flow */
   layout?: "sidebar" | "inline";
 }) {
   const navigate = useNavigate();
-  const { data, isPending } = useTrendsRailVideos({ contentClassIds, legacyNicheId });
+  const { data, isPending } = useTrendsRailVideos({ contentClassIds, legacyNicheId, creatorNicheId });
   const [previewVideo, setPreviewVideo] = useState<TrendsRailVideo | null>(null);
 
   const previewItem = useMemo(
@@ -244,6 +247,7 @@ function RailRow({ video, onPreview }: { video: TrendsRailVideo; onPreview: () =
                 {formatLabel}
               </span>
             ) : null}
+            {video.content_type === "carousel" ? <CarouselBadge /> : null}
           </span>
           <span className="gv-mono mt-1 block text-[11px] text-[color:var(--gv-ink-4)]">
             {[handle, video.views > 0 ? `↑${formatViews(video.views)}` : null, ageLabel]

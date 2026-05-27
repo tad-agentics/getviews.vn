@@ -9,6 +9,8 @@ const PAGE_SIZE = 20;
 
 export interface VideoCorpusFilters {
   nicheId?: number | null;
+  /** UX ``creator_niches.id`` — carousel topic guard when set. */
+  creatorNicheId?: number | null;
   /** Two-axis junction filter — class-only when non-empty. */
   contentClassIds?: number[];
   sortBy?: "views" | "engagement_rate" | "indexed_at";
@@ -35,7 +37,14 @@ export const corpusKeys = {
   count: (
     filters: Pick<
       VideoCorpusFilters,
-      "nicheId" | "contentClassIds" | "search" | "minViews" | "contentFormat" | "stitchOnly" | "duetOnly"
+      | "nicheId"
+      | "creatorNicheId"
+      | "contentClassIds"
+      | "search"
+      | "minViews"
+      | "contentFormat"
+      | "stitchOnly"
+      | "duetOnly"
     >,
   ) => ["video_corpus", "count", filters] as const,
   /** All indexed videos for a niche — no search / views / format filters (hero, trust). */
@@ -47,6 +56,7 @@ export const corpusKeys = {
 export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
   const {
     nicheId,
+    creatorNicheId,
     contentClassIds,
     sortBy = "indexed_at",
     sortOrder = "desc",
@@ -69,6 +79,7 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
       query = applyBrowsableCorpusFilter(
         applyVideoCorpusNicheFilter(query, {
           legacyNicheId: nicheId,
+          creatorNicheId,
           contentClassIds,
         }),
       );

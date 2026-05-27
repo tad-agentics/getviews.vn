@@ -38,6 +38,8 @@ export type ExploreGridVideo = {
   durationLabel?: string | null;
   isViral?: boolean;
   breakoutMultiplier?: number | null;
+  /** HI-16 photo carousel — show ``CarouselBadge`` in grid tiles. */
+  isCarousel?: boolean;
 };
 
 function EngagementSidebar({

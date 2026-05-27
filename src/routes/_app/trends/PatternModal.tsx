@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Btn } from "@/components/v2/Btn";
+import { CarouselBadge } from "@/components/CarouselBadge";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
@@ -162,6 +163,11 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
                         thumbnailUrl={v.thumbnail_url}
                         className="absolute inset-0 h-full w-full"
                       />
+                      {v.content_type === "carousel" ? (
+                        <span className="absolute left-1 top-1 z-10">
+                          <CarouselBadge />
+                        </span>
+                      ) : null}
                       <span
                         className="absolute inset-0"
                         style={{

@@ -49,6 +49,7 @@ const samplePayload = (overrides: Partial<TrendsRailPayload> = {}): TrendsRailPa
       hook_type: "question",
       breakout_multiplier: 2.4,
       content_format: "talking_head",
+      content_type: "video",
     },
   ],
   meta: { usedFallback: false, eligibleCount: 3 },

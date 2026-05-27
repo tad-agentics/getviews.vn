@@ -145,8 +145,12 @@ export default function HomeScreen() {
 
   const patternScope = useMemo<TopPatternsScope | null>(() => {
     if (selectedNicheId == null && homeContentClassIds.length === 0) return null;
-    return { contentClassIds: homeContentClassIds, legacyNicheId: selectedNicheId };
-  }, [homeContentClassIds, selectedNicheId]);
+    return {
+      contentClassIds: homeContentClassIds,
+      legacyNicheId: selectedNicheId,
+      creatorNicheId,
+    };
+  }, [homeContentClassIds, selectedNicheId, creatorNicheId]);
 
   // PR-cleanup-E — greeting + composer signals.
   // ``newHookCount``: count of hot patterns whose previous-week instance

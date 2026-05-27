@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { ArrowRight } from "lucide-react";
 
+import { CarouselBadge } from "@/components/CarouselBadge";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
@@ -222,6 +223,11 @@ function CollageTile({ cell }: { cell: PatternVideo }) {
           aria-hidden
         >
           {formatViews(cell.views)}
+        </span>
+      ) : null}
+      {cell.content_type === "carousel" ? (
+        <span className="absolute left-1.5 top-1.5 z-10">
+          <CarouselBadge />
         </span>
       ) : null}
     </div>

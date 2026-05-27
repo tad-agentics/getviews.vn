@@ -6,7 +6,9 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   applyBrowsableCorpusFilter,
+  applyCarouselTopicGuard,
   applyVideoCorpusNicheFilter,
+  CAROUSEL_FORMAT_CLASS_IDS,
   fetchContentClassIdsForCreatorNiche,
 } from "./corpusNicheFilter";
 import { supabase } from "./supabase";
@@ -24,6 +26,10 @@ function mockQuery() {
     },
     not(col: string, operator: string, val: null) {
       calls.push({ op: "not", col, val: operator });
+      return q;
+    },
+    or(filter: string) {
+      calls.push({ op: "or", col: "postgrest", val: filter });
       return q;
     },
     calls,
@@ -51,6 +57,32 @@ describe("applyVideoCorpusNicheFilter", () => {
     const q = mockQuery();
     applyVideoCorpusNicheFilter(q, { legacyNicheId: null, contentClassIds: [] });
     expect(q.calls).toEqual([]);
+  });
+
+  it("requires inferred_creator_niche_id for HI-16 carousel format classes", () => {
+    const q = mockQuery();
+    applyVideoCorpusNicheFilter(q, {
+      contentClassIds: [10, 75],
+      creatorNicheId: 15,
+    });
+    expect(q.calls[0]).toEqual({ op: "in", col: "content_class_id", val: [10, 75] });
+    expect(q.calls[1]?.op).toBe("or");
+    expect(String(q.calls[1]?.val)).toContain("inferred_creator_niche_id.eq.15");
+    expect(String(q.calls[1]?.val)).toContain(CAROUSEL_FORMAT_CLASS_IDS.join(","));
+  });
+});
+
+describe("applyCarouselTopicGuard", () => {
+  it("builds postgrest or filter for carousel format class ids", () => {
+    const q = mockQuery();
+    applyCarouselTopicGuard(q, 8);
+    expect(q.calls).toEqual([
+      {
+        op: "or",
+        col: "postgrest",
+        val: "content_class_id.not.in.(75,76,77,78,79),inferred_creator_niche_id.eq.8",
+      },
+    ]);
   });
 });
 

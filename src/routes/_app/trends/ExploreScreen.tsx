@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getISOWeek } from "date-fns";
 import { AppLayout } from "@/components/AppLayout";
+import { CarouselBadge } from "@/components/CarouselBadge";
 import { TopBar } from "@/components/v2/TopBar";
 import { Btn } from "@/components/v2/Btn";
 import { supabase } from "@/lib/supabase";
@@ -64,6 +65,7 @@ type CorpusRow = {
   comments: number | null;
   hook_phrase: string | null;
   content_format: string | null;
+  content_type?: "video" | "carousel" | null;
   breakout_multiplier: number | null;
   tone: string | null;
   cta_type: string | null;
@@ -146,6 +148,7 @@ function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
     durationLabel: formatDurationSeconds(row.video_duration),
     isViral,
     breakoutMultiplier: br,
+    isCarousel: row.content_type === "carousel",
   };
 }
 
@@ -258,9 +261,14 @@ function VideoCard({
             ) : null}
           </div>
         )}
-        {video.durationLabel ? (
+        {video.durationLabel && !video.isCarousel ? (
           <div className="absolute top-2 right-2 rounded-[3px] bg-black/50 px-1.5 py-0.5 gv-kicker text-white">
             {video.durationLabel}
+          </div>
+        ) : null}
+        {video.isCarousel ? (
+          <div className="absolute top-2 right-2 z-20">
+            <CarouselBadge />
           </div>
         ) : null}
         <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 text-white">
@@ -564,8 +572,9 @@ export default function ExploreScreen() {
     () => ({
       contentClassIds,
       legacyNicheId: selectedNicheId,
+      creatorNicheId: selectedCreatorNicheId,
     }),
-    [contentClassIds, selectedNicheId],
+    [contentClassIds, selectedNicheId, selectedCreatorNicheId],
   );
 
   const { data: niches } = useCreatorNiches();
@@ -624,6 +633,7 @@ export default function ExploreScreen() {
 
   const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useVideoCorpus({
     nicheId: selectedNicheId,
+    creatorNicheId: selectedCreatorNicheId,
     contentClassIds,
     sortBy,
     sortOrder: "desc",
@@ -645,6 +655,7 @@ export default function ExploreScreen() {
   const { data: corpusCount } = useQuery({
     queryKey: corpusKeys.count({
       nicheId: selectedNicheId,
+      creatorNicheId: selectedCreatorNicheId,
       contentClassIds,
       search: searchQuery || undefined,
       minViews: activeViewFilter ?? undefined,
@@ -656,6 +667,7 @@ export default function ExploreScreen() {
       let q = applyBrowsableCorpusFilter(
         applyVideoCorpusNicheFilter(supabase.from("video_corpus").select("*", { count: "planned", head: true }), {
           legacyNicheId: selectedNicheId,
+          creatorNicheId: selectedCreatorNicheId,
           contentClassIds,
         }),
       );
@@ -673,11 +685,12 @@ export default function ExploreScreen() {
 
   /** Total videos in niche (no search / view / format filters) — §II kho title. */
   const { data: nicheTotalCount, isPending: nicheTotalCountPending } = useQuery({
-    queryKey: [...corpusKeys.nicheTotal(selectedNicheId), contentClassIds],
+    queryKey: [...corpusKeys.nicheTotal(selectedNicheId), contentClassIds, selectedCreatorNicheId],
     queryFn: async () => {
       let q = applyBrowsableCorpusFilter(
         applyVideoCorpusNicheFilter(supabase.from("video_corpus").select("*", { count: "planned", head: true }), {
           legacyNicheId: selectedNicheId,
+          creatorNicheId: selectedCreatorNicheId,
           contentClassIds,
         }),
       );
@@ -691,7 +704,7 @@ export default function ExploreScreen() {
 
   /** Rolling 7d indexed count — hero H1 (“tuần qua”); uses ``indexed_at`` like the grid date filter. */
   const { data: nicheWeekCount } = useQuery({
-    queryKey: [...corpusKeys.nicheLast7d(selectedNicheId), contentClassIds],
+    queryKey: [...corpusKeys.nicheLast7d(selectedNicheId), contentClassIds, selectedCreatorNicheId],
     queryFn: async () => {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       let q = applyBrowsableCorpusFilter(
@@ -702,6 +715,7 @@ export default function ExploreScreen() {
             .gte("indexed_at", since),
           {
             legacyNicheId: selectedNicheId,
+            creatorNicheId: selectedCreatorNicheId,
             contentClassIds,
           },
         ),
@@ -877,6 +891,7 @@ export default function ExploreScreen() {
               <TrendsRail
                 contentClassIds={contentClassIds}
                 legacyNicheId={selectedNicheId}
+                creatorNicheId={selectedCreatorNicheId}
                 nicheScopeLabel={selectedNicheName}
                 layout="inline"
               />
@@ -1103,6 +1118,7 @@ export default function ExploreScreen() {
             <TrendsRail
               contentClassIds={contentClassIds}
               legacyNicheId={selectedNicheId}
+              creatorNicheId={selectedCreatorNicheId}
               nicheScopeLabel={selectedNicheName}
               layout="sidebar"
             />

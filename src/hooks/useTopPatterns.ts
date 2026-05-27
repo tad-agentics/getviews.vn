@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { applyVideoCorpusNicheFilter } from "@/lib/corpusNicheFilter";
 import { supabase } from "@/lib/supabase";
 import { normalizeHookPhrase } from "@/lib/patternDisplay";
 
@@ -10,6 +11,7 @@ export type PatternVideo = {
   views: number;
   /** Canonical TikTok URL when present — helps derive embed id if ``video_id`` is not numeric. */
   tiktok_url: string | null;
+  content_type?: "video" | "carousel" | null;
 };
 
 /** Single content angle inside a pattern (PatternModal "GÓC CÒN TRỐNG"). */
@@ -67,6 +69,8 @@ export type TopPattern = {
 /** Class-first scope for pattern ranking (Round B — content_class pivot). */
 export type TopPatternsScope = {
   contentClassIds: number[];
+  /** UX ``creator_niches.id`` — carousel topic guard on pattern sample videos. */
+  creatorNicheId?: number | null;
   /** Thin fallback when junction has no classes (legacy ingest bucket). */
   legacyNicheId?: number | null;
 };
@@ -103,17 +107,18 @@ function computeMedian(values: ReadonlyArray<number>): number | null {
 
 function scopeQueryKey(scope: TopPatternsScope): string {
   const classes = [...scope.contentClassIds].sort((a, b) => a - b).join(",");
-  return `c:${classes}|n:${scope.legacyNicheId ?? ""}`;
+  return `c:${classes}|cn:${scope.creatorNicheId ?? ""}|n:${scope.legacyNicheId ?? ""}`;
 }
 
-function applyCorpusScope<T extends { in: (col: string, val: number[]) => T; eq: (col: string, val: number) => T }>(
+function applyCorpusScope<T extends { eq: (col: string, val: number) => T; in: (col: string, val: number[]) => T; not: (col: string, op: string, val: null) => T; or: (filters: string) => T }>(
   query: T,
   scope: TopPatternsScope,
 ): T {
-  if (scope.contentClassIds.length > 0) {
-    return query.in("content_class_id", scope.contentClassIds);
-  }
-  return query;
+  return applyVideoCorpusNicheFilter(query, {
+    contentClassIds: scope.contentClassIds,
+    creatorNicheId: scope.creatorNicheId,
+    legacyNicheId: scope.legacyNicheId,
+  });
 }
 
 type PatternRow = TopPattern & { niche_spread?: number[] };
@@ -196,7 +201,7 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
 
       let corpusQuery = supabase
         .from("video_corpus")
-        .select("video_id, pattern_id, views, hook_phrase, thumbnail_url, creator_handle, tiktok_url")
+        .select("video_id, pattern_id, views, hook_phrase, thumbnail_url, creator_handle, tiktok_url, content_type")
         .in("pattern_id", ids);
       corpusQuery = applyCorpusScope(corpusQuery, scope);
 
@@ -236,6 +241,7 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
         const thumbnail = (row as { thumbnail_url?: string | null }).thumbnail_url ?? null;
         const handle = (row as { creator_handle?: string | null }).creator_handle ?? null;
         const tiktokUrl = (row as { tiktok_url?: string | null }).tiktok_url ?? null;
+        const contentType = (row as { content_type?: "video" | "carousel" | null }).content_type ?? null;
         const acc = byPattern.get(pid) ?? {
           totalViews: 0,
           n: 0,
@@ -265,6 +271,7 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
             creator_handle: handle,
             views,
             tiktok_url: tiktokUrl,
+            content_type: contentType,
           });
         }
         byPattern.set(pid, acc);

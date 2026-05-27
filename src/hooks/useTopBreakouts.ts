@@ -18,10 +18,11 @@ export type BreakoutVideo = {
   hook_phrase: string | null;
   hook_type: string | null;
   video_duration: number | null;
+  content_type?: "video" | "carousel" | null;
 };
 
 const CORPUS_COLS =
-  "video_id, tiktok_url, thumbnail_url, video_url, creator_handle, views, breakout_multiplier, hook_phrase, hook_type, video_duration";
+  "video_id, tiktok_url, thumbnail_url, video_url, creator_handle, views, breakout_multiplier, hook_phrase, hook_type, video_duration, content_type";
 
 /** Exported for unit tests — deterministic slice that rotates over time when pool > limit. */
 export function pickRotatingBreakoutWindow<T extends { video_id: string }>(
@@ -42,7 +43,11 @@ export function pickRotatingBreakoutWindow<T extends { video_id: string }>(
 /** How often the visible trio shifts among the top breakout pool (must divide refetch cadence sensibly). */
 const HOME_BREAKOUT_ROTATION_MS = 15 * 60 * 1000;
 
-type BreakoutFilterScope = { contentClassIds: number[]; legacyNicheId: number | null };
+type BreakoutFilterScope = {
+  contentClassIds: number[];
+  legacyNicheId: number | null;
+  creatorNicheId?: number | null;
+};
 
 async function queryBreakoutPool(
   since: string,
@@ -116,7 +121,7 @@ async function fetchTopBreakoutsForHome(
     }
   }
 
-  const filterScope = { contentClassIds, legacyNicheId };
+  const filterScope = { contentClassIds, legacyNicheId, creatorNicheId };
 
   const pool: BreakoutVideo[] = [];
   const seen = new Set<string>();

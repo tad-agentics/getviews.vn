@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   applyBrowsableCorpusFilter,
   applyVideoCorpusNicheFilter,
+  type CorpusNicheFilterableQuery,
 } from "@/lib/corpusNicheFilter";
 import { supabase } from "@/lib/supabase";
 
@@ -25,6 +26,7 @@ export type TrendsRailVideo = {
   hook_type: string | null;
   breakout_multiplier: number | null;
   content_format: string | null;
+  content_type: "video" | "carousel" | null;
 };
 
 export type TrendsRailMeta = {
@@ -41,6 +43,8 @@ export type TrendsRailPayload = {
 
 export type TrendsRailScope = {
   contentClassIds: number[];
+  /** UX ``creator_niches.id`` — scopes carousel rows by ``inferred_creator_niche_id``. */
+  creatorNicheId?: number | null;
   /** Legacy ``ingest_loop_niche_id`` when junction is empty. */
   legacyNicheId?: number | null;
 };
@@ -48,7 +52,7 @@ export type TrendsRailScope = {
 const RAIL_LIMIT = 5;
 const RAIL_POOL_LIMIT = 20;
 const RAIL_COLS =
-  "video_id, thumbnail_url, creator_handle, tiktok_url, views, posted_at, indexed_at, hook_phrase, hook_type, breakout_multiplier, content_format";
+  "video_id, thumbnail_url, creator_handle, tiktok_url, views, posted_at, indexed_at, hook_phrase, hook_type, breakout_multiplier, content_format, content_type";
 
 const RECENT_DAYS = 14;
 const MIN_BREAKOUT = 1.0;
@@ -56,19 +60,22 @@ const TRENDS_RAIL_ROTATION_MS = 15 * 60 * 1000;
 /** Offset from Home bucket so Tier III (3) and Trends (5) rarely show the same top rows. */
 const TRENDS_RAIL_BUCKET_OFFSET = 3;
 
-function applyTrendsRailScopeFilter<T extends { eq: (c: string, v: number) => T; in: (c: string, v: number[]) => T; not: (c: string, op: string, v: null) => T }>(
+function applyTrendsRailScopeFilter<T extends CorpusNicheFilterableQuery>(
   query: T,
   scope: TrendsRailScope,
 ): T {
   if (scope.contentClassIds.length > 0) {
     return applyBrowsableCorpusFilter(
-      applyVideoCorpusNicheFilter(query, { contentClassIds: scope.contentClassIds }),
-    );
+      applyVideoCorpusNicheFilter(query, {
+        contentClassIds: scope.contentClassIds,
+        creatorNicheId: scope.creatorNicheId,
+      }),
+    ) as T;
   }
   if (scope.legacyNicheId != null) {
-    return applyBrowsableCorpusFilter(query.eq("ingest_loop_niche_id", scope.legacyNicheId));
+    return applyBrowsableCorpusFilter(query.eq("ingest_loop_niche_id", scope.legacyNicheId)) as T;
   }
-  return applyBrowsableCorpusFilter(query);
+  return applyBrowsableCorpusFilter(query) as T;
 }
 
 async function queryRailPool(
