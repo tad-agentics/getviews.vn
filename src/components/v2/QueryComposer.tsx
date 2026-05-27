@@ -25,7 +25,10 @@ export type QueryComposerProps = {
   showNicheCaption?: boolean;
   corpusCount?: number;
   disabled?: boolean;
+  /** Valid TikTok URL detected — success chip. */
   showUrlChip?: boolean;
+  /** Non-TikTok or unknown HTTP URL — danger chip (blocks honest analysis). */
+  urlInvalidMessage?: string;
   /** §4.11.2 — Cơ bản / Chuyên sâu trước khi gửi (Tab Studio + Answer initial). */
   analysisDepth?: AnswerHandoffDepth;
   onAnalysisDepthChange?: (depth: AnswerHandoffDepth) => void;
@@ -74,6 +77,7 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
       corpusCount,
       disabled,
       showUrlChip,
+      urlInvalidMessage,
       analysisDepth = "basic",
       onAnalysisDepthChange,
       studioPill,
@@ -180,7 +184,14 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
                 </button>
               </div>
             ) : null}
-            {showUrlChip ? (
+            {urlInvalidMessage ? (
+              <span
+                className="rounded-md border border-[color:var(--gv-accent-deep)] bg-[color:var(--gv-accent-soft)] px-2 py-0.5 gv-kicker text-[color:var(--gv-accent-deep)]"
+                role="alert"
+              >
+                {urlInvalidMessage}
+              </span>
+            ) : showUrlChip ? (
               <span className="rounded-md border border-[var(--gv-rule)] px-2 py-0.5 gv-kicker text-[var(--gv-ink-4)]">
                 Đã nhận link TikTok ✓
               </span>

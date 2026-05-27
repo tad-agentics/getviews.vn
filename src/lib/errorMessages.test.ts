@@ -60,6 +60,7 @@ describe("analysisErrorCopy", () => {
     ["invalid_niche", /Ngách không hợp lệ/],
     ["invalid_payload", /Dữ liệu gửi lên không hợp lệ/],
     ["idempotency_conflict", /Phiên đã được tạo trước đó/],
+    ["non_tiktok_url", /link TikTok/i],
   ])("translates the AnswerScreen error code %s to Vietnamese", (code, re) => {
     expect(analysisErrorCopy(code)).toMatch(re);
   });

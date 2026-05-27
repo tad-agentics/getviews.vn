@@ -26,7 +26,10 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
-import { extractTikTokVideoIdFromText } from "@/lib/tiktokUrl";
+import {
+  extractTikTokVideoIdFromText,
+  nonTikTokUrlValidationMessage,
+} from "@/lib/tiktokUrl";
 import { Plus, Check, ArrowLeft } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { ScriptShootPanel } from "@/components/v2/answer/script/ScriptShootPanel";
@@ -80,6 +83,7 @@ const ANSWER_ERROR_CODES = new Set([
   "invalid_niche",
   "invalid_payload",
   "idempotency_conflict",
+  "non_tiktok_url",
 ]);
 
 function codeFromRawErrorMessage(message: string): string | null {
@@ -426,6 +430,12 @@ export default function AnswerScreen() {
       setError(null);
       try {
         const entry = planAnswerEntry(seedQ, false);
+        if (entry.kind === "blocked") {
+          bootstrapInFlightRef.current = null;
+          setFollowUp(submittedQ);
+          setError("non_tiktok_url");
+          return;
+        }
         if (entry.kind === "redirect") {
           bootstrapInFlightRef.current = null;
           navigate(entry.to, { replace: true });
@@ -719,6 +729,11 @@ export default function AnswerScreen() {
   const submitComposer = useCallback(() => {
     const q = followUp.trim();
     if (!q || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
+    const urlBlock = nonTikTokUrlValidationMessage(q);
+    if (urlBlock) {
+      setError("non_tiktok_url");
+      return;
+    }
     if (!sessionId) {
       setSearchParams(
         (prev) => {

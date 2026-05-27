@@ -90,6 +90,9 @@ export function analysisErrorCopy(error: unknown): string {
   if (code === "invalid_payload") {
     return "Dữ liệu gửi lên không hợp lệ. Tải lại trang rồi thử lại.";
   }
+  if (code === "non_tiktok_url") {
+    return "Link không hợp lệ — cần link TikTok (tiktok.com hoặc vm/vt.tiktok.com).";
+  }
   if (code === "idempotency_conflict") {
     return "Phiên đã được tạo trước đó — tải lại Lịch sử để mở.";
   }

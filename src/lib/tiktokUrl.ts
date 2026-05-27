@@ -9,3 +9,60 @@ export function extractTikTokVideoIdFromText(text: string): string | null {
   const bare = raw.match(/\b(\d{17,22})\b/);
   return bare?.[1] ?? null;
 }
+
+/** Mirror ``intent-router.ts`` / ``url_patterns.py`` — TikTok-only HTTP(S) links. */
+const TIKTOK_HTTP_URL_RE =
+  /https?:\/\/(?:(?:www\.)?tiktok\.com|(?:vm|vt|m)\.tiktok\.com)\/\S+/gi;
+
+const HTTP_URL_RE = /https?:\/\/\S+/gi;
+
+/** Hosts that must never enter the video analysis pipeline (with or without ``https://``). */
+const NON_TIKTOK_VIDEO_HOST_RE =
+  /\b(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be|instagram\.com|facebook\.com|fb\.watch)\b/i;
+
+/** TikTok host in paste text — includes bare ``tiktok.com/...`` without a scheme. */
+const TIKTOK_HOST_IN_TEXT_RE =
+  /\b(?:https?:\/\/)?(?:(?:www\.)?(?:tiktok\.com)|(?:vm|vt|m)\.tiktok\.com)\b/i;
+
+/** User-facing copy (EDS + copy-rules). */
+export const NON_TIKTOK_URL_MESSAGE =
+  "Link không hợp lệ — cần link TikTok (tiktok.com hoặc vm/vt.tiktok.com).";
+
+export function extractHttpUrlsFromText(text: string): string[] {
+  return text.match(HTTP_URL_RE) ?? [];
+}
+
+export function isTikTokHttpUrl(url: string): boolean {
+  return /https?:\/\/(?:(?:www\.)?tiktok\.com|(?:vm|vt|m)\.tiktok\.com)\//i.test(
+    url.trim(),
+  );
+}
+
+/** Returns Vietnamese error when any URL-like token is not TikTok; otherwise ``null``. */
+export function nonTikTokUrlValidationMessage(text: string): string | null {
+  if (NON_TIKTOK_VIDEO_HOST_RE.test(text)) {
+    return NON_TIKTOK_URL_MESSAGE;
+  }
+  const urls = extractHttpUrlsFromText(text);
+  if (urls.length === 0) return null;
+  if (urls.every(isTikTokHttpUrl)) return null;
+  return NON_TIKTOK_URL_MESSAGE;
+}
+
+export function hasTikTokUrlInText(text: string): boolean {
+  TIKTOK_HTTP_URL_RE.lastIndex = 0;
+  if (TIKTOK_HTTP_URL_RE.test(text)) return true;
+  return TIKTOK_HOST_IN_TEXT_RE.test(text);
+}
+
+export type QueryUrlChipState =
+  | { kind: "none" }
+  | { kind: "tiktok" }
+  | { kind: "invalid"; message: string };
+
+export function queryUrlChipState(text: string): QueryUrlChipState {
+  const invalid = nonTikTokUrlValidationMessage(text);
+  if (invalid) return { kind: "invalid", message: invalid };
+  if (hasTikTokUrlInText(text)) return { kind: "tiktok" };
+  return { kind: "none" };
+}

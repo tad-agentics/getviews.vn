@@ -23,6 +23,7 @@ import {
   studioComposerPlaceholder,
   type StudioComposerPill,
 } from "@/lib/studioComposer";
+import { queryUrlChipState } from "@/lib/tiktokUrl";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
 import { HomeSuggestionsToday } from "./components/HomeSuggestionsToday";
@@ -40,10 +41,6 @@ import { useHomeGreetingFit } from "./useHomeGreetingFit";
  *
  * Order: ticker → greeting → composer (4 pills + depth) → GỢI Ý HÔM NAY.
  */
-
-/** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */
-const URL_IN_TEXT =
-  /(?:https?:\/\/)?(?:www\.)?(?:vm\.|vt\.)?(?:tiktok\.com|youtube\.com|youtu\.be)\b/i;
 
 export default function HomeScreen() {
   const navigate = useNavigate();
@@ -161,9 +158,6 @@ export default function HomeScreen() {
     [topPatterns],
   );
 
-  // Corpus count for the composer chip — from junction aggregate via ``useNicheRowsForIds``.
-  // Hidden when 0 (empty niche / first-day account) so we don't claim
-  // a corpus that doesn't exist.
   const currentNicheCount = useMemo(() => {
     if (!selectedNicheId) return undefined;
     const found = followedNiches.find((n) => n.id === selectedNicheId);
@@ -201,7 +195,14 @@ export default function HomeScreen() {
       studio_pill: studioPill,
     });
     const plan = planStudioComposerSubmit(studioPill, text, analysisDepth);
-    if (plan.kind === "blocked") return;
+    if (plan.kind === "blocked") {
+      if (plan.reason === "non_tiktok_url" && plan.message) {
+        setPlaceholderHint(plan.message);
+        logUsage("studio_composer_blocked", { reason: "non_tiktok_url" });
+        composerRef.current?.focus();
+      }
+      return;
+    }
     navigate(plan.to);
   };
 
@@ -228,6 +229,8 @@ export default function HomeScreen() {
   // PR-6 — Day-1 welcome strip. ``useIsFirstRun`` reads
   // ``profile.created_at`` (within 24h) + a per-user localStorage flag.
   const { isFirstRun, dismiss: dismissFirstRun } = useIsFirstRun(profile);
+
+  const composerUrlChip = queryUrlChipState(composerText);
 
   return (
     <AppLayout active="home" enableMobileSidebar>
@@ -317,7 +320,10 @@ export default function HomeScreen() {
               placeholder={studioComposerPlaceholder(studioPill, nicheLabel)}
               nicheLabel={nicheLabel}
               corpusCount={currentNicheCount}
-              showUrlChip={URL_IN_TEXT.test(composerText)}
+              showUrlChip={composerUrlChip.kind === "tiktok"}
+              urlInvalidMessage={
+                composerUrlChip.kind === "invalid" ? composerUrlChip.message : undefined
+              }
               analysisDepth={analysisDepth}
               onAnalysisDepthChange={setAnalysisDepth}
               studioPill={studioPill}

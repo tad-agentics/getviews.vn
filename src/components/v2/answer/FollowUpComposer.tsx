@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Sparkles } from "lucide-react";
 import { QueryComposer } from "@/components/v2/QueryComposer";
 import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
+import { queryUrlChipState } from "@/lib/tiktokUrl";
 
 const FOLLOW_UP_PILL =
   "inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-left text-[11px] font-medium leading-snug text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] disabled:pointer-events-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100";
@@ -56,6 +57,7 @@ export function FollowUpComposer({
   onAnalysisDepthChange?: (depth: AnswerHandoffDepth) => void;
 }) {
   const prompts = useMemo(() => mergeFollowUpPrompts(suggestedPrompts), [suggestedPrompts]);
+  const urlChip = queryUrlChipState(value);
   const kicker = variant === "initial" ? "Bắt đầu phân tích" : "Tiếp tục nghiên cứu";
   const resolvedPlaceholder =
     placeholder ??
@@ -74,6 +76,8 @@ export function FollowUpComposer({
         onSubmit={onSubmit}
         placeholder={resolvedPlaceholder}
         showNicheCaption={false}
+        showUrlChip={urlChip.kind === "tiktok"}
+        urlInvalidMessage={urlChip.kind === "invalid" ? urlChip.message : undefined}
         disabled={disabled}
         analysisDepth={analysisDepth}
         onAnalysisDepthChange={onAnalysisDepthChange}

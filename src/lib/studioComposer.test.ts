@@ -45,6 +45,19 @@ describe("planStudioComposerSubmit", () => {
     }
   });
 
+  it("blocks YouTube URL before navigation", () => {
+    const plan = planStudioComposerSubmit(
+      "video_flop",
+      "https://www.youtube.com/watch?v=abc",
+      "basic",
+    );
+    expect(plan).toEqual({
+      kind: "blocked",
+      reason: "non_tiktok_url",
+      message: expect.stringMatching(/link TikTok/i),
+    });
+  });
+
   it("passes composer depth when channel intent detected on non-channel pill", () => {
     const plan = planStudioComposerSubmit(
       "video_flop",

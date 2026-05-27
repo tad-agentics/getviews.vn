@@ -5,6 +5,7 @@ import {
   parseChannelExploreHandle,
 } from "./channelHandle";
 import { buildChannelStudioPath } from "./channelStudioHandoff";
+import { nonTikTokUrlValidationMessage } from "@/lib/tiktokUrl";
 import { planAnswerEntry } from "@/routes/_app/intent-router";
 
 export type StudioComposerPill = "video_flop" | "video_win" | "channel" | "script";
@@ -34,7 +35,7 @@ export function studioComposerPlaceholder(pill: StudioComposerPill, nicheLabel: 
 
 export type StudioComposerSubmitPlan =
   | { kind: "navigate"; to: string }
-  | { kind: "blocked"; reason: "empty" };
+  | { kind: "blocked"; reason: "empty" | "non_tiktok_url"; message?: string };
 
 function videoModeForPill(
   pill: StudioComposerPill,
@@ -54,6 +55,11 @@ export function planStudioComposerSubmit(
   const trimmed = text.trim();
   if (!trimmed) return { kind: "blocked", reason: "empty" };
 
+  const urlBlock = nonTikTokUrlValidationMessage(trimmed);
+  if (urlBlock) {
+    return { kind: "blocked", reason: "non_tiktok_url", message: urlBlock };
+  }
+
   if (pill === "channel") {
     const fromMsg = extractChannelHandleFromMessage(trimmed);
     const parsed = parseChannelExploreHandle(trimmed);
@@ -68,6 +74,9 @@ export function planStudioComposerSubmit(
   }
 
   const entry = planAnswerEntry(trimmed, false, depth);
+  if (entry.kind === "blocked") {
+    return { kind: "blocked", reason: "non_tiktok_url", message: entry.message };
+  }
   if (entry.kind === "redirect") {
     return { kind: "navigate", to: entry.to };
   }

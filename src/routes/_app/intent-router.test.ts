@@ -559,6 +559,15 @@ describe("detectIntent — compare_videos (≥ 2 TikTok URLs)", () => {
     expect(resolveDestination({ id: "compare_videos" })).toBe("compare");
   });
 
+  it("planAnswerEntry blocks YouTube URL (no generic hallucination path)", () => {
+    const result = planAnswerEntry("https://www.youtube.com/watch?v=abc", false);
+    expect(result).toEqual({
+      kind: "blocked",
+      reason: "non_tiktok_url",
+      message: expect.stringMatching(/link TikTok/i),
+    });
+  });
+
   it("planAnswerEntry opens a compare answer-session for two URLs", () => {
     const result = planAnswerEntry(`${URL_A} ${URL_B}`, false);
     expect(result.kind).toBe("session");

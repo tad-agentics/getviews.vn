@@ -1,5 +1,6 @@
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
+import { nonTikTokUrlValidationMessage } from "@/lib/tiktokUrl";
 
 /** Wave 1 — §3.1 URL handoff contract (`?q=&depth=&mode=&from=`). */
 export { parseAnswerHandoffParams } from "@/lib/answerHandoff";
@@ -370,7 +371,8 @@ export type AnswerSessionFormat =
  */
 export type AnswerEntryPlan =
   | { kind: "redirect"; to: string }
-  | { kind: "session"; format: AnswerSessionFormat; intent_type: string };
+  | { kind: "session"; format: AnswerSessionFormat; intent_type: string }
+  | { kind: "blocked"; reason: "non_tiktok_url"; message: string };
 
 export function planAnswerEntry(
   query: string,
@@ -380,6 +382,10 @@ export function planAnswerEntry(
   const trimmed = query.trim();
   if (!trimmed) {
     return { kind: "session", format: "generic", intent_type: "follow_up_unclassifiable" };
+  }
+  const urlBlock = nonTikTokUrlValidationMessage(trimmed);
+  if (urlBlock) {
+    return { kind: "blocked", reason: "non_tiktok_url", message: urlBlock };
   }
   const { intentType } = detectIntent(trimmed, priorAssistant);
 
