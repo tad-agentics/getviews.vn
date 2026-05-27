@@ -19,22 +19,44 @@ import {
   persistPostLoginNextFromSearch,
   postLoginPathFromSearch,
 } from "@/lib/postLoginRedirect";
+import { formatCorpusMarketingCount } from "@/lib/formatters";
+import type { Route } from "./+types/route";
 
-const COPY_BTN_FACEBOOK = "Đăng nhập với Facebook";
-const COPY_BTN_GOOGLE = "Đăng nhập với Google";
+const COPY_BTN_FACEBOOK = "Tiếp tục với Facebook";
+const COPY_BTN_GOOGLE = "Tiếp tục với Google";
 const COPY_LOADING_FACEBOOK = "Đang kết nối Facebook...";
 const COPY_LOADING_GOOGLE = "Đang kết nối Google...";
 const COPY_ERROR_OAUTH = "Đăng nhập không thành công — thử lại.";
 const COPY_ERROR_FACEBOOK_BLOCKED =
   "Thử đăng nhập bằng Google hoặc mở trong Safari/Chrome.";
 
-export const meta: MetaFunction = () => [
-  { title: "Đăng nhập — GetViews" },
-  {
-    name: "description",
-    content: "Data thực từ 1.500+ video TikTok Việt Nam — phân tích video của bạn trong 1 phút.",
-  },
-];
+export const meta: MetaFunction = ({ loaderData }) => {
+  const corpusLabel = formatCorpusMarketingCount(
+    (loaderData as { corpus_indexed_count: number | null } | undefined)?.corpus_indexed_count,
+  );
+  return [
+    { title: "Đăng nhập — GetViews" },
+    {
+      name: "description",
+      content: `Dữ liệu từ hơn ${corpusLabel} video TikTok Việt Nam — phân tích video của bạn trong 1 phút.`,
+    },
+  ];
+};
+
+export type LoginLoaderData = {
+  corpus_indexed_count: number | null;
+};
+
+export async function loader(_: Route.LoaderArgs): Promise<LoginLoaderData> {
+  try {
+    const res = await fetch("/api/landing-stats");
+    if (!res.ok) throw new Error("stats unavailable");
+    const data = (await res.json()) as { corpus_indexed_count: number | null };
+    return { corpus_indexed_count: data.corpus_indexed_count ?? null };
+  } catch {
+    return { corpus_indexed_count: null };
+  }
+}
 
 function FacebookIcon() {
   return (
@@ -125,7 +147,8 @@ const fullWidthAction =
   "transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100 " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)]";
 
-export default function LoginRoute() {
+export default function LoginRoute({ loaderData }: Route.ComponentProps) {
+  const corpusLabel = formatCorpusMarketingCount(loaderData.corpus_indexed_count);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const callbackErrorHandled = useRef(false);
@@ -231,7 +254,7 @@ export default function LoginRoute() {
         >
           <div className="h-1 w-full bg-[color:var(--gv-accent)]" role="presentation" aria-hidden />
           <div className="border-b border-[color:var(--gv-rule-2)] bg-[color:var(--gv-canvas-2)] px-4 py-2.5 text-center sm:px-5">
-            <span className="gv-kicker gv-kicker--dot">Tài khoản GetViews</span>
+            <span className="gv-kicker gv-kicker--dot">Đăng nhập GetViews</span>
           </div>
           <div className="relative -mt-0.5 mb-1 flex h-[160px] -translate-y-2 select-none items-end justify-center bg-[color:var(--gv-canvas-2)]/50">
             {HERO_THUMBS.map((t) => (
@@ -250,14 +273,13 @@ export default function LoginRoute() {
 
           <div className="px-6 pb-5 pt-2 text-center">
             <h1 className="mb-2 text-center text-2xl font-extrabold leading-tight tracking-[-0.02em] text-[color:var(--gv-ink)] sm:text-[1.65rem]">
-              <span className="block">Bắt trend TikTok trước</span>
+              <span className="block">Phân tích video TikTok</span>
               <span className="mt-0.5 block">
-                khi nó <span className="text-[color:var(--gv-accent)]">nổi</span>
+                trước khi <span className="text-[color:var(--gv-accent)]">đăng</span>
               </span>
             </h1>
             <p className="text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
-              Data thực từ <strong className="text-[color:var(--gv-ink)]">1.500+</strong> video TikTok Việt Nam — phân tích trong{" "}
-              <strong className="text-[color:var(--gv-ink)]">1 phút</strong>.
+              Dữ liệu từ <strong className="text-[color:var(--gv-ink)]">{corpusLabel}</strong> video TikTok Việt Nam — xem nội dung nào đang hiệu quả, hook nào dễ hút view, và video của bạn nên sửa gì tiếp theo.
             </p>
           </div>
 
@@ -323,7 +345,7 @@ export default function LoginRoute() {
               )}
             >
               <Mail className="h-4 w-4" strokeWidth={1.8} aria-hidden />
-              {showEmailForm ? "Ẩn form đăng nhập" : "Đăng nhập bằng Email"}
+              {showEmailForm ? "Ẩn form" : "Tiếp tục bằng Email"}
             </button>
 
             <AnimatePresence initial={false}>
@@ -444,12 +466,12 @@ export default function LoginRoute() {
           transition={{ delay: 0.3, duration: 0.4 }}
           className="text-center text-xs text-[color:var(--gv-ink-4)]"
         >
-          Đang theo dõi <strong className="text-[color:var(--gv-ink-3)]">1.500+</strong> video TikTok Việt Nam
+          Đang theo dõi <strong className="text-[color:var(--gv-ink-3)]">{corpusLabel}</strong> video TikTok Việt Nam
         </motion.p>
 
         <div className="w-full max-w-[400px] rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]/80 px-4 py-3 text-center backdrop-blur-sm">
           <p className="text-[11px] leading-relaxed text-[color:var(--gv-ink-3)]">
-            Bằng cách đăng nhập, bạn đồng ý với{" "}
+            Khi đăng nhập, bạn đồng ý với{" "}
             <Link to="#" className="text-[color:var(--gv-accent)] hover:underline">
               Điều khoản dịch vụ
             </Link>{" "}

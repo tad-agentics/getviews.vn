@@ -2,18 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import Login from "./route";
+import type { Route } from "./+types/route";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 type OAuthResult = Awaited<ReturnType<typeof supabase.auth.signInWithOAuth>>;
 
 function facebookButton() {
-  const list = screen.getAllByRole("button", { name: /Đăng nhập với Facebook/ });
+  const list = screen.getAllByRole("button", { name: /Tiếp tục với Facebook/ });
   return list.at(-1)!;
 }
 
 function googleButton() {
-  const list = screen.getAllByRole("button", { name: /Đăng nhập với Google/ });
+  const list = screen.getAllByRole("button", { name: /Tiếp tục với Google/ });
   return list.at(-1)!;
 }
 
@@ -28,6 +29,17 @@ vi.mock("@/lib/supabase", () => ({
 vi.mock("@/lib/auth", () => ({
   useAuth: vi.fn(),
 }));
+
+const loginLoaderData = { corpus_indexed_count: null as number | null };
+
+function renderLogin() {
+  const props = { loaderData: loginLoaderData } as Route.ComponentProps;
+  return render(
+    <MemoryRouter>
+      <Login {...props} />
+    </MemoryRouter>,
+  );
+}
 
 describe("LoginScreen", () => {
   beforeEach(async () => {
@@ -46,13 +58,21 @@ describe("LoginScreen", () => {
   });
 
   it("renders Facebook and Google buttons", () => {
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>,
-    );
+    renderLogin();
     expect(facebookButton()).toBeTruthy();
     expect(googleButton()).toBeTruthy();
+  });
+
+  it("shows corpus count from loader (floored marketing tier)", () => {
+    const props = {
+      loaderData: { corpus_indexed_count: 12_847 },
+    } as Route.ComponentProps;
+    render(
+      <MemoryRouter>
+        <Login {...props} />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByText("12.000+").length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows loading state on Facebook button click", async () => {
@@ -70,11 +90,7 @@ describe("LoginScreen", () => {
           );
         }),
     );
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>,
-    );
+    renderLogin();
     fireEvent.click(facebookButton());
     await waitFor(() => {
       expect(screen.getByText(/Đang kết nối Facebook/)).toBeTruthy();
@@ -83,11 +99,7 @@ describe("LoginScreen", () => {
 
   it("calls signInWithOAuth with Google when Google button clicked", async () => {
     const { supabase } = await import("@/lib/supabase");
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>,
-    );
+    renderLogin();
     fireEvent.click(googleButton());
     await waitFor(() => {
       expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith(
@@ -97,11 +109,7 @@ describe("LoginScreen", () => {
   });
 
   it("disables both buttons when one is loading", async () => {
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>,
-    );
+    renderLogin();
     fireEvent.click(facebookButton());
     await waitFor(() => {
       const buttons = screen.getAllByRole("button");
@@ -121,11 +129,7 @@ describe("LoginScreen", () => {
         code: "oauth_error",
       } as unknown as import("@supabase/supabase-js").AuthError,
     } as OAuthResult);
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>,
-    );
+    renderLogin();
     fireEvent.click(facebookButton());
     await waitFor(() => {
       expect(screen.getByText(/Đăng nhập không thành công/)).toBeTruthy();
