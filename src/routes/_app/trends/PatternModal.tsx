@@ -369,7 +369,7 @@ function Takeaway({
   const hasDeck = Boolean(why || careful);
   return (
     <div
-      className="rounded-md border-l-[3px] border-[color:var(--gv-accent)] bg-[color:var(--gv-paper)] px-4 py-3.5"
+      className="rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5"
     >
       <p className="gv-mono mb-1.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-accent-deep)]">
         Ý CHÍNH
