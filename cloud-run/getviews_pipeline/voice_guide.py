@@ -51,35 +51,41 @@ QUY TẮC TIẾNG VIỆT TỰ NHIÊN — BẮT BUỘC:
    ❌ "phù hợp audience niche này" (cụt giới từ)
 
 9. Dùng tiếng Việt nhiều nhất có thể. Chỉ giữ tiếng Anh cho từ khoá chuyên ngành mà creator Việt Nam dùng hàng ngày và KHÔNG có từ Việt tự nhiên thay thế:
-   GIỮ TIẾNG ANH (từ khoá ngành): hook, frame, content, view, save, format, trend, CTA, creator, viral, share, comment, like, follower, KOL, KOC, brief, haul, unbox, GRWM, POV, B-roll, flop, FYP, livestream, filter, hashtag, watch time
-   DÙNG TIẾNG VIỆT (có từ Việt tự nhiên):
-     - "niche" → "ngách"
-     - "formula" → "công thức"
-     - "benchmark" → "mức chuẩn"
-     - "pattern interrupt" → "ngắt nhịp"
-     - "pacing" → "nhịp cắt"
-     - "transitions per second" → "số lần chuyển cảnh mỗi giây"
-     - "text overlay" → "chữ trên màn hình" (hoặc giữ "text overlay" — creator hay dùng cả hai)
-     - "negative framing" → "kiểu phủ định"
-     - "positive framing" → "kiểu tích cực"
-     - "mass appeal" → "hút đại chúng"
-     - "absurdity" → "sự phi lý"
-     - "trust" → "độ tin cậy"
-     - "energy level" → "năng lượng"
-     - "scroll-stop" → "dừng lướt"
-     - "completion rate" → "tỷ lệ xem hết"
-     - "engagement rate" → "tỷ lệ tương tác"
-     - "save rate" → "tỷ lệ lưu"
-     - "breakout" → "vượt trội" (KHÔNG dùng "bùng nổ" — nằm trong TỪ CẤM)
-     - "sample size" → "số lượng mẫu"
-     - "median" → "trung vị"
-     - "norm" → "mức chuẩn" hoặc "mức trung bình"
-     - "threshold" → "ngưỡng"
-     - "signal" → "tín hiệu"
-     - "insight" → "nhận định"
-     - "strategy" → "chiến lược"
-     - "audience" → "khán giả" hoặc "người xem"
-   Quy tắc: nếu phân vân giữa tiếng Anh và tiếng Việt → dùng tiếng Việt.
+    GIỮ TIẾNG ANH (từ khoá ngành): hook, frame, content, view, save, format, trend, CTA, creator, viral, share, comment, like, follower, KOL, KOC, brief, unbox, GRWM, POV, B-roll, flop, FYP, livestream, filter, hashtag, watch time
+    DÙNG TIẾNG VIỆT (có từ Việt tự nhiên):
+      - "niche" → "ngách"
+      - "formula" → "công thức"
+      - "benchmark" → "mức chuẩn"
+      - "pattern interrupt" → "ngắt nhịp"
+      - "pacing" → "nhịp cắt"
+      - "transitions per second" → "số lần chuyển cảnh mỗi giây"
+      - "text overlay" → "chữ trên màn hình" (hoặc giữ "text overlay" — creator hay dùng cả hai)
+      - "negative framing" → "kiểu phủ định"
+      - "positive framing" → "kiểu tích cực"
+      - "mass appeal" → "hút đại chúng"
+      - "absurdity" → "sự phi lý"
+      - "trust" → "độ tin cậy"
+      - "energy level" → "năng lượng"
+      - "scroll-stop" → "dừng lướt"
+      - "completion rate" → "tỷ lệ xem hết"
+      - "engagement rate" → "tỷ lệ tương tác"
+      - "save rate" → "tỷ lệ lưu"
+      - "breakout" → "vượt trội" (KHÔNG dùng "bùng nổ" — nằm trong TỪ CẤM)
+      - "sample size" → "số lượng mẫu"
+      - "median" → "trung vị"
+      - "norm" → "mức chuẩn" hoặc "mức trung bình"
+      - "threshold" → "ngưỡng"
+      - "signal" → "tín hiệu"
+      - "insight" → "nhận định"
+      - "strategy" → "chiến lược"
+      - "audience" → "khán giả" hoặc "người xem"
+      - "corpus" → "kho dữ liệu", "kho video mẫu"
+      - "dead air" → "khoảng lặng hình ảnh", "khoảng visual trống"
+      - "heatmap" → "biểu đồ nhiệt", "bảng nhiệt giờ đăng"
+      - "archetype" → "hình mẫu", "nhóm nội dung", "công thức"
+      - "jump-cut" / "jump cut" → "cắt cảnh nhanh"
+      - "haul" / "empties haul" → "review mua sắm (haul)" / "review đồ dùng hết (empties haul)"
+    Quy tắc: nếu phân vân giữa tiếng Anh và tiếng Việt → dùng tiếng Việt. Do đó, tuyệt đối KHÔNG sử dụng các từ "corpus", "dead air", "heatmap", "archetype", "jump-cut" trơ trọi, hãy dùng từ tiếng Việt thuần hoặc kèm giải nghĩa tiếng Việt như trên.
 
 10. KHÔNG dịch cứng từ tiếng Anh sang tiếng Việt mà giữ nguyên cấu trúc câu Anh. Viết lại theo cấu trúc câu Việt:
     ❌ "Video đạt được lượng views gấp 3,2 lần so với mức trung bình" (cấu trúc câu Anh dịch sang Việt)

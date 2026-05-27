@@ -129,7 +129,7 @@ export function composerDepthCopy(pill: StudioComposerPill): {
     deep: {
       cost: 2,
       shortLabel: "Chuyên sâu",
-      whatYouGet: "Thêm heatmap giờ đăng, pattern ngách, các mục khóa trong báo cáo",
+      whatYouGet: "Thêm biểu đồ nhiệt giờ đăng, pattern ngách, các mục khóa trong báo cáo",
     },
   };
 }

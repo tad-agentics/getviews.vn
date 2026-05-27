@@ -26,7 +26,7 @@ describe("composerDepthTooltip", () => {
   it("includes cost, deliverable, and run estimate for video deep", () => {
     const tip = composerDepthTooltip("video_flop", "deep", 6);
     expect(tip).toMatch(/Chuyên sâu — 2 credit/);
-    expect(tip).toMatch(/heatmap giờ đăng/i);
+    expect(tip).toMatch(/biểu đồ nhiệt giờ đăng/i);
     expect(tip).toMatch(/khoảng 3 lần/);
   });
 

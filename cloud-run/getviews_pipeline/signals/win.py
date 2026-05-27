@@ -140,7 +140,7 @@ def extract_win_hook_aligns_niche_top_signal(ctx: dict) -> list[Signal]:
                     location="user_analysis.hook_analysis+niche_meta.hook_distribution",
                 )
             ],
-            suggested_fix="Giữ công thức hook; thử biến thể cùng family (không đổi archetype).",
+            suggested_fix="Giữ nguyên công thức hook; thử nghiệm các biến thể khác cùng nhóm thay vì thay đổi hoàn toàn hình mẫu nội dung.",
         )
     ]
 

@@ -345,7 +345,7 @@ def extract_hook_pacing_cut_frequency_signal(ctx: dict) -> list[Signal]:
                 )
             ],
             suggested_fix=(
-                "Thêm 1–2 jump-cut hoặc zoom trong 0–3s đầu để khớp nhịp cắt ngách."
+                "Thêm 1–2 cú cắt cảnh nhanh (jump-cut) hoặc zoom cận trong 3 giây đầu để nhịp độ khớp với ngách."
             ),
         )
     ]

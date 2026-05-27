@@ -70,6 +70,12 @@ FORBIDDEN_PROMPT_EXTRAS: tuple[str, ...] = (
     "chấn động",
     "viral chóng mặt",
     "nội dung chất lượng",
+    "empties haul",
+    "jump-cut",
+    "archetype",
+    "corpus",
+    "dead air",
+    "heatmap",
 )
 
 

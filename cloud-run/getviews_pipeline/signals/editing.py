@@ -165,7 +165,7 @@ def extract_editing_cut_pace_outlier_signal(ctx: dict) -> list[Signal]:
             f"Tốc độ cắt {tps:.2f}/s dưới p25 ngách ({p25:.2f}/s) — "
             "video chậm hơn cohort cùng format."
         )
-        fix = "Tăng nhịp jump-cut hoặc B-roll xen kẽ để khớp band p25–p75 ngách."
+        fix = "Tăng nhịp cắt cảnh nhanh (jump-cut) hoặc chèn B-roll xen kẽ để khớp với nhịp độ của ngách."
     else:
         claim = (
             f"Tốc độ cắt {tps:.2f}/s trên p75 ngách ({p75:.2f}/s) — "
