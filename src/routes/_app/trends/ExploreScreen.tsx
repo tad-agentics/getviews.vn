@@ -45,6 +45,7 @@ import {
 } from "@/lib/profileNiches";
 import { TrendsNichePills } from "./TrendsNichePills";
 import { logUsage } from "@/lib/logUsage";
+import { CONTENT_FORMAT_FILTER_OPTIONS } from "@/lib/contentFormatLabels";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
@@ -449,15 +450,7 @@ const VIEW_FILTER_OPTIONS: { label: string; value: number }[] = [
   { label: "1M+",   value: 1_000_000 },
 ];
 
-const TYPE_FORMAT_OPTIONS: { label: string; value: string }[] = [
-  { label: "Tutorial",  value: "tutorial" },
-  { label: "Review",    value: "review" },
-  { label: "Haul",      value: "haul" },
-  { label: "GRWM",      value: "grwm" },
-  { label: "Vlog",      value: "vlog" },
-  { label: "Trước/Sau", value: "before_after" },
-  { label: "POV",       value: "pov" },
-];
+const TYPE_FORMAT_OPTIONS = CONTENT_FORMAT_FILTER_OPTIONS;
 
 export default function ExploreScreen() {
   const navigate = useNavigate();

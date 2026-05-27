@@ -83,7 +83,7 @@ describe("TrendsRail", () => {
     expect(screen.getByText(/Top 5 video bứt phá đăng trong 14 ngày/)).toBeTruthy();
     expect(screen.getByText("Breakout one")).toBeTruthy();
     expect(screen.getByText("2.4×")).toBeTruthy();
-    expect(screen.getByText("Talking head")).toBeTruthy();
+    expect(screen.getByText("Nói thẳng camera")).toBeTruthy();
   });
 
   it("shows fallback disclaimer when pool used unfiltered fill", () => {

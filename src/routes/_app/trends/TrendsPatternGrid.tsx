@@ -39,7 +39,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
             Công thức từ video thịnh hành trong ngách
           </h2>
         </div>
-        <p className="gv-mono max-w-[200px] text-right text-[11px] leading-snug tracking-[0.06em] text-[color:var(--gv-ink-3)]">
+        <p className="gv-mono shrink-0 whitespace-nowrap text-right text-[11px] leading-snug tracking-[0.06em] text-[color:var(--gv-ink-3)]">
           Bấm vào thẻ để xem kịch bản chi tiết.
         </p>
       </div>

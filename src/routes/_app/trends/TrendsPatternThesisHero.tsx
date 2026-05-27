@@ -58,7 +58,11 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
         className="gv-tight m-0 text-[clamp(26px,3.6vw,40px)] font-semibold leading-[1.1] tracking-[-0.025em] text-[color:var(--gv-canvas)]"
         style={{ textWrap: "pretty" }}
       >
-        <Headline strongCount={strongCount} earlyCount={earlyCount} />
+        <Headline
+          strongCount={strongCount}
+          earlyCount={earlyCount}
+          nicheLabel={nicheLabel}
+        />
       </h1>
 
       {top ? (
@@ -82,9 +86,11 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
 function Headline({
   strongCount,
   earlyCount,
+  nicheLabel,
 }: {
   strongCount: number;
   earlyCount: number;
+  nicheLabel: string;
 }) {
   if (strongCount > 0) {
     const both = earlyCount > 0 ? ` (+${earlyCount} dấu hiệu sớm)` : "";
@@ -93,7 +99,7 @@ function Headline({
         <span className="text-[color:var(--gv-accent)]">
           {strongCount} công thức
         </span>{" "}
-        đang ăn tốt hơn ngách tuần này{both}.
+        đang bứt phá trong ngách {nicheLabel} tuần này{both}.
       </>
     );
   }
@@ -101,13 +107,13 @@ function Headline({
     return (
       <>
         <span className="text-[color:var(--gv-accent)]">{earlyCount} dấu hiệu sớm</span>{" "}
-        — đáng theo dõi.
+        đang bứt phá trong ngách {nicheLabel} tuần này — đáng theo dõi.
       </>
     );
   }
   return (
     <>
-      Tuần này chưa thấy công thức nổi bật trong ngách.
+      Tuần này chưa thấy công thức nổi bật trong ngách {nicheLabel}.
     </>
   );
 }

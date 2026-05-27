@@ -2,7 +2,7 @@
  * Trends — TrendsPatternThesisHero render-test.
  *
  * L2.2 Sprint 7c reshape — hero now leads with creator-friendly
- * Vietnamese copy ("X công thức đang ăn tốt hơn ngách tuần này"),
+ * Vietnamese copy ("X công thức đang bứt phá trong ngách … tuần này"),
  * not analyst-coded weekly_instance_count metrics. Reuses
  * useTopPatterns to mirror what the §I grid actually shows.
  */
@@ -84,7 +84,7 @@ describe("TrendsPatternThesisHero", () => {
     );
     const h1 = getByRole("heading", { level: 1 });
     expect(h1.textContent).toContain("2 công thức");
-    expect(h1.textContent).toContain("đang ăn tốt hơn ngách tuần này");
+    expect(h1.textContent).toContain("đang bứt phá trong ngách Skincare tuần này");
     expect(h1.textContent).toContain("(+1 dấu hiệu sớm)");
   });
 
@@ -105,6 +105,7 @@ describe("TrendsPatternThesisHero", () => {
     );
     const h1 = getByRole("heading", { level: 1 });
     expect(h1.textContent).toContain("1 dấu hiệu sớm");
+    expect(h1.textContent).toContain("đang bứt phá trong ngách Skincare tuần này");
     expect(h1.textContent).toContain("đáng theo dõi");
   });
 
@@ -120,7 +121,7 @@ describe("TrendsPatternThesisHero", () => {
       />,
     );
     const h1 = getByRole("heading", { level: 1 });
-    expect(h1.textContent).toContain("Tuần này chưa thấy công thức nổi bật");
+    expect(h1.textContent).toContain("Tuần này chưa thấy công thức nổi bật trong ngách Tài chính");
     // Body text invites patience, doesn't blame the user.
     expect(getByText(/Đang theo dõi/)).toBeTruthy();
   });

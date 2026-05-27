@@ -51,7 +51,7 @@ const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)]";
 
 const DEPTH_PILL_BASE =
-  "inline-flex min-h-[36px] shrink-0 items-center rounded-full border px-3 text-xs font-medium leading-tight transition-colors " +
+  "inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full border px-2.5 text-xs font-medium leading-tight transition-colors sm:min-h-[36px] sm:flex-none sm:px-3 " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)] " +
   "disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)]";
 
@@ -178,11 +178,11 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
           </p>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--gv-rule)] px-3 py-2">
+      <div className="flex flex-col gap-2 border-t border-[var(--gv-rule)] px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         {followUpSlot ? (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{followUpSlot}</div>
+          <div className="flex min-w-0 w-full flex-wrap items-center gap-2 sm:flex-1">{followUpSlot}</div>
         ) : (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <div className="flex min-w-0 w-full flex-wrap items-center gap-1.5 sm:flex-1">
             {showStudioPills ? (
               <div
                 className="flex min-w-0 flex-wrap gap-1"
@@ -217,10 +217,10 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
             ) : null}
           </div>
         )}
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex w-full min-w-0 items-center gap-1.5 sm:w-auto sm:shrink-0">
           {depthVisible ? (
             <div
-              className="flex shrink-0 items-center gap-1.5"
+              className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-none"
               role="group"
               aria-label="Mức phân tích"
             >
