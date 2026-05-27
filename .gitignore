@@ -82,6 +82,9 @@ rad-rr7-template/.sync-target
 # RAD — MCP config contains credentials
 .cursor/mcp.json
 
+# context-mode local FTS storage (created by `context-mode doctor` / MCP)
+.github/context-mode/
+
 # env
 .env
 .env.local

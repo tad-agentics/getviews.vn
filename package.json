@@ -6,7 +6,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react-swc": "^4.3.0",
-    "context-mode": "^1.0.75",
+    "context-mode": "^1.0.151",
     "jsdom": "^29.0.2",
     "knip": "^6.6.0",
     "tailwindcss": "^4.2.2",
