@@ -204,7 +204,6 @@ def extract_engagement_bait_hashtag_signal(ctx: dict) -> list[Signal]:
     ]
     if not bait:
         return []
-    phrase = str(bait[0].get("phrase") or "")
     return [
         Signal(
             id="compliance_engagement_bait_hashtag",
