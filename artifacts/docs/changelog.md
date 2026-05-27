@@ -1,5 +1,13 @@
 # Changelog — GetViews.vn
 
+## 2026-05-27 — Studio composer UI
+
+- **UI:** Drop `261+ VIDEO` corpus chip; move Cơ bản / Chuyên sâu beside Gửi as separate pills (accent selected, ink unselected).
+
+## 2026-05-27 — Non-TikTok URL gate
+
+- **Fix:** Block YouTube/non-TikTok URLs on Home, Answer bootstrap, and `planAnswerEntry` before generic Gemini path — `nonTikTokUrlValidationMessage()` in `tiktokUrl.ts` (HTTP + bare `youtube.com` / `youtu.be`; bare `tiktok.com` allowed). Invalid chip + `non_tiktok_url` error code; removed Home regex that treated YouTube as URL detected.
+
 ## 2026-05-27 — HI-11 in-niche-only route + HI-13 metrics + retire Pet cute class
 
 - **Data:** Backfill 48 cross-niche `video_corpus` rows (ingest 27/05 03:00–07:30 ICT) to in-niche HI-11 class assignment — migration `20260527140000_backfill_cross_niche_in_niche.sql`; tool `cloud-run/scripts/backfill_cross_niche_in_niche.py`. Spotlight `7643982250861759764`: class 23 → 63 (travel), `inferred_creator_niche_id` 11.
@@ -782,8 +790,4 @@
 | v5 prompt engineering | **Channel-first diagnosis voice**: `van_de_chinh` now opens with the creator's own channel data (top_videos / per_format_views) as sentence 1, then contrasts what this specific video does differently. `loi_chinh_narrative.narrative` sentence 2 now requires channel data comparison. Voice guide updated with CHANNEL-FIRST mandatory principle + audit-form anti-patterns + channel-first few-shot examples. | 2026-05-14 | a3255b3 |
 | v5 prompt engineering | **Error titles and fix instructions sharpened**: title ≤10 words (was ≤5), em-dash allowed for contrast; fix must have 2 parts — specific action at timestamp + quoted concrete example. | 2026-05-13 | — |
 | Playwright acceptance | **Phase 4.5 v5 acceptance test added** (`tests/v5-acceptance.spec.ts`, 10 criteria, `v5-acceptance` project in `playwright.config.ts`). C2 updated for "Vấn đề cốt lõi" label; C5 updated for "Sửa:" vs legacy "Fix". | 2026-05-13 | 461ad56 |
-
-## 2026-05-27 — Non-TikTok URL gate
-
-- **Fix:** Block YouTube/non-TikTok URLs on Home, Answer bootstrap, and `planAnswerEntry` before generic Gemini path — `nonTikTokUrlValidationMessage()` in `tiktokUrl.ts` (HTTP + bare `youtube.com` / `youtu.be`; bare `tiktok.com` allowed). Invalid chip + `non_tiktok_url` error code; removed Home regex that treated YouTube as URL detected.
 
