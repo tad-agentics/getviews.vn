@@ -81,7 +81,7 @@ describe("PatternModal — open state", () => {
     const { getByText, getAllByText } = wrap(
       <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
     );
-    expect(getByText(/47 video · 142\.0K lượt xem trung bình/)).toBeTruthy();
+    expect(getByText(/47 video · 142\.0K view trung bình/)).toBeTruthy();
     expect(getByText("Sau ___ tháng dùng")).toBeTruthy();
     // Sample hook appears in the description AND inside the takeaway —
     // expect ≥ 1.

@@ -81,7 +81,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
       <header className="flex items-start justify-between gap-4 border-b border-[color:var(--gv-rule)] px-7 py-[18px]">
         <div className="min-w-0 flex-1">
           <p className="gv-mono mb-1.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
-            {pattern.instance_count} video · {avgViewsLabel} lượt xem trung bình
+            {pattern.instance_count} video · {avgViewsLabel} view trung bình
           </p>
           <DialogTitle className="gv-tight m-0 text-[24px] font-semibold leading-[1.05] tracking-[-0.02em] text-[color:var(--gv-ink)]">
             {pattern.display_name}
@@ -132,7 +132,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
               }
             }}
           >
-            Giải mã video này ➔ Tại sao lên xu hướng
+            Giải mã video này
             <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
           </Btn>
           {videos.length > 1 ? (
@@ -237,7 +237,7 @@ function PhoneTileMeta({ video }: { video: PatternVideo }) {
   const handle = phoneCaptionHandle(video);
   const parts = [
     handle,
-    video.views > 0 ? `${formatViews(video.views)} lượt xem` : null,
+    video.views > 0 ? `${formatViews(video.views)} view` : null,
   ].filter(Boolean);
   if (parts.length === 0) return null;
   return (
@@ -347,7 +347,7 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
           <Play className="h-4 w-4 text-[color:var(--gv-ink)]" fill="currentColor" />
         </span>
         <span className="gv-mono pointer-events-none absolute bottom-3 left-3 right-3 text-[11px] text-white opacity-90">
-          {formatViews(video.views)} lượt xem
+          {formatViews(video.views)} view
         </span>
       </div>
     </div>
