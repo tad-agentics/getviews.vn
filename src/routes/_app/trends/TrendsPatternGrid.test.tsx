@@ -42,7 +42,15 @@ const samplePattern = (id: string, overrides: Partial<TopPattern> = {}): TopPatt
   avg_views: 200_000,
   lift_vs_niche: 2.0,
   sample_hook: "Sample",
-  videos: [],
+  videos: [
+    {
+      video_id: "v1",
+      thumbnail_url: "https://example.com/thumb.webp",
+      creator_handle: "creator",
+      views: 100_000,
+      tiktok_url: "https://www.tiktok.com/@creator/video/v1",
+    },
+  ],
   tier: "strong",
   // Sprint 5 — only deck-synthesized patterns reach the FE.
   structure: ["Mở: hook (0-2s)", "Setup", "Body", "Payoff"],

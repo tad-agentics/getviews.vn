@@ -318,6 +318,8 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
       const deduped: TopPattern[] = [];
       const seenFormulas = new Set<string>();
       for (const p of enriched) {
+        // Card/modal need at least one corpus row with a displayable thumbnail.
+        if (p.videos.length === 0) continue;
         const key = (p.display_name?.trim() || p.id).toLowerCase();
         if (seenFormulas.has(key)) continue;
         seenFormulas.add(key);
