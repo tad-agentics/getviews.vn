@@ -55,7 +55,7 @@ export function buildDiagnosisPostingNarrative(
         const samp = w.sample;
         let chunk = `${day} ${hours}`.trim();
         if (Number.isFinite(lift)) {
-          chunk += ` (~${lift % 1 === 0 ? lift.toFixed(0) : lift.toFixed(1)}× trung vị ngách`;
+          chunk += ` (~${lift % 1 === 0 ? lift.toFixed(0) : lift.toFixed(1)}× mức view thường trong ngách`;
           if (typeof samp === "number") {
             chunk += `, ${samp} clip`;
           }

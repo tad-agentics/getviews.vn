@@ -6,6 +6,8 @@
  * Bullet blocks render as <ul>/<li>; prose blocks render as <p>.
  */
 
+import { humanizeStatsProse } from "@/lib/humanizeStatsProse";
+
 const BULLET_RE = /^[•\-*]\s+|^\d+[.)]\s+/;
 
 type Block =
@@ -74,8 +76,9 @@ export function SectionProseBlocks({
   paragraphClassName = "text-sm text-[color:var(--foreground)] leading-relaxed",
   listItemClassName,
 }: SectionProseBlocksProps) {
-  if (!text.trim()) return null;
-  const blocks = parseBlocks(text);
+  const normalized = humanizeStatsProse(text);
+  if (!normalized.trim()) return null;
+  const blocks = parseBlocks(normalized);
   const liClass =
     listItemClassName ??
     "flex items-start gap-2 text-sm leading-relaxed text-[color:var(--foreground)]";

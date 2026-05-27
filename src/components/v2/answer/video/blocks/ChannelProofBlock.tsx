@@ -11,6 +11,7 @@
  */
 
 import type { ChannelContext } from "@/lib/api-types";
+import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
 import { formatViews } from "@/lib/formatters";
 
 type PerFormatEntry = {
@@ -59,8 +60,8 @@ function FormatRangeCell({
       >
         {fmtRange(entry)}
       </p>
-      <p className="m-0 text-[12px] capitalize text-[color:var(--gv-ink-2)]">
-        {formatKey.replace(/_/g, " ")}
+      <p className="m-0 text-[12px] text-[color:var(--gv-ink-2)]">
+        {contentFormatLabelVi(formatKey) ?? formatKey}
         {isAnalyzed ? (
           <span className="ml-1.5 text-[color:var(--gv-ink-4)]">(video này)</span>
         ) : null}
@@ -114,11 +115,14 @@ export function ChannelProofBlock({
   const patternNote = (() => {
     if (!analyzedEntry) return null;
     if (isBestFormat) {
-      return `Video này dùng định dạng '${analyzedFormat}' — đây là định dạng hoạt động tốt nhất trên kênh.`;
+      const analyzedLabel = contentFormatLabelVi(analyzedFormat) ?? analyzedFormat;
+      return `Video này dùng định dạng «${analyzedLabel}» — đây là định dạng hoạt động tốt nhất trên kênh.`;
     }
     const ratio = bestEntry[1].avg_views / Math.max(analyzedEntry[1].avg_views, 1);
     const times = ratio >= 2 ? `${Math.round(ratio)}×` : "cao hơn đáng kể";
-    return `Mỗi lần bạn đăng định dạng '${analyzedFormat}' thì lượt xem thấp hơn '${bestEntry[0].replace(/_/g, " ")}' khoảng ${times}. Đây là quy luật nhất quán trong ${bestEntry[1].n} video gần nhất.`;
+    const analyzedLabel = contentFormatLabelVi(analyzedFormat) ?? analyzedFormat;
+    const bestLabel = contentFormatLabelVi(bestEntry[0]) ?? bestEntry[0];
+    return `Mỗi lần bạn đăng định dạng «${analyzedLabel}» thì lượt xem thấp hơn «${bestLabel}» khoảng ${times}. Đây là quy luật nhất quán trong ${bestEntry[1].n} video gần nhất.`;
   })();
 
   const handle = atHandle(creatorHandle);

@@ -76,6 +76,12 @@ FORBIDDEN_PROMPT_EXTRAS: tuple[str, ...] = (
     "corpus",
     "dead air",
     "heatmap",
+    "p75",
+    "p25",
+    "p50",
+    "p90",
+    "median",
+    "trung vị",
 )
 
 

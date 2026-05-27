@@ -26,6 +26,7 @@ import { KpiGrid } from "@/components/v2/KpiGrid";
 import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
+import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
@@ -521,8 +522,8 @@ export function VideoBody({
               </span>
               <PerformanceTierChip tier={performanceTier} />
               {meta.content_format ? (
-                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] capitalize tracking-[0.04em] text-[color:var(--gv-ink-3)]">
-                  {meta.content_format.replace(/_/g, " ")}
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-ink-3)]">
+                  {contentFormatLabelVi(meta.content_format)}
                 </span>
               ) : null}
             </div>
@@ -541,8 +542,8 @@ export function VideoBody({
               </span>
               <PerformanceTierChip tier={performanceTier} />
               {meta.content_format ? (
-                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] capitalize tracking-[0.04em] text-[color:var(--gv-ink-3)]">
-                  {meta.content_format.replace(/_/g, " ")}
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-ink-3)]">
+                  {contentFormatLabelVi(meta.content_format)}
                 </span>
               ) : null}
             </div>
@@ -556,8 +557,8 @@ export function VideoBody({
               </span>
               <PerformanceTierChip tier={performanceTier} />
               {meta.content_format ? (
-                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] capitalize tracking-[0.04em] text-[color:var(--gv-ink-3)]">
-                  {meta.content_format.replace(/_/g, " ")}
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-ink-3)]">
+                  {contentFormatLabelVi(meta.content_format)}
                 </span>
               ) : null}
             </div>

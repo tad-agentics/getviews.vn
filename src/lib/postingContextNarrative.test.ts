@@ -7,7 +7,7 @@ const basePayload = {
   variance_note: {
     kind: "strong",
     label: "Heatmap CÓ ý nghĩa",
-    detail: "Cửa sổ mạnh nhất gấp 2.0× trung vị — tín hiệu ổn định.",
+    detail: "Cửa sổ mạnh nhất gấp 2.0× mức view thường trong ngách — tín hiệu ổn định.",
   },
   top_3_windows: [
     { day: "Thứ 3", hours: "18–20", lift_multiplier: 2.1, sample: 12 },
@@ -28,7 +28,7 @@ describe("buildDiagnosisPostingNarrative", () => {
     expect(text).toContain("\n\n");
     expect(text).toContain("Thứ 2, khung 20–22");
     expect(text).toContain("Thứ 3 18–20");
-    expect(text).toContain("2.1× trung vị ngách");
+    expect(text).toContain("2.1× mức view thường trong ngách");
   });
 
   it("handles sparse variance without top windows", () => {

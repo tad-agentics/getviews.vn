@@ -53,11 +53,12 @@ export function buildCreatorComparisonProse(
       : null;
   const percentile = data.target_percentile?.trim();
   const viewsLabel = metaViews > 0 ? `${metaViews.toLocaleString("vi-VN")} view` : "lượt xem hiện tại";
+  const channelTypical = "mức view thường trên kênh";
 
   if (isFlop) {
     return [
       posts > 0
-        ? `Trên ${posts} bài gần đây của ${handle}, video này (${viewsLabel}) đang dưới mức trung vị kênh${mult ? ` — khoảng ${mult}× median` : ""}${percentile ? ` (${percentile})` : ""}.`
+        ? `Trên ${posts} bài gần đây của ${handle}, video này (${viewsLabel}) đang dưới ${channelTypical}${mult ? ` — khoảng ${mult}× so với mức đó` : ""}${percentile ? ` (${percentile})` : ""}.`
         : `So với các video khác trên ${handle}, clip này đang yếu hơn mức trung bình kênh.`,
       "Cặp hit/flop bên dưới cho thấy format và hook nào đang kéo view — không chỉ so một clip đơn lẻ.",
     ].join(" ");
@@ -65,8 +66,8 @@ export function buildCreatorComparisonProse(
 
   return [
     posts > 0
-      ? `Trên ${posts} bài gần đây của ${handle}, video này (${viewsLabel})${mult ? ` đạt khoảng ${mult}× trung vị kênh` : " đang nổi trên median kênh"}${percentile ? ` — ${percentile}` : ""}.`
-      : `Video này đang chạy tốt hơn median trên ${handle}.`,
+      ? `Trên ${posts} bài gần đây của ${handle}, video này (${viewsLabel})${mult ? ` đạt khoảng ${mult}× ${channelTypical}` : ` đang nổi trên ${channelTypical}`}${percentile ? ` — ${percentile}` : ""}.`
+      : `Video này đang chạy tốt hơn ${channelTypical} trên ${handle}.`,
     "Hai mẫu hit/flop trên cùng kênh giúp thấy format và hook đang phân hóa — trước khi copy sang clip tiếp theo.",
   ].join(" ");
 }

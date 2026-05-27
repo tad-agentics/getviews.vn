@@ -88,8 +88,8 @@ def extract_win_er_above_niche_p75_signal(ctx: dict) -> list[Signal]:
             taxonomy_ref="§4.8.3",
             salience=0.88,
             claim=(
-                f"Tỷ lệ tương tác {er_f:.1f}% ≥ ngưỡng p75 ngách (~{threshold:.1f}%) — "
-                "view có chất lượng tương tác cao so với cohort."
+                f"Tỷ lệ tương tác {er_f:.1f}% ≥ ngưỡng cao của ngách (~{threshold:.1f}%) — "
+                "lượt xem có chất lượng tương tác tốt so với các video cùng ngách."
             ),
             evidence=[
                 Evidence(
@@ -163,11 +163,11 @@ def extract_win_breakout_vs_channel_signal(ctx: dict) -> list[Signal]:
     views = int(us.get("views") or 0)
     med_i = int(med) if med is not None else None
     base = (
-        f"Video breakout ×{bm:.1f} so median kênh ({med_i:,} view)"
+        f"Video vượt trội ×{bm:.1f} so với mức view thường trên kênh ({med_i:,} lượt xem)"
         if med_i is not None
-        else f"Video breakout ×{bm:.1f} so baseline kênh"
+        else f"Video vượt trội ×{bm:.1f} so với mức thường ngày trên kênh"
     )
-    claim = base + f" — {views:,} view cho thấy cơ chế vượt trội so pattern thường."
+    claim = base + f" — {views:,} lượt xem cho thấy cơ chế mạnh hơn pattern thường."
 
     return [
         Signal(

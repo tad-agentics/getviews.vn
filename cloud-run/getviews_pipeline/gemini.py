@@ -62,6 +62,7 @@ from getviews_pipeline.prompts import (
     build_voice_domain_system_instruction,
 )
 from getviews_pipeline.vietnamese_slang import merge_lexicon_slang_into_video_analysis_dict
+from getviews_pipeline.voice_copy import humanize_narrative_vi_dict
 
 logger = logging.getLogger(__name__)
 
@@ -1373,7 +1374,7 @@ def _normalize_narrative_vi_dict(narrative_vi: dict[str, Any] | None) -> dict[st
     lessons_raw = narrative_vi.get("lessons")
     if lessons_raw is None or not isinstance(lessons_raw, list):
         narrative_vi = {**narrative_vi, "lessons": []}
-    return narrative_vi
+    return humanize_narrative_vi_dict(narrative_vi)
 
 
 def _v6_section_body_and_narrative(

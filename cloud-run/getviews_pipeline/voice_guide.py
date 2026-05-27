@@ -72,7 +72,11 @@ QUY TẮC TIẾNG VIỆT TỰ NHIÊN — BẮT BUỘC:
       - "save rate" → "tỷ lệ lưu"
       - "breakout" → "vượt trội" (KHÔNG dùng "bùng nổ" — nằm trong TỪ CẤM)
       - "sample size" → "số lượng mẫu"
-      - "median" → "trung vị"
+      - "median" → "mức view thường trên kênh" (kênh) / "mức view thường trong ngách" (ngách) — KHÔNG dùng "trung vị"
+      - "p75" / "P75" → "mức cao trong ngách (top 25%)" — KHÔNG viết "p75" trơ
+      - "p25" → "mức thấp trong ngách (bottom 25%)"
+      - "p50" → "mức giữa ngách"
+      - "p90" → "mức rất cao trong ngách (top 10%)"
       - "norm" → "mức chuẩn" hoặc "mức trung bình"
       - "threshold" → "ngưỡng"
       - "signal" → "tín hiệu"
