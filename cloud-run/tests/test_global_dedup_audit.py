@@ -141,8 +141,8 @@ def test_upsert_rows_sync_falls_back_when_rpc_unavailable():
 
 def test_enrich_breakout_ratio_uses_cohort_p50_when_no_author_median():
     """R3 proxy — persist breakout_ratio from niche/class p50 when ED median missing."""
-    from getviews_pipeline.corpus_instructiveness import IngestBatchContext, NicheViewStats
     from getviews_pipeline.corpus_ingest import _enrich_breakout_ratio_for_row
+    from getviews_pipeline.corpus_instructiveness import IngestBatchContext, NicheViewStats
 
     ctx = IngestBatchContext(
         niche_stats={

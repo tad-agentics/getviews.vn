@@ -20,7 +20,6 @@ import {
   postLoginPathFromSearch,
 } from "@/lib/postLoginRedirect";
 import { formatCorpusMarketingCount } from "@/lib/formatters";
-import type { Route } from "./+types/route";
 
 const COPY_BTN_FACEBOOK = "Tiếp tục với Facebook";
 const COPY_BTN_GOOGLE = "Tiếp tục với Google";
@@ -30,33 +29,15 @@ const COPY_ERROR_OAUTH = "Đăng nhập không thành công — thử lại.";
 const COPY_ERROR_FACEBOOK_BLOCKED =
   "Thử đăng nhập bằng Google hoặc mở trong Safari/Chrome.";
 
-export const meta: MetaFunction = ({ loaderData }) => {
-  const corpusLabel = formatCorpusMarketingCount(
-    (loaderData as { corpus_indexed_count: number | null } | undefined)?.corpus_indexed_count,
-  );
-  return [
-    { title: "Đăng nhập — GetViews" },
-    {
-      name: "description",
-      content: `Dữ liệu từ hơn ${corpusLabel} video TikTok Việt Nam — phân tích video của bạn trong 1 phút.`,
-    },
-  ];
-};
+const LOGIN_META_CORPUS_LABEL = formatCorpusMarketingCount(null);
 
-export type LoginLoaderData = {
-  corpus_indexed_count: number | null;
-};
-
-export async function loader(_: Route.LoaderArgs): Promise<LoginLoaderData> {
-  try {
-    const res = await fetch("/api/landing-stats");
-    if (!res.ok) throw new Error("stats unavailable");
-    const data = (await res.json()) as { corpus_indexed_count: number | null };
-    return { corpus_indexed_count: data.corpus_indexed_count ?? null };
-  } catch {
-    return { corpus_indexed_count: null };
-  }
-}
+export const meta: MetaFunction = () => [
+  { title: "Đăng nhập — GetViews" },
+  {
+    name: "description",
+    content: `Dữ liệu từ hơn ${LOGIN_META_CORPUS_LABEL} video TikTok Việt Nam — phân tích video của bạn trong 1 phút.`,
+  },
+];
 
 function FacebookIcon() {
   return (
@@ -147,8 +128,9 @@ const fullWidthAction =
   "transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)] disabled:opacity-100 " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)]";
 
-export default function LoginRoute({ loaderData }: Route.ComponentProps) {
-  const corpusLabel = formatCorpusMarketingCount(loaderData.corpus_indexed_count);
+export default function LoginRoute() {
+  const [corpusIndexedCount, setCorpusIndexedCount] = useState<number | null>(null);
+  const corpusLabel = formatCorpusMarketingCount(corpusIndexedCount);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const callbackErrorHandled = useRef(false);
@@ -164,6 +146,25 @@ export default function LoginRoute({ loaderData }: Route.ComponentProps) {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [emailError, setEmailError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/landing-stats");
+        if (!res.ok) return;
+        const data = (await res.json()) as { corpus_indexed_count?: number | null };
+        if (!cancelled) {
+          setCorpusIndexedCount(data.corpus_indexed_count ?? null);
+        }
+      } catch {
+        /* keep fallback label */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     persistPostLoginNextFromSearch(searchParams);

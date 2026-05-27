@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import Login from "./route";
-import type { Route } from "./+types/route";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
@@ -30,19 +29,27 @@ vi.mock("@/lib/auth", () => ({
   useAuth: vi.fn(),
 }));
 
-const loginLoaderData = { corpus_indexed_count: null as number | null };
+function mockLandingStats(corpus_indexed_count: number | null) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ corpus_indexed_count }),
+    }),
+  );
+}
 
 function renderLogin() {
-  const props = { loaderData: loginLoaderData } as Route.ComponentProps;
   return render(
     <MemoryRouter>
-      <Login {...props} />
+      <Login />
     </MemoryRouter>,
   );
 }
 
 describe("LoginScreen", () => {
   beforeEach(async () => {
+    mockLandingStats(null);
     vi.mocked(useAuth).mockReturnValue({
       user: null,
       session: null,
@@ -63,16 +70,12 @@ describe("LoginScreen", () => {
     expect(googleButton()).toBeTruthy();
   });
 
-  it("shows corpus count from loader (floored marketing tier)", () => {
-    const props = {
-      loaderData: { corpus_indexed_count: 12_847 },
-    } as Route.ComponentProps;
-    render(
-      <MemoryRouter>
-        <Login {...props} />
-      </MemoryRouter>,
-    );
-    expect(screen.getAllByText("12.000+").length).toBeGreaterThanOrEqual(1);
+  it("shows corpus count from landing-stats fetch (floored marketing tier)", async () => {
+    mockLandingStats(12_847);
+    renderLogin();
+    await waitFor(() => {
+      expect(screen.getAllByText("12.000+").length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   it("shows loading state on Facebook button click", async () => {

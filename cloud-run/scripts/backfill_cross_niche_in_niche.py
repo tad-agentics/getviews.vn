@@ -101,7 +101,7 @@ def _proposed_class(row: dict[str, Any]) -> tuple[int | None, str]:
 
 
 def _fetch_rows(client: Any) -> list[dict[str, Any]]:
-    res = client.rpc("exec_sql", {}).execute()  # not available
+    client.rpc("exec_sql", {}).execute()  # not available
     raise NotImplementedError
 
 

@@ -90,6 +90,10 @@ select = ["E", "F", "I", "UP"]
 # Entry point: router imports are deliberately after telemetry.setup_telemetry()
 # so OTel auto-instrumentation initialises before FastAPI/router modules load.
 "main.py" = ["E402"]
+# Cycle-safe deferred import after normalize_source_entry (report_compare → voice_lint only).
+"getviews_pipeline/report_types.py" = ["E402"]
+# AnalysisDepth helper must precede heavy pipeline imports (cold-start ordering).
+"getviews_pipeline/video_analyze.py" = ["E402"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

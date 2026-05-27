@@ -64,12 +64,6 @@ def history_phases(history: Any) -> set[str]:
     return out
 
 
-def engagement_rate_pct(views: int, likes: int, comments: int, shares: int) -> float:
-    if views <= 0:
-        return 0.0
-    return (likes + comments + shares) / views * 100.0
-
-
 def comments_per_view(comments: int, views: int) -> float:
     if views <= 0:
         return 0.0

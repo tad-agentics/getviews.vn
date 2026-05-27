@@ -9,7 +9,6 @@ from getviews_pipeline.class_quality_engine import (
     _build_assignment_patch,
     _disagreement_score,
     _find_duplicate_class_pairs,
-    _junction_ok_for_row,
     _resolve_assignment_tier,
     _tier_for_class,
     _vpn_for_tier,

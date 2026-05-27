@@ -389,7 +389,6 @@ async def _run_channel_diagnose(
 ) -> dict[str, Any]:
     """Orchestrator: runs the full channel diagnosis pipeline in a thread pool."""
     from getviews_pipeline.channel_diagnose import (
-        fetch_niche_benchmarks,
         build_channel_pattern,
         classify_trajectory,
         compute_creator_match,
@@ -401,6 +400,7 @@ async def _run_channel_diagnose(
         derive_next_video_concept,
         fetch_channel_videos_live,
         fetch_handle_corpus_for_findings,
+        fetch_niche_benchmarks,
         hashtag_caption_for_insight,
         normalize_handle,
         normalize_peer_creator_for_fe,

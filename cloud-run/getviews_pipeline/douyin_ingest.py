@@ -46,10 +46,10 @@ from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.douyin_metadata import build_douyin_corpus_row
 from getviews_pipeline.douyin_translator import translate_douyin_caption
 from getviews_pipeline.r2 import (
-    resolve_ingest_thumbnail_url,
     extract_and_upload,
     extract_and_upload_scene_frames,
     r2_configured,
+    resolve_ingest_thumbnail_url,
 )
 from getviews_pipeline.runtime import get_analysis_semaphore
 from getviews_pipeline.tikhub_douyin import (

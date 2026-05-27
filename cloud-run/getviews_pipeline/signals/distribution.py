@@ -7,8 +7,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from getviews_pipeline.corpus_boost_suspect import (
-    classify_boost_suspect,
     boost_percentiles_from_niche_intel,
+    classify_boost_suspect,
 )
 from getviews_pipeline.signals.base import Evidence, Signal
 from getviews_pipeline.stats_history_m4 import compute_distribution_shape
