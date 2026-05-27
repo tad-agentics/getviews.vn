@@ -23,7 +23,6 @@ import {
 import { useProfile } from "@/hooks/useProfile";
 import { useCreatorNiches } from "@/hooks/useCreatorNiches";
 import { TrendsDouyinCard } from "./TrendsDouyinCard";
-import { CrossNicheBreakoutLane } from "./components/CrossNicheBreakoutLane";
 import { TrendsPatternGrid } from "./TrendsPatternGrid";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
 import { TrendsRail } from "./TrendsRail";
@@ -874,10 +873,6 @@ export default function ExploreScreen() {
            * pre-VN-signal jump-off stays present even before the
            * creator has picked a niche. */}
           <TrendsDouyinCard />
-
-          {contentClassIds.length > 0 ? (
-            <CrossNicheBreakoutLane excludeClassIds={contentClassIds} />
-          ) : null}
 
           {selectedNicheId != null ? (
             <div className="mb-8 min-[1100px]:hidden">
