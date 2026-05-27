@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-27 — Video report coherence (mode / tier / copy)
+
+- **Fix:** `video_report_coherence` — reconcile `mode=flop` → `win` when `performance_tier=hit` or channel ratio ≥2×; filter modeled retention errors on win-framing; deterministic `related_questions`; synthesis prompt breakout note + Vietnamese copy rules (`view`, tỷ lệ tương tác).
+- **FE:** `videoReportCoherence.ts` mirrors BE for cached sessions; `VideoBody` win layout + correction banner; handoff prompt tier-aware; `FlopDiagnosisStrip` uses `view`.
+
 ## 2026-05-27 — Home ticker: live data only
 
 - **Fix:** `TickerMarquee` drops Figma `FALLBACK_ITEMS` mock (`@aifreelance`, `248%`, …). Renders only after `/home/ticker` returns ≥1 real row; hides strip while loading, on error, or thin/empty niche (no fabricated headlines).

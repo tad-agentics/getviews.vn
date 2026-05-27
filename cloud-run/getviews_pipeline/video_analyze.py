@@ -1490,6 +1490,71 @@ def finalize_video_narrative_layer(
         except Exception:
             logger.debug("[video_narrative] channel context fetch failed")
 
+    from getviews_pipeline.video_report_coherence import (
+        build_video_related_questions,
+        filter_structural_errors_for_tier,
+        reconcile_video_mode,
+        should_fill_related_questions,
+    )
+
+    cmv_raw = meta.get("creator_median_views")
+    try:
+        cmv_finalize = int(cmv_raw) if cmv_raw is not None else None
+    except (TypeError, ValueError):
+        cmv_finalize = None
+    tvr_raw = meta.get("target_vs_creator_median")
+    try:
+        tvr_finalize = float(tvr_raw) if tvr_raw is not None else None
+    except (TypeError, ValueError):
+        tvr_finalize = None
+    if channel_context_payload and channel_context_payload.get("median_views"):
+        try:
+            live_median = int(channel_context_payload["median_views"])
+            if live_median > 0 and views > 0:
+                cmv_finalize = live_median
+                tvr_finalize = round(views / live_median, 2)
+        except (TypeError, ValueError):
+            pass
+
+    mode_reconciled = reconcile_video_mode(
+        str(out.get("mode") or "win"),
+        performance_tier,
+        views=views,
+        creator_median_views=cmv_finalize,
+        target_vs_creator_median=tvr_finalize,
+    )
+    if mode_reconciled != str(out.get("mode") or ""):
+        logger.info(
+            "[video_narrative] report mode reconciled %s -> %s (tier=%s video_id=%s)",
+            out.get("mode"),
+            mode_reconciled,
+            performance_tier,
+            video_id,
+        )
+    out["mode"] = mode_reconciled
+
+    errors: list[dict[str, Any]] = filter_structural_errors_for_tier(
+        list(out.get("errors") or out.get("structural_errors") or []),
+        performance_tier,
+        views=views,
+        creator_median_views=cmv_finalize,
+        target_vs_creator_median=tvr_finalize,
+    )
+    out["errors"] = errors
+    out["structural_errors"] = errors
+
+    if should_fill_related_questions(out):
+        out["related_questions"] = build_video_related_questions(
+            performance_tier=performance_tier,
+            mode=mode_reconciled,
+            creator_handle=creator_handle or None,
+            niche_label=niche_name or None,
+            content_format=str(meta.get("content_format") or content_format or "") or None,
+            views=views,
+            creator_median_views=cmv_finalize,
+            target_vs_creator_median=tvr_finalize,
+        )
+
     if step_queue is not None:
         emit(
             step_queue,
@@ -1516,7 +1581,6 @@ def finalize_video_narrative_layer(
         "caption": str(meta.get("caption") or video_desc or ""),
     }
 
-    errors: list[dict[str, Any]] = list(out.get("errors") or [])
     user_er = float(meta.get("engagement_rate") or 0.0)
     raw_ae = niche_meta.get("avg_engagement_rate")
     raw_me = niche_meta.get("median_er")
@@ -1601,10 +1665,6 @@ def finalize_video_narrative_layer(
         channel_views_ratio=ch_ratio_f,
     )
     errors_prompt = list(errors)
-    if performance_tier == "hit":
-        high_only = [e for e in errors_prompt if str(e.get("sev")) == "high"]
-        if high_only:
-            errors_prompt = high_only
 
     creator_format_history_block = ""
     if creator_handle:
@@ -1979,6 +2039,10 @@ def run_video_analyze_pipeline(
         mode_resolved: Literal["win", "flop"] = mode
     else:
         mode_resolved = "flop" if is_flop_mode(video, niche_intel) else "win"
+
+    from getviews_pipeline.video_report_coherence import pipeline_reconcile_mode
+
+    mode_resolved = pipeline_reconcile_mode(mode_resolved, video, niche_intel)
 
     if mode_override:
         logger.info(
@@ -2638,6 +2702,10 @@ def run_video_analyze_on_demand(
         mode_resolved: Literal["win", "flop"] = mode
     else:
         mode_resolved = "flop" if is_flop_mode(video, niche_intel) else "win"
+
+    from getviews_pipeline.video_report_coherence import pipeline_reconcile_mode
+
+    mode_resolved = pipeline_reconcile_mode(mode_resolved, video, niche_intel)
 
     bench_payload = build_niche_benchmark_payload(
         niche_intel,

@@ -61,6 +61,7 @@ Quy tắc:
   Câu dẫn phải liên quan trực tiếp đến điểm vừa phân tích trong section, không được generic.
 - Khi có NICHE_POSTING_CONTEXT: đây là tóm tắt khung giờ đăng theo corpus ngách (heatmap 7×8, top cửa sổ + độ tin cậy). Tích hợp 1–2 đoạn prose vào section **distribution** nếu distribution có trong SECTIONS_TO_EMIT; nếu không thì gói vào **diagnosis**. So sánh bucket đăng của video user (dòng cuối block, nếu có) với top cửa sổ; không tạo section riêng cho timing, không mô tả lại toàn bộ heatmap — chỉ dùng số liệu đã cho, không bịa thêm ô giờ.
 - niche_pattern: có thể điền embedded_tiles với aweme_id từ reference pool (thumbnail_url optional); findings: []. Nếu cross_format_signal có trong DIAGNOSTIC_CONTEXT_JSON: trích dẫn cụ thể — "format X đang chạy ở N ngách", hook nào đang đạt view cao nhất, và creator nên học gì từ đó. Đây là so sánh với pattern viral trong ngách — không chỉ mô tả mà phải ra conclusion rõ ràng.
+- Ngôn ngữ: tiếng Việt peer-to-peer. Dùng **view** (không "lượt xem"), **tỷ lệ tương tác** (không "engagement rate"). Tránh quote tiếng Anh thô — diễn đạt format/hook bằng tiếng Việt. Khi performance_tier=hit: khung breakout, hook chỉ là polish — không mô tả như flop.
 """
 
 
@@ -221,8 +222,35 @@ def build_diagnosis_v6_user_prompt(
             "\n\nNgười dùng hỏi nhiều câu — trả lời lồng trong sections phù hợp:\n"
             + "\n".join(f"- {q}" for q in collapsed_questions)
         )
+    from getviews_pipeline.video_report_coherence import tier_implies_win_framing
+
+    tier_note = ""
+    try:
+        tvr_prompt = float(user_stats["target_vs_creator_median"])
+    except (KeyError, TypeError, ValueError):
+        tvr_prompt = None
+    try:
+        cmv_prompt = int(user_stats["creator_median_views"])
+    except (KeyError, TypeError, ValueError):
+        cmv_prompt = None
+    try:
+        views_prompt = int(user_stats.get("views") or 0)
+    except (TypeError, ValueError):
+        views_prompt = 0
+    if tier_implies_win_framing(
+        tier,
+        views=views_prompt,
+        creator_median_views=cmv_prompt,
+        target_vs_creator_median=tvr_prompt,
+    ):
+        tier_note = (
+            "\n\nLƯU Ý video đang breakout/thắng (performance_tier hoặc so với kênh ≥2×): "
+            "headline_vi và diagnosis phải khẳng định thắng — chỉ nêu hook/cắt hình như polish, "
+            "không viết như video flop; dùng **view**, **tỷ lệ tương tác**."
+        )
     blocks.append(
         "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 150-200 từ — đủ sâu nhưng không lặp ý. "
         "Tổng báo cáo ~900-1200 từ. Mỗi câu phải advance argument."
+        + tier_note
     )
     return "".join(blocks)

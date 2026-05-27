@@ -52,7 +52,7 @@ export function FlopDiagnosisStrip({
     <div className="border-t-2 border-[color:var(--gv-ink)] pt-5">
       <div className="flex flex-wrap gap-x-4 gap-y-1 font-[family-name:var(--gv-font-mono)] text-xs text-[color:var(--gv-ink-3)]">
         <span>
-          {formatViews(meta.views)} lượt xem · {retLabel} · tỷ lệ lưu {savePct}
+          {formatViews(meta.views)} view · {retLabel} · tỷ lệ lưu {savePct}
           {carouselSaveHint ? ` · ${carouselSaveHint}` : ""}
         </span>
         <span className="text-[color:var(--gv-ink-4)]">/</span>

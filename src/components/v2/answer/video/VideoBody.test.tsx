@@ -364,6 +364,51 @@ describe("VideoBody render", () => {
     expect(screen.getAllByText(/Viết lại kịch bản/)).toHaveLength(1);
   });
 
+  it("shows win layout when stored mode is flop but performance_tier is hit", () => {
+    renderInRouter(
+      makeFlopReport({
+        performance_tier: "hit",
+        narrative_vi: {
+          headline_vi: "Video đạt breakout 435x nhờ tương tác sâu.",
+          ket_luan_nhanh: "",
+          van_de_chinh: "",
+          loi_chinh_narrative: [],
+          dinh_huong_chien_luoc: "",
+          lessons: [],
+        },
+      }),
+    );
+    expect(screen.getByText(/MỔ VIDEO VIEW CAO/)).toBeTruthy();
+    expect(screen.getByText(/góc tối ưu tiếp theo/)).toBeTruthy();
+    expect(screen.queryByText(/Viết lại kịch bản/)).toBeNull();
+  });
+
+  it("shows win layout when flop mode but channel breakout ratio on average tier", () => {
+    const base = makeFlopReport();
+    renderInRouter(
+      makeFlopReport({
+        performance_tier: "average",
+        meta: {
+          ...base.meta,
+          views: 406_098,
+          creator_median_views: 934,
+          target_vs_creator_median: 435,
+        },
+        narrative_vi: {
+          headline_vi: "Video breakout so với kênh.",
+          ket_luan_nhanh: "",
+          van_de_chinh: "",
+          loi_chinh_narrative: [],
+          dinh_huong_chien_luoc: "",
+          lessons: [],
+        },
+      }),
+    );
+    expect(screen.getByText(/MỔ VIDEO VIEW CAO/)).toBeTruthy();
+    expect(screen.getByText(/góc tối ưu tiếp theo/)).toBeTruthy();
+    expect(screen.queryByText(/Viết lại kịch bản/)).toBeNull();
+  });
+
   it("calls onRequestAppendTurn from format card CTA", () => {
     const onRequestAppendTurn = vi.fn();
     renderInRouter(

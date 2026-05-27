@@ -50,6 +50,11 @@ import {
   ChannelContextLegacy,
 } from "@/components/v2/answer/video/blocks/ChannelProofBlock";
 import { isV5Report } from "@/lib/v5-compat";
+import {
+  effectiveVideoReportMode,
+  tierImpliesWinFraming,
+  videoReportWasModeCorrected,
+} from "@/lib/videoReportCoherence";
 import { VideoDeepUpsell } from "@/components/v2/answer/video/VideoDeepUpsell";
 import {
   normalizeLockedSectionTeasers,
@@ -123,13 +128,20 @@ function NextStepsSection({ text }: { text: string }) {
 }
 
 /** Research handoff — ``AnswerScreen`` reads ``location.state.initialPrompt``. */
-function buildFlopScriptHandoffPrompt(d: VideoReportPayload, watchUrl: string | null): string {
+function buildVideoScriptHandoffPrompt(
+  d: VideoReportPayload,
+  watchUrl: string | null,
+  performanceTier: string | undefined,
+): string {
   const issues = d.errors ?? [];
+  const winFraming = tierImpliesWinFraming(performanceTier, d.meta);
   const lines = [
     `Corpus video_id: ${d.video_id}`,
     ...(watchUrl?.trim() ? [`Link TikTok đã soi: ${watchUrl.trim()}`] : []),
     "",
-    "Mình vừa soi video flop trên Getviews — giúp mình lên shot-list / kịch bản, ưu tiên sửa các điểm sau:",
+    winFraming
+      ? "Mình vừa soi video đang breakout trên GetViews — giúp mình lên shot-list / kịch bản video tiếp theo, ưu tiên tối ưu hook 3 giây đầu:"
+      : "Mình vừa soi video yếu trên GetViews — giúp mình lên shot-list / kịch bản, ưu tiên sửa các điểm sau:",
     ...issues.slice(0, 8).map((i) => `• ${i.title}\n  Fix gợi ý: ${i.fix}`),
   ];
   const headline = d.narrative_vi?.headline_vi?.trim();
@@ -162,15 +174,21 @@ export function VideoBody({
   const duration = meta.duration_sec || 58;
   const userCurve = report.retention_curve ?? [];
   const retEnd = retentionEndPct(userCurve);
-  // ``mode`` lives on the report (BE single source of truth). VideoScreen
-  // briefly distinguished a ``viewMode`` state during refetch; on the
-  // answer surface the report is loaded once into the session payload,
-  // so report.mode IS the view mode.
-  const viewMode: VideoAnalyzeMode = report.mode ?? "win";
-  const isFlop = viewMode === "flop";
-  // Phase 4.4.6 — detect v5 BE response to opt into v5 layout paths.
-  const isV5 = isV5Report(report as unknown as Record<string, unknown>);
   const preSynth = preSynthesisData ?? null;
+  const performanceTier: string | undefined =
+    preSynth?.performance_tier ?? report.performance_tier;
+  const viewMode: VideoAnalyzeMode = effectiveVideoReportMode(
+    report.mode,
+    performanceTier,
+    meta,
+  );
+  const isFlop = viewMode === "flop";
+  const modeCorrectedFromFlop = videoReportWasModeCorrected(
+    report.mode,
+    performanceTier,
+    meta,
+  );
+  const isV5 = isV5Report(report as unknown as Record<string, unknown>);
   const narrativeVi: NarrativeVi | undefined =
     narrativeReady?.narrative_vi ?? report.narrative_vi;
   const formatCardsEffective: FormatCard[] | undefined =
@@ -187,13 +205,6 @@ export function VideoBody({
     narrativeReady?.niche_posting_context ?? report.niche_posting_context ?? null;
   const channelEffective: ChannelContext | undefined =
     channelContext ?? report.channel_context;
-  // BE classifies each video into a refined tier (`hit | average | flop | unknown`)
-  // by combining corpus benchmarks with channel context. Streamed during the
-  // pre-synthesis SSE phase and persisted on the report; either source is
-  // authoritative. Hidden when "unknown" (BE couldn't benchmark — don't make
-  // up a verdict).
-  const performanceTier: string | undefined =
-    preSynth?.performance_tier ?? report.performance_tier;
   const streamedErrs = narrativeReady?.errors;
   const reportErrs = report.structural_errors ?? report.errors ?? [];
   // Phase 4.4.2 — cap to first 3 (highest severity) per v5 contract.
@@ -262,7 +273,13 @@ export function VideoBody({
   const goScript = () => {
     if (isFlop) logUsage("flop_cta_click", { video_id: report.video_id });
     navigate("/app/answer", {
-      state: { initialPrompt: buildFlopScriptHandoffPrompt(report, tiktokWatchUrl) },
+      state: {
+        initialPrompt: buildVideoScriptHandoffPrompt(
+          report,
+          tiktokWatchUrl,
+          performanceTier,
+        ),
+      },
     });
   };
 
@@ -414,6 +431,15 @@ export function VideoBody({
       </aside>
 
       <div className="flex flex-col gap-7">
+        {modeCorrectedFromFlop ? (
+          <p
+            className="m-0 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-sm leading-relaxed text-[color:var(--gv-ink-2)]"
+            role="status"
+          >
+            Video này đang breakout — GetViews hiển thị góc tối ưu tiếp theo, không phải chẩn
+            đoán flop.
+          </p>
+        ) : null}
         {!isFlop ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Btn variant="ghost" size="sm" type="button" onClick={() => void copyHook()}>
