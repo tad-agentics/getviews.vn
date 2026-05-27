@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calendarDaysAgoInVn,
   formatViews,
   formatVN,
   formatRecencyVI,
@@ -100,10 +101,18 @@ describe("formatRecencyVI", () => {
   });
 });
 
-describe("formatSessionRecencyFromIso", () => {
-  it("maps ISO timestamps to formatRecencyVI buckets", () => {
+describe("calendarDaysAgoInVn", () => {
+  it("uses Vietnam calendar day, not UTC wall clock", () => {
     const now = new Date("2026-05-24T12:00:00Z");
-    expect(formatSessionRecencyFromIso("2026-05-24T08:00:00Z", now)).toBe("Hôm nay");
+    expect(calendarDaysAgoInVn("2026-05-24T02:00:00Z", now)).toBe(0);
+    expect(calendarDaysAgoInVn("2026-05-23T10:00:00Z", now)).toBe(1);
+  });
+});
+
+describe("formatSessionRecencyFromIso", () => {
+  it("maps ISO timestamps to VN recency buckets with local time today", () => {
+    const now = new Date("2026-05-24T12:00:00Z");
+    expect(formatSessionRecencyFromIso("2026-05-24T08:00:00Z", now)).toBe("Hôm nay · 15:00");
     expect(formatSessionRecencyFromIso("2026-05-23T08:00:00Z", now)).toBe("Hôm qua");
     expect(formatSessionRecencyFromIso("2026-05-10T08:00:00Z", now)).toBe("Tuần trước");
     expect(formatSessionRecencyFromIso(null, now)).toBe("");

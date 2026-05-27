@@ -145,6 +145,28 @@ def test_new_hook_filters_to_niche_spread() -> None:
     assert "POV keeps going" in items[0].headline_vi
 
 
+def test_new_hook_skips_zero_week_count_uses_live_corpus() -> None:
+    """weekly_instance_count may be 0 while corpus rows exist (BUG-11 cron lag)."""
+    client = _Client({
+        "video_patterns": [
+            {"id": "p1", "display_name": "Nhịp cắt cận cảnh nhanh", "niche_spread": [NICHE],
+             "weekly_instance_count": 0, "is_active": True, "first_seen_at": SINCE},
+            {"id": "p2", "display_name": "Stale zero", "niche_spread": [NICHE],
+             "weekly_instance_count": 0, "is_active": True, "first_seen_at": SINCE},
+        ],
+        "video_corpus": [
+            {"pattern_id": "p1", "indexed_at": SINCE},
+            {"pattern_id": "p1", "indexed_at": SINCE},
+            {"pattern_id": "p1", "indexed_at": SINCE},
+        ],
+    })
+    items = _new_hook_items(client, NICHE, SINCE)
+    assert len(items) == 1
+    assert items[0].target_id == "p1"
+    assert "3 video tuần này" in items[0].headline_vi
+    assert "0 video" not in items[0].headline_vi
+
+
 def test_new_hook_caps_at_two() -> None:
     client = _Client({
         "video_patterns": [

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
@@ -44,6 +45,45 @@ _BUCKET_LABELS: dict[TickerBucket, str] = {
     "kol_nổi":    "KOL NỔI",
     "âm_thanh":   "ÂM THANH",
 }
+
+
+def _apply_corpus_niche_scope(q: Any, client: Any, niche_id: int) -> Any:
+    """Class-first corpus filter when junction exists; else legacy ingest niche."""
+    from getviews_pipeline.profile_niches import content_class_ids_for_legacy_niche
+
+    class_ids = content_class_ids_for_legacy_niche(client, niche_id)
+    if class_ids:
+        return q.in_("content_class_id", class_ids)
+    return q.eq("ingest_loop_niche_id", niche_id)
+
+
+def _pattern_niche_counts_7d(
+    client: Any,
+    niche_id: int,
+    pattern_ids: list[str],
+    since: str,
+) -> dict[str, int]:
+    """Live 7d counts — ``weekly_instance_count`` is cron-maintained and often 0."""
+    if not pattern_ids:
+        return {}
+    try:
+        q = (
+            client.table("video_corpus")
+            .select("pattern_id")
+            .gte("indexed_at", since)
+            .in_("pattern_id", pattern_ids)
+        )
+        q = _apply_corpus_niche_scope(q, client, niche_id)
+        rows = q.execute().data or []
+    except Exception as exc:
+        logger.warning("[ticker] pattern counts failed niche=%s: %s", niche_id, exc)
+        return {}
+    counts: Counter[str] = Counter()
+    for r in rows:
+        pid = r.get("pattern_id")
+        if pid:
+            counts[str(pid)] += 1
+    return dict(counts)
 
 
 def _fmt_views(views: int) -> str:
@@ -149,15 +189,37 @@ def _new_hook_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
         .eq("is_active", True)
         .gte("first_seen_at", since)
         .order("weekly_instance_count", desc=True)
-        .limit(10)
+        .limit(24)
         .execute()
         .data or []
     )
-    out: list[TickerItem] = []
+    candidates: list[dict[str, Any]] = []
     for p in rows:
         if niche_id not in (p.get("niche_spread") or []):
             continue
-        count = int(p.get("weekly_instance_count") or 0)
+        candidates.append(p)
+    if not candidates:
+        return []
+
+    live_counts = _pattern_niche_counts_7d(
+        client,
+        niche_id,
+        [str(p.get("id")) for p in candidates if p.get("id")],
+        since,
+    )
+
+    def _week_count(p: dict[str, Any]) -> int:
+        pid = str(p.get("id") or "")
+        stored = int(p.get("weekly_instance_count") or 0)
+        live = int(live_counts.get(pid, 0))
+        return max(stored, live)
+
+    ranked = sorted(candidates, key=_week_count, reverse=True)
+    out: list[TickerItem] = []
+    for p in ranked:
+        count = _week_count(p)
+        if count < 1:
+            continue
         name = (p.get("display_name") or "Pattern").strip()
         out.append(TickerItem(
             bucket="hook_mới",

@@ -1,10 +1,30 @@
 import { describe, expect, it } from "vitest";
 import {
+  extractTikTokHandleFromText,
   extractTikTokVideoIdFromText,
+  formatTikTokSidebarHint,
   hasTikTokUrlInText,
   nonTikTokUrlValidationMessage,
   queryUrlChipState,
 } from "./tiktokUrl";
+
+describe("formatTikTokSidebarHint", () => {
+  it("combines handle and short video id tail", () => {
+    expect(
+      formatTikTokSidebarHint(
+        "https://www.tiktok.com/@curnon.official/video/7634391245737053447",
+      ),
+    ).toBe("@curnon.official · …053447");
+  });
+});
+
+describe("extractTikTokHandleFromText", () => {
+  it("parses @handle from video URL", () => {
+    expect(
+      extractTikTokHandleFromText("https://www.tiktok.com/@shop.vn/video/7634391245737053447"),
+    ).toBe("shop.vn");
+  });
+});
 
 describe("extractTikTokVideoIdFromText", () => {
   it("parses standard video URL", () => {

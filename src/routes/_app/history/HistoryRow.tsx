@@ -3,16 +3,29 @@
  */
 
 import type { HistoryUnionRow } from "@/hooks/useHistoryUnion";
+import { calendarDaysAgoInVn, VN_TIME_ZONE } from "@/lib/formatters";
 
-export function relativeTime(iso: string | null | undefined): string {
+export function relativeTime(iso: string | null | undefined, now = new Date()): string {
   if (!iso) return "";
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return "";
-  const d = Math.floor((Date.now() - t) / 86_400_000);
-  if (d <= 0) return "Hôm nay";
+  const d = calendarDaysAgoInVn(iso, now);
+  if (d <= 0) {
+    const time = new Date(iso).toLocaleTimeString("vi-VN", {
+      timeZone: VN_TIME_ZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    return `Hôm nay · ${time}`;
+  }
   if (d === 1) return "Hôm qua";
   if (d < 7) return `${d} ngày`;
-  return new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+  return new Date(iso).toLocaleDateString("vi-VN", {
+    timeZone: VN_TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+  });
 }
 
 function formatLabelVi(format: string | null | undefined): string | null {

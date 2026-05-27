@@ -42,6 +42,24 @@ export function formatCorpusMarketingCount(indexedCount: number | null | undefin
   return `${formatVN(floored)}+`;
 }
 
+/** Vietnam civil calendar for sidebar/history recency buckets. */
+export const VN_TIME_ZONE = "Asia/Ho_Chi_Minh";
+
+function dateKeyInTimeZone(when: Date, timeZone: string): string {
+  return when.toLocaleDateString("en-CA", { timeZone });
+}
+
+/** Whole calendar days between ``iso`` and ``now`` in Vietnam (not UTC midnight). */
+export function calendarDaysAgoInVn(iso: string, now = new Date()): number {
+  const a = dateKeyInTimeZone(new Date(iso), VN_TIME_ZONE);
+  const b = dateKeyInTimeZone(now, VN_TIME_ZONE);
+  const [ay, am, ad] = a.split("-").map(Number);
+  const [by, bm, bd] = b.split("-").map(Number);
+  const utcA = Date.UTC(ay, am - 1, ad);
+  const utcB = Date.UTC(by, bm - 1, bd);
+  return Math.round((utcB - utcA) / 86_400_000);
+}
+
 /**
  * Format a recency value (days ago) as natural Vietnamese.
  * "Hôm nay", "Hôm qua", "3 ngày trước", "Tuần trước", "2 tuần trước", "1 tháng trước"
@@ -55,13 +73,23 @@ export function formatRecencyVI(daysAgo: number): string {
   return `${Math.floor(daysAgo / 30)} tháng trước`;
 }
 
-/** Sidebar / history row — ISO timestamp → ``formatRecencyVI`` bucket. */
+/** Sidebar / history row — ISO timestamp → ``formatRecencyVI`` bucket (VN calendar). */
 export function formatSessionRecencyFromIso(iso: string | null | undefined, now = new Date()): string {
   if (!iso) return "";
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return "";
-  const daysAgo = Math.floor((now.getTime() - t) / 86_400_000);
-  return formatRecencyVI(daysAgo);
+  const daysAgo = calendarDaysAgoInVn(iso, now);
+  const bucket = formatRecencyVI(daysAgo);
+  if (daysAgo === 0) {
+    const time = new Date(iso).toLocaleTimeString("vi-VN", {
+      timeZone: VN_TIME_ZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    return `Hôm nay · ${time}`;
+  }
+  return bucket;
 }
 
 /**

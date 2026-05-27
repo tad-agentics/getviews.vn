@@ -45,9 +45,12 @@ export function useHomeTicker(
       // comparison is unreachable.
       type RawTickerItem = Omit<TickerItem, "bucket"> & { bucket: string };
       const body = (await res.json()) as { items: RawTickerItem[] };
-      return (body.items ?? []).filter(
-        (it) => it.bucket !== "kol_nổi",
-      ) as TickerItem[];
+      return (body.items ?? []).filter((it) => {
+        if (it.bucket === "kol_nổi") return false;
+        // Stale weekly_instance_count can surface "0 video tuần này" — hide.
+        if (/·\s*0\s+video tuần này/i.test(it.headline_vi)) return false;
+        return true;
+      }) as TickerItem[];
     },
     enabled,
     staleTime: 10 * 60 * 1000, // 10 min

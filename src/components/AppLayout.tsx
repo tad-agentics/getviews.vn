@@ -35,7 +35,12 @@ import { readChannelHistory } from "@/lib/channelHistory";
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
+import {
+  answerSessionSidebarLabel,
+  channelSidebarLabel,
+} from "@/lib/answerSessionListTitle";
 import { formatSessionRecencyFromIso } from "@/lib/formatters";
+import type { AnswerSessionFormat } from "@/lib/api-types";
 import { MobileShellProvider, type AppShellActive, MOBILE_FLOATING_NAV_CLEARANCE, MobileFloatingBottomNav } from "@/components/mobileShell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -56,6 +61,8 @@ type Session = {
   first_message: string | null;
   title?: string | null;
   label?: string;
+  intent_type?: string | null;
+  format?: AnswerSessionFormat | null;
   source: "answer" | "channel";
   updatedAt: string | null;
 };
@@ -371,10 +378,15 @@ function SessionRow({
   };
 
   const displayLabel =
-    session.label ??
-    session.title ??
-    session.first_message ??
-    (session.source === "answer" ? "Phiên nghiên cứu" : session.first_message ?? "Kênh");
+    session.source === "channel"
+      ? channelSidebarLabel(session.first_message)
+      : answerSessionSidebarLabel({
+          label: session.label,
+          title: session.title,
+          initial_q: session.first_message,
+          intent_type: session.intent_type,
+          format: session.format,
+        });
   const recencyLabel = formatSessionRecencyFromIso(session.updatedAt);
 
   return (
@@ -535,6 +547,8 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           id: s.id,
           first_message: s.initial_q ?? null,
           title: s.title ?? null,
+          intent_type: s.intent_type ?? null,
+          format: s.format ?? null,
           source: "answer",
           updatedAt: s.updated_at ?? s.created_at ?? null,
         },

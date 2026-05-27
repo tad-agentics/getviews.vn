@@ -1,3 +1,22 @@
+/** Creator handle from a TikTok URL in paste/query text. */
+export function extractTikTokHandleFromText(text: string): string | null {
+  const raw = (text || "").trim();
+  if (!raw) return null;
+  const m = raw.match(/tiktok\.com\/@([^/?#\s]+)/i);
+  return m?.[1] ?? null;
+}
+
+/** Compact sidebar/history label: ``@creator · …123456`` when URL is present. */
+export function formatTikTokSidebarHint(text: string): string | null {
+  const handle = extractTikTokHandleFromText(text);
+  const vid = extractTikTokVideoIdFromText(text);
+  const tail = vid && vid.length >= 6 ? `…${vid.slice(-6)}` : null;
+  if (handle && tail) return `@${handle} · ${tail}`;
+  if (handle) return `@${handle}`;
+  if (tail) return `Video · ${tail}`;
+  return null;
+}
+
 /** Extract TikTok aweme_id from a URL or bare-id string in user paste/query. */
 export function extractTikTokVideoIdFromText(text: string): string | null {
   const raw = (text || "").trim();
