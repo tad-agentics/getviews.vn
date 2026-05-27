@@ -100,6 +100,29 @@ export function formatBreakoutVI(ratio: number): string {
   return `${ratio.toFixed(1).replace(".", ",")}x`;
 }
 
+/**
+ * h3 section titles in video diagnosis — sentence case (not ALL CAPS kickers).
+ * Leaves mixed-case BE/FE titles unchanged (e.g. "Khung giờ đăng trong ngách").
+ */
+export function formatDiagnosisSectionTitle(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+
+  const letters = [...trimmed].filter((ch) => /\p{L}/u.test(ch));
+  if (letters.length === 0) return trimmed;
+
+  const upperCount = letters.filter((ch) => {
+    const lower = ch.toLocaleLowerCase("vi-VN");
+    const upper = ch.toLocaleUpperCase("vi-VN");
+    return ch === upper && ch !== lower;
+  }).length;
+
+  if (upperCount / letters.length < 0.85) return trimmed;
+
+  const lower = trimmed.toLocaleLowerCase("vi-VN");
+  return lower.charAt(0).toLocaleUpperCase("vi-VN") + lower.slice(1);
+}
+
 /** Natural Vietnamese relative time from `since` to `now` (minutes/hours/days). */
 export function formatRelativeSinceVi(now: Date, since: Date | null): string {
   if (!since) return "—";

@@ -22,9 +22,6 @@ import { ArrowRight, Copy, Play } from "lucide-react";
 
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
-import { Timeline } from "@/components/v2/Timeline";
-import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { KpiGrid } from "@/components/v2/KpiGrid";
 import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
@@ -32,15 +29,16 @@ import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
-import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
-import { DiagnosisSectionRenderer } from "@/components/diagnosis/DiagnosisSectionRenderer";
+import {
+  DiagnosisSectionRenderer,
+  type VideoDiagnosisSectionEmbeds,
+} from "@/components/diagnosis/DiagnosisSectionRenderer";
 import { DiagnosisPostingContextBlock } from "@/components/diagnosis/DiagnosisPostingContextBlock";
 import { CreatorComparisonCard } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopDiagnosisStrip } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
 import { StatsHistoryStrip } from "@/components/v2/answer/video/blocks/StatsHistoryStrip";
 import { BoostAttributionBlock } from "@/components/v2/answer/video/blocks/BoostAttributionBlock";
 import { CarouselIntelStrip } from "@/components/v2/answer/video/blocks/CarouselIntelStrip";
-import { HookTimelineStrip } from "@/routes/_app/components/HookTimelineStrip";
 import { shouldShowBoostAttributionBlock } from "@/lib/boostAttributionLabels";
 import { resolveDiagnosisSections } from "@/lib/resolveDiagnosisSections";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
@@ -61,6 +59,17 @@ import {
   shouldShowDeepUpsell,
   type LockedSectionTeaser,
 } from "@/lib/videoDeepUpsell";
+import {
+  adjunctSectionTitle,
+  buildCreatorComparisonProse,
+  buildHookAnalysisFallbackProse,
+  buildMetadataFallbackProse,
+  buildScriptStructureFallbackProse,
+  diagnosisSectionText,
+  shouldShowHookAnalysisBlock,
+  shouldShowMetadataBlock,
+  shouldShowScriptStructureBlock,
+} from "@/lib/videoAdjunctSections";
 import type {
   BrightSpotSignal,
   ChannelContext,
@@ -257,9 +266,41 @@ export function VideoBody({
   const renderDeepUpsell = showDeepUpsell && isBasicDepth;
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const hasChannelPattern = sectionIds.has("channel_pattern");
-  const hasHookAnalysis = sectionIds.has("hook_analysis");
   const hasDistribution = sectionIds.has("distribution");
   const hasBoostAttribution = sectionIds.has("boost_attribution");
+  const adjunctTier = (
+    ["hit", "average", "flop", "unknown"] as const
+  ).includes(performanceTier as "hit" | "average" | "flop" | "unknown")
+    ? (performanceTier as "hit" | "average" | "flop" | "unknown")
+    : isFlop
+      ? "flop"
+      : "hit";
+  const creatorComparisonIntro = useMemo(() => {
+    if (!report.creator_comparison || hasChannelPattern) return undefined;
+    return buildCreatorComparisonProse(report.creator_comparison, meta.views ?? 0, isFlop);
+  }, [report.creator_comparison, hasChannelPattern, meta.views, isFlop]);
+  const videoSectionEmbeds = useMemo((): VideoDiagnosisSectionEmbeds => {
+    const embeds: VideoDiagnosisSectionEmbeds = {};
+    if (shouldShowScriptStructureBlock(report)) {
+      embeds.scriptStructure = {
+        segments: report.segments!,
+        durationSec: duration,
+      };
+    }
+    if (shouldShowHookAnalysisBlock(report)) {
+      embeds.hookAnalysis = {
+        phases: report.hook_phases,
+        timeline: report.hook_timeline,
+        chartCaption: report.hook_phases?.length
+          ? "Ba thẻ theo cửa sổ 0–3s: hình mở, kiểu hook, chỗ lời/kết nối sớm — tóm tắt từ cùng luồng phân tích hình."
+          : undefined,
+      };
+    }
+    if (shouldShowMetadataBlock(meta, report.enrichment)) {
+      embeds.metadata = { meta, enrichment: report.enrichment };
+    }
+    return embeds;
+  }, [report, meta, duration]);
   const showStatsHistory = (meta.stats_history?.length ?? 0) >= 2;
   /** §5.3 — M4 stats + carousel slide intel are deep-only; basic gets locked-section upsell. */
   const showStatsHistoryStrip = showStatsHistory && !isBasicDepth;
@@ -563,6 +604,7 @@ export function VideoBody({
           <div className="mb-6" aria-label="Chẩn đoán theo mục">
             {diagnosisSections.map((sec, idx) => {
               const sid = String(sec.section_id);
+              const sectionProse = diagnosisSectionText(sec);
               return (
                 <Fragment key={`${sid}-${idx}`}>
                   <DiagnosisSectionRenderer
@@ -587,19 +629,24 @@ export function VideoBody({
                           }
                         : undefined
                     }
+                    videoEmbeds={videoSectionEmbeds}
+                    fallbackProse={
+                      sectionProse
+                        ? undefined
+                        : sid === "script_structure"
+                          ? buildScriptStructureFallbackProse(duration)
+                          : sid === "hook_analysis"
+                            ? buildHookAnalysisFallbackProse(
+                                report.hook_phases,
+                                isFlop,
+                                narrativeVi,
+                                flopIssuesForNarrative,
+                              )
+                            : sid === "metadata"
+                              ? buildMetadataFallbackProse(meta)
+                              : undefined
+                    }
                   />
-                  {/* Hook phase cards embedded immediately after hook_analysis prose */}
-                  {sid === "hook_analysis" && report.hook_phases?.length ? (
-                    <div className="mb-6">
-                      <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
-                        Ba thẻ theo cửa sổ 0–3s: hình mở, kiểu hook, chỗ lời/kết nối sớm — tóm tắt từ cùng luồng phân tích hình.
-                      </p>
-                      <HookPhaseGrid phases={report.hook_phases} />
-                    </div>
-                  ) : null}
-                  {sid === "hook_analysis" && report.hook_timeline?.length ? (
-                    <HookTimelineStrip events={report.hook_timeline} />
-                  ) : null}
                   {sid === "distribution" && showStatsHistoryStrip ? (
                     <StatsHistoryStrip
                       history={meta.stats_history}
@@ -644,11 +691,10 @@ export function VideoBody({
         ) : null}
 
         {diagnosisSections.length > 0 && !hasChannelPattern && report.creator_comparison ? (
-          <CreatorComparisonCard data={report.creator_comparison} />
-        ) : null}
-
-        {renderDeepUpsell ? (
-          <VideoDeepUpsell lockedSections={lockedSectionTeasers} />
+          <CreatorComparisonCard
+            data={report.creator_comparison}
+            introProse={creatorComparisonIntro}
+          />
         ) : null}
 
         {/* Standalone channel block: shown when channel data is available but
@@ -693,28 +739,54 @@ export function VideoBody({
           <NextStepsSection text={narrativeVi.dinh_huong_chien_luoc} />
         ) : null}
 
-        {report.segments && report.segments.length > 0 ? (
-          <Collapsible defaultOpen={false}>
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
-              >
-                <span>Dòng thời gian · Cấu trúc {Math.round(duration)} giây</span>
-                <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <section className="mt-3">
-                <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
-                  Phân tích đọc video qua các khung hình được lấy mẫu theo thời gian (nhận diện hình + cấu trúc cảnh), rồi gom
-                  thành 8 nhịp kịch bản. Số % trên mỗi ô là phần thời lượng dành cho nhịp đó trong toàn clip — không
-                  phải tỉ lệ khán giả còn xem. Trục giây bên dưới khớp độ dài video.
-                </p>
-                <Timeline segments={report.segments} durationSec={duration} />
-              </section>
-            </CollapsibleContent>
-          </Collapsible>
+        {!sectionIds.has("script_structure") && shouldShowScriptStructureBlock(report) ? (
+          <DiagnosisSectionRenderer
+            section={{
+              section_id: "script_structure",
+              title: adjunctSectionTitle("script_structure", undefined, adjunctTier),
+              title_vi: adjunctSectionTitle("script_structure", undefined, adjunctTier),
+              text: "",
+              findings: [],
+            }}
+            referenceVideos={refVideos}
+            videoEmbeds={videoSectionEmbeds}
+            fallbackProse={buildScriptStructureFallbackProse(duration)}
+          />
+        ) : null}
+
+        {!sectionIds.has("hook_analysis") && shouldShowHookAnalysisBlock(report) ? (
+          <DiagnosisSectionRenderer
+            section={{
+              section_id: "hook_analysis",
+              title: adjunctSectionTitle("hook_analysis", undefined, adjunctTier),
+              title_vi: adjunctSectionTitle("hook_analysis", undefined, adjunctTier),
+              text: "",
+              findings: [],
+            }}
+            referenceVideos={refVideos}
+            videoEmbeds={videoSectionEmbeds}
+            fallbackProse={buildHookAnalysisFallbackProse(
+              report.hook_phases,
+              isFlop,
+              narrativeVi,
+              flopIssuesForNarrative,
+            )}
+          />
+        ) : null}
+
+        {!sectionIds.has("metadata") && shouldShowMetadataBlock(meta, report.enrichment) ? (
+          <DiagnosisSectionRenderer
+            section={{
+              section_id: "metadata",
+              title: adjunctSectionTitle("metadata", undefined, adjunctTier),
+              title_vi: adjunctSectionTitle("metadata", undefined, adjunctTier),
+              text: "",
+              findings: [],
+            }}
+            referenceVideos={refVideos}
+            videoEmbeds={videoSectionEmbeds}
+            fallbackProse={buildMetadataFallbackProse(meta)}
+          />
         ) : null}
 
         {showCommentRadarTile || showThumbnailTile ? (
@@ -732,49 +804,6 @@ export function VideoBody({
             </div>
           </section>
         ) : null}
-
-        {/* Hook phases collapsible: only when v6 hook_analysis section did not embed it */}
-        {report.hook_phases?.length && !hasHookAnalysis ? (
-          <Collapsible defaultOpen={false}>
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
-              >
-                <span>Giải mã hook · {isFlop ? "3 giây đầu dễ mất người xem" : "3 giây đầu vì sao người xem dừng"}</span>
-                <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <section className="mt-3">
-                <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
-                  Ba thẻ theo cửa sổ 0–3s: hình mở, kiểu hook, chỗ lời/kết nối sớm — tóm tắt từ cùng luồng phân tích
-                  hình (không phải lời thoại đầy đủ từng câu).
-                </p>
-                <HookPhaseGrid phases={report.hook_phases} />
-              </section>
-            </CollapsibleContent>
-          </Collapsible>
-        ) : null}
-
-        {report.hook_timeline?.length && !hasHookAnalysis ? (
-          <HookTimelineStrip events={report.hook_timeline} />
-        ) : null}
-
-        <Collapsible defaultOpen={false}>
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[11px] font-semibold gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
-            >
-              <span>Bối cảnh phân tích</span>
-              <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <ContextStrip meta={meta} enrichment={report.enrichment} />
-          </CollapsibleContent>
-        </Collapsible>
 
         {viewMode === "win" && winLessons.length ? (
           <section>
@@ -807,6 +836,10 @@ export function VideoBody({
               ))}
             </ul>
           </section>
+        ) : null}
+
+        {renderDeepUpsell ? (
+          <VideoDeepUpsell lockedSections={lockedSectionTeasers} />
         ) : null}
       </div>
     </div>

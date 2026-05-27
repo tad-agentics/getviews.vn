@@ -2,6 +2,7 @@
  * One `diagnosis_vi.sections[]` block — shared prose primitive + channel `VideoTileRow` / `NextVideoCard`.
  */
 import { SectionProseBlocks } from "@/components/SectionProseBlocks";
+import { formatDiagnosisSectionTitle } from "@/lib/formatters";
 import type {
   ChannelContext,
   ChannelNextVideoConcept,
@@ -19,12 +20,24 @@ import {
   ChannelContextLegacy,
   ChannelProofBlock,
 } from "@/components/v2/answer/video/blocks/ChannelProofBlock";
+import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
+import { Timeline } from "@/components/v2/Timeline";
+import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
+import { HookTimelineStrip } from "@/routes/_app/components/HookTimelineStrip";
 import { NextVideoCard, NextVideoCardEmpty } from "@/routes/_app/channel/components/NextVideoCard";
 import { VideoTileRow } from "@/routes/_app/channel/components/VideoTileRow";
+import type {
+  HookTimelineEvent,
+  VideoAnalyzeMeta,
+  VideoEnrichment,
+  VideoHookPhase,
+  VideoSegment,
+} from "@/lib/api-types";
 
 function sectionTitle(s: DiagnosisSectionVi): string {
   const raw = (s.title_vi || s.title || "").trim();
-  return raw || String(s.section_id ?? "");
+  const base = raw || String(s.section_id ?? "");
+  return formatDiagnosisSectionTitle(base);
 }
 
 function sectionText(s: DiagnosisSectionVi): string {
@@ -166,6 +179,16 @@ export interface ChannelPatternEmbedProps {
   isV5: boolean;
 }
 
+export interface VideoDiagnosisSectionEmbeds {
+  scriptStructure?: { segments: VideoSegment[]; durationSec: number };
+  hookAnalysis?: {
+    phases?: VideoHookPhase[];
+    timeline?: HookTimelineEvent[];
+    chartCaption?: string;
+  };
+  metadata?: { meta: VideoAnalyzeMeta; enrichment?: VideoEnrichment | null };
+}
+
 interface DiagnosisSectionRendererProps {
   section: DiagnosisSectionVi;
   referenceVideos: ReferenceVideoCard[];
@@ -177,6 +200,10 @@ interface DiagnosisSectionRendererProps {
   creatorComparison?: CreatorComparison | null;
   /** Format-range channel stats — embedded under `channel_pattern` when available. */
   channelPatternEmbed?: ChannelPatternEmbedProps | null;
+  /** Charts belong inside their v6 section block (timeline / hook / context). */
+  videoEmbeds?: VideoDiagnosisSectionEmbeds;
+  /** Narrative-first copy when synthesis omitted ``text`` for this section. */
+  fallbackProse?: string;
 }
 
 export function DiagnosisSectionRenderer({
@@ -186,9 +213,11 @@ export function DiagnosisSectionRenderer({
   postingContext,
   creatorComparison,
   channelPatternEmbed,
+  videoEmbeds,
+  fallbackProse,
 }: DiagnosisSectionRendererProps) {
   const title = sectionTitle(section);
-  const text = sectionText(section);
+  const text = sectionText(section) || (fallbackProse ?? "").trim();
   const sid = String(section.section_id);
   const tilesFromSection = mapDiagnosisEmbeddedTiles(section.embedded_tiles, referenceVideos);
   const tiles =
@@ -272,6 +301,38 @@ export function DiagnosisSectionRenderer({
           {findings.map((f, i) => (
             <SectionFindingCard key={i} rank={i + 1} finding={f} />
           ))}
+        </div>
+      ) : null}
+      {sid === "script_structure" && videoEmbeds?.scriptStructure ? (
+        <div className="mt-4">
+          <Timeline
+            segments={videoEmbeds.scriptStructure.segments}
+            durationSec={videoEmbeds.scriptStructure.durationSec}
+          />
+        </div>
+      ) : null}
+      {sid === "hook_analysis" && videoEmbeds?.hookAnalysis ? (
+        <div className="mt-4">
+          {videoEmbeds.hookAnalysis.chartCaption ? (
+            <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
+              {videoEmbeds.hookAnalysis.chartCaption}
+            </p>
+          ) : null}
+          {videoEmbeds.hookAnalysis.phases?.length ? (
+            <HookPhaseGrid phases={videoEmbeds.hookAnalysis.phases} />
+          ) : null}
+          {videoEmbeds.hookAnalysis.timeline?.length ? (
+            <HookTimelineStrip events={videoEmbeds.hookAnalysis.timeline} />
+          ) : null}
+        </div>
+      ) : null}
+      {sid === "metadata" && videoEmbeds?.metadata ? (
+        <div className="mt-4">
+          <ContextStrip
+            meta={videoEmbeds.metadata.meta}
+            enrichment={videoEmbeds.metadata.enrichment}
+            variant="embed"
+          />
         </div>
       ) : null}
     </div>

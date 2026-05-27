@@ -1,3 +1,5 @@
+import { formatDiagnosisSectionTitle } from "@/lib/formatters";
+
 /** §4.11.3 — post–Cơ bản upsell: locked deep-only section teasers. */
 
 export type LockedSectionTeaser = {
@@ -16,16 +18,16 @@ export const DEEP_ONLY_SECTION_LABELS_VI: Record<string, string> = {
   douyin_origin: "Nguồn gốc Douyin",
   channel_pattern: "Video so với kênh",
   commerce: "Thương mại và chuyển đổi",
-  metadata: "Khung an toàn và loại tài khoản",
+  metadata: "Bối cảnh phân tích",
   editing: "Màu sắc và chữ trên hình",
   sound: "Âm thanh và nhịp điệu",
   persona: "Phong cách và nhân vật",
-  script_structure: "Cấu trúc kịch bản",
+  script_structure: "Dòng thời gian · Cấu trúc video",
 };
 
 export function labelForLockedSection(sectionId: string, titleVi?: string | null): string {
   const trimmed = titleVi?.trim();
-  if (trimmed) return trimmed;
+  if (trimmed) return formatDiagnosisSectionTitle(trimmed);
   return DEEP_ONLY_SECTION_LABELS_VI[sectionId] ?? sectionId.replace(/_/g, " ");
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calendarDaysAgoInVn,
+  formatDiagnosisSectionTitle,
   formatViews,
   formatVN,
   formatRecencyVI,
@@ -8,6 +9,22 @@ import {
   formatBreakoutVI,
   formatCorpusMarketingCount,
 } from "./formatters";
+
+describe("formatDiagnosisSectionTitle", () => {
+  it("converts ALL CAPS v6 titles to sentence case", () => {
+    expect(formatDiagnosisSectionTitle("CƠ CHẾ CHẠY ĐÚNG")).toBe("Cơ chế chạy đúng");
+    expect(formatDiagnosisSectionTitle("PHÂN TÍCH HOOK")).toBe("Phân tích hook");
+  });
+
+  it("leaves already mixed-case titles unchanged", () => {
+    expect(formatDiagnosisSectionTitle("Khung giờ đăng trong ngách")).toBe(
+      "Khung giờ đăng trong ngách",
+    );
+    expect(formatDiagnosisSectionTitle("Video này so với kênh bạn")).toBe(
+      "Video này so với kênh bạn",
+    );
+  });
+});
 
 describe("formatViews", () => {
   it("formats thousands with K suffix", () => {

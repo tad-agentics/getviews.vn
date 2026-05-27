@@ -1388,6 +1388,7 @@ def _synthesize_diagnosis_v6_section_pool(
     )
 
     allowed = _allowed_aweme_ids(reference_videos)
+    depth = "basic" if analysis_depth == "basic" else "deep"
     ctx_dict = build_diagnosis_ctx(
         user_analysis=user_analysis,
         user_stats=user_stats,
@@ -1400,9 +1401,9 @@ def _synthesize_diagnosis_v6_section_pool(
         niche_name=niche_name,
         corpus_size=corpus_size,
         comment_radar=comment_radar,
+        analysis_depth=depth,
     )
     manifest = build_signal_manifest(ctx_dict)
-    depth = "basic" if analysis_depth == "basic" else "deep"
     sections_ordered = select_sections_to_emit(manifest, ctx_dict, depth=depth)
     log_manifest_telemetry(
         manifest_telemetry(manifest, sections_to_emit=sections_ordered),

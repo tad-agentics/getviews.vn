@@ -18,7 +18,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
     "sections": [
       {
         "section_id": "<id>",
-        "title": "tiêu đề tiếng Việt",
+        "title": "tiêu đề tiếng Việt — câu thường (chữ đầu viết hoa), KHÔNG viết hoa toàn bộ; dùng DEFAULT_TITLES_HINT khi có",
         "text": "1-2 đoạn văn ngắn gọn, mỗi đoạn cách nhau bằng \\n\\n, mục tiêu 150-200 từ mỗi section",
         "findings": [
           {

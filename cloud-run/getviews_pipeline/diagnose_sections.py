@@ -119,7 +119,34 @@ def _applies_commerce(ctx: dict, manifest: Manifest) -> bool:
     return account_type in ("business", "brand", "creator_marketplace")
 
 
+def _has_metadata_context(ctx: dict) -> bool:
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return False
+    enr = ua.get("enrichment")
+    if isinstance(enr, dict):
+        if str(enr.get("target_audience") or "").strip():
+            return True
+        if str(enr.get("tone") or "").strip():
+            return True
+        pains = enr.get("pain_points")
+        if isinstance(pains, list) and any(str(p).strip() for p in pains):
+            return True
+        tags = enr.get("style_tags")
+        if isinstance(tags, list) and any(str(t).strip() for t in tags):
+            return True
+        promo = str(enr.get("promotion_type") or "organic").lower()
+        if promo not in ("organic", ""):
+            return True
+    us = ctx.get("user_stats") or {}
+    if isinstance(us, dict) and us.get("creator_median_views") not in (None, "", 0):
+        return True
+    return False
+
+
 def _applies_metadata(ctx: dict, manifest: Manifest) -> bool:
+    if _has_metadata_context(ctx):
+        return True
     return _has_gate(manifest, "metadata", ctx)
 
 
@@ -158,15 +185,43 @@ def _applies_sound(ctx: dict, manifest: Manifest) -> bool:
     return _has_gate(manifest, "sound", ctx)
 
 
+def _has_structural_arc(ctx: dict) -> bool:
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return False
+    if str(ua.get("content_arc") or "").strip():
+        return True
+    if str(ua.get("pacing") or "").strip():
+        return True
+    beats = ua.get("story_beats")
+    return isinstance(beats, list) and len(beats) > 0
+
+
 def _applies_script_structure(ctx: dict, manifest: Manifest) -> bool:
+    if _has_structural_arc(ctx):
+        return True
     return _has_gate(manifest, "script_structure", ctx)
 
 
-def _applies_hook_analysis(_ctx: dict, manifest: Manifest) -> bool:
-    return any(
-        s.salience >= HOOK_ANALYSIS_SECTION_MIN_SALIENCE
-        for s in manifest.get("hook_analysis", [])
-    )
+def _hook_analysis_min_salience(ctx: dict) -> float:
+    depth = str(ctx.get("analysis_depth") or "basic").strip().lower()
+    if depth == "basic":
+        return 0.45
+    return HOOK_ANALYSIS_SECTION_MIN_SALIENCE
+
+
+def _applies_hook_analysis(ctx: dict, manifest: Manifest) -> bool:
+    ua = ctx.get("user_analysis") or {}
+    if isinstance(ua, dict):
+        ha = ua.get("hook_analysis")
+        if isinstance(ha, dict) and (
+            str(ha.get("hook_type") or "").strip()
+            or str(ha.get("hook_phrase") or "").strip()
+            or str(ha.get("first_frame_type") or "").strip()
+        ):
+            return True
+    min_sal = _hook_analysis_min_salience(ctx)
+    return any(s.salience >= min_sal for s in manifest.get("hook_analysis", []))
 
 
 def _applies_boost_attribution(ctx: dict, manifest: Manifest) -> bool:
@@ -193,66 +248,66 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
 
 
 VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
-    ("diagnosis", "hit"): "CƠ CHẾ CHẠY ĐÚNG",
-    ("diagnosis", "average"): "ĐIỂM MẠNH VÀ KHOẢNG TRỐNG",
-    ("diagnosis", "flop"): "VẤN ĐỀ CHÍNH",
-    ("diagnosis", "unknown"): "BỨC TRANH PHÂN TÍCH",
-    ("compliance", "hit"): "RỦI RO PHÁP LÝ",
-    ("compliance", "average"): "RỦI RO PHÁP LÝ",
-    ("compliance", "flop"): "RỦI RO PHÁP LÝ",
-    ("compliance", "unknown"): "RỦI RO PHÁP LÝ",
-    ("hook_analysis", "hit"): "PHÂN TÍCH HOOK",
-    ("hook_analysis", "average"): "PHÂN TÍCH HOOK",
-    ("hook_analysis", "flop"): "PHÂN TÍCH HOOK",
-    ("hook_analysis", "unknown"): "PHÂN TÍCH HOOK",
-    ("distribution", "hit"): "PHÂN PHỐI VÀ KHÁM PHÁ",
-    ("distribution", "average"): "PHÂN PHỐI VÀ KHÁM PHÁ",
-    ("distribution", "flop"): "PHÂN PHỐI VÀ KHÁM PHÁ",
-    ("distribution", "unknown"): "PHÂN PHỐI VÀ KHÁM PHÁ",
-    ("niche_pattern", "hit"): "CÔNG THỨC ĐANG CHẠY TRONG NGÁCH",
-    ("niche_pattern", "average"): "CÔNG THỨC ĐANG CHẠY TRONG NGÁCH",
-    ("niche_pattern", "flop"): "CÔNG THỨC ĐANG CHẠY TRONG NGÁCH",
-    ("niche_pattern", "unknown"): "CÔNG THỨC ĐANG CHẠY TRONG NGÁCH",
-    ("douyin_origin", "hit"): "NGUỒN GỐC DOUYIN",
-    ("douyin_origin", "average"): "NGUỒN GỐC DOUYIN",
-    ("douyin_origin", "flop"): "NGUỒN GỐC DOUYIN",
-    ("douyin_origin", "unknown"): "NGUỒN GỐC DOUYIN",
-    ("channel_pattern", "hit"): "VIDEO NÀY SO VỚI KÊNH BẠN",
-    ("channel_pattern", "average"): "VIDEO NÀY SO VỚI KÊNH BẠN",
-    ("channel_pattern", "flop"): "VIDEO NÀY SO VỚI KÊNH BẠN",
-    ("channel_pattern", "unknown"): "VIDEO NÀY SO VỚI KÊNH BẠN",
-    ("commerce", "hit"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
-    ("commerce", "average"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
-    ("commerce", "flop"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
-    ("commerce", "unknown"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
-    ("metadata", "hit"): "KHUNG AN TOÀN VÀ LOẠI TÀI KHOẢN",
-    ("metadata", "average"): "KHUNG AN TOÀN VÀ LOẠI TÀI KHOẢN",
-    ("metadata", "flop"): "KHUNG AN TOÀN VÀ LOẠI TÀI KHOẢN",
-    ("metadata", "unknown"): "KHUNG AN TOÀN VÀ LOẠI TÀI KHOẢN",
-    ("editing", "hit"): "MÀU SẮC VÀ CHỮ TRÊN HÌNH",
-    ("editing", "average"): "MÀU SẮC VÀ CHỮ TRÊN HÌNH",
-    ("editing", "flop"): "MÀU SẮC VÀ CHỮ TRÊN HÌNH",
-    ("editing", "unknown"): "MÀU SẮC VÀ CHỮ TRÊN HÌNH",
-    ("sound", "hit"): "ÂM THANH VÀ NHỊP ĐIỆU",
-    ("sound", "average"): "ÂM THANH VÀ NHỊP ĐIỆU",
-    ("sound", "flop"): "ÂM THANH VÀ NHỊP ĐIỆU",
-    ("sound", "unknown"): "ÂM THANH VÀ NHỊP ĐIỆU",
-    ("persona", "hit"): "PHONG CÁCH VÀ NHÂN VẬT",
-    ("persona", "average"): "PHONG CÁCH VÀ NHÂN VẬT",
-    ("persona", "flop"): "PHONG CÁCH VÀ NHÂN VẬT",
-    ("persona", "unknown"): "PHONG CÁCH VÀ NHÂN VẬT",
-    ("script_structure", "hit"): "CẤU TRÚC KỊCH BẢN",
-    ("script_structure", "average"): "CẤU TRÚC KỊCH BẢN",
-    ("script_structure", "flop"): "CẤU TRÚC KỊCH BẢN",
-    ("script_structure", "unknown"): "CẤU TRÚC KỊCH BẢN",
-    ("boost_attribution", "hit"): "CÓ DẤU HIỆU ADS/SEEDING",
-    ("boost_attribution", "average"): "CÓ DẤU HIỆU ADS/SEEDING",
-    ("boost_attribution", "flop"): "CÓ DẤU HIỆU ADS/SEEDING",
-    ("boost_attribution", "unknown"): "CÓ DẤU HIỆU ADS/SEEDING",
-    ("next_video", "hit"): "VIDEO TIẾP THEO NÊN QUAY",
-    ("next_video", "average"): "VIDEO TIẾP THEO NÊN QUAY",
-    ("next_video", "flop"): "VIDEO TIẾP THEO NÊN QUAY",
-    ("next_video", "unknown"): "VIDEO TIẾP THEO NÊN QUAY",
+    ("diagnosis", "hit"): "Cơ chế chạy đúng",
+    ("diagnosis", "average"): "Điểm mạnh và khoảng trống",
+    ("diagnosis", "flop"): "Vấn đề chính",
+    ("diagnosis", "unknown"): "Bức tranh phân tích",
+    ("compliance", "hit"): "Vi phạm chính sách",
+    ("compliance", "average"): "Vi phạm chính sách",
+    ("compliance", "flop"): "Vi phạm chính sách",
+    ("compliance", "unknown"): "Vi phạm chính sách",
+    ("hook_analysis", "hit"): "Phân tích hook",
+    ("hook_analysis", "average"): "Phân tích hook",
+    ("hook_analysis", "flop"): "Phân tích hook",
+    ("hook_analysis", "unknown"): "Phân tích hook",
+    ("distribution", "hit"): "Khung giờ đăng trong ngách",
+    ("distribution", "average"): "Khung giờ đăng trong ngách",
+    ("distribution", "flop"): "Khung giờ đăng trong ngách",
+    ("distribution", "unknown"): "Khung giờ đăng trong ngách",
+    ("niche_pattern", "hit"): "Công thức đang chạy trong ngách",
+    ("niche_pattern", "average"): "Công thức đang chạy trong ngách",
+    ("niche_pattern", "flop"): "Công thức đang chạy trong ngách",
+    ("niche_pattern", "unknown"): "Công thức đang chạy trong ngách",
+    ("douyin_origin", "hit"): "Nguồn gốc Douyin",
+    ("douyin_origin", "average"): "Nguồn gốc Douyin",
+    ("douyin_origin", "flop"): "Nguồn gốc Douyin",
+    ("douyin_origin", "unknown"): "Nguồn gốc Douyin",
+    ("channel_pattern", "hit"): "Video này so với kênh bạn",
+    ("channel_pattern", "average"): "Video này so với kênh bạn",
+    ("channel_pattern", "flop"): "Video này so với kênh bạn",
+    ("channel_pattern", "unknown"): "Video này so với kênh bạn",
+    ("commerce", "hit"): "Thương mại và chuyển đổi",
+    ("commerce", "average"): "Thương mại và chuyển đổi",
+    ("commerce", "flop"): "Thương mại và chuyển đổi",
+    ("commerce", "unknown"): "Thương mại và chuyển đổi",
+    ("metadata", "hit"): "Bối cảnh phân tích",
+    ("metadata", "average"): "Bối cảnh phân tích",
+    ("metadata", "flop"): "Bối cảnh phân tích",
+    ("metadata", "unknown"): "Bối cảnh phân tích",
+    ("editing", "hit"): "Màu sắc và chữ trên hình",
+    ("editing", "average"): "Màu sắc và chữ trên hình",
+    ("editing", "flop"): "Màu sắc và chữ trên hình",
+    ("editing", "unknown"): "Màu sắc và chữ trên hình",
+    ("sound", "hit"): "Âm thanh và nhịp điệu",
+    ("sound", "average"): "Âm thanh và nhịp điệu",
+    ("sound", "flop"): "Âm thanh và nhịp điệu",
+    ("sound", "unknown"): "Âm thanh và nhịp điệu",
+    ("persona", "hit"): "Phong cách và nhân vật",
+    ("persona", "average"): "Phong cách và nhân vật",
+    ("persona", "flop"): "Phong cách và nhân vật",
+    ("persona", "unknown"): "Phong cách và nhân vật",
+    ("script_structure", "hit"): "Dòng thời gian · Cấu trúc video",
+    ("script_structure", "average"): "Dòng thời gian · Cấu trúc video",
+    ("script_structure", "flop"): "Dòng thời gian · Cấu trúc video",
+    ("script_structure", "unknown"): "Dòng thời gian · Cấu trúc video",
+    ("boost_attribution", "hit"): "Có dấu hiệu ads/seeding",
+    ("boost_attribution", "average"): "Có dấu hiệu ads/seeding",
+    ("boost_attribution", "flop"): "Có dấu hiệu ads/seeding",
+    ("boost_attribution", "unknown"): "Có dấu hiệu ads/seeding",
+    ("next_video", "hit"): "Video tiếp theo nên quay",
+    ("next_video", "average"): "Video tiếp theo nên quay",
+    ("next_video", "flop"): "Video tiếp theo nên quay",
+    ("next_video", "unknown"): "Video tiếp theo nên quay",
 }
 
 
@@ -271,6 +326,8 @@ BASIC_SECTION_ALLOWLIST = frozenset({
     "diagnosis",
     "compliance",
     "hook_analysis",
+    "script_structure",
+    "metadata",
     "niche_pattern",
     "next_video",
 })

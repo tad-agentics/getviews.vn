@@ -125,6 +125,17 @@ def test_video_analysis_rejects_invalid_format_axis() -> None:
         VideoAnalysis.model_validate(d)
 
 
+def test_video_analysis_sprint10_ai_disclosure_round_trip() -> None:
+    d = _minimal_video_analysis_dict()
+    d["ai_generated_suspected"] = True
+    d["ai_disclosure_present"] = False
+    d["ai_disclosure_form"] = "none"
+    m = VideoAnalysis.model_validate(d)
+    assert m.ai_generated_suspected is True
+    assert m.ai_disclosure_present is False
+    assert m.ai_disclosure_form == "none"
+
+
 def test_video_analysis_sprint8_metadata_editing_round_trip() -> None:
     d = _minimal_video_analysis_dict()
     d["safe_zone_status"] = "ok"
@@ -283,6 +294,7 @@ def test_short_form_video_taxonomy_vietnam_section0_tracked() -> None:
     assert path.is_file()
     text = path.read_text(encoding="utf-8")
     assert "## §0. Commerce Intent Layer" in text
+    assert "ai_generated_suspected" in text
 
 
 def test_extraction_prompts_include_glossary_and_hi9() -> None:
@@ -292,6 +304,8 @@ def test_extraction_prompts_include_glossary_and_hi9() -> None:
     assert '"beauty"' in VIDEO_EXTRACTION_PROMPT or "beauty" in VIDEO_EXTRACTION_PROMPT
     assert "review_unboxing" in VIDEO_EXTRACTION_PROMPT
     assert "commerce_intent" in VIDEO_EXTRACTION_PROMPT
+    assert "ai_generated_suspected" in VIDEO_EXTRACTION_PROMPT
+    assert "ai_disclosure_form" in VIDEO_EXTRACTION_PROMPT
     assert "carousel_format_axis" in CAROUSEL_EXTRACTION_PROMPT
     assert "tutorial_carousel" in CAROUSEL_EXTRACTION_PROMPT
     assert "swipe_anchor" in CAROUSEL_EXTRACTION_PROMPT

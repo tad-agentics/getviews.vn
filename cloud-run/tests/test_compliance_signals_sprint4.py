@@ -116,6 +116,78 @@ def test_inflated_price_anchor_unformatted_1000k_vs_100k() -> None:
     assert any(s.id == "compliance_price_anchor_inflated" for s in extract_compliance_signals(ctx))
 
 
+def test_violence_phrase_flag() -> None:
+    ua = {
+        "promotion_type": "organic",
+        "audio_transcript": "Cảnh máu me trong clip hài",
+        "text_overlays": [],
+    }
+    ctx = _ctx(ua=ua)
+    assert any(s.id == "compliance_restricted_phrase" for s in extract_compliance_signals(ctx))
+
+
+def test_safe_zone_compliance_signal() -> None:
+    ua = {
+        "promotion_type": "organic",
+        "safe_zone_status": "bottom_overlay_risk",
+        "text_overlays": [],
+    }
+    ctx = _ctx(ua=ua, flags=collect_compliance_flags(ua, {}))
+    assert any(s.id == "compliance_safe_zone_bottom" for s in extract_compliance_signals(ctx))
+
+
+def test_engagement_bait_hashtag() -> None:
+    ua = {"promotion_type": "organic", "text_overlays": []}
+    st = {"caption": "Follow me #f4f #viral #tiktok"}
+    ctx = _ctx(ua=ua, st=st)
+    assert any(s.id == "compliance_engagement_bait_hashtag" for s in extract_compliance_signals(ctx))
+
+
+def test_ai_disclosure_missing_commercial() -> None:
+    ua = {
+        "promotion_type": "brand_deal",
+        "ai_generated_suspected": True,
+        "ai_disclosure_present": False,
+        "ai_disclosure_form": "none",
+        "commerce_intent": {
+            "conversion_objective": "brand_deal",
+            "disclosure_present": True,
+            "disclosure_form": "hashtag",
+        },
+        "text_overlays": [],
+    }
+    ctx = _ctx(ua=ua)
+    sigs = extract_compliance_signals(ctx)
+    assert any(s.id == "compliance_ai_disclosure_missing" for s in sigs)
+    ai_sig = next(s for s in sigs if s.id == "compliance_ai_disclosure_missing")
+    assert ai_sig.salience >= 0.9
+
+
+def test_ai_disclosure_present_no_signal() -> None:
+    ua = {
+        "promotion_type": "organic",
+        "ai_generated_suspected": True,
+        "ai_disclosure_present": True,
+        "ai_disclosure_form": "platform_label",
+        "text_overlays": [],
+    }
+    ctx = _ctx(ua=ua, flags=[])
+    ids = {s.id for s in extract_compliance_signals(ctx)}
+    assert "compliance_ai_disclosure_missing" not in ids
+
+
+def test_ai_disclosure_text_hint_suppresses_flag() -> None:
+    ua = {
+        "promotion_type": "organic",
+        "ai_generated_suspected": True,
+        "ai_disclosure_present": False,
+        "text_overlays": [],
+    }
+    st = {"caption": "Video demo #aigenerated cho brand"}
+    ctx = _ctx(ua=ua, st=st)
+    assert "compliance_ai_disclosure_missing" not in {s.id for s in extract_compliance_signals(ctx)}
+
+
 def test_shadowban_cheo_heuristic() -> None:
     ua = {"promotion_type": "organic", "audio_transcript": "", "text_overlays": []}
     st = {"caption": "", "views": 30_000, "engagement_rate": 0.09, "retention_end_pct": 40.0}

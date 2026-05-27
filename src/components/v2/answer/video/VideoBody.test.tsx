@@ -529,10 +529,9 @@ describe("VideoBody render", () => {
     expect(screen.queryByText(/So sánh trong kênh/i)).toBeNull();
   });
 
-  it("omits ContextStrip entirely when no enrichment + no creator_median_views", () => {
+  it("omits metadata adjunct block when no enrichment + no creator_median_views", () => {
     const { container } = renderInRouter(makeFlopReport());
-    expect(container.querySelector("[aria-label='Bối cảnh phân tích']")).toBeNull();
-    expect(screen.queryByText(/BỐI CẢNH PHÂN TÍCH/)).toBeNull();
+    expect(screen.queryByText("Bối cảnh phân tích")).toBeNull();
   });
 
   it("renders target_vs_creator_median in the ContextStrip", () => {
@@ -550,7 +549,7 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/Trung vị 100\.0K view/)).toBeTruthy();
   });
 
-  it("renders enrichment tone in ContextStrip", () => {
+  it("renders enrichment tone inside metadata adjunct block", () => {
     renderInRouter(
       makeWinReport({
         enrichment: {
@@ -561,6 +560,7 @@ describe("VideoBody render", () => {
         },
       }),
     );
+    expect(screen.getByText("Bối cảnh phân tích")).toBeTruthy();
     expect(screen.getByText(/GIỌNG ĐIỆU/)).toBeTruthy();
     expect(screen.getByText("Giải trí")).toBeTruthy();
   });
@@ -684,8 +684,8 @@ describe("VideoBody render", () => {
     expect(screen.queryByTestId("video-deep-upsell")).toBeNull();
   });
 
-  it("renders HookTimelineStrip after hook_analysis section", () => {
-    renderInRouter(
+  it("embeds hook charts inside hook_analysis section when v6 section exists", () => {
+    const { container } = renderInRouter(
       makeWinReport({
         hook_timeline: [{ t: 0.5, event: "face_enter" }],
         narrative_vi: {
@@ -694,14 +694,31 @@ describe("VideoBody render", () => {
           diagnosis_vi: {
             headline_vi: "H",
             sections: [
-              { section_id: "hook_analysis", title: "Hook", text: "Hook prose." },
+              { section_id: "hook_analysis", title: "Phân tích hook", text: "Hook prose." },
             ],
           },
         },
       }),
     );
+    expect(screen.getByText("Hook prose.")).toBeTruthy();
     expect(screen.getByText(/Dòng thời gian hook/)).toBeTruthy();
     expect(screen.getByText(/Khuôn mặt xuất hiện/)).toBeTruthy();
+    expect(screen.getAllByText("Phân tích hook")).toHaveLength(1);
+    expect(container.querySelectorAll("[data-testid='hook-phase-grid']").length).toBe(1);
+  });
+
+  it("renders script_structure adjunct with fallback prose when segments exist", () => {
+    renderInRouter(
+      makeWinReport({
+        segments: [
+          { name: "Hook", pct: 12, color_key: "hook" },
+          { name: "Body", pct: 88, color_key: "body" },
+        ],
+        meta: { ...makeWinReport().meta, duration_sec: 28 },
+      }),
+    );
+    expect(screen.getByTestId("timeline")).toBeTruthy();
+    expect(screen.getByText(/8 nhịp kịch bản/)).toBeTruthy();
   });
 
   it("renders StatsHistoryStrip after distribution section on deep depth", () => {

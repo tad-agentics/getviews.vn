@@ -238,7 +238,7 @@ Evaluate:
   - High-profile enforcement confirmed — this is actively prosecuted
   - Flag: is the commercial relationship disclosed? Is the disclosure prominent or buried?
 - **Copyright risk**: Business accounts must use Commercial Music Library. Hash-fingerprint detects re-uploaded identical files — files must be re-edited.
-- **AI-content disclosure**: Meta requires labeling of AI-generated/modified ads as of March 2026. Common rejection cause.
+- **AI-content disclosure**: TikTok/Meta require labeling when footage is AI-generated or materially AI-modified (deepfake face, synthetic avatar, generative backgrounds, obvious TTS). Extraction fields: `ai_generated_suspected`, `ai_disclosure_present`, `ai_disclosure_form` (`platform_label` | `caption_hashtag` | `text_overlay` | `voice` | `none`). Flag when suspected=true and disclosure absent — higher salience on commercial/ads paths.
 - **Shadowban diagnostic signals**: ≥50% drop in views overnight; FYP traffic source falling to 0%; unique-hashtag test failing; Account Status flags. Galloway's 3.3B-Short analysis: >52% swipe-away ratio triggers distribution collapse within hours.
 - **Competitor-mention risk**: on-screen brand mentions can trigger ad rejection on Meta and audio strikes on TikTok.
 

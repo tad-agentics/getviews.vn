@@ -82,6 +82,10 @@ QUY TẮC BẮT BUỘC:
   - safe_zone_status: ok | bottom_overlay_risk | unknown — ok = chữ kêu gọi/giá/CTA quan trọng không nằm vùng ~35% dưới khung (tránh đè nút Shop/giỏ); bottom_overlay_risk = có chữ quan trọng (giá, mua, lưu, link) sát mép dưới trong vùng rủi ro; unknown = không đủ bằng chứng.
   - tiktok_account_type_heuristic: business | personal | unknown — business nếu thấy UI/badge tài khoản doanh nghiệp, cửa hàng, TikTok Shop rõ; personal nếu profile creator thường; unknown nếu không thấy UI đó.
   - trending_vpop_sound: true | false | null — true nếu nhạc nền rõ là V-pop/ballad remix trending Việt Nam đang viral; false nếu trend quốc tế/beat khác; null nếu silent hoặc không chắc.
+- §10 AI / synthetic (luôn điền ai_generated_suspected; ai_disclosure_* khi nghi AI hoặc đã thấy nhãn):
+  - ai_generated_suspected: true | false | null — true nếu khung/giọng/nền có dấu hiệu AI (deepfake mặt, lip-sync giả, avatar ảo, nền generative, TTS không tự nhiên); false nếu quay thật rõ; null nếu không đủ căn cứ.
+  - ai_disclosure_present: true nếu có nhãn TikTok AIGC/synthetic, caption/overlay "#AI"/"tạo bằng AI"/tiết lộ voice; false nếu nghi AI nhưng không thấy nhãn; null chỉ khi ai_generated_suspected=null.
+  - ai_disclosure_form: platform_label | caption_hashtag | text_overlay | voice | none — hình thức tiết lộ chính; none khi ai_disclosure_present=false.
 - §5 hậu kỳ / chữ trên hình (object — null field khi không chắc):
   - color_grading_style: native_capcut | high_key_beauty | desaturated_serious | over_processed | neutral | unknown | null — tông màu tổng thể.
   - text_overlay_font_size_tier: large | medium | small | none | unknown | null — cỡ chữ overlay chính (đọc trên mobile).

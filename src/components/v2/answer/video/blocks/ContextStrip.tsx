@@ -12,9 +12,12 @@ const PROMOTION_LABEL_VI: Record<NonNullable<VideoEnrichment["promotion_type"]>,
 export function ContextStrip({
   meta,
   enrichment,
+  variant = "standalone",
 }: {
   meta: VideoAnalyzeMeta;
   enrichment?: VideoEnrichment | null;
+  /** ``embed`` — parent section already shows the block title. */
+  variant?: "standalone" | "embed";
 }) {
   const ratio = meta.target_vs_creator_median ?? null;
   const median = meta.creator_median_views ?? null;
@@ -40,11 +43,17 @@ export function ContextStrip({
   return (
     <section
       aria-label="Bối cảnh phân tích"
-      className="mt-6 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
+      className={
+        variant === "embed"
+          ? "rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
+          : "mt-6 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
+      }
     >
-      <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-3)]">
-        BỐI CẢNH PHÂN TÍCH
-      </p>
+      {variant === "standalone" ? (
+        <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-3)]">
+          BỐI CẢNH PHÂN TÍCH
+        </p>
+      ) : null}
       <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-2">
         {hasRatio ? (
           <div>

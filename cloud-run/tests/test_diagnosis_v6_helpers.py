@@ -81,7 +81,8 @@ def test_select_sections_includes_hook_analysis_after_compliance_when_salient() 
     assert out.index("hook_analysis") < out.index("commerce")
 
 
-def test_select_sections_omits_hook_analysis_when_only_low_salience_hook_signal() -> None:
+def test_select_sections_includes_hook_analysis_when_vision_hook_present() -> None:
+    """Basic depth still synthesizes hook prose when extraction populated hook_analysis."""
     ctx = build_diagnosis_ctx(
         user_analysis={
             "promotion_type": "organic",
@@ -101,7 +102,7 @@ def test_select_sections_omits_hook_analysis_when_only_low_salience_hook_signal(
     )
     manifest = build_signal_manifest(ctx)
     out = select_sections_to_emit(manifest, ctx)
-    assert "hook_analysis" not in out
+    assert "hook_analysis" in out
 
 
 def test_v6_section_body_and_narrative() -> None:

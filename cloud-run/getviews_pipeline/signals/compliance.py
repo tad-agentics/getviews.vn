@@ -25,7 +25,7 @@ def extract_restricted_phrase_compliance_signals(ctx: dict) -> list[Signal]:
         for f in flags
         if isinstance(f, dict)
         and str(f.get("category"))
-        in ("health_claim", "price_guarantee", "off_platform")
+        in ("health_claim", "price_guarantee", "off_platform", "violence")
     ]
     if not phrase_flags:
         return []
@@ -35,7 +35,7 @@ def extract_restricted_phrase_compliance_signals(ctx: dict) -> list[Signal]:
     first = picked[0]
     phrase = str(first.get("phrase") or "")
     claim = (
-        f"Phát hiện cụm từ rủi ro tuân thủ §10 ({len(picked)} hit): "
+        f"Phát hiện cụm từ vi phạm chính sách TikTok ({len(picked)} hit): "
         f"{phrase[:100]}"
     )
     evidence = [
@@ -55,8 +55,8 @@ def extract_restricted_phrase_compliance_signals(ctx: dict) -> list[Signal]:
             claim=claim,
             evidence=evidence,
             suggested_fix=(
-                "Gỡ cụm từ cấm theo Khung Community Guidelines VN; thay bằng "
-                "claim có kiểm chứng và tránh định hướng khỏi nền tảng."
+                "Gỡ cụm từ cấm theo Community Guidelines TikTok; thay bằng claim có "
+                "kiểm chứng và tránh đẩy người xem ra nền tảng khác."
             ),
         )
     ]
@@ -168,6 +168,173 @@ def extract_disclosure_compliance_signal(ctx: dict) -> list[Signal]:
     ]
 
 
+def extract_safe_zone_compliance_signal(ctx: dict) -> list[Signal]:
+    flags = ctx.get("compliance_flags") or []
+    hits = [f for f in flags if isinstance(f, dict) and str(f.get("category")) == "safe_zone"]
+    if not hits:
+        return []
+    return [
+        Signal(
+            id="compliance_safe_zone_bottom",
+            section_id="compliance",
+            taxonomy_ref="§10",
+            salience=0.88,
+            claim=(
+                "Chữ hoặc CTA giá/mua nằm vùng dưới khung — vi phạm vùng an toàn TikTok "
+                "(dễ bị che bởi nút Shop/giỏ)."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=str(hits[0].get("phrase") or "bottom_overlay_risk"),
+                    location="user_analysis.safe_zone_status",
+                )
+            ],
+            suggested_fix="Đẩy giá, CTA và mã giảm giá lên giữa/trên 50% khung hình.",
+        )
+    ]
+
+
+def extract_engagement_bait_hashtag_signal(ctx: dict) -> list[Signal]:
+    flags = ctx.get("compliance_flags") or []
+    bait = [
+        f
+        for f in flags
+        if isinstance(f, dict) and str(f.get("category")) in ("engagement_bait", "hashtag_noise")
+    ]
+    if not bait:
+        return []
+    phrase = str(bait[0].get("phrase") or "")
+    return [
+        Signal(
+            id="compliance_engagement_bait_hashtag",
+            section_id="compliance",
+            taxonomy_ref="§10",
+            salience=0.72,
+            claim=(
+                f"Caption có hashtag/pattern dễ bị coi là câu view ({len(bait)} hit) — "
+                "rủi ro spam theo chính sách tương tác TikTok."
+            ),
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=str(f.get("phrase") or "")[:120],
+                    location=str(f.get("location") or "caption"),
+                )
+                for f in bait[:3]
+            ],
+            suggested_fix="Bỏ hashtag f4f/sub4sub; dùng hashtag ngách tiếng Việt + caption mô tả nội dung.",
+        )
+    ]
+
+
+def extract_copyright_music_compliance_signal(ctx: dict) -> list[Signal]:
+    """Business / ads path — nhạc không CML-safe."""
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return []
+    st = ctx.get("user_stats") if isinstance(ctx.get("user_stats"), dict) else {}
+    prof = st.get("trending_sound_profile")
+    acct = str(ua.get("tiktok_account_type_heuristic") or "").strip().lower()
+    music = str(st.get("music_title") or "").strip()
+
+    if isinstance(prof, dict) and prof.get("commercial_music_library_eligible") is False:
+        return [
+            Signal(
+                id="compliance_cml_music_risk",
+                section_id="compliance",
+                taxonomy_ref="§10",
+                salience=0.84,
+                claim=(
+                    "Nhạc nền không thuộc Commercial Music Library — video có thể bị "
+                    "mute/strip hoặc hạn chế phân phối khi chạy quảng cáo."
+                ),
+                evidence=[
+                    Evidence(
+                        type="user_analysis_field",
+                        quote=f"commercial_music_library_eligible=false title={music[:80]}",
+                        location="user_stats.trending_sound_profile",
+                    )
+                ],
+                suggested_fix="Đổi sang nhạc CML hoặc original có quyền sử dụng rõ trong TikTok.",
+            )
+        ]
+
+    if acct == "business" and ua.get("trending_vpop_sound") is True:
+        return [
+            Signal(
+                id="compliance_business_trending_sound",
+                section_id="compliance",
+                taxonomy_ref="§10",
+                salience=0.78,
+                claim=(
+                    "Tài khoản business dùng nhạc trending V-pop — rủi ro bản quyền / "
+                    "giới hạn CML khi boost hoặc Spark Ads."
+                ),
+                evidence=[
+                    Evidence(
+                        type="user_analysis_field",
+                        quote=f"tiktok_account_type_heuristic=business music={music[:80]}",
+                        location="user_analysis+user_stats",
+                    )
+                ],
+                suggested_fix="Ưu tiên nhạc từ thư viện CML trong TikTok trước khi chạy ads.",
+            )
+        ]
+    return []
+
+
+def extract_ai_disclosure_compliance_signal(ctx: dict) -> list[Signal]:
+    """§10 — AI-generated/modified content without platform or in-video disclosure."""
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return []
+    flags = ctx.get("compliance_flags") or []
+    hits = [f for f in flags if isinstance(f, dict) and str(f.get("category")) == "ai_disclosure"]
+    if not hits and ua.get("ai_generated_suspected") is not True:
+        return []
+    if not hits and ua.get("ai_disclosure_present") is True:
+        return []
+    if not hits:
+        return []
+    ci = _as_commerce_dict(ua)
+    commercial = _is_commercial(ua, ci)
+    salience = 0.92 if commercial else 0.86
+    form = str(ua.get("ai_disclosure_form") or "none")
+    claim = (
+        "Clip có dấu hiệu AI/synthetic (deepfake, avatar, nền generative, TTS…) "
+        "nhưng chưa thấy nhãn TikTok AIGC hoặc tiết lộ rõ trong caption/overlay/voice — "
+        "rủi ro từ chối quảng cáo và hạn chế phân phối."
+    )
+    if commercial:
+        claim = (
+            claim + " Clip thương mại — ưu tiên bật nhãn AIGC trước khi boost/Spark Ads."
+        )
+    return [
+        Signal(
+            id="compliance_ai_disclosure_missing",
+            section_id="compliance",
+            taxonomy_ref="§10",
+            salience=salience,
+            claim=claim,
+            evidence=[
+                Evidence(
+                    type="user_analysis_field",
+                    quote=(
+                        f"ai_generated_suspected=true ai_disclosure_present=false "
+                        f"ai_disclosure_form={form}"
+                    ),
+                    location="user_analysis.ai_disclosure_*",
+                )
+            ],
+            suggested_fix=(
+                "Bật nhãn AIGC/synthetic trên TikTok hoặc thêm chữ overlay/caption "
+                "#AI / “tạo bằng AI” trước khi đăng hoặc chạy ads."
+            ),
+        )
+    ]
+
+
 def extract_shadowban_distribution_risk_signal(ctx: dict) -> list[Signal]:
     """Heuristic: views << kênh median nhưng ER mặt nổi cao — dấu hiệu tương tác chéo / throttle."""
     st = ctx.get("user_stats") if isinstance(ctx.get("user_stats"), dict) else {}
@@ -235,7 +402,17 @@ def extract_legacy_compliance_hit(ctx: dict) -> list[Signal]:
     if extract_price_anchor_compliance_signal(ctx):
         return []
     handled_cats = frozenset(
-        {"health_claim", "price_guarantee", "off_platform", "price_anchor_inflated"}
+        {
+            "health_claim",
+            "price_guarantee",
+            "off_platform",
+            "violence",
+            "price_anchor_inflated",
+            "safe_zone",
+            "engagement_bait",
+            "hashtag_noise",
+            "ai_disclosure",
+        }
     )
     if any(
         isinstance(f, dict) and str(f.get("category")) in handled_cats for f in flags
@@ -249,7 +426,7 @@ def extract_legacy_compliance_hit(ctx: dict) -> list[Signal]:
             section_id="compliance",
             taxonomy_ref="§10",
             salience=1.0,
-            claim=f"Phát hiện cụm từ rủi ro tuân thủ: {phrase[:80]}",
+            claim=f"Phát hiện dấu hiệu vi phạm chính sách: {phrase[:80]}",
             evidence=[
                 Evidence(
                     type="user_analysis_field",
@@ -269,7 +446,11 @@ def extract_compliance_signals(ctx: dict) -> list[Signal]:
     out: list[Signal] = []
     out.extend(extract_restricted_phrase_compliance_signals(ctx))
     out.extend(extract_price_anchor_compliance_signal(ctx))
+    out.extend(extract_safe_zone_compliance_signal(ctx))
+    out.extend(extract_engagement_bait_hashtag_signal(ctx))
+    out.extend(extract_copyright_music_compliance_signal(ctx))
     out.extend(extract_disclosure_compliance_signal(ctx))
+    out.extend(extract_ai_disclosure_compliance_signal(ctx))
     out.extend(extract_shadowban_distribution_risk_signal(ctx))
     out.extend(extract_legacy_compliance_hit(ctx))
     return out

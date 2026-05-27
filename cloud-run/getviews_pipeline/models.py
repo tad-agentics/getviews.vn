@@ -433,6 +433,16 @@ _TIKTOK_ACCOUNT_HEURISTIC = frozenset(get_args(TikTokAccountTypeHeuristicType))
 _COLOR_GRADING_STYLE_ALLOWED = frozenset(get_args(ColorGradingStyleType))
 _TEXT_OVERLAY_FONT_TIER = frozenset(get_args(TextOverlayFontSizeTierType))
 
+# §10 — AI-generated / synthetic disclosure (TikTok + Meta ads policy context).
+AiDisclosureFormType = Literal[
+    "platform_label",
+    "caption_hashtag",
+    "text_overlay",
+    "voice",
+    "none",
+]
+_AI_DISCLOSURE_FORMS = frozenset(get_args(AiDisclosureFormType))
+
 
 class AffiliateScriptPhases(BaseModel):
     """Five-phase Shopee/TikTok Shop short video spine (§4). Optional per-phase booleans."""
@@ -763,6 +773,12 @@ class VideoAnalysis(BaseModel):
     """§1 — Business vs personal from visible UI cues; unknown when not readable."""
     trending_vpop_sound: bool | None = None
     """§1 — True when BGM matches obvious Vietnamese pop trend (CML/business risk context)."""
+    ai_generated_suspected: bool | None = None
+    """§10 — Visual/voice cues suggest AI-generated or heavily AI-modified footage."""
+    ai_disclosure_present: bool | None = None
+    """§10 — TikTok AIGC label or explicit AI/synthetic disclosure in caption/overlay/voice."""
+    ai_disclosure_form: AiDisclosureFormType | None = None
+    """§10 — Primary disclosure channel when ``ai_disclosure_present`` is true."""
     color_grading_style: ColorGradingStyleType | None = None
     """§5 — Overall color grade read."""
     text_overlay_font_size_tier: TextOverlayFontSizeTierType | None = None
@@ -947,6 +963,38 @@ class VideoAnalysis(BaseModel):
         if s in ("false", "0", "no", "không", "khong"):
             return False
         return None
+
+    @field_validator("ai_generated_suspected", "ai_disclosure_present", mode="before")
+    @classmethod
+    def _coerce_ai_bool_fields(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        if isinstance(v, bool):
+            return v
+        s = str(v).strip().lower()
+        if s in ("true", "1", "yes", "có", "co"):
+            return True
+        if s in ("false", "0", "no", "không", "khong"):
+            return False
+        return None
+
+    @field_validator("ai_disclosure_form", mode="before")
+    @classmethod
+    def _normalize_ai_disclosure_form(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        aliases = {
+            "platform": "platform_label",
+            "aigc_label": "platform_label",
+            "tiktok_label": "platform_label",
+            "hashtag": "caption_hashtag",
+            "caption": "caption_hashtag",
+            "overlay": "text_overlay",
+            "text": "text_overlay",
+        }
+        s = aliases.get(s, s)
+        return s if s in _AI_DISCLOSURE_FORMS else None
 
     @field_validator("color_grading_style", mode="before")
     @classmethod
