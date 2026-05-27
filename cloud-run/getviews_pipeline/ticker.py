@@ -46,8 +46,7 @@ _BUCKET_LABELS: dict[TickerBucket, str] = {
     "âm_thanh":   "ÂM THANH",
 }
 
-MIN_TICKER_ITEMS = 3
-MIN_PATTERN_VIDEOS_7D = 2
+MIN_PATTERN_VIDEOS_7D = 1
 _BREAKOUT_MULTIPLIER_FLOOR = 2.0
 
 
@@ -122,8 +121,68 @@ def _interleave_buckets(buckets: list[list[TickerItem]]) -> list[TickerItem]:
     return out
 
 
+def _append_unique(out: list[TickerItem], seen: set[tuple[str, str | None]], items: list[TickerItem]) -> None:
+    for item in items:
+        key = (item.bucket, item.target_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(item)
+
+
+def _niche_pulse_summary_items(client: Any, niche_id: int) -> list[TickerItem]:
+    """Real niche-week stats when hook/breakout buckets are thin (same source as PulseCard)."""
+    from getviews_pipeline.pulse import _compute_pulse_sync
+
+    try:
+        stats = _compute_pulse_sync(client, niche_id)
+    except Exception as exc:
+        logger.warning("[ticker] pulse summary failed niche=%s: %s", niche_id, exc)
+        return []
+
+    out: list[TickerItem] = []
+    if stats.videos_this_week >= 1:
+        out.append(TickerItem(
+            bucket="breakout",
+            label_vi="TUẦN NÀY",
+            headline_vi=(
+                f"{stats.videos_this_week} video mới · "
+                f"{_fmt_views(stats.views_this_week)} views trong ngách"
+            ),
+            target_kind="none",
+            target_id="pulse:videos",
+        ))
+    if stats.viral_count_this_week >= 1:
+        out.append(TickerItem(
+            bucket="breakout",
+            label_vi=_BUCKET_LABELS["breakout"],
+            headline_vi=f"{stats.viral_count_this_week} video ≥3× trung bình kênh tuần này",
+            target_kind="none",
+            target_id="pulse:viral",
+        ))
+    if stats.top_hook_name:
+        out.append(TickerItem(
+            bucket="hook_mới",
+            label_vi=_BUCKET_LABELS["hook_mới"],
+            headline_vi=f'"{stats.top_hook_name}" · hook dẫn view tuần này',
+            target_kind="none",
+            target_id="pulse:top_hook",
+        ))
+    if stats.views_last_week > 0 and stats.views_delta_pct != 0:
+        sign = "+" if stats.views_delta_pct > 0 else ""
+        label = _BUCKET_LABELS["breakout"] if stats.views_delta_pct >= 0 else _BUCKET_LABELS["cảnh_báo"]
+        out.append(TickerItem(
+            bucket="breakout" if stats.views_delta_pct >= 0 else "cảnh_báo",
+            label_vi=label,
+            headline_vi=f"View ngách {sign}{stats.views_delta_pct:.0f}% so với tuần trước",
+            target_kind="none",
+            target_id="pulse:views_delta",
+        ))
+    return out
+
+
 async def compute_ticker(client: Any, niche_id: int) -> list[TickerItem]:
-    """Run bucket queries in parallel; interleave; hide thin niches (<3 unique items)."""
+    """Run bucket queries in parallel; interleave; pad with pulse/hot views when thin."""
     loop = asyncio.get_running_loop()
     since = (datetime.now(UTC) - timedelta(days=7)).isoformat()
 
@@ -145,20 +204,10 @@ async def compute_ticker(client: Any, niche_id: int) -> list[TickerItem]:
             buckets.append(list(res))
 
     out = _dedupe_ticker_items(_interleave_buckets(buckets))
-    if len(out) >= MIN_TICKER_ITEMS:
-        return out
-
-    seen_keys = {(it.bucket, it.target_id) for it in out}
-    for item in _hot_views_items(client, niche_id, since):
-        key = (item.bucket, item.target_id)
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-        out.append(item)
-        if len(out) >= MIN_TICKER_ITEMS:
-            return out
-
-    return []
+    seen = {(it.bucket, it.target_id) for it in out}
+    _append_unique(out, seen, _hot_views_items(client, niche_id, since))
+    _append_unique(out, seen, _niche_pulse_summary_items(client, niche_id))
+    return out
 
 
 # ── bucket queries ─────────────────────────────────────────────────────────

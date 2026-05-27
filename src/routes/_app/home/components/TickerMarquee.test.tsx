@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_TICKER_UNIQUE_ITEMS, tickerMarqueeRows, uniqueTickerItems } from "./TickerMarquee";
+import { tickerMarqueeRows, uniqueTickerItems } from "./TickerMarquee";
 import type { TickerItem } from "@/hooks/useHomeTicker";
 
 const SAMPLE: TickerItem[] = [
@@ -24,17 +24,15 @@ describe("tickerMarqueeRows", () => {
     expect(tickerMarqueeRows([])).toEqual([]);
   });
 
-  it("returns empty when fewer than MIN unique items (avoids one-line loop)", () => {
-    expect(tickerMarqueeRows(SAMPLE)).toEqual([]);
-    expect(MIN_TICKER_UNIQUE_ITEMS).toBe(3);
+  it("keeps a single unique row without duplicating (static strip)", () => {
+    expect(tickerMarqueeRows(SAMPLE)).toEqual(SAMPLE);
   });
 
-  it("duplicates rows for marquee loop when enough unique items", () => {
-    const three = [
+  it("duplicates rows for marquee loop when 2+ unique items", () => {
+    const two = [
       SAMPLE[0],
       { ...SAMPLE[0], bucket: "hook_mới" as const, label_vi: "HOOK MỚI", target_id: "2" },
-      { ...SAMPLE[0], bucket: "âm_thanh" as const, label_vi: "ÂM THANH", target_id: "3" },
     ];
-    expect(tickerMarqueeRows(three)).toHaveLength(6);
+    expect(tickerMarqueeRows(two)).toHaveLength(4);
   });
 });

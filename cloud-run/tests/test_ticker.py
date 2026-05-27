@@ -166,7 +166,7 @@ def test_new_hook_skips_zero_week_count_uses_live_corpus() -> None:
     assert "0 video" not in items[0].headline_vi
 
 
-def test_new_hook_skips_single_video_pattern() -> None:
+def test_new_hook_includes_single_video_pattern() -> None:
     client = _Client({
         "video_patterns": [
             {"id": "p1", "display_name": "Thin", "niche_spread": [NICHE],
@@ -174,7 +174,9 @@ def test_new_hook_skips_single_video_pattern() -> None:
         ],
         "video_corpus": [{"pattern_id": "p1", "indexed_at": SINCE}],
     })
-    assert _new_hook_items(client, NICHE, SINCE) == []
+    items = _new_hook_items(client, NICHE, SINCE)
+    assert len(items) == 1
+    assert "1 video tuần này" in items[0].headline_vi
 
 
 def test_new_hook_caps_at_two() -> None:
@@ -303,15 +305,32 @@ def test_compute_ticker_interleaves_round_robin() -> None:
     assert buckets[0] != buckets[1]
 
 
-def test_compute_ticker_empty_when_thin_niche() -> None:
+def test_compute_ticker_pulse_fallback_when_hooks_thin() -> None:
+    """One weak hook still gets TUẦN NÀY / pulse lines so the strip does not vanish."""
+    week_ago = (datetime.now(UTC) - timedelta(days=3)).isoformat()
     client = _Client({
         "video_patterns": [
             {"id": "p1", "display_name": "Lonely", "niche_spread": [NICHE],
              "weekly_instance_count": 0, "is_active": True, "first_seen_at": SINCE},
         ],
-        "video_corpus": [{"pattern_id": "p1", "indexed_at": SINCE, "views": 50}],
+        "video_corpus": [
+            {
+                "pattern_id": "p1",
+                "indexed_at": SINCE,
+                "views": 50_000,
+                "created_at": week_ago,
+                "ingest_loop_niche_id": NICHE,
+                "creator_handle": "minh",
+            },
+        ],
     })
-    assert asyncio.run(compute_ticker(client, NICHE)) == []
+    items = asyncio.run(compute_ticker(client, NICHE))
+    assert len(items) >= 1
+    assert any("TUẦN NÀY" in i.label_vi or "video" in i.headline_vi for i in items)
+
+
+def test_compute_ticker_empty_when_no_corpus() -> None:
+    assert asyncio.run(compute_ticker(_Client({}), NICHE)) == []
 
 
 def test_compute_ticker_fails_open_per_bucket() -> None:

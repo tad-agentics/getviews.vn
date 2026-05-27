@@ -13,9 +13,6 @@ const BUCKET_TONE: Record<TickerItem["bucket"], string> = {
   âm_thanh: "text-[color:var(--gv-lime)]",
 };
 
-/** Spec: hide marquee when fewer than 3 distinct signals (system-design § /home/ticker). */
-export const MIN_TICKER_UNIQUE_ITEMS = 3;
-
 /** Dedupe by bucket + target before looping the CSS marquee. */
 export function uniqueTickerItems(items: TickerItem[]): TickerItem[] {
   const seen = new Set<string>();
@@ -29,10 +26,11 @@ export function uniqueTickerItems(items: TickerItem[]): TickerItem[] {
   return out;
 }
 
-/** Duplicate once for seamless CSS marquee loop (only when enough unique rows). */
+/** Marquee rows: 2+ items loop; 1 item stays static (no duplicate headline). */
 export function tickerMarqueeRows(items: TickerItem[]): TickerItem[] {
   const unique = uniqueTickerItems(items);
-  if (unique.length < MIN_TICKER_UNIQUE_ITEMS) return [];
+  if (unique.length === 0) return [];
+  if (unique.length === 1) return unique;
   return [...unique, ...unique];
 }
 
@@ -44,10 +42,15 @@ export const TickerMarquee = memo(function TickerMarquee({
 } = {}) {
   const { data: items, isPending, isError, isFetched } = useHomeTicker(true, viewNicheId);
 
-  const rowItems = useMemo(
-    () => (items && items.length > 0 ? tickerMarqueeRows(items) : []),
+  const uniqueItems = useMemo(
+    () => (items && items.length > 0 ? uniqueTickerItems(items) : []),
     [items],
   );
+  const rowItems = useMemo(
+    () => (uniqueItems.length > 0 ? tickerMarqueeRows(uniqueItems) : []),
+    [uniqueItems],
+  );
+  const singleStrip = uniqueItems.length === 1;
 
   // Avoid flashing mock while the query is in flight; hide when API empty/errors.
   if (isPending || !isFetched || isError || rowItems.length === 0) {
@@ -59,7 +62,13 @@ export const TickerMarquee = memo(function TickerMarquee({
       aria-label="Dòng tin tuần này"
       className="relative overflow-hidden border-b border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
     >
-      <div className="animate-scroll-ticker flex min-w-[200%] items-center gap-12 whitespace-nowrap py-2">
+      <div
+        className={
+          singleStrip
+            ? "flex items-center justify-center gap-12 whitespace-nowrap px-4 py-2"
+            : "animate-scroll-ticker flex min-w-[200%] items-center gap-12 whitespace-nowrap py-2"
+        }
+      >
         {rowItems.map((it, idx) => (
           <span
             key={`${it.bucket}-${it.target_id ?? idx}-${idx}`}
