@@ -15,10 +15,13 @@ export function IntentCtaRail({
   context,
   disabled,
   onCta,
+  /** Sticky footer shell — no top margin / duplicate section kicker. */
+  compact = false,
 }: {
   context: IntentCtaContext;
   disabled?: boolean;
   onCta: (suggestion: IntentCtaSuggestion, query: string) => void;
+  compact?: boolean;
 }) {
   const suggestions = useMemo(() => getIntentCtaSuggestions(context), [context]);
   const [compareUrl, setCompareUrl] = useState("");
@@ -46,10 +49,12 @@ export function IntentCtaRail({
   };
 
   return (
-    <div className="mt-10" aria-label="Gợi ý bước tiếp theo">
-      <p className="mb-3 gv-kicker text-[color:var(--gv-ink-3)]">
-        Tiếp tục nghiên cứu
-      </p>
+    <div className={compact ? "mt-0" : "mt-10"} aria-label="Gợi ý bước tiếp theo">
+      {compact ? null : (
+        <p className="mb-3 gv-kicker text-[color:var(--gv-ink-3)]">
+          Tiếp tục nghiên cứu
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         {suggestions.map((s) => (
           <button

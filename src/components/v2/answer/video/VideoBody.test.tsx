@@ -12,7 +12,7 @@
  */
 import React from "react";
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 
 import type { VideoReportPayload } from "@/lib/api-types";
@@ -356,6 +356,36 @@ describe("VideoBody render", () => {
     renderInRouter(makeFlopReport());
     expect(screen.queryByText(/Sao chép hook/)).toBeNull();
     expect(screen.queryByText(/Tạo kịch bản từ video này/)).toBeNull();
+  });
+
+  it("renders flop header CTAs (Soi kênh + Viết lại) once near top", () => {
+    renderInRouter(makeFlopReport());
+    expect(screen.getByText(/Soi kênh @creatorx/)).toBeTruthy();
+    expect(screen.getAllByText(/Viết lại kịch bản/)).toHaveLength(1);
+  });
+
+  it("calls onRequestAppendTurn from format card CTA", () => {
+    const onRequestAppendTurn = vi.fn();
+    renderInRouter(
+      makeWinReport({
+        format_cards: [
+          {
+            format_name_vi: "POV mua sắm",
+            mechanism_vi: "Góc nhìn thứ nhất",
+            view_range: "50K–200K",
+            engagement_rate: "8%",
+            example_hook_vi: "Mình vừa thử…",
+            evidence_aweme_id: null,
+            format_examples: [],
+          },
+        ],
+      }),
+      { onRequestAppendTurn },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Tạo kịch bản theo POV mua sắm/ }));
+    expect(onRequestAppendTurn).toHaveBeenCalledWith(
+      expect.stringContaining('định dạng "POV mua sắm"'),
+    );
   });
 
   // ── CreatorComparisonCard (Lightreel hit/flop adoption from b7d4bc8) ──

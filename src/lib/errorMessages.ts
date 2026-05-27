@@ -60,13 +60,13 @@ export function analysisErrorCopy(error: unknown): string {
     return "Không tạo được phiên nghiên cứu. Kiểm tra kết nối rồi thử lại.";
   }
   if (code === "follow_up_failed") {
-    return "Câu hỏi tiếp theo chưa gửi được. Thử lại sau vài giây.";
+    return "Câu hỏi tiếp theo chưa gửi được. Bấm Gửi lại.";
   }
   if (code === "stream_failed") {
-    return "Kết nối streaming bị ngắt. Thử gửi lại câu hỏi — có thể tốn thêm 1 credit.";
+    return "Kết nối streaming bị ngắt. Bấm Gửi lại — có thể tốn thêm 1 credit.";
   }
   if (code === "stream_timeout") {
-    return "Server im lặng quá lâu — có thể đang quá tải. Thử gửi lại sau ít giây.";
+    return "Server im lặng quá lâu — có thể đang quá tải. Bấm Gửi lại.";
   }
   if (code === "session_not_found") {
     return "Phiên không tồn tại hoặc đã bị xoá. Mở phiên khác từ Lịch sử.";

@@ -141,6 +141,7 @@ function ReportPayloadBody({
   analysisDepth,
   showDeepUpsell,
   lockedSections,
+  onRequestAppendTurn,
 }: {
   payload: ReportV1;
   /** Intent phiên (câu đầu) — tinh chỉnh kickers/copy khi trùng `format`. */
@@ -157,6 +158,7 @@ function ReportPayloadBody({
   analysisDepth?: AnswerHandoffDepth | null;
   showDeepUpsell?: boolean;
   lockedSections?: LockedSectionTeaser[];
+  onRequestAppendTurn?: (query: string) => void;
 }) {
   // Kicker strings intentionally Vietnamese — matches CLAUDE.md's
   // "primary language for user-facing copy: Vietnamese. No English
@@ -214,6 +216,7 @@ function ReportPayloadBody({
             analysisDepth={analysisDepth ?? null}
             showDeepUpsell={showDeepUpsell}
             lockedSections={lockedSections}
+            onRequestAppendTurn={onRequestAppendTurn}
           />
         </AnswerBlock>
       );
@@ -281,6 +284,7 @@ export function ContinuationTurn({
   analysisDepth,
   showDeepUpsell,
   lockedSections,
+  onRequestAppendTurn,
 }: {
   turn: AnswerTurnRow;
   sessionIntentType?: string;
@@ -295,6 +299,7 @@ export function ContinuationTurn({
   analysisDepth?: AnswerHandoffDepth | null;
   showDeepUpsell?: boolean;
   lockedSections?: LockedSectionTeaser[];
+  onRequestAppendTurn?: (query: string) => void;
 }) {
   // Primary turn duplicates AnswerScreen hero (“Câu hỏi” + H1). Divider +
   // H2 are for follow-ups only (see module comment on TURN_KIND_LABEL).
@@ -312,6 +317,7 @@ export function ContinuationTurn({
         analysisDepth={analysisDepth}
         showDeepUpsell={showDeepUpsell}
         lockedSections={lockedSections}
+        onRequestAppendTurn={onRequestAppendTurn}
       />
     </article>
   );

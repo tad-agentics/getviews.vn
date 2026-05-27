@@ -47,7 +47,7 @@ describe("analysisErrorCopy", () => {
     ["network_failed", /Không kết nối được máy chủ phân tích/],
     ["start_failed", /Không tạo được phiên/],
     ["follow_up_failed", /Câu hỏi tiếp theo chưa gửi được/],
-    ["stream_failed", /có thể tốn thêm 1 credit/],
+    ["stream_failed", /Bấm Gửi lại/],
     ["stream_timeout", /Server im lặng quá lâu/],
     ["session_not_found", /Phiên không tồn tại/],
     ["no_cloud_run", /VITE_CLOUD_RUN_API_URL/],
@@ -67,7 +67,7 @@ describe("analysisErrorCopy", () => {
 
   it("answerStreamErrorCopy uses resume copy when replay handles exist", () => {
     expect(answerStreamErrorCopy("stream_failed", true)).toMatch(/Tiếp tục phân tích/);
-    expect(answerStreamErrorCopy("stream_failed", false)).toMatch(/có thể tốn thêm 1 credit/);
+    expect(answerStreamErrorCopy("stream_failed", false)).toMatch(/Bấm Gửi lại/);
     expect(answerStreamErrorCopy("stream_timeout", true)).toMatch(/Tiếp tục phân tích/);
   });
 

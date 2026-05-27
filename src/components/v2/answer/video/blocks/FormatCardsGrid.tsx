@@ -1,3 +1,4 @@
+import { Btn } from "@/components/v2/Btn";
 import { EvidenceVideoEmbed } from "@/components/v2/answer/video/EvidenceVideoEmbed";
 import type {
   FormatCard,
@@ -26,9 +27,11 @@ function pickFormatCorpusEvidence(card: FormatCard): FormatCardExample | null {
 export function FormatCardsGrid({
   cards,
   referenceVideos,
+  onCreateScriptFromFormat,
 }: {
   cards: FormatCard[];
   referenceVideos: ReferenceVideoCard[];
+  onCreateScriptFromFormat?: (card: FormatCard) => void;
 }) {
   if (!cards.length) return null;
 
@@ -115,6 +118,17 @@ export function FormatCardsGrid({
                     ))}
                   </div>
                 </div>
+              ) : null}
+              {onCreateScriptFromFormat ? (
+                <Btn
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-auto w-full justify-center border-t border-[color:var(--gv-rule)] pt-3"
+                  onClick={() => onCreateScriptFromFormat(card)}
+                >
+                  Tạo kịch bản theo {card.format_name_vi}
+                </Btn>
               ) : null}
             </div>
           );

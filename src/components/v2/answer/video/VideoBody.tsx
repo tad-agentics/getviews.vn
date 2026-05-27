@@ -28,6 +28,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { KpiGrid } from "@/components/v2/KpiGrid";
 import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
+import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
@@ -144,6 +145,7 @@ export function VideoBody({
   analysisDepth = null,
   showDeepUpsell = false,
   lockedSections,
+  onRequestAppendTurn,
 }: {
   report: VideoReportPayload;
   preSynthesisData?: VideoAnswerPreSynthesisPayload | null;
@@ -152,6 +154,8 @@ export function VideoBody({
   analysisDepth?: "basic" | "deep" | null;
   showDeepUpsell?: boolean;
   lockedSections?: LockedSectionTeaser[];
+  /** Append a shot-list turn in the same answer session (format-card CTA). */
+  onRequestAppendTurn?: (query: string) => void;
 }) {
   const navigate = useNavigate();
   const meta = report.meta;
@@ -260,6 +264,29 @@ export function VideoBody({
     navigate("/app/answer", {
       state: { initialPrompt: buildFlopScriptHandoffPrompt(report, tiktokWatchUrl) },
     });
+  };
+
+  const goChannelStudio = () => {
+    const raw = meta.creator?.trim();
+    if (!raw) return;
+    logUsage("video_to_channel", { video_id: report.video_id, mode: viewMode });
+    navigate(
+      buildChannelStudioPath({
+        handle: raw,
+        videoUrl: tiktokWatchUrl ?? undefined,
+        depth: analysisDepth === "deep" ? "deep" : undefined,
+      }),
+    );
+  };
+
+  const handleFormatScript = (card: FormatCard) => {
+    if (!onRequestAppendTurn) return;
+    const name = card.format_name_vi.trim();
+    let q = `Tạo kịch bản theo định dạng "${name}" từ báo cáo video này.`;
+    if (card.example_hook_vi?.trim()) {
+      q += ` Hook gợi ý: ${card.example_hook_vi.trim()}`;
+    }
+    onRequestAppendTurn(q);
   };
 
   const goWinScript = () => {
@@ -396,6 +423,20 @@ export function VideoBody({
             <Btn variant="ink" size="sm" type="button" onClick={goWinScript}>
               Tạo kịch bản từ video này
             </Btn>
+          </div>
+        ) : isFlop && (flopIssueCount > 0 || meta.creator?.trim()) ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {meta.creator?.trim() ? (
+              <Btn variant="ghost" size="sm" type="button" onClick={goChannelStudio}>
+                Soi kênh {atHandle(meta.creator)}
+              </Btn>
+            ) : null}
+            {flopIssueCount > 0 ? (
+              <Btn type="button" variant="accent" size="sm" onClick={goScript}>
+                Viết lại kịch bản
+                <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+              </Btn>
+            ) : null}
           </div>
         ) : null}
         <header>
@@ -580,15 +621,6 @@ export function VideoBody({
           <CreatorComparisonCard data={report.creator_comparison} />
         ) : null}
 
-        {isFlop && flopIssueCount > 0 ? (
-          <div className="mb-6 flex justify-end">
-            <Btn type="button" variant="accent" onClick={goScript}>
-              Viết lại kịch bản
-              <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-            </Btn>
-          </div>
-        ) : null}
-
         {renderDeepUpsell ? (
           <VideoDeepUpsell lockedSections={lockedSectionTeasers} />
         ) : null}
@@ -624,7 +656,11 @@ export function VideoBody({
         ) : null}
 
         {formatCardsEffective && formatCardsEffective.length > 0 ? (
-          <FormatCardsGrid cards={formatCardsEffective} referenceVideos={refVideos} />
+          <FormatCardsGrid
+            cards={formatCardsEffective}
+            referenceVideos={refVideos}
+            onCreateScriptFromFormat={onRequestAppendTurn ? handleFormatScript : undefined}
+          />
         ) : null}
 
         {narrativeVi?.dinh_huong_chien_luoc && !sectionIds.has("next_video") ? (

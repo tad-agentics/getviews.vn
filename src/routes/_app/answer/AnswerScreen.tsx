@@ -49,11 +49,12 @@ import {
   type AnswerHandoffDepth,
   type ParsedAnswerHandoff,
 } from "@/lib/answerHandoff";
+import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
 import { IntentCtaRail } from "@/components/v2/answer/IntentCtaRail";
 import type { IntentCtaContext, IntentCtaSuggestion } from "@/lib/intentCtaSuggestions";
-import { appendTurnKindForIntent } from "@/routes/_app/intent-router";
+import { appendTurnKindForIntent, appendTurnKindForQuery } from "@/routes/_app/intent-router";
 import {
   CacheHitBadge,
   LivePipelineStrip,
@@ -99,6 +100,33 @@ const RETRYABLE_STREAM_ERRORS = new Set([
   "stream_timeout",
   "network_failed",
 ]);
+
+/** Errors that may show the inline ``Gửi lại`` action (not billing/auth/validation). */
+function errorAllowsInlineRetry(code: string): boolean {
+  if (code === "follow_up_failed" || code === "start_failed") return true;
+  return RETRYABLE_STREAM_ERRORS.has(code);
+}
+
+function showInlineRetryButton(opts: {
+  error: string;
+  canResumeInterruptedStream: boolean;
+  sessionId: string | null;
+  turnCount: number;
+  followUp: string;
+  primaryRetryQuery: string;
+}): boolean {
+  const { error, canResumeInterruptedStream, sessionId, turnCount, followUp, primaryRetryQuery } =
+    opts;
+  if (!errorAllowsInlineRetry(error) || canResumeInterruptedStream) return false;
+  if (error === "follow_up_failed") {
+    return Boolean(sessionId && followUp.trim());
+  }
+  if (error === "start_failed") {
+    return Boolean(primaryRetryQuery);
+  }
+  // Fresh primary re-stream — only before the first persisted turn.
+  return turnCount === 0 && Boolean(primaryRetryQuery);
+}
 
 function answerSessionUrlParams(
   sessionId: string,
@@ -368,9 +396,31 @@ export default function AnswerScreen() {
     hasReplayHandles &&
     Boolean(error && RETRYABLE_STREAM_ERRORS.has(error));
 
+  const primaryRetryQuery = useMemo(() => {
+    const fromSession = detailQuery.data?.session?.initial_q?.trim();
+    return followUp.trim() || seedQ.trim() || fromSession || "";
+  }, [followUp, seedQ, detailQuery.data?.session?.initial_q]);
+
   /** Stream disconnect errors only apply while the session has no persisted turn. */
   const showAnswerErrorBanner = Boolean(
     error && (turnCount === 0 || !RETRYABLE_STREAM_ERRORS.has(error)),
+  );
+
+  const showErrorRetryButton = Boolean(
+    error &&
+    showAnswerErrorBanner &&
+    !streamInFlight &&
+    !bootstrapLoading &&
+    CLOUD &&
+    user &&
+    showInlineRetryButton({
+      error,
+      canResumeInterruptedStream,
+      sessionId: sessionId ?? null,
+      turnCount,
+      followUp,
+      primaryRetryQuery,
+    }),
   );
 
   // Legacy state handoff → canonical query params (§3.1).
@@ -597,6 +647,178 @@ export default function AnswerScreen() {
     lastSeq,
     queryClient,
     uid,
+  ]);
+
+  const retryFailedPrimaryTurn = useCallback(async () => {
+    if (!sessionId || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
+    const query = primaryRetryQuery;
+    if (!query) return;
+    const sessionRow = detailQuery.data?.session;
+    const pending = loadPendingAnswerStream(sessionId);
+    const sessionFormat = sessionRow?.format ?? pending?.sessionFormat ?? "generic";
+    const turnKind = pending?.turnKind ?? "primary";
+    setBootstrapLoading(true);
+    setError(null);
+    try {
+      const result = await stream({
+        mode: "answer_turn",
+        answerSessionId: sessionId,
+        query,
+        turnKind,
+        sessionFormat,
+        videoMode: sessionFormat === "video" ? handoff.mode ?? undefined : undefined,
+        analysisDepth:
+          sessionFormat === "video"
+            ? pending?.analysisDepth ?? handoff.depth
+            : undefined,
+        sourceEntry: "error_retry_ui",
+      });
+      if (!result.ok) {
+        setError(pickAnswerErrorCode(result.error, "stream_failed"));
+        return;
+      }
+      logUsage("answer_turn_append", {
+        session_id: sessionId,
+        kind: turnKind,
+        source_entry: "error_retry_ui",
+      });
+      if (result.finalPayload) {
+        const nextIndex = detailQuery.data?.turns.length ?? 0;
+        const fallbackSession: AnswerDetailCache["session"] = sessionRow ?? {
+          id: sessionId,
+          user_id: user.id,
+          title: null,
+          initial_q: query,
+          intent_type: "generic",
+          format: sessionFormat as AnswerSessionRow["format"],
+          niche_id: null,
+        };
+        applyOptimisticAnswerTurn(queryClient, sessionId, fallbackSession, {
+          id: `optimistic-${sessionId}-${nextIndex}`,
+          session_id: sessionId,
+          turn_index: nextIndex,
+          kind: turnKind,
+          query,
+          payload: result.finalPayload,
+          credits_used:
+            pending?.creditsUsed ??
+            optimisticAnswerCreditsUsed(
+              turnKind,
+              sessionFormat,
+              pending?.analysisDepth ?? handoff.depth,
+            ),
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (uid) {
+        await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") {
+        console.error("[answer/retry-primary] failed", e);
+      }
+      setError(pickAnswerErrorCode(e, "stream_failed"));
+    } finally {
+      setBootstrapLoading(false);
+    }
+  }, [
+    sessionId,
+    CLOUD,
+    user,
+    bootstrapLoading,
+    streamInFlight,
+    primaryRetryQuery,
+    detailQuery.data?.session,
+    detailQuery.data?.turns.length,
+    handoff.depth,
+    handoff.mode,
+    stream,
+    queryClient,
+    uid,
+  ]);
+
+  const retryFollowUpTurn = useCallback(async () => {
+    if (!sessionId || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
+    const q = followUp.trim();
+    if (!q) return;
+    const turnKind = appendTurnKindForQuery(q, true);
+    setBootstrapLoading(true);
+    setError(null);
+    try {
+      const result = await stream({
+        mode: "answer_turn",
+        answerSessionId: sessionId,
+        query: q,
+        turnKind,
+        sessionFormat: detailQuery.data?.session?.format,
+        sourceEntry: "error_retry_ui",
+        analysisDepth: handoff.depth,
+        videoMode: handoff.mode ?? undefined,
+      });
+      if (!result.ok) {
+        setError(pickAnswerErrorCode(result.error, "follow_up_failed"));
+        return;
+      }
+      logUsage("answer_turn_append", {
+        session_id: sessionId,
+        kind: turnKind,
+        source_entry: "error_retry_ui",
+      });
+      if (result.finalPayload) {
+        const cached = queryClient.getQueryData<AnswerDetailCache>(
+          answerSessionKeys.detail(sessionId),
+        );
+        const nextIndex = cached?.turns.length ?? 0;
+        const synthesized: AnswerTurnRow = {
+          id: `optimistic-${sessionId}-${nextIndex}`,
+          session_id: sessionId,
+          turn_index: nextIndex,
+          kind: turnKind,
+          query: q,
+          payload: result.finalPayload,
+          credits_used: turnKind === "script" ? 3 : 0,
+          created_at: new Date().toISOString(),
+        };
+        queryClient.setQueryData<AnswerDetailCache>(
+          answerSessionKeys.detail(sessionId),
+          (prev) => {
+            const fallbackSession = prev?.session ?? {
+              id: sessionId,
+              user_id: user.id,
+              title: null,
+              initial_q: q,
+              intent_type: "follow_up_unclassifiable",
+              format: detailQuery.data?.session?.format ?? "generic",
+              niche_id: null,
+            };
+            return injectOptimisticTurn(prev, fallbackSession, synthesized);
+          },
+        );
+      }
+      if (uid) {
+        await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") {
+        console.error("[answer/retry-follow-up] failed", e);
+      }
+      setError(pickAnswerErrorCode(e, "follow_up_failed"));
+    } finally {
+      setBootstrapLoading(false);
+    }
+  }, [
+    sessionId,
+    CLOUD,
+    user,
+    bootstrapLoading,
+    streamInFlight,
+    followUp,
+    stream,
+    queryClient,
+    uid,
+    handoff.depth,
+    handoff.mode,
+    detailQuery.data?.session?.format,
   ]);
 
   useEffect(() => {
@@ -900,6 +1122,27 @@ export default function AnswerScreen() {
         if (draftId) openScriptShoot(draftId);
         return;
       }
+      if (suggestion.action === "channel_handoff") {
+        const report = lastPayload?.kind === "video" ? lastPayload.report : null;
+        const handle =
+          typeof report?.meta?.creator === "string" ? report.meta.creator : null;
+        if (!handle?.trim()) return;
+        const videoUrl =
+          resolveVideoHandoffQuery({
+            seedQ,
+            sessionInitialQ: detailQuery.data?.session?.initial_q,
+            videoId: report?.video_id,
+            creatorHandle: handle,
+          }) ?? undefined;
+        navigate(
+          buildChannelStudioPath({
+            handle,
+            videoUrl,
+            depth: handoff.depth === "deep" ? "deep" : undefined,
+          }),
+        );
+        return;
+      }
       void appendCtaTurn(suggestion, query);
     },
     [
@@ -936,6 +1179,9 @@ export default function AnswerScreen() {
       setFollowUp("");
       return;
     }
+    if (turnCount === 0) {
+      void retryFailedPrimaryTurn();
+    }
   }, [
     followUp,
     CLOUD,
@@ -945,6 +1191,37 @@ export default function AnswerScreen() {
     sessionId,
     handoff.depth,
     setSearchParams,
+    turnCount,
+    retryFailedPrimaryTurn,
+  ]);
+
+  const retryFromErrorBanner = useCallback(() => {
+    if (!error || !errorAllowsInlineRetry(error)) return;
+    if (canResumeInterruptedStream) {
+      void resumeInterruptedStream();
+      return;
+    }
+    if (error === "follow_up_failed" && sessionId && followUp.trim()) {
+      void retryFollowUpTurn();
+      return;
+    }
+    if (error === "start_failed" || !sessionId) {
+      submitComposer();
+      return;
+    }
+    if (turnCount === 0 && RETRYABLE_STREAM_ERRORS.has(error)) {
+      void retryFailedPrimaryTurn();
+    }
+  }, [
+    canResumeInterruptedStream,
+    resumeInterruptedStream,
+    error,
+    sessionId,
+    followUp,
+    retryFollowUpTurn,
+    submitComposer,
+    turnCount,
+    retryFailedPrimaryTurn,
   ]);
 
   const videoStreamProgress =
@@ -968,6 +1245,10 @@ export default function AnswerScreen() {
       scriptDraftId: scriptDraftIdFromTurns(turns),
       evidenceVideoQuery: evidenceVideoQueryFromPayload(lastPayload),
       sessionInitialQ: detailQuery.data?.session?.initial_q ?? null,
+      creatorHandle:
+        typeof meta?.creator === "string" && meta.creator.trim()
+          ? meta.creator.trim()
+          : null,
     };
   }, [
     detailQuery.data?.session?.format,
@@ -981,6 +1262,22 @@ export default function AnswerScreen() {
 
   const showIntentCtaRail = Boolean(
     sessionId && lastPayload && !loading && !streamInFlight && turnCount > 0,
+  );
+
+  const appendVideoTurnQuery = useCallback(
+    (query: string) => {
+      if (!sessionId) return;
+      void appendCtaTurn(
+        {
+          id: "video_script",
+          label: "Tạo kịch bản",
+          intentType: "shot_list",
+          action: "append_turn",
+        },
+        query,
+      );
+    },
+    [sessionId, appendCtaTurn],
   );
 
   return (
@@ -1143,32 +1440,66 @@ export default function AnswerScreen() {
                 </div>
               ) : null}
               {showAnswerErrorBanner ? (
-                <div className="mt-4">
-                  <p className="text-sm text-[var(--gv-danger)]">
+                <div
+                  className="mt-4 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3"
+                  role="alert"
+                >
+                  <p className="m-0 text-sm leading-relaxed text-[var(--gv-danger)]">
                     {error && RETRYABLE_STREAM_ERRORS.has(error)
                       ? answerStreamErrorCopy(error, canResumeInterruptedStream)
                       : analysisErrorCopy(error)}
                   </p>
-                  {canResumeInterruptedStream ? (
-                    <Btn
-                      variant="ink"
-                      size="sm"
-                      type="button"
-                      className="mt-3"
-                      data-testid="resume-stream-btn"
-                      onClick={() => void resumeInterruptedStream()}
-                    >
-                      Tiếp tục phân tích
-                    </Btn>
+                  {canResumeInterruptedStream || showErrorRetryButton ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {canResumeInterruptedStream ? (
+                        <Btn
+                          variant="ink"
+                          size="sm"
+                          type="button"
+                          data-testid="resume-stream-btn"
+                          onClick={() => void resumeInterruptedStream()}
+                        >
+                          Tiếp tục phân tích
+                        </Btn>
+                      ) : null}
+                      {showErrorRetryButton ? (
+                        <Btn
+                          variant="ink"
+                          size="sm"
+                          type="button"
+                          data-testid="error-retry-btn"
+                          disabled={bootstrapLoading || streamInFlight}
+                          onClick={() => void retryFromErrorBanner()}
+                        >
+                          Gửi lại
+                        </Btn>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               ) : null}
               {detailQuery.isError && sessionId ? (
-                <p className="mt-4 text-sm text-[var(--gv-danger)]">
-                  {analysisErrorCopy(
-                    pickAnswerErrorCode(detailQuery.error, "start_failed"),
-                  )}
-                </p>
+                <div
+                  className="mt-4 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3"
+                  role="alert"
+                >
+                  <p className="m-0 text-sm leading-relaxed text-[var(--gv-danger)]">
+                    {analysisErrorCopy(
+                      pickAnswerErrorCode(detailQuery.error, "start_failed"),
+                    )}
+                  </p>
+                  <Btn
+                    variant="ink"
+                    size="sm"
+                    type="button"
+                    className="mt-3"
+                    data-testid="reload-session-btn"
+                    disabled={detailQuery.isFetching}
+                    onClick={() => void detailQuery.refetch()}
+                  >
+                    Tải lại phiên
+                  </Btn>
+                </div>
               ) : null}
               {shootDraftId ? (
                 <div className="mb-8">
@@ -1209,6 +1540,13 @@ export default function AnswerScreen() {
                           ? t.payload.report.locked_sections
                           : undefined
                       }
+                      onRequestAppendTurn={
+                        t.payload.kind === "video" &&
+                        idx === turns.length - 1 &&
+                        sessionId
+                          ? appendVideoTurnQuery
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -1246,11 +1584,20 @@ export default function AnswerScreen() {
                 </div>
               ) : null}
               {showIntentCtaRail ? (
-                <IntentCtaRail
-                  context={intentCtaContext}
-                  disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
-                  onCta={handleIntentCta}
-                />
+                <div
+                  className="sticky bottom-0 z-20 -mx-4 border-t border-[color:var(--gv-rule)] bg-[color:color-mix(in_srgb,var(--gv-canvas)_94%,transparent)] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md min-[900px]:-mx-6"
+                  aria-label="Gợi ý bước tiếp theo (cố định)"
+                >
+                  <p className="mb-2 gv-kicker text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
+                    Vuốt lên để đọc báo cáo · chọn bước tiếp theo bên dưới
+                  </p>
+                  <IntentCtaRail
+                    context={intentCtaContext}
+                    compact
+                    disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
+                    onCta={handleIntentCta}
+                  />
+                </div>
               ) : (
                 <FollowUpComposer
                   value={followUp}

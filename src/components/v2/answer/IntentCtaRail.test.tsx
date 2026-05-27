@@ -11,6 +11,7 @@ const ctx = {
   scriptDraftId: null,
   evidenceVideoQuery: null,
   sessionInitialQ: "https://www.tiktok.com/@a/video/1",
+  creatorHandle: null,
 };
 
 describe("IntentCtaRail", () => {

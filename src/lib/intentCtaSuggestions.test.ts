@@ -11,6 +11,7 @@ describe("intentCtaSuggestions", () => {
     scriptDraftId: null,
     evidenceVideoQuery: null,
     sessionInitialQ: "https://www.tiktok.com/@a/video/1",
+    creatorHandle: null,
   };
 
   it("includes deep upgrade CTA for basic video", () => {
@@ -28,6 +29,34 @@ describe("intentCtaSuggestions", () => {
       (s) => s.id === "video_compare",
     );
     expect(row?.disabledReason).toBeTruthy();
+  });
+
+  it("includes Soi kênh pill on win when creatorHandle is present", () => {
+    const row = getIntentCtaSuggestions({
+      ...baseCtx,
+      creatorHandle: "creatorx",
+    }).find((s) => s.id === "video_channel");
+    expect(row?.label).toBe("Soi kênh @creatorx");
+    expect(row?.action).toBe("channel_handoff");
+  });
+
+  it("omits Soi kênh rail pill on flop (header CTA in VideoBody)", () => {
+    const ids = getIntentCtaSuggestions({
+      ...baseCtx,
+      mode: "flop",
+      creatorHandle: "creatorx",
+    }).map((s) => s.id);
+    expect(ids).not.toContain("video_channel");
+  });
+
+  it("keeps deep upgrade visible when video matrix exceeds four pills", () => {
+    const suggestions = getIntentCtaSuggestions({
+      ...baseCtx,
+      creatorHandle: "creatorx",
+    });
+    expect(suggestions).toHaveLength(4);
+    expect(suggestions.map((s) => s.id)).toContain("video_deep");
+    expect(suggestions.map((s) => s.id)).not.toContain("video_compare");
   });
 
   it("intentCtaQueryForSuggestion returns fixed copy for script CTA", () => {

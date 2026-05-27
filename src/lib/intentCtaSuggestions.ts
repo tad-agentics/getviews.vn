@@ -21,13 +21,15 @@ export type IntentCtaId =
   | "ideas_full_script"
   | "ideas_hook_ab"
   | "generic_script"
-  | "generic_trends";
+  | "generic_trends"
+  | "video_channel";
 
 export type IntentCtaActionKind =
   | "append_turn"
   | "handoff"
   | "compare_navigate"
-  | "shoot_panel";
+  | "shoot_panel"
+  | "channel_handoff";
 
 export type IntentCtaSuggestion = {
   id: IntentCtaId;
@@ -48,9 +50,16 @@ export type IntentCtaContext = {
   /** Evidence tile URL for pattern → viral decode handoff. */
   evidenceVideoQuery: string | null;
   sessionInitialQ: string | null;
+  /** TikTok @handle from video report meta — enables channel CTA. */
+  creatorHandle: string | null;
 };
 
 type MatrixRow = Omit<IntentCtaSuggestion, "disabledReason">;
+
+function channelCtaLabel(handle: string): string {
+  const h = handle.replace(/^@/, "").trim();
+  return h ? `Soi kênh @${h}` : "Soi kênh";
+}
 
 function baseVideoRows(ctx: IntentCtaContext): MatrixRow[] {
   const rows: MatrixRow[] = [
@@ -60,13 +69,22 @@ function baseVideoRows(ctx: IntentCtaContext): MatrixRow[] {
       intentType: "shot_list",
       action: "append_turn",
     },
-    {
-      id: "video_compare",
-      label: "So sánh với video khác",
-      intentType: "compare_videos",
-      action: "compare_navigate",
-    },
   ];
+  // Flop report already shows Soi kênh in VideoBody header — skip rail duplicate.
+  if (ctx.creatorHandle?.trim() && ctx.mode !== "flop") {
+    rows.push({
+      id: "video_channel",
+      label: channelCtaLabel(ctx.creatorHandle),
+      intentType: "channel_diagnosis",
+      action: "channel_handoff",
+    });
+  }
+  rows.push({
+    id: "video_compare",
+    label: "So sánh với video khác",
+    intentType: "compare_videos",
+    action: "compare_navigate",
+  });
   if (ctx.mode === "flop") {
     rows.push({
       id: "video_hook_variants",
@@ -215,14 +233,57 @@ function applyPrerequisites(row: MatrixRow, ctx: IntentCtaContext): IntentCtaSug
   ) {
     return { ...row, disabledReason: "Cần URL video" };
   }
+  if (row.id === "video_channel" && !ctx.creatorHandle?.trim()) {
+    return { ...row, disabledReason: "Chưa có @kênh trong báo cáo" };
+  }
   return row;
+}
+
+const VISIBLE_CTA_LIMIT = 4;
+
+/** When basic video has >4 rows, keep deep upgrade — drop lower-priority pills first. */
+const VIDEO_CTA_DROP_PRIORITY: IntentCtaId[] = [
+  "video_compare",
+  "video_hook_variants",
+  "video_timing",
+  "video_channel",
+];
+
+function capVisibleSuggestions(
+  rows: IntentCtaSuggestion[],
+  ctx: IntentCtaContext,
+): IntentCtaSuggestion[] {
+  if (rows.length <= VISIBLE_CTA_LIMIT) return rows;
+  const deepIdx = rows.findIndex((r) => r.id === "video_deep");
+  const mustKeepDeep =
+    ctx.format === "video" && ctx.depth === "basic" && deepIdx >= VISIBLE_CTA_LIMIT;
+  if (!mustKeepDeep) return rows.slice(0, VISIBLE_CTA_LIMIT);
+
+  const deep = rows[deepIdx]!;
+  const kept = rows.slice(0, VISIBLE_CTA_LIMIT);
+  for (const dropId of VIDEO_CTA_DROP_PRIORITY) {
+    const swapIdx = kept.findIndex((r) => r.id === dropId);
+    if (swapIdx >= 0) {
+      const next = [...kept];
+      next[swapIdx] = deep;
+      return next;
+    }
+  }
+  return rows.slice(0, VISIBLE_CTA_LIMIT);
 }
 
 /** 2–4 visible CTAs filtered by format, mode, depth, prerequisites. */
 export function getIntentCtaSuggestions(ctx: IntentCtaContext): IntentCtaSuggestion[] {
   const raw =
     ctx.format === "video" ? baseVideoRows(ctx) : (MATRIX[ctx.format] ?? MATRIX.generic);
-  return raw.map((row) => applyPrerequisites(row, ctx)).slice(0, 4);
+  const mapped = raw.map((row) => {
+    const applied = applyPrerequisites(row, ctx);
+    if (row.id === "video_channel" && ctx.creatorHandle?.trim()) {
+      return { ...applied, label: channelCtaLabel(ctx.creatorHandle) };
+    }
+    return applied;
+  });
+  return capVisibleSuggestions(mapped, ctx);
 }
 
 /** Query string sent to append_turn — fixed copy, not user free text. */

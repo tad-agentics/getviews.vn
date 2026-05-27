@@ -459,6 +459,47 @@ describe("AnswerScreen state transitions", () => {
       expect(router.state.location.search).toContain("session=new-sess");
     });
     expect(screen.getByTestId("resume-stream-btn")).toBeTruthy();
+    expect(screen.queryByTestId("error-retry-btn")).toBeNull();
+  });
+
+  it("does not show Gửi lại for insufficient_credits (banner only)", async () => {
+    const tiktokQ = "https://www.tiktok.com/@creator/video/777";
+    mockCreateAnswerSession.mockResolvedValue({
+      id: "no-credit-sess",
+      user_id: "user-1",
+      title: null,
+      initial_q: tiktokQ,
+      intent_type: "video_diagnosis",
+      format: "video",
+      niche_id: null,
+    });
+    mockStream.mockResolvedValue({ ok: false, error: "insufficient_credits" });
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: {
+        session: makeSession({ id: "no-credit-sess", initial_q: tiktokQ, format: "video" }),
+        turns: [],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    const router = createMemoryRouter(
+      [{ path: "/app/answer", element: <AnswerScreen /> }],
+      { initialEntries: [`/app/answer?q=${encodeURIComponent(tiktokQ)}`] },
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Không đủ credit/i)).toBeTruthy();
+    });
+    expect(screen.queryByTestId("error-retry-btn")).toBeNull();
+    expect(screen.queryByTestId("resume-stream-btn")).toBeNull();
   });
 
   it("clears stale stream error when navigating to a completed session", async () => {
@@ -541,7 +582,74 @@ describe("AnswerScreen state transitions", () => {
       expect(router.state.location.search).toContain("session=new-sess-2");
     });
     expect(screen.queryByTestId("resume-stream-btn")).toBeNull();
-    expect(screen.getByText(/có thể tốn thêm 1 credit/)).toBeTruthy();
+    expect(screen.getByTestId("error-retry-btn")).toBeTruthy();
+    expect(screen.getByText(/Bấm Gửi lại/)).toBeTruthy();
+  });
+
+  it("retries primary stream when error-retry is clicked after bootstrap failure", async () => {
+    const tiktokQ = "https://www.tiktok.com/@creator/video/888";
+    mockCreateAnswerSession.mockResolvedValue({
+      id: "retry-sess",
+      user_id: "user-1",
+      title: null,
+      initial_q: tiktokQ,
+      intent_type: "video_diagnosis",
+      format: "video",
+      niche_id: null,
+    });
+    mockStream
+      .mockResolvedValueOnce({ ok: false, error: "stream_failed" })
+      .mockResolvedValueOnce({ ok: true, finalPayload: { kind: "video", report: {} } });
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: { session: makeSession({ id: "retry-sess", initial_q: tiktokQ, format: "video" }), turns: [] },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    const router = createMemoryRouter(
+      [{ path: "/app/answer", element: <AnswerScreen /> }],
+      { initialEntries: [`/app/answer?q=${encodeURIComponent(tiktokQ)}`] },
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("error-retry-btn")).toBeTruthy();
+    });
+    fireEvent.click(screen.getByTestId("error-retry-btn"));
+    await waitFor(() => {
+      expect(mockStream).toHaveBeenCalledTimes(2);
+    });
+    const retryCall = mockStream.mock.calls[1]?.[0];
+    expect(retryCall?.sourceEntry).toBe("error_retry_ui");
+  });
+
+  it("retries primary stream from composer when session exists with zero turns", async () => {
+    mockStream.mockResolvedValue({ ok: true, finalPayload: { kind: "generic", report: {} } });
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: {
+        session: makeSession({ id: "sess-abc", initial_q: "my failed query" }),
+        turns: [],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderScreen("/app/answer?session=sess-abc");
+    const input = screen.getByTestId("composer-input") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "my failed query" } });
+    fireEvent.click(screen.getByTestId("composer-submit"));
+
+    await waitFor(() => {
+      expect(mockStream).toHaveBeenCalled();
+    });
+    expect(mockStream.mock.calls[0]?.[0]?.sourceEntry).toBe("error_retry_ui");
   });
 
   it("renders invalid_payload copy when create session fails with FastAPI validation JSON", async () => {
