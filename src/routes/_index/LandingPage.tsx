@@ -62,27 +62,27 @@ function buildFaqs(corpusLabel: string) {
   return [
   {
     q: "Cái này khác gì ChatGPT?",
-    a: `ChatGPT không có dữ liệu TikTok thực tế và không thể xem nội dung video. Khi hỏi "hook nào đang thịnh hành trong mảng skincare", ChatGPT sẽ tự soạn một câu trả lời nghe có vẻ hợp lý nhưng không dựa trên bất kỳ số liệu thực tế nào. GetViews phân tích trực tiếp từ ${corpusLabel} video thật, lượt xem thật — bạn có thể bấm vào xem để kiểm chứng ngay lập tức.`,
+    a: `ChatGPT là một công cụ AI tổng quát, không được huấn luyện trên dữ liệu video TikTok chuyên biệt và không thể trực tiếp phân tích nội dung hình ảnh/âm thanh. GetViews được xây dựng riêng để phân tích chuyên sâu từ ${corpusLabel} video TikTok thực tế, cung cấp các insight và dẫn chứng trực quan, giúp bạn đưa ra quyết định dựa trên số liệu, không phải phỏng đoán.`,
   },
   {
     q: "Tôi không rành về AI, dùng có khó không?",
-    a: "Hoàn toàn đơn giản và không cần kiến thức về AI. Bạn chỉ cần đặt câu hỏi như nhắn tin bình thường — ví dụ: \"hook nào đang hot trong ngách ẩm thực?\" hoặc \"phân tích kênh @tenkenhdoithu\" — GetViews sẽ tự động xử lý và trả về kết quả phân tích rõ ràng kèm video dẫn chứng cụ thể.",
+    a: "GetViews được thiết kế với giao diện trực quan và dễ sử dụng, không yêu cầu kiến thức chuyên sâu về AI. Bạn chỉ cần nhập câu hỏi hoặc dán đường dẫn video TikTok. Hệ thống sẽ tự động xử lý và cung cấp báo cáo phân tích chi tiết, dễ hiểu, kèm theo các video dẫn chứng cụ thể để bạn áp dụng ngay.",
   },
   {
     q: "Tôi đã mua khóa học rồi, có cần dùng thêm GetViews không?",
-    a: "Các khóa học dạy tư duy nền tảng cực kỳ hữu ích như cách xây dựng thuật toán, cách quay dựng, cắt dựng. Nhưng khóa học không thể cho bạn biết chính xác trong tuần này, định dạng video nào đang được đề xuất tối ưu nhất trong ngách của bạn. GetViews giải quyết chính xác bài toán đó bằng dữ liệu thực tế cập nhật liên tục, không phỏng đoán cảm tính.",
+    a: "Các khóa học cung cấp nền tảng kiến thức và tư duy chiến lược quý giá. Tuy nhiên, thị trường TikTok biến đổi liên tục. GetViews bổ trợ bằng cách cung cấp dữ liệu thực tế cập nhật hàng tuần, chỉ ra chính xác định dạng video, các loại hook và nội dung nào đang hiệu quả nhất trong niche của bạn, giúp bạn tối ưu hóa chiến lược theo thời gian thực.",
   },
   {
     q: "Khác gì các nền tảng như Kalodata hay Shoplus?",
-    a: "Kalodata và Shoplus tập trung phân tích thương mại điện tử — sản phẩm nào bán chạy, doanh số bao nhiêu. Còn GetViews tập trung phân tích sâu về nội dung sáng tạo — lý do vì sao video đó đạt lượt xem cao, cấu trúc hook mở đầu ra sao, nhịp độ cắt cảnh và định dạng thể hiện như thế nào. Hai công cụ này bổ trợ hiệu quả cho nhau chứ không thay thế nhau.",
+    a: "Trong khi Kalodata và Shoplus tập trung vào hiệu suất thương mại điện tử (sản phẩm, doanh số), GetViews chuyên sâu vào phân tích nội dung sáng tạo. Chúng tôi đi sâu vào cấu trúc video, hiệu quả của hook, nhịp độ dựng phim và định dạng để giải mã thành công của video. GetViews bổ trợ tốt cho bán hàng: insight về nội dung giúp bạn tối ưu video trước khi đăng.",
   },
   {
     q: "Một lượt phân tích được tính như thế nào?",
-    a: "Các tính năng lướt xem xu hướng, tìm kiếm nhà sáng tạo (KOL) và hỏi đáp thông thường là hoàn toàn miễn phí, không giới hạn lượt dùng. Bạn chỉ cần dùng lượt phân tích khi cần thực hiện phân tích chuyên sâu: rà soát video từng khung hình (frame-by-frame), chẩn đoán chi tiết kênh đối thủ, hoặc tự động viết kịch bản chi tiết cho video tiếp theo.",
+    a: "Các công cụ khám phá xu hướng, tìm kiếm Creator và AI Chat hỏi đáp cơ bản là miễn phí và không giới hạn. Lượt phân tích chuyên sâu được tính khi bạn yêu cầu hệ thống thực hiện phân tích chi tiết một video (frame-by-frame), chẩn đoán kênh đối thủ toàn diện hoặc tạo kịch bản video AI tùy chỉnh.",
   },
   {
     q: "Thanh toán có phức tạp không?",
-    a: "Không hề phức tạp. Bạn có thể thanh toán thuận tiện qua MoMo, VNPay, chuyển khoản ngân hàng tự động hoặc thẻ quốc tế Visa/Mastercard. Sau khi thanh toán thành công, lượt dùng sẽ được cộng ngay lập tức vào tài khoản để bạn sử dụng ngay.",
+    a: "Chúng tôi cung cấp nhiều phương thức thanh toán linh hoạt và an toàn như MoMo, VNPay, chuyển khoản ngân hàng tự động và thẻ quốc tế Visa/Mastercard. Quá trình thanh toán nhanh chóng, và số lượt phân tích sẽ được cộng tức thì vào tài khoản của bạn ngay sau khi giao dịch hoàn tất.",
   },
 ];
 }
@@ -259,12 +259,15 @@ function SolutionCardsSection() {
   return (
     <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-canvas)]">
       <div className="max-w-4xl mx-auto">
-        <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-2">Giải pháp</p>
+        <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-2">Tăng tốc hiệu suất</p>
         <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-3">
-          Công Cụ Nghiên Cứu TikTok Của Bạn
+          Nâng tầm nội dung, dẫn đầu xu hướng
         </h2>
         <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-2xl mx-auto leading-relaxed">
-          GetViews xem hàng nghìn video TikTok và trả lời mọi câu hỏi bạn cần — từ nghiên cứu đối thủ, tìm hook đang nổi, đến viết brief cho KOL. Dựa trên data thực, không đoán mò.
+          GetViews không chỉ xem hàng nghìn video TikTok, mà còn phân tích chuyên sâu để bạn
+          <span className="font-semibold text-[color:var(--gv-ink)]">hiểu rõ chiến lược đối thủ</span>,
+          <span className="font-semibold text-[color:var(--gv-ink)]">khám phá hook viral</span>,
+          và <span className="font-semibold text-[color:var(--gv-ink)]">tối ưu định dạng viral</span>. Tất cả dựa trên dữ liệu thực tế.
         </p>
         <div className="grid md:grid-cols-2 gap-4">
 
@@ -275,7 +278,7 @@ function SolutionCardsSection() {
             whileHover={{ y: -4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] cursor-pointer"
           >
-            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Đối thủ đang đăng gì?"</p>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Chiến lược của đối thủ là gì?"</p>
             <div className="flex gap-2 overflow-hidden">
               {COMPETITOR_IDS.slice(0, 4).map((id, i) => (
                 <div
@@ -296,7 +299,7 @@ function SolutionCardsSection() {
                 style={{ width: "10%", paddingBottom: "39%" }}
               />
             </div>
-            <p className="text-xs text-[color:var(--gv-ink-3)]">Xem toàn bộ nội dung, format và hook của đối thủ trong 1 màn hình</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)]">Phân tích sâu nội dung, format và các hook hiệu quả nhất của đối thủ trực tiếp</p>
           </motion.div>
 
           {/* ── Card 2: Creator Avatars (scattered float) ─────────────── */}
@@ -307,7 +310,7 @@ function SolutionCardsSection() {
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] cursor-pointer"
             style={{ minHeight: 220 }}
           >
-            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Creator nào nên hire?"</p>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Hợp tác với Creator nào để tối ưu chiến dịch?"</p>
             <div className="relative flex-1">
               {CREATOR_AVATAR_IDS.map((c, i) => {
                 const pos = AVATAR_POSITIONS[i];
@@ -322,7 +325,7 @@ function SolutionCardsSection() {
                 );
               })}
             </div>
-            <p className="text-xs text-[color:var(--gv-ink-3)]">Lọc nhà sáng tạo (KOL/KOC) theo mảng nội dung, lượt xem trung bình và tỷ lệ tương tác thực</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)]">Tìm kiếm và lọc Creator (KOL/KOC) tiềm năng dựa trên hiệu suất thực tế: mảng nội dung, lượt xem trung bình và tỷ lệ tương tác</p>
           </motion.div>
 
           {/* ── Card 3: Hook Showcase — chat bubble + sparkline ──────── */}
@@ -332,7 +335,7 @@ function SolutionCardsSection() {
             whileHover={{ y: -4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] cursor-pointer"
           >
-            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Công thức hook nào nhiều lượt xem nhất tuần này?"</p>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Hook nào đang \"cắn\" đề xuất nhiều nhất tuần này?"</p>
             <div className="flex gap-3 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-3">
               <div className="flex-shrink-0 overflow-hidden rounded-lg bg-[color:var(--gv-canvas-2)]" style={{ width: 48, height: 64 }}>
                 <VideoThumb id={HOOK_EXAMPLE.id} className="h-full w-full" />
@@ -361,7 +364,7 @@ function SolutionCardsSection() {
             whileHover={{ y: -4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-colors duration-200 hover:border-[color:var(--gv-ink-3)] cursor-pointer"
           >
-            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Video nào nên làm?"</p>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Video tiếp theo nên làm gì để viral?"</p>
             {/* Responsive grid: at 360px baseline 5 cells = 72px each
                 (cramped); step up via 3 → 4 → 5 cols matching Tailwind's
                 sm (640px) and md (768px) breakpoints. */}
@@ -486,12 +489,12 @@ function LiveDemoSection({
   return (
     <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
       <div className="max-w-6xl mx-auto">
-        <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-2">Số liệu thực tế</p>
+        <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-2">Dữ liệu dẫn dắt mọi quyết định</p>
         <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-3">
-          Nắm bắt xu hướng,<br />cập nhật theo từng giờ
+          Khám phá xu hướng viral,<br />phân tích insight chuyên sâu
         </h2>
         <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
-          Đừng phỏng đoán cảm tính. Hãy xem cấu trúc và chiến lược nội dung nào đang thúc đẩy lượng lượt xem tăng trưởng ổn định cho đối thủ.
+          Loại bỏ mọi phỏng đoán. GetViews cung cấp cái nhìn sâu sắc về cấu trúc nội dung và chiến lược đang giúp các kênh đối thủ đạt được tăng trưởng vượt trội.
         </p>
 
         <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mb-6">
@@ -503,7 +506,7 @@ function LiveDemoSection({
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-1"
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-[color:var(--gv-ink)]">Tín Hiệu Trend</h3>
+              <h3 className="font-bold text-[color:var(--gv-ink)]">Phân tích tín hiệu xu hướng</h3>
               <Link to="/app/trends" className="text-xs text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors duration-200">Xem tất cả →</Link>
             </div>
 
@@ -541,7 +544,7 @@ function LiveDemoSection({
             transition={{ duration: 0.4, delay: 0.1 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-1"
           >
-            <p className="font-bold text-[color:var(--gv-ink)] mb-3">Hook dẫn trong corpus (video thật)</p>
+            <p className="font-bold text-[color:var(--gv-ink)] mb-3">Top Hook dẫn đầu hiệu suất trong ngành</p>
 
             {HOOK_EXAMPLES.map((h, i) => (
               <div key={h.id} className="flex items-center gap-3 py-2 border-b border-[color:var(--gv-rule)] last:border-0">
@@ -566,10 +569,10 @@ function LiveDemoSection({
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h3 className="text-balance font-bold text-[color:var(--gv-ink)]">
-                Corpus TikTok Việt Nam
+                Kho dữ liệu TikTok Việt Nam
               </h3>
               <p className="mt-1 font-[family-name:var(--gv-font-mono)] text-sm font-semibold tabular-nums text-[color:var(--gv-ink-3)]">
-                {corpusLabel} video đã lập chỉ mục
+                {corpusLabel} video được lập chỉ mục liên tục
               </p>
             </div>
             <Link
@@ -599,7 +602,7 @@ function LiveDemoSection({
             ))}
           </div>
 
-          <p className="text-xs text-[color:var(--gv-ink-3)] mt-3 text-center">Đầy đủ 21 niche thịnh hành nhất tại Việt Nam</p>
+          <p className="text-xs text-[color:var(--gv-ink-3)] mt-3 text-center">Phân tích sâu rộng trên 21 niche creator thịnh hành nhất Việt Nam</p>
         </motion.div>
       </div>
     </section>
@@ -620,21 +623,21 @@ const INFRA_FEATURE_TEMPLATES = [
 function infraFeatureLabel(key: (typeof INFRA_FEATURE_TEMPLATES)[number]["labelKey"], corpusLabel: string): string {
   switch (key) {
     case "corpus":
-      return `${corpusLabel} Video Thực`;
+      return `Hơn ${corpusLabel} video thực tế`;
     case "analyze":
-      return "Phân Tích Video Thật";
+      return "Phân tích video chuyên sâu";
     case "niche":
-      return "20 Niche Việt Nam";
+      return "Hỗ trợ 21 niche creator";
     case "hook":
-      return "Hook Pattern Thực Tế";
+      return "Mẫu hook hiệu suất cao";
     case "rival":
-      return "Tìm Đối Thủ Ngay";
+      return "Phân tích đối thủ trực diện";
     case "vi":
-      return "AI Hiểu Tiếng Việt";
+      return "AI tối ưu cho tiếng Việt";
     case "cite":
-      return "Cite Có Thể Kiểm Chứng";
+      return "Dữ liệu có dẫn chứng";
     case "refresh":
-      return "Cập Nhật Hàng Tuần";
+      return "Cập nhật dữ liệu liên tục";
   }
 }
 
@@ -644,16 +647,16 @@ function InfraGrid({ corpusLabel }: { corpusLabel: string }) {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-10">
           <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--gv-ink-3)] mb-3">
-            Hạ tầng
+            Nền tảng công nghệ
           </p>
           <h2
             className="gv-landing-h3 font-extrabold text-[color:var(--gv-ink)] mb-3"
           >
             Câu trả lời dựa trên{" "}
-            <span className="text-[color:var(--gv-accent)]">data thực, không đoán mò</span>
+            <span className="text-[color:var(--gv-accent)]">dữ liệu TikTok xác thực</span>
           </h2>
           <p className="text-sm text-[color:var(--gv-ink-3)] max-w-xl mx-auto">
-            GetViews không phải ChatGPT biết về TikTok — hệ thống thu thập và phân tích video TikTok Việt Nam liên tục, mỗi câu trả lời đều có nguồn gốc.
+            GetViews vượt xa các công cụ AI tổng quát. Chúng tôi xây dựng hệ thống thu thập, phân tích và lập chỉ mục video TikTok Việt Nam liên tục, đảm bảo mọi insight đều có nguồn gốc rõ ràng và có thể kiểm chứng.
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -708,17 +711,17 @@ function CredibilitySection({
           <h2
             className="gv-landing-h3-tight font-extrabold text-[color:var(--gv-ink)] mb-5 leading-tight"
           >
-            Quyết định nội dung{" "}
-            <span className="text-[color:var(--gv-accent)]">có căn cứ số liệu</span>
+            Nâng tầm video với{" "}
+            <span className="text-[color:var(--gv-accent)]">quyết định dựa trên dữ liệu</span>
           </h2>
           <p className="text-sm text-[color:var(--gv-ink-3)] leading-relaxed mb-6">
-            Chúng tôi là những nhà sáng tạo nội dung tự xây kênh TikTok từ con số 0 — và thấu hiểu sâu sắc việc đưa ra quyết định nội dung theo cảm tính dễ dẫn đến thất bại như thế nào. GetViews ra đời để thay đổi điều đó: toàn bộ gợi ý phân tích đều có dẫn chứng video thực tế làm bằng chứng trực quan, hỗ trợ bạn kiểm chứng trực tiếp chỉ bằng một cú chạm.
+            Là những người trực tiếp sáng tạo và phát triển kênh TikTok, chúng tôi hiểu rõ thách thức khi phải đưa ra quyết định nội dung dựa vào cảm tính. GetViews được tạo ra để thay đổi điều đó: mọi phân tích và gợi ý đều đi kèm bằng chứng từ hàng triệu video TikTok thực tế, giúp bạn tự tin đưa ra chiến lược tối ưu.
           </p>
           <Link
             to={loginPath}
             className="inline-flex items-center justify-center rounded-lg bg-[color:var(--gv-accent)] px-6 py-3 text-sm font-medium text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-accent-deep)] active:scale-95"
           >
-            Thử miễn phí — không cần thẻ
+            Phân tích ngay — miễn phí
           </Link>
         </div>
 
@@ -764,27 +767,27 @@ function HowItWorksSection() {
   const steps = [
     {
       num: "01",
-      title: "Dán liên kết TikTok",
-      body: "Dán đường dẫn video của bạn hoặc của bất kỳ đối thủ cạnh tranh nào. GetViews sẽ tự động rà soát, trích xuất dữ liệu hình ảnh và âm thanh.",
+      title: "Dán liên kết video TikTok",
+      body: "Đơn giản chỉ cần dán đường dẫn video TikTok của bạn hoặc đối thủ. Hệ thống AI của GetViews sẽ tự động quét, trích xuất dữ liệu hình ảnh, âm thanh và văn bản chuyên sâu.",
     },
     {
       num: "02",
-      title: "Đối chiếu dữ liệu thực tế",
-      body: "Hệ thống so sánh video đó với hàng nghìn video nhiều lượt xem khác trong cùng mảng nội dung ngay tại thời điểm hiện tại.",
+      title: "Đối chiếu với kho dữ liệu Big Data",
+      body: "GetViews sẽ đối chiếu video của bạn với hàng chục nghìn video TikTok đã được lập chỉ mục trong kho dữ liệu (corpus) khổng lồ, để tìm ra các điểm tương đồng và khác biệt về cấu trúc nội dung, hook, và định dạng.",
     },
     {
       num: "03",
-      title: "Nhận chẩn đoán & tối ưu",
-      body: "Biết rõ lý do video flop, hook cần sửa ở giây thứ mấy, và định dạng nào đang dẫn trong ngách — kèm video mẫu để đối chiếu.",
+      title: "Nhận phân tích chi tiết & gợi ý hành động",
+      body: "Nhận báo cáo chi tiết về lý do video của bạn (hoặc đối thủ) chưa hiệu quả. Biết chính xác hook cần cải thiện ở giây nào, dạng nội dung nào đang lên xu hướng trong ngách của bạn, kèm video mẫu tham khảo để bạn dễ dàng hành động.",
     },
   ];
 
   return (
     <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-canvas)]">
       <div className="max-w-5xl mx-auto">
-        <p className="mb-3 text-center text-sm uppercase tracking-wider text-[color:var(--gv-ink-3)]">Quy trình</p>
+        <p className="mb-3 text-center text-sm uppercase tracking-wider text-[color:var(--gv-ink-3)]">Tăng trưởng hiệu quả</p>
         <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-10 md:mb-14">
-          3 bước đơn giản, dưới 2 phút
+          Quy trình phân tích chuyên sâu, tối ưu nội dung của bạn
         </h2>
 
         <div className="relative">
@@ -925,16 +928,16 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 </div>
 
                 <h1 className="gv-landing-h1 font-extrabold leading-[1.2] mb-6">
-                  <span className="text-[color:var(--gv-ink)]">Lướt TikTok cả&nbsp;ngày?</span>
-                  <br />
-                  <span className="text-[color:var(--gv-accent)]">Để GetViews "cày"&nbsp;thay.</span>
+  <span className="text-[color:var(--gv-ink)]">Phân tích TikTok</span>
+  <br />
+  <span className="text-[color:var(--gv-accent)]">Đừng chạy theo trend, hãy tạo trend.</span>
                 </h1>
 
                 <p className="text-lg text-[color:var(--gv-ink-3)] mb-8 max-w-lg leading-relaxed">
-                  Dán đường dẫn video → Nhận kết quả chẩn đoán sau 1 phút. Biết rõ ngay{" "}
-                  <span className="font-semibold text-[color:var(--gv-ink)]">lỗi ở đâu</span>,{" "}
-                  <span className="font-semibold text-[color:var(--gv-ink)]">công thức hook nào đang hot</span>,{" "}
-                  <span className="font-semibold text-[color:var(--gv-ink)]">định dạng nào cắn đề xuất</span>. Dựa trên số liệu thực tế, không phỏng đoán cảm tính.
+                  Dán link video đối thủ hoặc của bạn → Nhận ngay chẩn đoán chuyên sâu sau 1 phút.
+                  Nắm bắt <span className="font-semibold text-[color:var(--gv-ink)]">chiến lược nội dung thành công</span>,
+                  phát hiện <span className="font-semibold text-[color:var(--gv-ink)]">hook đang chạy tốt</span>,
+                  và <span className="font-semibold text-[color:var(--gv-ink)]">tối ưu định dạng viral</span>. Tất cả dựa trên dữ liệu thực, không cảm tính.
                 </p>
 
                 {/* CTA — one form so Enter and button share the same submit path */}
@@ -1012,8 +1015,8 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 </form>
 
                 <p className="mt-3 max-w-lg border-t border-[color:var(--gv-rule-2)] pt-3 text-[11px] leading-relaxed text-[color:var(--gv-ink-4)]">
-                  <span className="font-medium text-[color:var(--gv-ink-3)]">Sau khi đăng nhập —</span>{" "}
-                  10 lượt dùng thử · không cần thẻ · dùng được ngay
+  <span className="font-medium text-[color:var(--gv-ink-3)]">Bắt đầu ngay —</span>{" "}
+  10 lượt phân tích miễn phí · không cần thẻ tín dụng · trải nghiệm tức thì
                 </p>
               </motion.div>
             </div>
@@ -1035,7 +1038,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <p className="text-sm font-semibold text-[color:var(--gv-ink)]">GetViews AI</p>
                       <p className="flex items-center gap-1 text-xs text-[color:var(--gv-ink-3)]">
                         <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--gv-ink)]" />
-                        Đang soi dữ liệu video...
+                        Đang phân tích chuyên sâu...
                       </p>
                     </div>
                   </div>
@@ -1102,7 +1105,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
           >
             <div className="flex items-center gap-2"><span>Data 100% từ TikTok Việt</span></div>
             <div className="hidden sm:block w-px h-4 bg-[color:var(--gv-rule)]" />
-            <div className="flex items-center gap-2"><span>Cập nhật hàng giờ</span></div>
+            <div className="flex items-center gap-2"><span>Cập nhật hàng tuần</span></div>
             <div className="hidden sm:block w-px h-4 bg-[color:var(--gv-rule)]" />
             <div className="flex items-center gap-2"><span>Chuyên biệt cho 21 niche creator</span></div>
           </motion.div>
@@ -1200,12 +1203,12 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       {/* ── Results ─────────────────────────────────────────────── */}
       <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
         <div className="max-w-5xl mx-auto">
-          <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-3">Minh họa sản phẩm</p>
+          <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-3">Kết quả chuyên sâu</p>
           <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-3">
-            Chẩn đoán có số, không hứa view
+            Insight có số liệu, không phỏng đoán
           </h2>
           <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
-            GetViews chỉ ra lỗi cấu trúc và so với mẫu trong ngách — bạn tự quyết định quay lại thế nào.
+            GetViews cung cấp phân tích cấu trúc video chi tiết và đối chiếu với các mẫu thành công trong cùng niche, trao quyền cho bạn đưa ra các quyết định sáng tạo hiệu quả.
           </p>
 
           <motion.div
@@ -1280,10 +1283,10 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       <section className="px-4 py-16 bg-[color:var(--gv-paper)]" id="pricing">
         <div className="max-w-5xl mx-auto">
           <h2 className="font-extrabold text-[color:var(--gv-ink)] mb-2 text-center" style={{ fontSize: "1.75rem" }}>
-            Chọn gói phù hợp
+            Chọn gói nâng cấp, tối ưu chiến lược
           </h2>
           <p className="text-sm text-[color:var(--gv-ink-3)] text-center mb-8">
-            Thanh toán qua MoMo, VNPay, chuyển khoản, hoặc thẻ quốc tế.
+            Thanh toán linh hoạt qua MoMo, VNPay, chuyển khoản ngân hàng hoặc thẻ quốc tế.
           </p>
 
           <div className="flex justify-center mb-8">
@@ -1301,7 +1304,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   {period === "monthly" ? "Tháng" : period === "biannual" ? "6 tháng" : "Năm"}
                   {period === "annual" && billingPeriod !== "annual" && (
                     <span className="absolute -top-2 -right-2 bg-[color:var(--gv-ink)] text-white text-[11px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
-                      Save 20%
+                      Tiết kiệm 20%
                     </span>
                   )}
                 </button>
@@ -1370,7 +1373,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       : "border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-rule-2)]"
                   } py-2`}
                 >
-                  {plan.name === "Free" ? "Bắt đầu miễn phí" : `Nâng cấp ${plan.name}`}
+                  {plan.name === "Free" ? "Bắt đầu miễn phí" : `Kích hoạt gói ${plan.name}`}
                 </Link>
               </motion.div>
             );
@@ -1425,15 +1428,15 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       <section className="px-4 py-20 md:py-24 bg-[color:var(--gv-ink)]">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="gv-landing-h2 font-extrabold text-white mb-6 leading-tight">
-            Chỉ cần dán link video. Trải nghiệm GetViews ngay.
+            Sẵn sàng để đưa kênh TikTok của bạn lên tầm cao mới?
           </h2>
           <Link
             to={loginPath}
             className="inline-flex items-center justify-center rounded-xl bg-[color:var(--gv-paper)] px-10 py-4 text-base font-semibold text-[color:var(--gv-ink)] transition-all duration-[120ms] hover:bg-[color:var(--gv-canvas-2)] active:scale-95"
           >
-            Phân tích video miễn phí
+            Bắt đầu phân tích miễn phí
           </Link>
-          <p className="text-sm text-white/60 mt-4">Tặng 10 lượt phân tích chuyên sâu · Không cần thẻ tín dụng</p>
+          <p className="text-sm text-white/60 mt-4">10 lượt phân tích chuyên sâu miễn phí · Không yêu cầu thẻ tín dụng</p>
         </div>
       </section>
 
