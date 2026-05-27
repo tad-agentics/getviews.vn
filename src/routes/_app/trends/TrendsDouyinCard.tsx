@@ -67,7 +67,7 @@ export const TrendsDouyinCard = memo(function TrendsDouyinCard() {
             {headlineLine}
           </span>
           <span className="gv-mono mt-0.5 text-[11px] text-[color:var(--gv-ink-4)]">
-            Đi trước VN 4–10 tuần · không cần VPN
+            Đi trước VN 4–10 tuần · Xem trực tiếp trên GetViews · không cần đổi region
           </span>
         </span>
       </span>

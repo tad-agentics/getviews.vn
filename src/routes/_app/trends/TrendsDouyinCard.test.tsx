@@ -56,7 +56,9 @@ describe("TrendsDouyinCard", () => {
     const { getByText } = wrap();
     expect(getByText(/TÍN HIỆU SỚM · DOUYIN → VN/)).toBeTruthy();
     expect(getByText(/Công thức thịnh hành ở TQ · video đã dịch phụ đề/)).toBeTruthy();
-    expect(getByText(/Đi trước VN 4–10 tuần · không cần VPN/)).toBeTruthy();
+    expect(
+      getByText(/Đi trước VN 4–10 tuần · Xem trực tiếp trên GetViews · không cần đổi region/),
+    ).toBeTruthy();
   });
 
   it("renders the live count line when both hooks have data", () => {
