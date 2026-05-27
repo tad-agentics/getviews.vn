@@ -50,7 +50,7 @@ const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)]";
 
 const DEPTH_PILL_BASE =
-  "inline-flex h-10 min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm font-semibold leading-tight transition-colors " +
+  "inline-flex min-h-[36px] shrink-0 items-center rounded-full border px-3 text-xs font-medium leading-tight transition-colors " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)] " +
   "disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)]";
 
