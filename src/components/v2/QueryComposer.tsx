@@ -23,7 +23,6 @@ export type QueryComposerProps = {
   nicheLabel?: string;
   /** Hiện dòng “NGHIÊN CỨU · …” dưới textarea (tắt trên follow-up). */
   showNicheCaption?: boolean;
-  corpusCount?: number;
   disabled?: boolean;
   /** Valid TikTok URL detected — success chip. */
   showUrlChip?: boolean;
@@ -51,12 +50,14 @@ const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)]";
 
 const DEPTH_PILL_BASE =
-  "inline-flex h-10 shrink-0 items-center rounded-md border px-3 text-sm leading-tight transition-colors disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)]";
+  "inline-flex h-10 min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm font-semibold leading-tight transition-colors " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)] " +
+  "disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[color:var(--gv-rule)] disabled:bg-[color:var(--gv-faint)] disabled:text-[color:var(--gv-ink-4)]";
 
 function depthPillClass(active: boolean): string {
   return active
-    ? `${DEPTH_PILL_BASE} border-[var(--gv-ink)] bg-[var(--gv-canvas-2)] font-medium text-[var(--gv-ink)]`
-    : `${DEPTH_PILL_BASE} border-[var(--gv-rule)] bg-[var(--gv-paper)] text-[var(--gv-ink-3)] hover:border-[var(--gv-ink-4)] hover:text-[var(--gv-ink)]`;
+    ? `${DEPTH_PILL_BASE} border-[color:var(--gv-accent)] bg-[color:var(--gv-accent)] text-[color:var(--gv-paper)] hover:border-[color:var(--gv-accent-deep)] hover:bg-[color:var(--gv-accent-deep)]`
+    : `${DEPTH_PILL_BASE} border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] hover:-translate-y-px hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.3)]`;
 }
 
 function intentPillClass(active: boolean): string {
@@ -74,7 +75,6 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
       placeholder = "Hỏi về hook, trend, hay kênh…",
       nicheLabel,
       showNicheCaption = true,
-      corpusCount,
       disabled,
       showUrlChip,
       urlInvalidMessage,
@@ -156,34 +156,6 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
                 ))}
               </div>
             ) : null}
-            {depthVisible ? (
-              <div
-                className="inline-flex shrink-0 rounded-md border border-[var(--gv-rule)] p-0.5"
-                role="group"
-                aria-label="Mức phân tích"
-              >
-                <button
-                  type="button"
-                  className={depthPillClass(analysisDepth === "basic")}
-                  aria-pressed={analysisDepth === "basic"}
-                  title={depthTitles.basic}
-                  disabled={disabled}
-                  onClick={() => onAnalysisDepthChange?.("basic")}
-                >
-                  Cơ bản
-                </button>
-                <button
-                  type="button"
-                  className={depthPillClass(analysisDepth === "deep")}
-                  aria-pressed={analysisDepth === "deep"}
-                  title={channelDeepTitle}
-                  disabled={disabled || channelDeepDisabled}
-                  onClick={() => onAnalysisDepthChange?.("deep")}
-                >
-                  Chuyên sâu
-                </button>
-              </div>
-            ) : null}
             {urlInvalidMessage ? (
               <span
                 className="rounded-md border border-[color:var(--gv-accent-deep)] bg-[color:var(--gv-accent-soft)] px-2 py-0.5 gv-kicker text-[color:var(--gv-accent-deep)]"
@@ -196,24 +168,49 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
                 Đã nhận link TikTok ✓
               </span>
             ) : null}
-            {corpusCount != null ? (
-              <span className="gv-kicker text-[var(--gv-ink-4)]">
-                {corpusCount.toLocaleString()}+ video
-              </span>
-            ) : null}
           </div>
         )}
-        <Btn
-          variant="accent"
-          size="md"
-          type="button"
-          onClick={submitIfNonEmpty}
-          disabled={Boolean(disabled) || !value.trim()}
-          className="shrink-0"
-        >
-          <span>Gửi</span>
-          <ArrowUp className="size-3.5" strokeWidth={2} aria-hidden />
-        </Btn>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {depthVisible ? (
+            <div
+              className="flex shrink-0 items-center gap-1.5"
+              role="group"
+              aria-label="Mức phân tích"
+            >
+              <button
+                type="button"
+                className={depthPillClass(analysisDepth === "basic")}
+                aria-pressed={analysisDepth === "basic"}
+                title={depthTitles.basic}
+                disabled={disabled}
+                onClick={() => onAnalysisDepthChange?.("basic")}
+              >
+                Cơ bản
+              </button>
+              <button
+                type="button"
+                className={depthPillClass(analysisDepth === "deep")}
+                aria-pressed={analysisDepth === "deep"}
+                title={channelDeepTitle}
+                disabled={disabled || channelDeepDisabled}
+                onClick={() => onAnalysisDepthChange?.("deep")}
+              >
+                Chuyên sâu
+              </button>
+            </div>
+          ) : null}
+          <Btn
+            variant="accent"
+            size="md"
+            type="button"
+            onClick={submitIfNonEmpty}
+            disabled={Boolean(disabled) || !value.trim()}
+            className="shrink-0"
+          >
+            <span>Gửi</span>
+            <ArrowUp className="size-3.5" strokeWidth={2} aria-hidden />
+          </Btn>
+        </div>
       </div>
     </div>
     );

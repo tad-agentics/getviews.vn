@@ -158,12 +158,6 @@ export default function HomeScreen() {
     [topPatterns],
   );
 
-  const currentNicheCount = useMemo(() => {
-    if (!selectedNicheId) return undefined;
-    const found = followedNiches.find((n) => n.id === selectedNicheId);
-    return found && found.hot > 0 ? found.hot : undefined;
-  }, [followedNiches, selectedNicheId]);
-
   // Capitalised because ``firstName`` now leads the H1 (was preceded by
   // "Chào "); lowercase looks wrong at the start of a sentence.
   const displayName = profile?.display_name?.trim() || "Bạn";
@@ -319,7 +313,6 @@ export default function HomeScreen() {
               onSubmit={submitStudioComposer}
               placeholder={studioComposerPlaceholder(studioPill, nicheLabel)}
               nicheLabel={nicheLabel}
-              corpusCount={currentNicheCount}
               showUrlChip={composerUrlChip.kind === "tiktok"}
               urlInvalidMessage={
                 composerUrlChip.kind === "invalid" ? composerUrlChip.message : undefined
