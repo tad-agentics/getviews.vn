@@ -1647,8 +1647,8 @@ export default function AnswerScreen() {
               ) : null}
               {showIntentCtaRail ? (
                 <div
-                  className="sticky bottom-3 z-20 mt-6 mb-5 -mx-4 border-t border-[color:var(--gv-rule)] bg-[color:color-mix(in_srgb,var(--gv-canvas)_94%,transparent)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-md min-[900px]:bottom-4 min-[900px]:-mx-6"
-                  aria-label="Gợi ý bước tiếp theo (cố định)"
+                  className="mt-6 mb-5 border-t border-[color:var(--gv-rule)] pt-4"
+                  aria-label="Gợi ý bước tiếp theo"
                 >
                   <p className="mb-3 gv-kicker text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
                     Tiếp tục nghiên cứu
