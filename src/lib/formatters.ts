@@ -100,6 +100,11 @@ export function formatBreakoutVI(ratio: number): string {
   return `${ratio.toFixed(1).replace(".", ",")}x`;
 }
 
+/** Legacy BE titles → current product copy (cached diagnoses may still emit old strings). */
+const DIAGNOSIS_SECTION_TITLE_ALIASES: Record<string, string> = {
+  "cơ chế chạy đúng": "Đang làm tốt",
+};
+
 /**
  * h3 section titles in video diagnosis — sentence case (not ALL CAPS kickers).
  * Leaves mixed-case BE/FE titles unchanged (e.g. "Khung giờ đăng trong ngách").
@@ -107,6 +112,9 @@ export function formatBreakoutVI(ratio: number): string {
 export function formatDiagnosisSectionTitle(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return trimmed;
+
+  const alias = DIAGNOSIS_SECTION_TITLE_ALIASES[trimmed.toLocaleLowerCase("vi-VN")];
+  if (alias) return alias;
 
   const letters = [...trimmed].filter((ch) => /\p{L}/u.test(ch));
   if (letters.length === 0) return trimmed;

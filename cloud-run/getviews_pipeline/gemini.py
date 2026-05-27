@@ -1043,7 +1043,7 @@ def _embed_allowed_for_tiles(
     embeddable — blocks citing a high-ER but off-caption corpus row. When the whole
     pool scores 0 (common for same-niche peers with different hooks), the pool was
     already niche-filtered in ``select_synthesis_references_for_video`` — allow the
-    top two ids by proximity then views so in-section evidence still renders.
+    top ids by proximity then views so in-section evidence still renders (up to 3 per section).
     """
     relevant = _reference_ids_with_content_proximity(reference_videos)
     if relevant:
@@ -1060,7 +1060,7 @@ def _embed_allowed_for_tiles(
     if not scored:
         return set()
     scored.sort(key=lambda x: (-x[0], -x[1]))
-    return {aid for _, _, aid in scored[:2]}
+    return {aid for _, _, aid in scored[:6]}
 
 
 def _inject_fallback_embedded_tiles(
@@ -1068,8 +1068,12 @@ def _inject_fallback_embedded_tiles(
     reference_videos: list[dict[str, Any]],
     embed_allowed: set[str],
 ) -> None:
-    """When the pool is non-empty but Gemini left ``embedded_tiles`` blank, attach one peer."""
-    from getviews_pipeline.diagnose_parse import resolve_embedded_tiles
+    """When the pool is non-empty but Gemini left ``embedded_tiles`` blank, attach up to 3 peers."""
+    from getviews_pipeline.diagnose_parse import (
+        _MAX_EMBEDDED_TILES_PER_SECTION,
+        fallback_tile_narrative_vi,
+        resolve_embedded_tiles,
+    )
 
     if not embed_allowed:
         return
@@ -1097,7 +1101,6 @@ def _inject_fallback_embedded_tiles(
             if sid:
                 by_sid[sid] = sec
 
-    aid_idx = 0
     for sid in (
         "hook_analysis",
         "diagnosis",
@@ -1105,8 +1108,6 @@ def _inject_fallback_embedded_tiles(
         "distribution",
         "script_structure",
     ):
-        if aid_idx >= len(ranked):
-            break
         if sid not in _EMBED_TILE_SECTION_IDS:
             continue
         sec = by_sid.get(sid)
@@ -1115,17 +1116,24 @@ def _inject_fallback_embedded_tiles(
         existing = sec.get("embedded_tiles")
         if isinstance(existing, list) and existing:
             continue
-        aid = ranked[aid_idx]
-        resolved = resolve_embedded_tiles([{"aweme_id": aid}], reference_videos)
+        batch = ranked[:_MAX_EMBEDDED_TILES_PER_SECTION]
+        if not batch:
+            continue
+        resolved = resolve_embedded_tiles(
+            [{"aweme_id": aid} for aid in batch],
+            reference_videos,
+        )
         resolved = [
             t
             for t in resolved
             if t.get("aweme_id")
             and (t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"))
         ]
+        for t in resolved:
+            if not str(t.get("narrative_vi") or "").strip():
+                t["narrative_vi"] = fallback_tile_narrative_vi(t)
         if resolved:
-            sec["embedded_tiles"] = resolved[:1]
-            aid_idx += 1
+            sec["embedded_tiles"] = resolved[:_MAX_EMBEDDED_TILES_PER_SECTION]
 
 
 def _strip_disallowed_embedded_tile_ids(
@@ -1196,7 +1204,7 @@ def _sanitize_diagnosis_embedded_tiles(
                     r.get("content_proximity_score") or r.get("_proximity_score") or 0
                 )
         hints.sort(key=lambda h: -by_prox.get(str(h.get("aweme_id") or ""), 0))
-        hints = hints[:2]
+        hints = hints[:3]
 
         resolved = resolve_embedded_tiles(hints, reference_videos)
         sec["embedded_tiles"] = [

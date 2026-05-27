@@ -6,7 +6,6 @@ import { formatDiagnosisSectionTitle } from "@/lib/formatters";
 import type {
   ChannelContext,
   ChannelNextVideoConcept,
-  ChannelPerformerTile,
   CreatorComparison,
   DiagnosisEvidenceAnchorVi,
   DiagnosisFinding,
@@ -14,6 +13,10 @@ import type {
   DiagnosisSectionVi,
   ReferenceVideoCard,
 } from "@/lib/api-types";
+import {
+  buildDiagnosisReferenceTiles,
+  stripSectionProseForEmbeddedRefs,
+} from "@/lib/diagnosisReferenceTiles";
 import { CreatorComparisonEmbed } from "@/components/diagnosis/CreatorComparisonEmbed";
 import { PostingHeatmapEmbed } from "@/components/diagnosis/PostingHeatmapEmbed";
 import {
@@ -24,8 +27,8 @@ import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
 import { Timeline } from "@/components/v2/Timeline";
 import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
 import { HookTimelineStrip } from "@/routes/_app/components/HookTimelineStrip";
+import { DiagnosisReferenceVideoCards } from "@/components/diagnosis/DiagnosisReferenceVideoCards";
 import { NextVideoCard, NextVideoCardEmpty } from "@/routes/_app/channel/components/NextVideoCard";
-import { VideoTileRow } from "@/routes/_app/channel/components/VideoTileRow";
 import type {
   HookTimelineEvent,
   VideoAnalyzeMeta,
@@ -44,64 +47,11 @@ function sectionText(s: DiagnosisSectionVi): string {
   return (s.text_vi || s.text || "").trim();
 }
 
-export function mapDiagnosisEmbeddedTiles(
-  tiles: unknown[] | undefined,
-  references: ReferenceVideoCard[],
-): ChannelPerformerTile[] {
-  if (!tiles?.length) return [];
-  const byId: Record<string, ReferenceVideoCard> = {};
-  for (const r of references) {
-    if (r.aweme_id) byId[String(r.aweme_id)] = r;
-  }
-  const out: ChannelPerformerTile[] = [];
-  for (const t of tiles) {
-    if (!t || typeof t !== "object") continue;
-    const row = t as Record<string, unknown>;
-    const aid = String(row.aweme_id ?? row.video_id ?? "");
-    const src = aid ? byId[aid] : undefined;
-    // Only show tiles joined to the synthesis reference pool — never orphan Gemini captions.
-    if (!src) continue;
-    const url = String(src.tiktok_url ?? row.video_url ?? row.tiktok_url ?? "");
-    const thumb = String(src.thumbnail_url ?? row.thumbnail_url ?? "");
-    const views = Number(src.views ?? row.views ?? 0) || 0;
-    const snip = String(src.desc ?? row.caption_snippet ?? row.desc ?? "").slice(0, 120);
-    if (!url && !thumb && !snip) continue;
-    out.push({
-      video_url: url,
-      thumbnail_url: thumb,
-      views,
-      caption_snippet: snip,
-      posted_at: String(row.posted_at ?? ""),
-      content_format: (src?.content_format ?? row.content_format) as string | undefined,
-    });
-  }
-  return out;
-}
-
-/** Map v6 ``evidence_anchors`` (aweme_id only) into tiles when section has no embedded_tiles. */
-export function embeddedTilesFromEvidenceAnchors(
-  anchors: DiagnosisEvidenceAnchorVi[] | undefined,
-  references: ReferenceVideoCard[],
-  sectionId: string,
-): ChannelPerformerTile[] {
-  if (!anchors?.length) return [];
-  const sid = sectionId.trim();
-  const hints: unknown[] = [];
-  for (const a of anchors) {
-    if (!a || typeof a !== "object") continue;
-    const typ = String(a.type ?? "")
-      .toLowerCase()
-      .replace(/-/g, "_");
-    if (typ !== "aweme_id") continue;
-    const anchorSid = String(a.section_id ?? "").trim();
-    if (anchorSid && anchorSid !== sid) continue;
-    const aid = String(a.quote ?? a.location ?? "").trim();
-    if (aid && /^\d{15,22}$/.test(aid)) {
-      hints.push({ aweme_id: aid });
-    }
-  }
-  return mapDiagnosisEmbeddedTiles(hints, references);
-}
+export {
+  buildDiagnosisReferenceTiles,
+  embeddedTilesFromEvidenceAnchors,
+  mapDiagnosisEmbeddedTiles,
+} from "@/lib/diagnosisReferenceTiles";
 
 function looseNextVideoConcept(
   raw: Record<string, unknown> | null | undefined,
@@ -217,13 +167,15 @@ export function DiagnosisSectionRenderer({
   fallbackProse,
 }: DiagnosisSectionRendererProps) {
   const title = sectionTitle(section);
-  const text = sectionText(section) || (fallbackProse ?? "").trim();
   const sid = String(section.section_id);
-  const tilesFromSection = mapDiagnosisEmbeddedTiles(section.embedded_tiles, referenceVideos);
-  const tiles =
-    tilesFromSection.length > 0
-      ? tilesFromSection
-      : embeddedTilesFromEvidenceAnchors(evidenceAnchors, referenceVideos, sid);
+  const referenceTiles = buildDiagnosisReferenceTiles(
+    section,
+    referenceVideos,
+    evidenceAnchors,
+  );
+  const rawText = sectionText(section) || (fallbackProse ?? "").trim();
+  const text =
+    referenceTiles.length > 0 ? stripSectionProseForEmbeddedRefs(rawText) : rawText;
 
   if (sid === "next_video") {
     const nvRaw =
@@ -291,10 +243,8 @@ export function DiagnosisSectionRenderer({
           />
         )
       ) : null}
-      {tiles.length > 0 ? (
-        <div className="mt-4 border-t border-[color:var(--gv-rule)] pt-4">
-          <VideoTileRow tiles={tiles} />
-        </div>
+      {referenceTiles.length > 0 ? (
+        <DiagnosisReferenceVideoCards tiles={referenceTiles} />
       ) : null}
       {findings.length > 0 ? (
         <div className="mt-4 flex flex-col gap-3">

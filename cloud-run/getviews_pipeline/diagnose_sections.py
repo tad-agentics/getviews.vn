@@ -248,7 +248,7 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
 
 
 VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
-    ("diagnosis", "hit"): "Cơ chế chạy đúng",
+    ("diagnosis", "hit"): "Đang làm tốt",
     ("diagnosis", "average"): "Điểm mạnh và khoảng trống",
     ("diagnosis", "flop"): "Vấn đề chính",
     ("diagnosis", "unknown"): "Bức tranh phân tích",

@@ -57,6 +57,37 @@ def parse_diagnosis_sections_markdown(narrative: str) -> list[dict[str, Any]]:
     return sections
 
 
+_MAX_EMBEDDED_TILES_PER_SECTION = 3
+
+
+def _format_views_compact_vi(n: int) -> str:
+    if n >= 1_000_000:
+        label = f"{n / 1_000_000:.1f}M"
+        return label.replace(".0M", "M")
+    if n >= 1_000:
+        label = f"{n / 1_000:.1f}K"
+        return label.replace(".0K", "K")
+    return str(n)
+
+
+def fallback_tile_narrative_vi(tile: dict[str, Any]) -> str:
+    """Deterministic comparison blurb when Gemini omits ``narrative_vi`` on a tile."""
+    views = int(tile.get("views") or 0)
+    handle = str(tile.get("author_handle") or "").strip()
+    if handle and not handle.startswith("@"):
+        handle = f"@{handle}"
+    desc = str(tile.get("caption_snippet") or "").strip()
+    if len(desc) > 100:
+        desc = desc[:97] + "…"
+    lead = f"Video tham chiếu «{desc}»" if desc else "Video tham chiếu trong cùng ngách"
+    parts = [lead]
+    if views > 0:
+        parts.append(f"đạt {_format_views_compact_vi(views)} view")
+    if handle:
+        parts.append(f"từ {handle}")
+    return " — ".join(parts) + ". So sánh hook và nhịp dẫn với clip của bạn."
+
+
 def resolve_embedded_tiles(
     tiles: list[dict[str, Any]],
     reference_videos: list[dict[str, Any]],
@@ -71,16 +102,19 @@ def resolve_embedded_tiles(
     for t in tiles:
         aid = str(t.get("aweme_id") or "")
         src = by_id.get(aid) or {}
+        narrative = str(t.get("narrative_vi") or t.get("narrative") or "").strip()
         out.append(
             {
                 "aweme_id": aid,
                 "thumbnail_url": src.get("thumbnail_url") or t.get("thumbnail_url"),
                 "views": int(src.get("views") or 0),
                 "caption_snippet": (str(src.get("caption") or src.get("desc") or ""))[
-                    :120
+                    :200
                 ],
                 "video_url": src.get("tiktok_url") or src.get("video_url"),
                 "content_format": src.get("content_format"),
+                "author_handle": src.get("author_handle"),
+                "narrative_vi": narrative or None,
             }
         )
     return out

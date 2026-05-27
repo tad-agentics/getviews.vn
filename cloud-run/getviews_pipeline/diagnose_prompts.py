@@ -27,7 +27,9 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
             "fix_vi": "Hành động sửa cụ thể creator cần làm"
           }
         ],
-        "embedded_tiles": [],
+        "embedded_tiles": [
+          {"aweme_id": "<id từ REFERENCE_EVIDENCE>", "narrative_vi": "1-3 câu so sánh cụ thể video này với clip đang phân tích — hook, format, nhịp, số view"}
+        ],
         "next_video": null
       }
     ],
@@ -50,15 +52,14 @@ Quy tắc:
 - findings: mỗi section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure) phải có 1–3 findings là điểm cụ thể nhất trong section — mỗi finding: title_vi (≤12 từ, dạng "Vấn đề — hậu quả"), body_vi (1-2 câu + số liệu), fix_vi (hành động creator làm ngay). Sections không phải issue-based (next_video, niche_pattern, channel_pattern, distribution, douyin_origin, persona): để findings: [].
 - next_video section: next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" } CHỈ cho section đó; text của section này có thể liệt kê 3-5 bullet • những việc creator cần làm cụ thể để thực hiện concept; findings: [].
 - embedded_tiles: Với mỗi section có thể show trực quan (hook_analysis, diagnosis,
-  niche_pattern, distribution, script_structure), chọn 1-2 aweme_id từ REFERENCE_EVIDENCE
-  có desc/format/niche gần nhất với context video đang phân tích (xem CTX_SUMMARY).
-  Ví dụ: nếu video là product_showcase về đồng hồ, ưu tiên reference về đồng hồ/trang sức/
-  outfit — không chọn sang niche không liên quan. Nếu không có match hợp lý, để embedded_tiles: [].
+  niche_pattern, distribution, script_structure), chọn đúng **3** object từ REFERENCE_EVIDENCE
+  (mỗi object: ``aweme_id`` + ``narrative_vi``). ``narrative_vi`` = 1-3 câu tiếng Việt so sánh
+  video tham chiếu với clip đang phân tích (hook, format, nhịp, view — có số cụ thể khi có).
+  Chỉ chọn video có desc/format/niche gần context (CTX_SUMMARY). Không match → ``embedded_tiles: []``.
   Sections phân tích thuần (channel_pattern, persona, compliance, sound): không cần tiles.
-- Khi có embedded_tiles, kết thúc text của section bằng 1 câu dẫn tự nhiên vào video tham chiếu.
-  Ví dụ: "Video dưới đây cho thấy cách các creator trong ngách đang áp dụng hook này hiệu quả."
-  hoặc "Đây là những video đang làm tốt format này trong cùng ngách — quan sát sự khác biệt ở frame đầu."
-  Câu dẫn phải liên quan trực tiếp đến điểm vừa phân tích trong section, không được generic.
+- Khi có embedded_tiles: **không** lặp lại nội dung ``narrative_vi`` trong ``text`` — prose section
+  chỉ giải thích finding; mỗi video tự mang phần so sánh của nó. Không kết thúc ``text`` bằng
+  câu generic kiểu "video dưới đây".
 - Khi có NICHE_POSTING_CONTEXT: đây là tóm tắt khung giờ đăng theo corpus ngách (heatmap 7×8, top cửa sổ + độ tin cậy). Tích hợp 1–2 đoạn prose vào section **distribution** nếu distribution có trong SECTIONS_TO_EMIT; nếu không thì gói vào **diagnosis**. So sánh bucket đăng của video user (dòng cuối block, nếu có) với top cửa sổ; không tạo section riêng cho timing, không mô tả lại toàn bộ heatmap — chỉ dùng số liệu đã cho, không bịa thêm ô giờ.
 - niche_pattern: có thể điền embedded_tiles với aweme_id từ reference pool (thumbnail_url optional); findings: []. Nếu cross_format_signal có trong DIAGNOSTIC_CONTEXT_JSON: trích dẫn cụ thể — "format X đang chạy ở N ngách", hook nào đang đạt view cao nhất, và creator nên học gì từ đó. Đây là so sánh với pattern viral trong ngách — không chỉ mô tả mà phải ra conclusion rõ ràng.
 - Ngôn ngữ: tiếng Việt peer-to-peer. Dùng **view** (không "lượt xem"), **tỷ lệ tương tác** (không "engagement rate"). Tránh quote tiếng Anh thô — diễn đạt format/hook bằng tiếng Việt. Khi performance_tier=hit: khung breakout, hook chỉ là polish — không mô tả như flop.

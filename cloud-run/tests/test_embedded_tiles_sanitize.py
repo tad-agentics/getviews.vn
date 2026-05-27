@@ -81,16 +81,21 @@ def test_sanitize_keeps_corpus_pool_tile_when_proximity_zero() -> None:
 def test_inject_fallback_tile_when_gemini_omits_embedded_tiles() -> None:
     from getviews_pipeline.gemini import _inject_fallback_embedded_tiles
 
-    refs = [_slim("111", "đồng hồ", proximity=0, source="corpus")]
+    refs = [
+        _slim("111", "đồng hồ A", proximity=3, source="corpus"),
+        _slim("222", "đồng hồ B", proximity=2, source="corpus"),
+        _slim("333", "đồng hồ C", proximity=1, source="corpus"),
+    ]
     diag_vi = {
         "sections": [
             {"section_id": "hook_analysis", "text_vi": "prose", "embedded_tiles": []},
         ]
     }
-    _inject_fallback_embedded_tiles(diag_vi, refs, {"111"})
+    _inject_fallback_embedded_tiles(diag_vi, refs, {"111", "222", "333"})
     tiles = diag_vi["sections"][0]["embedded_tiles"]
-    assert len(tiles) == 1
-    assert tiles[0]["aweme_id"] == "111"
+    assert len(tiles) == 3
+    assert [t["aweme_id"] for t in tiles] == ["111", "222", "333"]
+    assert all(t.get("narrative_vi") for t in tiles)
 
 
 def test_sanitize_keeps_live_search_tile_when_proximity_zero() -> None:

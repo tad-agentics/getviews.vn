@@ -12,7 +12,8 @@ import {
 
 describe("formatDiagnosisSectionTitle", () => {
   it("converts ALL CAPS v6 titles to sentence case", () => {
-    expect(formatDiagnosisSectionTitle("CƠ CHẾ CHẠY ĐÚNG")).toBe("Cơ chế chạy đúng");
+    expect(formatDiagnosisSectionTitle("CƠ CHẾ CHẠY ĐÚNG")).toBe("Đang làm tốt");
+    expect(formatDiagnosisSectionTitle("ĐANG LÀM TỐT")).toBe("Đang làm tốt");
     expect(formatDiagnosisSectionTitle("PHÂN TÍCH HOOK")).toBe("Phân tích hook");
   });
 
