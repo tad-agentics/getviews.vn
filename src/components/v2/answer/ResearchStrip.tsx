@@ -115,6 +115,31 @@ interface ToolCardState {
   filtered?: number;
 }
 
+/** True when every tool card in the iteration has emitted ``step_tool_complete``. */
+export function iterationToolsComplete(cards: readonly { done: boolean }[]): boolean {
+  return cards.length > 0 && cards.every((c) => c.done);
+}
+
+/** Sync ``step_status`` header copy with parallel tool cards (present → past). */
+export function resolveIterationStatusText(
+  rawStatus: string,
+  cards: readonly { done: boolean }[],
+): { text: string; complete: boolean } {
+  const complete = iterationToolsComplete(cards);
+  return {
+    complete,
+    text: complete ? pastTenseStepStatus(rawStatus) : rawStatus,
+  };
+}
+
+function pastTenseStepStatus(text: string): string {
+  const trimmed = text.trim();
+  const match = /^đang\s+(.+)$/iu.exec(trimmed);
+  if (!match) return trimmed;
+  const rest = match[1].replace(/\.{2,}$/u, "").replace(/…$/u, "").trim();
+  return `Đã ${rest}`;
+}
+
 // ── ThumbnailStrip ────────────────────────────────────────────────────────────
 
 function ThumbnailStrip({ urls }: { urls: string[] }) {
@@ -193,13 +218,34 @@ function ToolCard({ card }: { card: ToolCardState }) {
 
 // ── StatusRow ────────────────────────────────────────────────────────────────
 
-function StatusRow({ text, iteration }: { text: string; iteration: number }) {
+function StatusRow({
+  text,
+  iteration,
+  complete = false,
+}: {
+  text: string;
+  iteration: number;
+  complete?: boolean;
+}) {
   return (
     <div className="flex items-center gap-2 pb-1 pt-3 first:pt-0">
       <span className="shrink-0 gv-kicker text-[var(--gv-ink-4)]">
         {iteration}
       </span>
-      <span className="text-[11px] font-medium gv-kicker tracking-wide text-[var(--gv-ink)]">
+      {complete ? (
+        <Check
+          className="h-3.5 w-3.5 shrink-0 text-[color:var(--gv-pos)]"
+          strokeWidth={2.5}
+          aria-hidden
+        />
+      ) : null}
+      <span
+        className={
+          complete
+            ? "text-[11px] font-medium leading-snug text-[color:var(--gv-pos)]"
+            : "text-[11px] font-medium gv-kicker tracking-wide text-[color:var(--gv-ink)]"
+        }
+      >
         {text}
       </span>
     </div>
@@ -425,13 +471,22 @@ export function LivePipelineStrip({
 
   return (
     <div className="mt-5 border-y border-[var(--gv-rule)] py-4">
-      {iterationOrder.map((iter) => (
+      {iterationOrder.map((iter) => {
+        const iterCards = cardsByIteration.get(iter) ?? [];
+        const statusResolved = statusByIteration.has(iter)
+          ? resolveIterationStatusText(statusByIteration.get(iter)!, iterCards)
+          : null;
+        return (
         <div key={iter}>
-          {statusByIteration.has(iter) && (
-            <StatusRow text={statusByIteration.get(iter)!} iteration={iter} />
-          )}
+          {statusResolved ? (
+            <StatusRow
+              text={statusResolved.text}
+              iteration={iter}
+              complete={statusResolved.complete}
+            />
+          ) : null}
           <div className="pl-5">
-            {(cardsByIteration.get(iter) ?? [])
+            {iterCards
               .sort(
                 (a, b) =>
                   Number.parseInt(a.key.split("-")[1] ?? "0", 10) -
@@ -442,7 +497,8 @@ export function LivePipelineStrip({
               ))}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Legacy sequential events (chat-mode pipelines.py emitters).
           Audit Pass-2 fix #2 — render alongside iteration cards, not
