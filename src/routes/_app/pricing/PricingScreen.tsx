@@ -216,12 +216,14 @@ function PlanCard({
   index,
   subscription,
   userTier,
+  compact = false,
 }: {
   plan: (typeof plans.monthly)[number];
   period: Period;
   index: number;
   subscription: SubRow;
   userTier: string;
+  compact?: boolean;
 }) {
   const navigate = useNavigate();
   const Icon = plan.icon;
@@ -256,7 +258,9 @@ function PlanCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] }}
-      className={`relative flex flex-col rounded-xl border bg-[color:var(--gv-paper)] p-5 transition-colors duration-[120ms] ${
+      className={`relative flex min-w-0 flex-col rounded-xl border bg-[color:var(--gv-paper)] transition-colors duration-[120ms] ${
+        compact ? "p-3.5 sm:p-4" : "p-5"
+      } ${
         plan.popular
           ? "border-2 border-[color:var(--gv-ink)]"
           : "border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink-3)]"
@@ -277,10 +281,12 @@ function PlanCard({
         </div>
       ) : null}
 
-      <div className="flex flex-1 flex-col pt-1">
-        <div className="mb-4 flex items-start gap-3">
+      <div className="flex min-w-0 flex-1 flex-col pt-1">
+        <div className={`flex items-start gap-2.5 ${compact ? "mb-3" : "mb-4 gap-3"}`}>
           <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+            className={`flex shrink-0 items-center justify-center rounded-lg ${
+              compact ? "h-8 w-8" : "h-10 w-10"
+            } ${
               plan.popular
                 ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
                 : "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)]"
@@ -289,36 +295,50 @@ function PlanCard({
             <Icon className="h-4 w-4" strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-base font-bold leading-none text-[color:var(--gv-ink)]">{plan.name}</p>
-            <p className="mt-0.5 text-xs leading-tight text-[color:var(--gv-ink-3)]">{plan.tagline}</p>
+            <p className={`font-bold leading-none text-[color:var(--gv-ink)] ${compact ? "text-sm" : "text-base"}`}>
+              {plan.name}
+            </p>
+            {!compact ? (
+              <p className="mt-0.5 text-xs leading-tight text-[color:var(--gv-ink-3)]">{plan.tagline}</p>
+            ) : null}
           </div>
         </div>
 
-        <div className="mb-4 flex min-h-[52px] flex-col justify-center">
+        <div className={`flex flex-col justify-center ${compact ? "mb-3 min-h-[40px]" : "mb-4 min-h-[52px]"}`}>
           {isFree ? (
-            <p className="font-mono text-2xl font-bold text-[color:var(--gv-ink)]">Miễn phí</p>
+            <p className={`font-mono font-bold text-[color:var(--gv-ink)] ${compact ? "text-xl" : "text-2xl"}`}>
+              Miễn phí
+            </p>
           ) : (
-            <div className="flex items-baseline gap-1">
-              <p className="font-mono text-[1.75rem] font-bold leading-none text-[color:var(--gv-ink)]">
+            <div className="flex flex-wrap items-baseline gap-1">
+              <p
+                className={`font-mono font-bold leading-none text-[color:var(--gv-ink)] ${
+                  compact ? "text-lg" : "text-[1.75rem]"
+                }`}
+              >
                 {plan.priceDisplay}
               </p>
-              <span className="text-xs font-medium text-[color:var(--gv-ink-3)]">/tháng</span>
+              <span className="text-[10px] font-medium text-[color:var(--gv-ink-3)] sm:text-xs">/tháng</span>
             </div>
           )}
-          {!isFree ? (
+          {!isFree && !compact ? (
             <p className="mt-1 font-mono text-[10px] font-medium uppercase tracking-wider text-[color:var(--gv-ink-4)]">
               {subtextPrice()}
             </p>
           ) : null}
         </div>
 
-        <ul className="mb-5 flex-1 space-y-2">
+        <ul className={`flex-1 space-y-1.5 ${compact ? "mb-3" : "mb-5 space-y-2"}`}>
           {plan.features.map((feat) => (
             <li key={feat} className="flex items-start gap-2">
               <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)]">
                 <Check className="h-2.5 w-2.5" strokeWidth={2.5} />
               </span>
-              <span className="text-xs leading-relaxed text-[color:var(--gv-ink-3)]">{feat}</span>
+              <span
+                className={`leading-relaxed text-[color:var(--gv-ink-3)] ${compact ? "text-[11px]" : "text-xs"}`}
+              >
+                {feat}
+              </span>
             </li>
           ))}
         </ul>
@@ -362,7 +382,7 @@ function PricingSkeleton() {
       <div className="h-4 w-64 rounded bg-[color:var(--gv-canvas-2)]" />
       <div className="h-20 rounded-lg bg-[color:var(--gv-canvas-2)]" />
       <div className="mx-auto h-10 w-64 rounded-lg bg-[color:var(--gv-canvas-2)]" />
-      <div className="grid grid-cols-1 gap-4 min-[700px]:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {[0, 1, 2].map((i) => (
           <div key={i} className="h-64 rounded-xl bg-[color:var(--gv-canvas-2)]" />
         ))}
@@ -401,7 +421,9 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
 
   return (
     <div className={embedded ? "w-full" : "flex-1 overflow-y-auto"} style={{ scrollbarWidth: "thin" }}>
-      <div className={`max-w-4xl mx-auto px-0 sm:px-2 pb-8 ${embedded ? "pt-0" : "px-4 lg:px-6 pt-14 lg:pt-6"}`}>
+      <div
+        className={`pb-8 ${embedded ? "w-full max-w-none px-0 pt-0" : "mx-auto max-w-4xl px-4 pt-14 sm:px-2 lg:px-6 lg:pt-6"}`}
+      >
         {onBack ? (
           <button
             type="button"
@@ -473,7 +495,7 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
         </div>
 
         <AnimatePresence mode="wait">
-          <div key={period} className="mb-10 grid grid-cols-1 gap-4 min-[700px]:grid-cols-3">
+          <div key={period} className="mb-10 grid grid-cols-3 gap-2 sm:gap-3">
             {currentPlans.map((plan, i) => (
               <PlanCard
                 key={plan.name}
@@ -482,6 +504,7 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
                 index={i}
                 subscription={subRow}
                 userTier={userTier}
+                compact={embedded}
               />
             ))}
           </div>
@@ -498,7 +521,7 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
             Dành cho creator cần phân tích gấp — lượt dùng không hết hạn theo chu kỳ gói.
           </p>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {topupCopy.map((pack) => {
               const count = pack.pack === "pack_10" ? 10 : pack.pack === "pack_30" ? 30 : 50;
               const price = pack.pack === "pack_10" ? "130.000đ" : pack.pack === "pack_30" ? "350.000đ" : "550.000đ";
@@ -510,7 +533,7 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
                   key={pack.pack}
                   type="button"
                   onClick={() => navigate("/app/checkout", { state: { plan: pack.pack } })}
-                  className={`group relative flex min-h-[44px] flex-col rounded-lg border bg-[color:var(--gv-paper)] p-5 text-center transition-colors duration-[120ms] ${
+                  className={`group relative flex min-h-[44px] min-w-0 flex-col rounded-lg border bg-[color:var(--gv-paper)] p-3 text-center transition-colors duration-[120ms] sm:p-4 ${
                     pack.highlight
                       ? "border-2 border-[color:var(--gv-ink)]"
                       : "border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink-3)]"
