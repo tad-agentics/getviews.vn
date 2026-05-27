@@ -50,6 +50,15 @@ const TIKTOK_HOST_IN_TEXT_RE =
 const EXTERNAL_VIDEO_PAGE_RE =
   /\b(?:https?:\/\/)?(?:www\.)?(?!(?:(?:vm|vt|m)\.)?tiktok\.com\b)[a-z0-9][-a-z0-9.]*\.[a-z]{2,}\/video\/\d/i;
 
+/** TikTok video paths — strip before external-domain scan so dotted handles (e.g. @curnon.official) are not matched as ``handle.tld/video/…``. */
+const TIKTOK_VIDEO_PATH_SEGMENT_RE =
+  /\b(?:https?:\/\/)?(?:(?:www\.)?(?:tiktok\.com)|(?:vm|vt|m)\.tiktok\.com)\/@[^/\s]+\/video\/\d+/gi;
+
+function stripTikTokVideoPathSegments(text: string): string {
+  TIKTOK_VIDEO_PATH_SEGMENT_RE.lastIndex = 0;
+  return text.replace(TIKTOK_VIDEO_PATH_SEGMENT_RE, " ");
+}
+
 /** User-facing copy (EDS + copy-rules). */
 export const NON_TIKTOK_URL_MESSAGE =
   "Link không hợp lệ — cần link TikTok (tiktok.com hoặc vm/vt.tiktok.com).";
@@ -69,7 +78,7 @@ export function nonTikTokUrlValidationMessage(text: string): string | null {
   if (NON_TIKTOK_VIDEO_HOST_RE.test(text)) {
     return NON_TIKTOK_URL_MESSAGE;
   }
-  if (EXTERNAL_VIDEO_PAGE_RE.test(text)) {
+  if (EXTERNAL_VIDEO_PAGE_RE.test(stripTikTokVideoPathSegments(text))) {
     return NON_TIKTOK_URL_MESSAGE;
   }
   const urls = extractHttpUrlsFromText(text);

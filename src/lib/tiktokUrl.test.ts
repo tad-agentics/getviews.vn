@@ -83,6 +83,19 @@ describe("nonTikTokUrlValidationMessage", () => {
     ).toBeNull();
   });
 
+  it("allows TikTok URLs with dotted handles (not external /video/ domains)", () => {
+    expect(
+      nonTikTokUrlValidationMessage(
+        "https://www.tiktok.com/@curnon.official/video/7638856358812634375",
+      ),
+    ).toBeNull();
+    expect(
+      nonTikTokUrlValidationMessage(
+        "https://www.tiktok.com/@shop.vn/video/7634391245737053447",
+      ),
+    ).toBeNull();
+  });
+
   it("blocks when TikTok and non-TikTok URLs are mixed", () => {
     expect(
       nonTikTokUrlValidationMessage(
