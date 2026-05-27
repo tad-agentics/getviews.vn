@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-27 — Home ticker: live data only
+
+- **Fix:** `TickerMarquee` drops Figma `FALLBACK_ITEMS` mock (`@aifreelance`, `248%`, …). Renders only after `/home/ticker` returns ≥1 real row; hides strip while loading, on error, or thin/empty niche (no fabricated headlines).
+
 ## 2026-05-27 — Studio composer UI
 
 - **UI:** Drop `261+ VIDEO` corpus chip; move Cơ bản / Chuyên sâu beside Gửi as separate pills (accent selected, ink unselected).

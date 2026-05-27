@@ -2,52 +2,22 @@ import { memo, useMemo } from "react";
 import { useHomeTicker, type TickerItem } from "@/hooks/useHomeTicker";
 
 /**
- * Ink-bar marquee under the TopBar — dark strip, colour-coded bucket tags,
- * headlines scroll left on a 40s loop (`animate-scroll-ticker` in app.css).
- *
- * Uses GET /home/ticker when it returns **≥3** rows; otherwise falls back to
- * the same demo lines as `screens/home.jsx` in the UIUX pack so the strip
- * still matches the design in dev or thin data weeks.
+ * Ink-bar marquee under the TopBar — dark strip, colour-coded bucket tags.
+ * Data: GET /home/ticker only (7-day corpus buckets). No Figma mock copy in prod.
  */
 
-/** UIUX reference `Ticker()` mock — kept in API shape for fallback only. */
-const FALLBACK_ITEMS: TickerItem[] = [
-  {
-    bucket: "breakout",
-    label_vi: "BREAKOUT",
-    headline_vi: '@aifreelance — "5 app AI mà chưa ai nói" · 234K view trong 18h',
-    target_kind: "none",
-    target_id: null,
-  },
-  {
-    bucket: "hook_mới",
-    label_vi: "HOOK MỚI",
-    headline_vi: '"Khi bạn ___" tăng 248% sử dụng tuần này',
-    target_kind: "none",
-    target_id: null,
-  },
-  {
-    bucket: "cảnh_báo",
-    label_vi: "CẢNH BÁO",
-    headline_vi: "Format unboxing dài >60s đang giảm 18% reach trong Tech",
-    target_kind: "none",
-    target_id: null,
-  },
-  {
-    bucket: "âm_thanh",
-    label_vi: "ÂM THANH",
-    headline_vi: 'Sound "Lo-fi typewriter" đang được gắn vào 1.2K video Edu',
-    target_kind: "none",
-    target_id: null,
-  },
-];
-
 const BUCKET_TONE: Record<TickerItem["bucket"], string> = {
-  breakout:   "text-[color:var(--gv-accent)]",
-  hook_mới:   "text-[color:var(--gv-accent-2)]",
-  cảnh_báo:   "text-[color:var(--gv-neg)]",
-  âm_thanh:   "text-[color:var(--gv-lime)]",
+  breakout: "text-[color:var(--gv-accent)]",
+  hook_mới: "text-[color:var(--gv-accent-2)]",
+  cảnh_báo: "text-[color:var(--gv-neg)]",
+  âm_thanh: "text-[color:var(--gv-lime)]",
 };
+
+/** Duplicate once for seamless CSS marquee loop. */
+export function tickerMarqueeRows(items: TickerItem[]): TickerItem[] {
+  if (items.length === 0) return [];
+  return [...items, ...items];
+}
 
 export const TickerMarquee = memo(function TickerMarquee({
   viewNicheId = null,
@@ -55,19 +25,23 @@ export const TickerMarquee = memo(function TickerMarquee({
   /** Matches ``NichePicker`` / Home headline — same niche as gợi ý & pulse. */
   viewNicheId?: number | null;
 } = {}) {
-  const { data: items = [] } = useHomeTicker(true, viewNicheId);
+  const { data: items, isPending, isError, isFetched } = useHomeTicker(true, viewNicheId);
 
-  const rowItems = useMemo(() => {
-    const list = items.length >= 3 ? items : FALLBACK_ITEMS;
-    return [...list, ...list];
-  }, [items]);
+  const rowItems = useMemo(
+    () => (items && items.length > 0 ? tickerMarqueeRows(items) : []),
+    [items],
+  );
+
+  // Avoid flashing mock while the query is in flight; hide when API empty/errors.
+  if (isPending || !isFetched || isError || rowItems.length === 0) {
+    return null;
+  }
 
   return (
     <section
       aria-label="Dòng tin tuần này"
       className="relative overflow-hidden border-b border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
     >
-      {/* gap-[48px] matches UIUX `.marquee-track`; py-2 = 8px like screens/home.jsx Ticker */}
       <div className="animate-scroll-ticker flex min-w-[200%] items-center gap-12 whitespace-nowrap py-2">
         {rowItems.map((it, idx) => (
           <span
@@ -75,7 +49,9 @@ export const TickerMarquee = memo(function TickerMarquee({
             className="gv-mono inline-flex items-center gap-2.5 text-[11px] leading-normal"
           >
             <span className={"font-semibold " + BUCKET_TONE[it.bucket]}>{it.label_vi}</span>
-            <span className="font-medium text-[color:var(--gv-canvas)] opacity-[0.85]">{it.headline_vi}</span>
+            <span className="font-medium text-[color:var(--gv-canvas)] opacity-[0.85]">
+              {it.headline_vi}
+            </span>
             <span aria-hidden="true" className="text-[color:var(--gv-canvas)] opacity-40">
               ·
             </span>

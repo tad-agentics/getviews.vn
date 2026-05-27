@@ -61,8 +61,10 @@ hdr "GET /home/ticker"
 f=$(expect_200_json "$CLOUD_RUN_URL/home/ticker" "ticker")
 jq '{niche_id, items_count: (.items | length), bucket_histogram: (.items | group_by(.bucket) | map({bucket: .[0].bucket, n: length}))}' < "$f"
 items=$(jq -r '.items | length' < "$f")
-if (( items < 3 )); then
-  echo "WARN: ticker has only $items items — UI will hide the marquee (threshold ≥ 3)."
+if (( items < 1 )); then
+  echo "WARN: ticker has 0 items — Home marquee hidden (no mock fallback)."
+elif (( items < 3 )); then
+  echo "NOTE: ticker has $items live item(s) — marquee still shows real headlines only."
 fi
 ok "ticker returned $items items"
 rm -f "$f"
