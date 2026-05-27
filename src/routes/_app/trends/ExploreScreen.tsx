@@ -821,7 +821,12 @@ export default function ExploreScreen() {
           title="Ý tưởng & Xu hướng thịnh hành"
           right={
             <>
-              <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
+              <Btn
+                variant="ink"
+                size="sm"
+                type="button"
+                onClick={() => navigate({ pathname: "/app/answer", search: "" }, { replace: true })}
+              >
                 <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                 Phân tích mới
               </Btn>

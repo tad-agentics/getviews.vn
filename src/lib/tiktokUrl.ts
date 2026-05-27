@@ -43,6 +43,13 @@ const NON_TIKTOK_VIDEO_HOST_RE =
 const TIKTOK_HOST_IN_TEXT_RE =
   /\b(?:https?:\/\/)?(?:(?:www\.)?(?:tiktok\.com)|(?:vm|vt|m)\.tiktok\.com)\b/i;
 
+/**
+ * Non-TikTok sites pasted like a video link (e.g. ``linhbeauty.vn/video/74012…``)
+ * without ``https://`` — would bypass ``HTTP_URL_RE``-only checks.
+ */
+const EXTERNAL_VIDEO_PAGE_RE =
+  /\b(?:https?:\/\/)?(?:www\.)?(?!(?:(?:vm|vt|m)\.)?tiktok\.com\b)[a-z0-9][-a-z0-9.]*\.[a-z]{2,}\/video\/\d/i;
+
 /** User-facing copy (EDS + copy-rules). */
 export const NON_TIKTOK_URL_MESSAGE =
   "Link không hợp lệ — cần link TikTok (tiktok.com hoặc vm/vt.tiktok.com).";
@@ -60,6 +67,9 @@ export function isTikTokHttpUrl(url: string): boolean {
 /** Returns Vietnamese error when any URL-like token is not TikTok; otherwise ``null``. */
 export function nonTikTokUrlValidationMessage(text: string): string | null {
   if (NON_TIKTOK_VIDEO_HOST_RE.test(text)) {
+    return NON_TIKTOK_URL_MESSAGE;
+  }
+  if (EXTERNAL_VIDEO_PAGE_RE.test(text)) {
     return NON_TIKTOK_URL_MESSAGE;
   }
   const urls = extractHttpUrlsFromText(text);

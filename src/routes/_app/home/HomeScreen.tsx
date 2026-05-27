@@ -237,7 +237,7 @@ export default function HomeScreen() {
               variant="ink"
               size="sm"
               className="shrink-0 whitespace-nowrap"
-              onClick={() => navigate("/app/answer")}
+              onClick={() => navigate({ pathname: "/app/answer", search: "" }, { replace: true })}
             >
               <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
               Phân tích mới

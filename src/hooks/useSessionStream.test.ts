@@ -363,6 +363,37 @@ describe("useSessionStream — answer_turn TD-4 retry on stream drop", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("dedupes identical step_process lines on TD-4 resume replay", async () => {
+    const stepLine = `data: {"stream_id":"sid-dedupe","seq":1,"type":"step_process","label":"Đang phân tích video...","done":false}\n\n`;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(mockFetchStream([stepLine]))
+      .mockResolvedValueOnce(
+        mockFetchStream([
+          stepLine,
+          `data: {"stream_id":"sid-dedupe","seq":2,"done":true}\n\n`,
+        ]),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+
+    void result.current.stream(ANSWER_PARAMS);
+    await waitFor(() => expect(result.current.steps.length).toBe(1), { timeout: 3000 });
+
+    await result.current.stream({
+      ...ANSWER_PARAMS,
+      resumeStreamId: "sid-dedupe",
+      lastSeq: 1,
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
+    expect(result.current.steps.length).toBe(1);
+    expect(result.current.steps[0]).toMatchObject({
+      type: "step_process",
+      label: "Đang phân tích video...",
+    });
+  });
+
   it("preserves pipeline steps when opening a resume stream", async () => {
     const stepLine = `data: {"stream_id":"sid-steps","seq":1,"type":"step_process","label":"Đang tải","done":false}\n\n`;
     const fetchMock = vi

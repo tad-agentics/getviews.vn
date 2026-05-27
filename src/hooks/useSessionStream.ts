@@ -79,6 +79,39 @@ const MAX_ANSWER_RETRIES = 1;
  */
 const SSE_IDLE_TIMEOUT_MS = 45_000;
 
+/** Stable key so TD-4 replay does not duplicate legacy step lines in the UI. */
+export function stepEventDedupeKey(event: StepEvent): string {
+  switch (event.type) {
+    case "step_start":
+    case "step_process":
+      return `${event.type}:${event.label}`;
+    case "step_search":
+      return `${event.type}:${event.source}:${event.query}`;
+    case "step_creator":
+      return `${event.type}:${event.handle}`;
+    case "step_count":
+      return `${event.type}:${event.count}`;
+    case "step_done":
+      return `${event.type}:${event.summary}`;
+    case "step_error":
+      return `${event.type}:${event.code}:${event.message_vi}`;
+    case "step_status":
+      return `${event.type}:${event.iteration}:${event.text}`;
+    case "step_tool_start":
+      return `${event.type}:${event.iteration}:${event.index}:${event.tool}:${event.label}`;
+    case "step_tool_complete":
+      return `${event.type}:${event.iteration}:${event.index}:${event.tool}`;
+    default:
+      return JSON.stringify(event);
+  }
+}
+
+function appendStepDeduped(steps: StepEvent[], event: StepEvent): StepEvent[] {
+  const key = stepEventDedupeKey(event);
+  if (steps.some((s) => stepEventDedupeKey(s) === key)) return steps;
+  return [...steps, event];
+}
+
 export type StreamStatus = "idle" | "streaming" | "done" | "error";
 
 export interface StreamState<TPayload = unknown> {
@@ -609,7 +642,7 @@ async function consumeAnswerSse<TPayload>(
         if (token.type !== undefined && STEP_EVENT_TYPES.has(token.type)) {
           setState((s) => ({
             ...s,
-            steps: [...s.steps, token as StepEvent],
+            steps: appendStepDeduped(s.steps, token as StepEvent),
           }));
           continue;
         }

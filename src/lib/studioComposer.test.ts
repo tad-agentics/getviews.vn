@@ -80,6 +80,19 @@ describe("planStudioComposerSubmit", () => {
     }
   });
 
+  it("blocks bare non-TikTok video page URL before navigation", () => {
+    const plan = planStudioComposerSubmit(
+      "video_flop",
+      "linhbeauty.vn/video/74012345678901234",
+      "basic",
+    );
+    expect(plan).toEqual({
+      kind: "blocked",
+      reason: "non_tiktok_url",
+      message: expect.stringMatching(/link TikTok/i),
+    });
+  });
+
   it("blocks YouTube URL before navigation", () => {
     const plan = planStudioComposerSubmit(
       "video_flop",

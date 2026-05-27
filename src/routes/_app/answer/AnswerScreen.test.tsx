@@ -274,9 +274,13 @@ describe("AnswerScreen state transitions", () => {
   });
   afterEach(cleanup);
 
-  it("shows the empty prompt when there is no session and no seed query", () => {
+  it("shows initial composer on blank landing without fake hero question", () => {
     renderScreen("/app/answer");
-    expect(screen.getByText(/Dán câu hỏi từ Studio/)).toBeTruthy();
+    const composer = screen.getByTestId("follow-up-composer");
+    expect(composer.getAttribute("data-variant")).toBe("initial");
+    expect(screen.queryByText(/Xu hướng đang hot/)).toBeNull();
+    expect(screen.queryByText(/Dán câu hỏi từ Studio/)).toBeNull();
+    expect(screen.getByTestId("header").textContent?.trim()).toBe("");
   });
 
   it("renders each turn via the ContinuationTurn dispatcher when detail has turns", () => {
@@ -408,6 +412,30 @@ describe("AnswerScreen state transitions", () => {
     await waitFor(() => {
       expect(input.value).toBe("my query");
     });
+  });
+
+  it("blocks bare non-TikTok video URL on ?q= bootstrap without creating a session", async () => {
+    const fakeQ = "linhbeauty.vn/video/74012345678901234";
+    const router = createMemoryRouter(
+      [{ path: "/app/answer", element: <AnswerScreen /> }],
+      {
+        initialEntries: [
+          `/app/answer?q=${encodeURIComponent(fakeQ)}&depth=basic&mode=flop`,
+        ],
+      },
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent ?? "").toMatch(/link TikTok/i);
+    });
+    expect(mockCreateAnswerSession).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("resume-stream-btn")).toBeNull();
   });
 
   it("keeps session in URL and shows resume when bootstrap stream fails on ?q=", async () => {

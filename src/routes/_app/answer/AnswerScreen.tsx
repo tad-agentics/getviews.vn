@@ -39,6 +39,11 @@ import {
 import { Plus, Check, ArrowLeft } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { ScriptShootPanel } from "@/components/v2/answer/script/ScriptShootPanel";
+import { CHANNEL_SAU_CREDIT_COST } from "@/lib/channelDepth";
+import {
+  planStudioComposerSubmit,
+  type StudioComposerPill,
+} from "@/lib/studioComposer";
 import {
   parseAnswerHandoffParams,
   planAnswerEntry,
@@ -238,7 +243,7 @@ function scriptDraftIdFromTurns(turns: AnswerTurnRow[]): string | null {
 
 export default function AnswerScreen() {
   const { user } = useAuth();
-  const { data: profile } = useProfile();
+  const { data: profile, isPending: profilePending } = useProfile();
   const { data: niches } = useNicheTaxonomy();
   const navigate = useNavigate();
   const location = useLocation();
@@ -266,6 +271,30 @@ export default function AnswerScreen() {
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [bootstrapLoading, setBootstrapLoading] = useState(false);
+  const [studioPill, setStudioPill] = useState<StudioComposerPill>("video_flop");
+
+  const creditsRemaining =
+    (profile as { credits_remaining?: number } | null | undefined)?.credits_remaining ?? 0;
+
+  const isAnswerLanding = !sessionId && !seedQ.trim();
+
+  useEffect(() => {
+    if (profilePending || !isAnswerLanding) return;
+    if (
+      studioPill === "channel" &&
+      handoff.depth === "deep" &&
+      creditsRemaining < CHANNEL_SAU_CREDIT_COST
+    ) {
+      setAnalysisDepth("basic");
+    }
+  }, [
+    studioPill,
+    handoff.depth,
+    creditsRemaining,
+    profilePending,
+    isAnswerLanding,
+    setAnalysisDepth,
+  ]);
 
   const openScriptShoot = useCallback(
     (draftId: string) => {
@@ -365,14 +394,6 @@ export default function AnswerScreen() {
     return formatRelativeSinceVi(new Date(), d);
   }, [turns]);
 
-  /** Tiêu đề hero khi chưa mở phiên — gần mock “CÂU HỎI” + câu hỏi mẫu. */
-  const emptyStateHeroQuestion = useMemo(() => {
-    const q = seedQ.trim();
-    if (q) return q;
-    const niche = nicheLabel ?? "ngách của bạn";
-    return `Xu hướng đang hot trong ${niche} tuần này?`;
-  }, [seedQ, nicheLabel]);
-
   const streamInFlight = streamStatus === "streaming";
 
   const loading =
@@ -388,18 +409,21 @@ export default function AnswerScreen() {
     return hasAnswerStreamReplayHandles(sessionId, streamId, lastSeq);
   }, [sessionId, streamId, lastSeq, streamStatus]);
 
+  const primaryRetryQuery = useMemo(() => {
+    const fromSession = detailQuery.data?.session?.initial_q?.trim();
+    return followUp.trim() || seedQ.trim() || fromSession || "";
+  }, [followUp, seedQ, detailQuery.data?.session?.initial_q]);
+
+  const invalidStreamQuery = nonTikTokUrlValidationMessage(primaryRetryQuery);
+
   const canResumeInterruptedStream =
     Boolean(sessionId && CLOUD && user) &&
     turnCount === 0 &&
     !streamInFlight &&
     !bootstrapLoading &&
+    !invalidStreamQuery &&
     hasReplayHandles &&
     Boolean(error && RETRYABLE_STREAM_ERRORS.has(error));
-
-  const primaryRetryQuery = useMemo(() => {
-    const fromSession = detailQuery.data?.session?.initial_q?.trim();
-    return followUp.trim() || seedQ.trim() || fromSession || "";
-  }, [followUp, seedQ, detailQuery.data?.session?.initial_q]);
 
   /** Stream disconnect errors only apply while the session has no persisted turn. */
   const showAnswerErrorBanner = Boolean(
@@ -453,6 +477,16 @@ export default function AnswerScreen() {
   /** Skip tab-reload auto-resume right after bootstrap stream fail (user picks "Tiếp tục"). */
   const skipAutoResumeSessionRef = useRef<string | null>(null);
   const prevSessionIdRef = useRef<string | null>(null);
+
+  const startNewAnswer = useCallback(() => {
+    setFollowUp("");
+    setError(null);
+    resetStream();
+    bootstrapInFlightRef.current = null;
+    skipAutoResumeSessionRef.current = null;
+    resumeFiredRef.current = null;
+    navigate({ pathname: "/app/answer", search: "" }, { replace: true });
+  }, [navigate, resetStream]);
 
   /** Drop composer/stream stale state when switching between two open sessions. */
   useEffect(() => {
@@ -918,12 +952,17 @@ export default function AnswerScreen() {
           bootstrapInFlightRef.current = null;
           setFollowUp(submittedQ);
           skipAutoResumeSessionRef.current = row.id;
+          resetStream();
           primeEmptySessionDetailCache(queryClient, row, submittedQ);
           setSearchParams(answerSessionUrlParams(row.id, seedQ, handoff), {
             replace: true,
           });
           // Session row already exists — failure is the primary SSE turn, not create.
-          setError(pickAnswerErrorCode(result.error, "stream_failed"));
+          setError(
+            nonTikTokUrlValidationMessage(submittedQ)
+              ? "non_tiktok_url"
+              : pickAnswerErrorCode(result.error, "stream_failed"),
+          );
           return;
         }
 
@@ -975,7 +1014,7 @@ export default function AnswerScreen() {
         setBootstrapLoading(false);
       }
     })();
-  }, [sessionId, seedQ, CLOUD, user, defaultProfileNicheId, handoff, setSearchParams, navigate, queryClient, uid, stream]);
+  }, [sessionId, seedQ, CLOUD, user, defaultProfileNicheId, handoff, setSearchParams, navigate, queryClient, uid, stream, resetStream]);
 
   const appendCtaTurn = useCallback(
     async (suggestion: IntentCtaSuggestion, query: string) => {
@@ -1198,16 +1237,14 @@ export default function AnswerScreen() {
       return;
     }
     if (!sessionId) {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("q", q);
-          next.set("depth", handoff.depth);
-          return next;
-        },
-        { replace: true },
-      );
+      const plan = planStudioComposerSubmit(studioPill, q, handoff.depth);
+      if (plan.kind === "blocked") {
+        setError(plan.reason === "non_tiktok_url" ? "non_tiktok_url" : "start_failed");
+        return;
+      }
+      navigate(plan.to, { replace: true });
       setFollowUp("");
+      setError(null);
       return;
     }
     if (turnCount === 0) {
@@ -1223,7 +1260,8 @@ export default function AnswerScreen() {
     streamInFlight,
     sessionId,
     handoff.depth,
-    setSearchParams,
+    studioPill,
+    navigate,
     turnCount,
     retryFailedPrimaryTurn,
     submitFollowUpFromComposer,
@@ -1322,8 +1360,8 @@ export default function AnswerScreen() {
           title="Báo Cáo Nghiên Cứu"
           right={
             <>
-              <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
-                <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              <Btn variant="ink" size="sm" type="button" onClick={startNewAnswer}>
+                <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
                 Phân tích mới
               </Btn>
             </>
@@ -1408,7 +1446,7 @@ export default function AnswerScreen() {
                   />
                 )}
               </header>
-            ) : (
+            ) : seedQ.trim() ? (
               <header className="border-b border-[color:var(--gv-rule)] pb-8">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <p className="gv-kicker text-[color:var(--gv-ink-3)]">
@@ -1419,11 +1457,11 @@ export default function AnswerScreen() {
                 <h1
                   className={ANSWER_HERO_H1_CLASS}
                   style={{ fontFamily: "var(--gv-font-display)" }}
-                  title={emptyStateHeroQuestion}
+                  title={seedQ.trim()}
                 >
-                  {emptyStateHeroQuestion}
+                  {seedQ.trim()}
                 </h1>
-                {bootstrapLoading && seedQ.trim() ? (
+                {bootstrapLoading ? (
                   <LivePipelineStrip
                     steps={steps}
                     done={false}
@@ -1438,18 +1476,8 @@ export default function AnswerScreen() {
                     heartbeatElapsedSec={heartbeatElapsedSec}
                   />
                 ) : null}
-                <p
-                  className={
-                    bootstrapLoading && seedQ.trim()
-                      ? "sr-only"
-                      : "mt-4 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-3)]"
-                  }
-                >
-                  Dán câu hỏi từ Studio hoặc mở phiên có sẵn từ Lịch sử — bạn cũng có thể sửa khung hỏi bên dưới để
-                  bắt đầu phân tích mới.
-                </p>
               </header>
-            )
+            ) : null
           }
           main={
             <TimelineRail turnCount={turnCount}>
@@ -1638,10 +1666,15 @@ export default function AnswerScreen() {
                   value={followUp}
                   onChange={setFollowUp}
                   onSubmit={submitComposer}
-                  variant="initial"
+                  variant={sessionId ? "followUp" : "initial"}
                   disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
                   analysisDepth={handoff.depth}
                   onAnalysisDepthChange={setAnalysisDepth}
+                  studioPill={isAnswerLanding ? studioPill : undefined}
+                  onStudioPillChange={isAnswerLanding ? setStudioPill : undefined}
+                  nicheLabel={nicheLabel ?? "ngách của bạn"}
+                  creditsRemaining={profilePending ? undefined : creditsRemaining}
+                  channelDeepCreditCost={CHANNEL_SAU_CREDIT_COST}
                 />
               ) : null}
             </TimelineRail>

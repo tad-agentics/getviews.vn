@@ -65,6 +65,18 @@ describe("nonTikTokUrlValidationMessage", () => {
     expect(nonTikTokUrlValidationMessage("youtube.com/watch?v=abc")).toMatch(/link TikTok/i);
   });
 
+  it("blocks bare non-TikTok /video/ paths without https", () => {
+    expect(
+      nonTikTokUrlValidationMessage("linhbeauty.vn/video/74012345678901234"),
+    ).toMatch(/link TikTok/i);
+  });
+
+  it("blocks https non-TikTok /video/ paths", () => {
+    expect(
+      nonTikTokUrlValidationMessage("https://linhbeauty.vn/video/74012345678901234"),
+    ).toMatch(/link TikTok/i);
+  });
+
   it("allows bare tiktok.com video path without scheme", () => {
     expect(
       nonTikTokUrlValidationMessage("tiktok.com/@x/video/7634391245737053447"),
@@ -91,6 +103,14 @@ describe("queryUrlChipState", () => {
     const s = queryUrlChipState("https://youtube.com/watch?v=1");
     expect(s.kind).toBe("invalid");
     if (s.kind === "invalid") expect(s.message).toMatch(/link TikTok/i);
+  });
+
+  it("marks bare non-TikTok video page as invalid", () => {
+    const s = queryUrlChipState("linhbeauty.vn/video/74012345678901234");
+    expect(s).toEqual({
+      kind: "invalid",
+      message: expect.stringMatching(/link TikTok/i),
+    });
   });
 });
 
