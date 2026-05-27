@@ -978,7 +978,7 @@ _EMBED_TILE_SECTION_IDS: frozenset[str] = frozenset(
 )
 
 # Bump when embedded-tile sanitize/inject contract changes (finalize-lite repair gate).
-EMBED_CONTRACT_VERSION = 1
+EMBED_CONTRACT_VERSION = 2
 
 
 def count_valid_embedded_tiles(diagnosis_vi: dict[str, Any] | None) -> int:
@@ -1063,14 +1063,63 @@ def _embed_allowed_for_tiles(
     return {aid for _, _, aid in scored[:6]}
 
 
+def _collect_embedded_aweme_ids(diagnosis_vi: dict[str, Any]) -> set[str]:
+    used: set[str] = set()
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return used
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        tiles = sec.get("embedded_tiles")
+        if not isinstance(tiles, list):
+            continue
+        for t in tiles:
+            if not isinstance(t, dict):
+                continue
+            aid = str(t.get("aweme_id") or t.get("video_id") or "").strip()
+            if aid:
+                used.add(aid)
+    return used
+
+
+def _dedupe_embedded_tiles_across_sections(diagnosis_vi: dict[str, Any]) -> None:
+    """Each aweme_id appears in at most one section; drop duplicate ids within a section."""
+    from getviews_pipeline.diagnose_parse import _MAX_EMBEDDED_TILES_PER_SECTION
+
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return
+    used_globally: set[str] = set()
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        tiles = sec.get("embedded_tiles")
+        if not isinstance(tiles, list):
+            continue
+        out: list[dict[str, Any]] = []
+        seen_local: set[str] = set()
+        for t in tiles:
+            if not isinstance(t, dict):
+                continue
+            aid = str(t.get("aweme_id") or t.get("video_id") or "").strip()
+            if not aid or aid in seen_local or aid in used_globally:
+                continue
+            seen_local.add(aid)
+            used_globally.add(aid)
+            out.append(t)
+        sec["embedded_tiles"] = out[:_MAX_EMBEDDED_TILES_PER_SECTION]
+
+
 def _inject_fallback_embedded_tiles(
     diagnosis_vi: dict[str, Any],
     reference_videos: list[dict[str, Any]],
     embed_allowed: set[str],
 ) -> None:
-    """When the pool is non-empty but Gemini left ``embedded_tiles`` blank, attach up to 3 peers."""
+    """When the pool is non-empty but Gemini left ``embedded_tiles`` blank, attach unused peers per section."""
     from getviews_pipeline.diagnose_parse import (
         _MAX_EMBEDDED_TILES_PER_SECTION,
+        ensure_distinct_tile_narratives,
         fallback_tile_narrative_vi,
         resolve_embedded_tiles,
     )
@@ -1101,9 +1150,11 @@ def _inject_fallback_embedded_tiles(
             if sid:
                 by_sid[sid] = sec
 
+    used_aweme = _collect_embedded_aweme_ids(diagnosis_vi)
+
     for sid in (
-        "hook_analysis",
         "diagnosis",
+        "hook_analysis",
         "niche_pattern",
         "distribution",
         "script_structure",
@@ -1116,7 +1167,9 @@ def _inject_fallback_embedded_tiles(
         existing = sec.get("embedded_tiles")
         if isinstance(existing, list) and existing:
             continue
-        batch = ranked[:_MAX_EMBEDDED_TILES_PER_SECTION]
+        batch = [aid for aid in ranked if aid not in used_aweme][
+            :_MAX_EMBEDDED_TILES_PER_SECTION
+        ]
         if not batch:
             continue
         resolved = resolve_embedded_tiles(
@@ -1130,9 +1183,13 @@ def _inject_fallback_embedded_tiles(
             and (t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"))
         ]
         for t in resolved:
+            aid = str(t.get("aweme_id") or "").strip()
+            if aid:
+                used_aweme.add(aid)
             if not str(t.get("narrative_vi") or "").strip():
-                t["narrative_vi"] = fallback_tile_narrative_vi(t)
+                t["narrative_vi"] = fallback_tile_narrative_vi(t, sid)
         if resolved:
+            ensure_distinct_tile_narratives(resolved, sid)
             sec["embedded_tiles"] = resolved[:_MAX_EMBEDDED_TILES_PER_SECTION]
 
 
@@ -1165,7 +1222,10 @@ def _sanitize_diagnosis_embedded_tiles(
     allowed_aweme: set[str],
 ) -> None:
     """Resolve ``embedded_tiles`` from the reference pool only — drop hallucinated or off-topic ids."""
-    from getviews_pipeline.diagnose_parse import resolve_embedded_tiles
+    from getviews_pipeline.diagnose_parse import (
+        ensure_distinct_tile_narratives,
+        resolve_embedded_tiles,
+    )
 
     embed_allowed = _embed_allowed_for_tiles(reference_videos, allowed_aweme)
 
@@ -1185,12 +1245,19 @@ def _sanitize_diagnosis_embedded_tiles(
             continue
 
         hints: list[dict[str, Any]] = []
+        seen_hint_ids: set[str] = set()
         for t in raw_tiles:
             if not isinstance(t, dict):
                 continue
             aid = str(t.get("aweme_id") or t.get("video_id") or "").strip()
-            if aid.isdigit() and aid in embed_allowed:
-                hints.append({"aweme_id": aid})
+            if not aid.isdigit() or aid not in embed_allowed or aid in seen_hint_ids:
+                continue
+            seen_hint_ids.add(aid)
+            hint: dict[str, Any] = {"aweme_id": aid}
+            narrative = str(t.get("narrative_vi") or t.get("narrative") or "").strip()
+            if narrative:
+                hint["narrative_vi"] = narrative
+            hints.append(hint)
 
         if not hints:
             sec["embedded_tiles"] = []
@@ -1207,14 +1274,18 @@ def _sanitize_diagnosis_embedded_tiles(
         hints = hints[:3]
 
         resolved = resolve_embedded_tiles(hints, reference_videos)
-        sec["embedded_tiles"] = [
+        section_id = str(sec.get("section_id") or "")
+        tiles_out = [
             t
             for t in resolved
             if t.get("aweme_id")
             and (t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"))
         ]
+        ensure_distinct_tile_narratives(tiles_out, section_id)
+        sec["embedded_tiles"] = tiles_out
 
     _inject_fallback_embedded_tiles(diagnosis_vi, reference_videos, embed_allowed)
+    _dedupe_embedded_tiles_across_sections(diagnosis_vi)
 
 
 def _validate_diagnosis_vi_citations(

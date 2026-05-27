@@ -70,7 +70,19 @@ def _format_views_compact_vi(n: int) -> str:
     return str(n)
 
 
-def fallback_tile_narrative_vi(tile: dict[str, Any]) -> str:
+_SECTION_TILE_NARRATIVE_ANGLE: dict[str, str] = {
+    "hook_analysis": "Góc hook: 3 giây đầu mở bằng gì, nhịp cắt và lời thoại khác clip của bạn thế nào.",
+    "diagnosis": "Góc hiệu quả: format và cách giữ chân giúp video này chạy tốt trong ngách — áp dụng phần nào cho clip của bạn.",
+    "niche_pattern": "Góc pattern: format/hook đang thắng trong ngách — xem họ lặp lại yếu tố nào.",
+    "distribution": "Góc phân phối: thời điểm đăng và tín hiệu FYP — so với khung giờ bạn đang dùng.",
+    "script_structure": "Góc cấu trúc: nhịp segment và CTA — đối chiếu với timeline clip của bạn.",
+}
+
+
+def fallback_tile_narrative_vi(
+    tile: dict[str, Any],
+    section_id: str = "",
+) -> str:
     """Deterministic comparison blurb when Gemini omits ``narrative_vi`` on a tile."""
     views = int(tile.get("views") or 0)
     handle = str(tile.get("author_handle") or "").strip()
@@ -79,13 +91,36 @@ def fallback_tile_narrative_vi(tile: dict[str, Any]) -> str:
     desc = str(tile.get("caption_snippet") or "").strip()
     if len(desc) > 100:
         desc = desc[:97] + "…"
+    hook = str(tile.get("hook_type") or "").strip()
+    fmt = str(tile.get("content_format") or "").strip()
     lead = f"Video tham chiếu «{desc}»" if desc else "Video tham chiếu trong cùng ngách"
     parts = [lead]
     if views > 0:
         parts.append(f"đạt {_format_views_compact_vi(views)} view")
     if handle:
         parts.append(f"từ {handle}")
-    return " — ".join(parts) + ". So sánh hook và nhịp dẫn với clip của bạn."
+    if hook:
+        parts.append(f"hook {hook}")
+    elif fmt:
+        parts.append(f"format {fmt}")
+    angle = _SECTION_TILE_NARRATIVE_ANGLE.get(section_id.strip(), "")
+    body = " — ".join(parts) + "."
+    return f"{body} {angle}" if angle else f"{body} So sánh hook và nhịp dẫn với clip của bạn."
+
+
+def ensure_distinct_tile_narratives(
+    tiles: list[dict[str, Any]],
+    section_id: str = "",
+) -> None:
+    """Regenerate fallback copy when Gemini repeats the same ``narrative_vi`` on multiple tiles."""
+    seen: set[str] = set()
+    for tile in tiles:
+        if not isinstance(tile, dict):
+            continue
+        narrative = str(tile.get("narrative_vi") or "").strip()
+        if not narrative or narrative in seen:
+            tile["narrative_vi"] = fallback_tile_narrative_vi(tile, section_id)
+        seen.add(str(tile.get("narrative_vi") or "").strip())
 
 
 def resolve_embedded_tiles(

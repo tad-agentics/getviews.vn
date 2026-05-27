@@ -52,10 +52,12 @@ Quy tắc:
 - findings: mỗi section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure) phải có 1–3 findings là điểm cụ thể nhất trong section — mỗi finding: title_vi (≤12 từ, dạng "Vấn đề — hậu quả"), body_vi (1-2 câu + số liệu), fix_vi (hành động creator làm ngay). Sections không phải issue-based (next_video, niche_pattern, channel_pattern, distribution, douyin_origin, persona): để findings: [].
 - next_video section: next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" } CHỈ cho section đó; text của section này có thể liệt kê 3-5 bullet • những việc creator cần làm cụ thể để thực hiện concept; findings: [].
 - embedded_tiles: Với mỗi section có thể show trực quan (hook_analysis, diagnosis,
-  niche_pattern, distribution, script_structure), chọn đúng **3** object từ REFERENCE_EVIDENCE
-  (mỗi object: ``aweme_id`` + ``narrative_vi``). ``narrative_vi`` = 1-3 câu tiếng Việt so sánh
-  video tham chiếu với clip đang phân tích (hook, format, nhịp, view — có số cụ thể khi có).
-  Chỉ chọn video có desc/format/niche gần context (CTX_SUMMARY). Không match → ``embedded_tiles: []``.
+  niche_pattern, distribution, script_structure), chọn tối đa **3** object **khác aweme_id**
+  từ REFERENCE_EVIDENCE (mỗi object: ``aweme_id`` + ``narrative_vi``). **Mỗi aweme_id chỉ được
+  dùng ở một section duy nhất** trong toàn báo cáo — không lặp cùng 3 video ở diagnosis và hook_analysis.
+  ``narrative_vi`` = 1-3 câu tiếng Việt, **khác nhau cho từng video**, góc so sánh theo section
+  (hook_analysis → 3 giây đầu; diagnosis → format/hiệu quả; distribution → timing). Có số view/hook cụ thể.
+  Chỉ chọn video desc/format/niche gần context (CTX_SUMMARY). Không đủ peer phù hợp → ít tile hơn hoặc ``[]``.
   Sections phân tích thuần (channel_pattern, persona, compliance, sound): không cần tiles.
 - Khi có embedded_tiles: **không** lặp lại nội dung ``narrative_vi`` trong ``text`` — prose section
   chỉ giải thích finding; mỗi video tự mang phần so sánh của nó. Không kết thúc ``text`` bằng

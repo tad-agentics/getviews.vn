@@ -130,7 +130,81 @@ def test_repair_diagnosis_vi_embedded_tiles_injects_when_empty() -> None:
 
 
 def test_embed_contract_version_constant() -> None:
-    assert EMBED_CONTRACT_VERSION >= 1
+    assert EMBED_CONTRACT_VERSION >= 2
+
+
+def test_sanitize_dedupes_duplicate_aweme_in_one_section() -> None:
+    refs = [_slim("111", "caption A", proximity=2)]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "diagnosis",
+                "embedded_tiles": [
+                    {"aweme_id": "111", "narrative_vi": "same"},
+                    {"aweme_id": "111", "narrative_vi": "same"},
+                    {"aweme_id": "111", "narrative_vi": "same"},
+                ],
+            }
+        ]
+    }
+    _sanitize_diagnosis_embedded_tiles(diag_vi, refs, {"111"})
+    tiles = diag_vi["sections"][0]["embedded_tiles"]
+    assert len(tiles) == 1
+    assert tiles[0]["aweme_id"] == "111"
+
+
+def test_sanitize_dedupes_same_aweme_across_sections() -> None:
+    refs = [
+        _slim("111", "A", proximity=3),
+        _slim("222", "B", proximity=2),
+        _slim("333", "C", proximity=1),
+    ]
+    allowed = {"111", "222", "333"}
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "diagnosis",
+                "embedded_tiles": [{"aweme_id": "111"}, {"aweme_id": "222"}],
+            },
+            {
+                "section_id": "hook_analysis",
+                "embedded_tiles": [{"aweme_id": "111"}, {"aweme_id": "333"}],
+            },
+        ]
+    }
+    _sanitize_diagnosis_embedded_tiles(diag_vi, refs, allowed)
+    diag_ids = [t["aweme_id"] for t in diag_vi["sections"][0]["embedded_tiles"]]
+    hook_ids = [t["aweme_id"] for t in diag_vi["sections"][1]["embedded_tiles"]]
+    assert diag_ids == ["111", "222"]
+    assert hook_ids == ["333"]
+    assert "111" not in hook_ids
+
+
+def test_inject_fallback_rotates_peers_across_empty_sections() -> None:
+    from getviews_pipeline.gemini import _inject_fallback_embedded_tiles
+
+    refs = [
+        _slim("111", "A", proximity=3, source="corpus"),
+        _slim("222", "B", proximity=2, source="corpus"),
+        _slim("333", "C", proximity=1, source="corpus"),
+        _slim("444", "D", proximity=1, source="corpus"),
+    ]
+    diag_vi = {
+        "sections": [
+            {"section_id": "diagnosis", "embedded_tiles": []},
+            {"section_id": "hook_analysis", "embedded_tiles": []},
+        ]
+    }
+    _inject_fallback_embedded_tiles(diag_vi, refs, {"111", "222", "333", "444"})
+    from getviews_pipeline.gemini import _dedupe_embedded_tiles_across_sections
+
+    _dedupe_embedded_tiles_across_sections(diag_vi)
+    diag_ids = [t["aweme_id"] for t in diag_vi["sections"][0]["embedded_tiles"]]
+    hook_ids = [t["aweme_id"] for t in diag_vi["sections"][1]["embedded_tiles"]]
+    assert len(diag_ids) == 3
+    assert len(hook_ids) == 1
+    assert not set(diag_ids) & set(hook_ids)
+    assert set(diag_ids) | set(hook_ids) <= {"111", "222", "333", "444"}
 
 
 def test_validate_citations_invokes_tile_sanitize() -> None:
