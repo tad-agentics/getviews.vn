@@ -157,14 +157,24 @@ def test_new_hook_skips_zero_week_count_uses_live_corpus() -> None:
         "video_corpus": [
             {"pattern_id": "p1", "indexed_at": SINCE},
             {"pattern_id": "p1", "indexed_at": SINCE},
-            {"pattern_id": "p1", "indexed_at": SINCE},
         ],
     })
     items = _new_hook_items(client, NICHE, SINCE)
     assert len(items) == 1
     assert items[0].target_id == "p1"
-    assert "3 video tuần này" in items[0].headline_vi
+    assert "2 video tuần này" in items[0].headline_vi
     assert "0 video" not in items[0].headline_vi
+
+
+def test_new_hook_skips_single_video_pattern() -> None:
+    client = _Client({
+        "video_patterns": [
+            {"id": "p1", "display_name": "Thin", "niche_spread": [NICHE],
+             "weekly_instance_count": 0, "is_active": True, "first_seen_at": SINCE},
+        ],
+        "video_corpus": [{"pattern_id": "p1", "indexed_at": SINCE}],
+    })
+    assert _new_hook_items(client, NICHE, SINCE) == []
 
 
 def test_new_hook_caps_at_two() -> None:
@@ -271,8 +281,14 @@ def test_sounds_only_take_latest_week() -> None:
 def test_compute_ticker_interleaves_round_robin() -> None:
     client = _Client({
         "video_corpus": [
-            {"video_id": "v1", "creator_handle": "a", "views": 5_000_000, "breakout_multiplier": 4.0},
-            {"video_id": "v2", "creator_handle": "b", "views": 3_000_000, "breakout_multiplier": 3.0},
+            {"video_id": "v1", "creator_handle": "a", "views": 5_000_000,
+             "breakout_multiplier": 4.0, "indexed_at": SINCE},
+            {"video_id": "v2", "creator_handle": "b", "views": 3_000_000,
+             "breakout_multiplier": 3.0, "indexed_at": SINCE},
+            {"pattern_id": "p1", "indexed_at": SINCE, "views": 1000},
+            {"pattern_id": "p1", "indexed_at": SINCE, "views": 1000},
+            {"pattern_id": "p2", "indexed_at": SINCE, "views": 1000},
+            {"pattern_id": "p2", "indexed_at": SINCE, "views": 1000},
         ],
         "video_patterns": [
             {"id": "p1", "display_name": "P1", "niche_spread": [NICHE],
@@ -282,9 +298,20 @@ def test_compute_ticker_interleaves_round_robin() -> None:
         ],
     })
     items = asyncio.run(compute_ticker(client, NICHE))
+    assert len(items) >= 3
     buckets = [i.bucket for i in items]
-    # First two items must come from different buckets (round-robin).
     assert buckets[0] != buckets[1]
+
+
+def test_compute_ticker_empty_when_thin_niche() -> None:
+    client = _Client({
+        "video_patterns": [
+            {"id": "p1", "display_name": "Lonely", "niche_spread": [NICHE],
+             "weekly_instance_count": 0, "is_active": True, "first_seen_at": SINCE},
+        ],
+        "video_corpus": [{"pattern_id": "p1", "indexed_at": SINCE, "views": 50}],
+    })
+    assert asyncio.run(compute_ticker(client, NICHE)) == []
 
 
 def test_compute_ticker_fails_open_per_bucket() -> None:

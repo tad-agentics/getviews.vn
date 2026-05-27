@@ -46,6 +46,10 @@ _BUCKET_LABELS: dict[TickerBucket, str] = {
     "âm_thanh":   "ÂM THANH",
 }
 
+MIN_TICKER_ITEMS = 3
+MIN_PATTERN_VIDEOS_7D = 2
+_BREAKOUT_MULTIPLIER_FLOOR = 2.0
+
 
 def _apply_corpus_niche_scope(q: Any, client: Any, niche_id: int) -> Any:
     """Class-first corpus filter when junction exists; else legacy ingest niche."""
@@ -95,17 +99,40 @@ def _fmt_views(views: int) -> str:
     return str(views)
 
 
+def _dedupe_ticker_items(items: list[TickerItem]) -> list[TickerItem]:
+    seen: set[tuple[str, str | None]] = set()
+    out: list[TickerItem] = []
+    for it in items:
+        key = (it.bucket, it.target_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(it)
+    return out
+
+
+def _interleave_buckets(buckets: list[list[TickerItem]]) -> list[TickerItem]:
+    out: list[TickerItem] = []
+    i = 0
+    while any(len(b) > i for b in buckets):
+        for b in buckets:
+            if len(b) > i:
+                out.append(b[i])
+        i += 1
+    return out
+
+
 async def compute_ticker(client: Any, niche_id: int) -> list[TickerItem]:
-    """Run all five bucket queries in parallel; interleave into one list."""
+    """Run bucket queries in parallel; interleave; hide thin niches (<3 unique items)."""
     loop = asyncio.get_running_loop()
     since = (datetime.now(UTC) - timedelta(days=7)).isoformat()
 
     tasks = [
-        loop.run_in_executor(None, _breakout_items,   client, niche_id, since),
-        loop.run_in_executor(None, _new_hook_items,   client, niche_id, since),
-        loop.run_in_executor(None, _caution_items,    client, niche_id, since),
-        loop.run_in_executor(None, _rising_kol_items, client, niche_id, since),
-        loop.run_in_executor(None, _sound_items,      client, niche_id, since),
+        loop.run_in_executor(None, _breakout_items, client, niche_id, since),
+        loop.run_in_executor(None, _new_hook_items, client, niche_id, since),
+        loop.run_in_executor(None, _active_pattern_items, client, niche_id, since),
+        loop.run_in_executor(None, _caution_items, client, niche_id, since),
+        loop.run_in_executor(None, _sound_items, client, niche_id, since),
     ]
     bucket_results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -117,18 +144,29 @@ async def compute_ticker(client: Any, niche_id: int) -> list[TickerItem]:
         else:
             buckets.append(list(res))
 
-    # Round-robin interleave so the marquee reads mixed.
-    out: list[TickerItem] = []
-    i = 0
-    while any(b[i:] for b in buckets if len(b) > i):
-        for b in buckets:
-            if len(b) > i:
-                out.append(b[i])
-        i += 1
-    return out
+    out = _dedupe_ticker_items(_interleave_buckets(buckets))
+    if len(out) >= MIN_TICKER_ITEMS:
+        return out
+
+    seen_keys = {(it.bucket, it.target_id) for it in out}
+    for item in _hot_views_items(client, niche_id, since):
+        key = (item.bucket, item.target_id)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        out.append(item)
+        if len(out) >= MIN_TICKER_ITEMS:
+            return out
+
+    return []
 
 
 # ── bucket queries ─────────────────────────────────────────────────────────
+
+def _corpus_7d_query(client: Any, niche_id: int, since: str, select: str) -> Any:
+    q = client.table("video_corpus").select(select).gte("indexed_at", since)
+    return _apply_corpus_niche_scope(q, client, niche_id)
+
 
 def _breakout_rows(
     client: Any,
@@ -137,13 +175,12 @@ def _breakout_rows(
     *,
     eligible_only: bool,
 ) -> list[dict[str, Any]]:
-    q = (
-        client.table("video_corpus")
-        .select("video_id, creator_handle, views, breakout_multiplier, reference_eligible")
-        .eq("ingest_loop_niche_id", niche_id)
-        .gte("created_at", since)
-        .not_.is_("breakout_multiplier", None)
-    )
+    q = _corpus_7d_query(
+        client,
+        niche_id,
+        since,
+        "video_id, creator_handle, views, breakout_multiplier, reference_eligible",
+    ).not_.is_("breakout_multiplier", None)
     if eligible_only:
         q = q.eq("reference_eligible", True)
     return q.order("breakout_multiplier", desc=True).limit(2).execute().data or []
@@ -165,19 +202,65 @@ def _breakout_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
     out: list[TickerItem] = []
     for r in rows:
         bm = float(r.get("breakout_multiplier") or 0)
-        if bm < 2.0:
+        if bm < _BREAKOUT_MULTIPLIER_FLOOR:
             continue
+        handle = (r.get("creator_handle") or "").strip() or "creator"
         out.append(TickerItem(
             bucket="breakout",
             label_vi=_BUCKET_LABELS["breakout"],
             headline_vi=(
-                f"@{r.get('creator_handle', '')} · "
+                f"@{handle} · "
                 f"{_fmt_views(int(r.get('views') or 0))} views · "
                 f"{bm:.1f}× trung bình kênh"
             ),
             target_kind="video",
             target_id=r.get("video_id"),
         ))
+    return out
+
+
+def _hot_views_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
+    """Backfill when breakout/hook buckets are thin — top viewed in-scope videos (7d)."""
+    try:
+        rows = (
+            _corpus_7d_query(
+                client,
+                niche_id,
+                since,
+                "video_id, creator_handle, views, breakout_multiplier",
+            )
+            .order("views", desc=True)
+            .limit(4)
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:
+        logger.warning("[ticker] hot_views failed niche=%s: %s", niche_id, exc)
+        return []
+    out: list[TickerItem] = []
+    for r in rows:
+        views = int(r.get("views") or 0)
+        if views < 1:
+            continue
+        handle = (r.get("creator_handle") or "").strip() or "creator"
+        bm = float(r.get("breakout_multiplier") or 0)
+        if bm >= _BREAKOUT_MULTIPLIER_FLOOR:
+            headline = (
+                f"@{handle} · {_fmt_views(views)} views · "
+                f"{bm:.1f}× trung bình kênh"
+            )
+        else:
+            headline = f"@{handle} · {_fmt_views(views)} views · tuần này"
+        out.append(TickerItem(
+            bucket="breakout",
+            label_vi=_BUCKET_LABELS["breakout"],
+            headline_vi=headline,
+            target_kind="video",
+            target_id=r.get("video_id"),
+        ))
+        if len(out) >= 2:
+            break
     return out
 
 
@@ -218,13 +301,61 @@ def _new_hook_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
     out: list[TickerItem] = []
     for p in ranked:
         count = _week_count(p)
-        if count < 1:
+        if count < MIN_PATTERN_VIDEOS_7D:
             continue
         name = (p.get("display_name") or "Pattern").strip()
         out.append(TickerItem(
             bucket="hook_mới",
             label_vi=_BUCKET_LABELS["hook_mới"],
             headline_vi=f'"{name}" · {count} video tuần này',
+            target_kind="pattern",
+            target_id=p.get("id"),
+        ))
+        if len(out) >= 2:
+            break
+    return out
+
+
+def _active_pattern_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
+    """Patterns with real 7d volume in the niche (not only ``first_seen_at`` this week)."""
+    rows = (
+        client.table("video_patterns")
+        .select("id, display_name, niche_spread, weekly_instance_count, is_active")
+        .eq("is_active", True)
+        .order("weekly_instance_count", desc=True)
+        .limit(40)
+        .execute()
+        .data or []
+    )
+    candidates: list[dict[str, Any]] = []
+    for p in rows:
+        if niche_id not in (p.get("niche_spread") or []):
+            continue
+        candidates.append(p)
+    if not candidates:
+        return []
+
+    live_counts = _pattern_niche_counts_7d(
+        client,
+        niche_id,
+        [str(p.get("id")) for p in candidates if p.get("id")],
+        since,
+    )
+    ranked = sorted(
+        candidates,
+        key=lambda p: int(live_counts.get(str(p.get("id") or ""), 0)),
+        reverse=True,
+    )
+    out: list[TickerItem] = []
+    for p in ranked:
+        count = int(live_counts.get(str(p.get("id") or ""), 0))
+        if count < MIN_PATTERN_VIDEOS_7D:
+            continue
+        name = (p.get("display_name") or "Pattern").strip()
+        out.append(TickerItem(
+            bucket="hook_mới",
+            label_vi=_BUCKET_LABELS["hook_mới"],
+            headline_vi=f'"{name}" · {count} video đang chạy trong ngách',
             target_kind="pattern",
             target_id=p.get("id"),
         ))
@@ -268,14 +399,21 @@ def _caution_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
 
 def _rising_kol_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
     """Creators whose new-video view totals this week look outsized."""
-    rows = (
-        client.table("video_corpus")
-        .select("creator_handle, views, creator_followers, breakout_multiplier")
-        .eq("ingest_loop_niche_id", niche_id)
-        .gte("created_at", since)
-        .execute()
-        .data or []
-    )
+    try:
+        rows = (
+            _corpus_7d_query(
+                client,
+                niche_id,
+                since,
+                "creator_handle, views, creator_followers, breakout_multiplier",
+            )
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:
+        logger.warning("[ticker] rising_kol failed niche=%s: %s", niche_id, exc)
+        return []
     by_handle: dict[str, dict[str, float]] = {}
     for r in rows:
         h = (r.get("creator_handle") or "").strip()

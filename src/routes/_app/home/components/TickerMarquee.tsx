@@ -13,10 +13,27 @@ const BUCKET_TONE: Record<TickerItem["bucket"], string> = {
   âm_thanh: "text-[color:var(--gv-lime)]",
 };
 
-/** Duplicate once for seamless CSS marquee loop. */
+/** Spec: hide marquee when fewer than 3 distinct signals (system-design § /home/ticker). */
+export const MIN_TICKER_UNIQUE_ITEMS = 3;
+
+/** Dedupe by bucket + target before looping the CSS marquee. */
+export function uniqueTickerItems(items: TickerItem[]): TickerItem[] {
+  const seen = new Set<string>();
+  const out: TickerItem[] = [];
+  for (const it of items) {
+    const key = `${it.bucket}:${it.target_id ?? it.headline_vi}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
+  }
+  return out;
+}
+
+/** Duplicate once for seamless CSS marquee loop (only when enough unique rows). */
 export function tickerMarqueeRows(items: TickerItem[]): TickerItem[] {
-  if (items.length === 0) return [];
-  return [...items, ...items];
+  const unique = uniqueTickerItems(items);
+  if (unique.length < MIN_TICKER_UNIQUE_ITEMS) return [];
+  return [...unique, ...unique];
 }
 
 export const TickerMarquee = memo(function TickerMarquee({
