@@ -6,7 +6,7 @@
  * shipping a generic "HTTP 402" banner to a user who's out of credits.
  */
 import { describe, expect, it } from "vitest";
-import { analysisErrorCopy } from "./errorMessages";
+import { analysisErrorCopy, answerStreamErrorCopy } from "./errorMessages";
 
 describe("analysisErrorCopy", () => {
   it("returns the credits-specific copy for err.name InsufficientCredits", () => {
@@ -47,7 +47,7 @@ describe("analysisErrorCopy", () => {
     ["network_failed", /Không kết nối được máy chủ phân tích/],
     ["start_failed", /Không tạo được phiên/],
     ["follow_up_failed", /Câu hỏi tiếp theo chưa gửi được/],
-    ["stream_failed", /Kết nối streaming bị ngắt/],
+    ["stream_failed", /có thể tốn thêm 1 credit/],
     ["stream_timeout", /Server im lặng quá lâu/],
     ["session_not_found", /Phiên không tồn tại/],
     ["no_cloud_run", /VITE_CLOUD_RUN_API_URL/],
@@ -63,6 +63,12 @@ describe("analysisErrorCopy", () => {
     ["non_tiktok_url", /link TikTok/i],
   ])("translates the AnswerScreen error code %s to Vietnamese", (code, re) => {
     expect(analysisErrorCopy(code)).toMatch(re);
+  });
+
+  it("answerStreamErrorCopy uses resume copy when replay handles exist", () => {
+    expect(answerStreamErrorCopy("stream_failed", true)).toMatch(/Tiếp tục phân tích/);
+    expect(answerStreamErrorCopy("stream_failed", false)).toMatch(/có thể tốn thêm 1 credit/);
+    expect(answerStreamErrorCopy("stream_timeout", true)).toMatch(/Tiếp tục phân tích/);
   });
 
   it("passes raw code through when wrapped in Error, but not when a bare string", () => {

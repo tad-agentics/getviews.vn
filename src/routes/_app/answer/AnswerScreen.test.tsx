@@ -19,10 +19,11 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 
 import type { AnswerSessionRow, AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { createAnswerSession } from "@/lib/answerApi";
+import { savePendingAnswerStream } from "@/lib/sseResume";
 
 // ── Module mocks ───────────────────────────────────────────────────────────
 vi.mock("@/lib/env", () => ({
@@ -406,6 +407,94 @@ describe("AnswerScreen state transitions", () => {
     await waitFor(() => {
       expect(input.value).toBe("my query");
     });
+  });
+
+  it("keeps session in URL and shows resume when bootstrap stream fails on ?q=", async () => {
+    const tiktokQ = "https://www.tiktok.com/@creator/video/7123456789";
+    mockCreateAnswerSession.mockResolvedValue({
+      id: "new-sess",
+      user_id: "user-1",
+      title: null,
+      initial_q: tiktokQ,
+      intent_type: "video_diagnosis",
+      format: "video",
+      niche_id: null,
+    });
+    mockStream.mockResolvedValue({ ok: false, error: "stream_failed" });
+    savePendingAnswerStream({
+      sessionId: "new-sess",
+      streamId: "sid-1",
+      seq: 1,
+      query: tiktokQ,
+      turnKind: "primary",
+      startedAt: Date.now(),
+      creditsUsed: 1,
+      sessionFormat: "video",
+      analysisDepth: "basic",
+      videoMode: "win",
+    });
+    mockUseAnswerSessionDetail.mockImplementation((id: string | null | undefined) => ({
+      data:
+        id === "new-sess"
+          ? { session: makeSession({ id: "new-sess", initial_q: tiktokQ, format: "video" }), turns: [] }
+          : undefined,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }));
+
+    const router = createMemoryRouter(
+      [{ path: "/app/answer", element: <AnswerScreen /> }],
+      { initialEntries: [`/app/answer?q=${encodeURIComponent(tiktokQ)}&depth=basic&mode=win`] },
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.search).toContain("session=new-sess");
+    });
+    expect(screen.getByTestId("resume-stream-btn")).toBeTruthy();
+  });
+
+  it("does not show resume button when stream fails without replay handles", async () => {
+    const tiktokQ = "https://www.tiktok.com/@creator/video/999";
+    mockCreateAnswerSession.mockResolvedValue({
+      id: "new-sess-2",
+      user_id: "user-1",
+      title: null,
+      initial_q: tiktokQ,
+      intent_type: "video_diagnosis",
+      format: "video",
+      niche_id: null,
+    });
+    mockStream.mockResolvedValue({ ok: false, error: "stream_failed" });
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: { session: makeSession({ id: "new-sess-2", initial_q: tiktokQ }), turns: [] },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    const router = createMemoryRouter(
+      [{ path: "/app/answer", element: <AnswerScreen /> }],
+      { initialEntries: [`/app/answer?q=${encodeURIComponent(tiktokQ)}`] },
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.search).toContain("session=new-sess-2");
+    });
+    expect(screen.queryByTestId("resume-stream-btn")).toBeNull();
+    expect(screen.getByText(/có thể tốn thêm 1 credit/)).toBeTruthy();
   });
 
   it("renders invalid_payload copy when create session fails with FastAPI validation JSON", async () => {

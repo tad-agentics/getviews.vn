@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   clearPendingAnswerStream,
+  hasAnswerStreamReplayHandles,
   loadPendingAnswerStream,
   optimisticAnswerCreditsUsed,
   PENDING_ANSWER_STREAM_KEY,
@@ -56,11 +57,19 @@ describe("sseResume", () => {
   });
 
   it("round-trips save → load for a fresh entry", () => {
-    savePendingAnswerStream(makeEntry());
+    savePendingAnswerStream({ ...makeEntry(), videoMode: "flop" });
     const loaded = loadPendingAnswerStream("sess-1", EPOCH + 10_000);
     expect(loaded?.streamId).toBe("stream-abc");
     expect(loaded?.seq).toBe(2);
     expect(loaded?.creditsUsed).toBe(1);
+    expect(loaded?.videoMode).toBe("flop");
+  });
+
+  it("hasAnswerStreamReplayHandles is true for pending or hook seq", () => {
+    savePendingAnswerStream(makeEntry());
+    expect(hasAnswerStreamReplayHandles("sess-1", null, 0, EPOCH + 1000)).toBe(true);
+    expect(hasAnswerStreamReplayHandles("sess-1", "sid", 1, EPOCH + 1000)).toBe(true);
+    expect(hasAnswerStreamReplayHandles("sess-2", null, 0, EPOCH)).toBe(false);
   });
 
   it("infers creditsUsed=2 for legacy primary + video format + deep when creditsUsed omitted", () => {

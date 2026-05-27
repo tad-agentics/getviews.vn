@@ -181,19 +181,21 @@ export function useSessionStream<TPayload = unknown>(
       const abort = new AbortController();
       abortRef.current = abort;
 
-      setState({
+      const preservePipeline =
+        Boolean(args.resumeStreamId) && (args.lastSeq ?? 0) > 0;
+      setState((prev) => ({
         status: "streaming",
-        text: "",
+        text: preservePipeline ? prev.text : "",
         streamId: args.resumeStreamId ?? null,
         lastSeq: args.lastSeq ?? 0,
         error: null,
         finalPayload: null,
-        steps: [],
-        heartbeatCount: 0,
-        preSynthesisData: null,
-        channelContext: null,
-        narrativeReady: null,
-      });
+        steps: preservePipeline ? prev.steps : [],
+        heartbeatCount: preservePipeline ? prev.heartbeatCount : 0,
+        preSynthesisData: preservePipeline ? prev.preSynthesisData : null,
+        channelContext: preservePipeline ? prev.channelContext : null,
+        narrativeReady: preservePipeline ? prev.narrativeReady : null,
+      }));
 
       try {
         const {
@@ -227,6 +229,7 @@ export function useSessionStream<TPayload = unknown>(
               startedAt,
               sessionFormat: args.sessionFormat ?? null,
               analysisDepth: args.analysisDepth ?? null,
+              videoMode: args.videoMode ?? null,
               creditsUsed: optimisticAnswerCreditsUsed(
                 args.turnKind as PendingAnswerTurnKind,
                 args.sessionFormat,
@@ -386,16 +389,21 @@ export function useSessionStream<TPayload = unknown>(
               Boolean(resumeStreamId) &&
               attempt < MAX_ANSWER_RETRIES;
             if (!retryable) {
-              // Exhausted retries on a non-recoverable outcome — stale
-              // pending entry would cause an auto-resume on reload to
-              // hit the same error. Drop it.
-              clearPendingAnswerStream();
+              // Keep pending when we had replay handles so AnswerScreen can
+              // offer "Tiếp tục phân tích" / tab reload within the 60s buffer.
+              const hadReplayProgress =
+                Boolean(resumeStreamId) && resumeSeq > 0;
+              if (!hadReplayProgress) {
+                clearPendingAnswerStream();
+              }
               return { ok: false, error: outcome.error ?? "stream_failed" };
             }
             // Loop to next attempt with resume params set.
           }
 
-          clearPendingAnswerStream();
+          if (!(resumeStreamId && resumeSeq > 0)) {
+            clearPendingAnswerStream();
+          }
           return { ok: false, error: "stream_failed" };
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") {

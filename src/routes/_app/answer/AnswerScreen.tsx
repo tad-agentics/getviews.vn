@@ -3,7 +3,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -17,14 +17,20 @@ import {
 } from "@/hooks/useAnswerSessionQueries";
 import { useSessionStream } from "@/hooks/useSessionStream";
 import { env } from "@/lib/env";
-import { analysisErrorCopy } from "@/lib/errorMessages";
+import { analysisErrorCopy, answerStreamErrorCopy } from "@/lib/errorMessages";
 import { createAnswerSession } from "@/lib/answerApi";
 import {
   clearPendingAnswerStream,
+  hasAnswerStreamReplayHandles,
   loadPendingAnswerStream,
+  optimisticAnswerCreditsUsed,
 } from "@/lib/sseResume";
+import {
+  applyOptimisticAnswerTurn,
+  buildResumeAnswerStreamArgs,
+} from "@/routes/_app/answer/answerStreamTurn";
 import { supabase } from "@/lib/supabase";
-import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
+import type { AnswerSessionRow, AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
 import {
   extractTikTokVideoIdFromText,
@@ -41,6 +47,7 @@ import {
   buildAnswerHandoffPath,
   resolveVideoHandoffQuery,
   type AnswerHandoffDepth,
+  type ParsedAnswerHandoff,
 } from "@/lib/answerHandoff";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
@@ -85,6 +92,44 @@ const ANSWER_ERROR_CODES = new Set([
   "idempotency_conflict",
   "non_tiktok_url",
 ]);
+
+/** Stream errors where TD-4 resume or a fresh primary retry may recover. */
+const RETRYABLE_STREAM_ERRORS = new Set([
+  "stream_failed",
+  "stream_timeout",
+  "network_failed",
+]);
+
+function answerSessionUrlParams(
+  sessionId: string,
+  q: string,
+  handoff: ParsedAnswerHandoff,
+): URLSearchParams {
+  const next = new URLSearchParams({ session: sessionId, q });
+  next.set("depth", handoff.depth);
+  if (handoff.mode) next.set("mode", handoff.mode);
+  if (handoff.from) next.set("from", handoff.from);
+  return next;
+}
+
+function primeEmptySessionDetailCache(
+  queryClient: QueryClient,
+  row: AnswerSessionRow,
+  initialQ: string,
+): void {
+  queryClient.setQueryData<AnswerDetailCache>(
+    answerSessionKeys.detail(row.id),
+    (prev) =>
+      prev ?? {
+        session: {
+          ...row,
+          title: row.title ?? null,
+          initial_q: initialQ,
+        },
+        turns: [],
+      },
+  );
+}
 
 function codeFromRawErrorMessage(message: string): string | null {
   const trimmed = message.trim();
@@ -222,7 +267,17 @@ export default function AnswerScreen() {
   const uid = user?.id;
   const detailQuery = useAnswerSessionDetail(sessionId, uid);
 
-  const { stream, status: streamStatus, steps, heartbeatElapsedSec, preSynthesisData, channelContext, narrativeReady } = useSessionStream<ReportV1>({
+  const {
+    stream,
+    status: streamStatus,
+    steps,
+    streamId,
+    lastSeq,
+    heartbeatElapsedSec,
+    preSynthesisData,
+    channelContext,
+    narrativeReady,
+  } = useSessionStream<ReportV1>({
     invalidateKeys: uid ? [answerSessionKeys.listsForUser(uid)] : [],
   });
 
@@ -299,6 +354,19 @@ export default function AnswerScreen() {
   const researchStage = useResearchStage(loading);
   const turnCount = turns.length;
 
+  const hasReplayHandles = useMemo(() => {
+    if (!sessionId) return false;
+    return hasAnswerStreamReplayHandles(sessionId, streamId, lastSeq);
+  }, [sessionId, streamId, lastSeq, streamStatus]);
+
+  const canResumeInterruptedStream =
+    Boolean(sessionId && CLOUD && user) &&
+    turnCount === 0 &&
+    !streamInFlight &&
+    !bootstrapLoading &&
+    hasReplayHandles &&
+    Boolean(error && RETRYABLE_STREAM_ERRORS.has(error));
+
   // Legacy state handoff → canonical query params (§3.1).
   useEffect(() => {
     const state = location.state as { initialPrompt?: string; prefillUrl?: string } | null | undefined;
@@ -326,9 +394,12 @@ export default function AnswerScreen() {
    * already persisted the turn before we reloaded.
    */
   const resumeFiredRef = useRef<string | null>(null);
+  /** Skip tab-reload auto-resume right after bootstrap stream fail (user picks "Tiếp tục"). */
+  const skipAutoResumeSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!sessionId || !CLOUD || !user) return;
+    if (skipAutoResumeSessionRef.current === sessionId) return;
     // If turns already exist the stream completed before reload — the
     // persisted entry is stale and would trigger a no-op fresh run if
     // we followed it. Clear.
@@ -346,24 +417,34 @@ export default function AnswerScreen() {
       setBootstrapLoading(true);
       setError(null);
       try {
-        const result = await stream({
-          mode: "answer_turn",
-          answerSessionId: pending.sessionId,
+        const streamArgs = buildResumeAnswerStreamArgs({
+          sessionId: pending.sessionId,
           query: pending.query,
-          turnKind: pending.turnKind,
+          pending,
           sessionFormat: pending.sessionFormat ?? null,
-          analysisDepth: pending.analysisDepth ?? null,
-          resumeStreamId: pending.streamId,
-          lastSeq: pending.seq,
-          startedAt: pending.startedAt,
+          handoff,
+          hookStreamId: null,
+          hookLastSeq: 0,
         });
+        if (!streamArgs) return;
+        const result = await stream(streamArgs);
         if (!result.ok) {
-          setError(result.error);
+          setError(pickAnswerErrorCode(result.error, "stream_failed"));
           return;
         }
         if (result.finalPayload) {
           const nextIndex = detailQuery.data?.turns.length ?? 0;
-          const synthesized: AnswerTurnRow = {
+          const fallbackSession: AnswerDetailCache["session"] =
+            detailQuery.data?.session ?? {
+              id: pending.sessionId,
+              user_id: user.id,
+              title: null,
+              initial_q: pending.query,
+              intent_type: "generic",
+              format: (pending.sessionFormat ?? "generic") as AnswerSessionRow["format"],
+              niche_id: null,
+            };
+          applyOptimisticAnswerTurn(queryClient, pending.sessionId, fallbackSession, {
             id: `optimistic-${pending.sessionId}-${nextIndex}`,
             session_id: pending.sessionId,
             turn_index: nextIndex,
@@ -372,22 +453,7 @@ export default function AnswerScreen() {
             payload: result.finalPayload,
             credits_used: pending.creditsUsed,
             created_at: new Date().toISOString(),
-          };
-          queryClient.setQueryData<AnswerDetailCache>(
-            answerSessionKeys.detail(pending.sessionId),
-            (prev) => {
-              const fallbackSession = prev?.session ?? {
-                id: pending.sessionId,
-                user_id: user.id,
-                title: null,
-                initial_q: pending.query,
-                intent_type: "generic",
-                format: "generic",
-                niche_id: null,
-              };
-              return injectOptimisticTurn(prev, fallbackSession, synthesized);
-            },
-          );
+          });
         }
         if (uid) {
           await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
@@ -407,7 +473,97 @@ export default function AnswerScreen() {
     user,
     detailQuery.isLoading,
     detailQuery.data?.turns,
+    detailQuery.data?.session,
     stream,
+    queryClient,
+    uid,
+    handoff,
+  ]);
+
+  const resumeInterruptedStream = useCallback(async () => {
+    if (!sessionId || !CLOUD || !user) return;
+    skipAutoResumeSessionRef.current = null;
+    const pending = loadPendingAnswerStream(sessionId);
+    const sessionRow = detailQuery.data?.session;
+    const query =
+      pending?.query?.trim() ||
+      sessionRow?.initial_q?.trim() ||
+      seedQ.trim();
+    if (!query) return;
+    const streamArgs = buildResumeAnswerStreamArgs({
+      sessionId,
+      query,
+      pending,
+      sessionFormat: sessionRow?.format ?? null,
+      handoff,
+      hookStreamId: streamId,
+      hookLastSeq: lastSeq,
+    });
+    if (!streamArgs) return;
+    setBootstrapLoading(true);
+    setError(null);
+    try {
+      const result = await stream(streamArgs);
+      if (!result.ok) {
+        setError(pickAnswerErrorCode(result.error, "stream_failed"));
+        return;
+      }
+      logUsage("answer_turn_append", {
+        session_id: sessionId,
+        kind: pending?.turnKind ?? "primary",
+        source_entry: "stream_resume_ui",
+      });
+      if (result.finalPayload) {
+        const nextIndex = detailQuery.data?.turns.length ?? 0;
+        const turnKind = pending?.turnKind ?? "primary";
+        const fallbackSession: AnswerDetailCache["session"] = sessionRow ?? {
+          id: sessionId,
+          user_id: user.id,
+          title: null,
+          initial_q: query,
+          intent_type: "generic",
+          format: (streamArgs.sessionFormat ?? "generic") as AnswerSessionRow["format"],
+          niche_id: null,
+        };
+        applyOptimisticAnswerTurn(queryClient, sessionId, fallbackSession, {
+          id: `optimistic-${sessionId}-${nextIndex}`,
+          session_id: sessionId,
+          turn_index: nextIndex,
+          kind: turnKind,
+          query,
+          payload: result.finalPayload,
+          credits_used:
+            pending?.creditsUsed ??
+            optimisticAnswerCreditsUsed(
+              turnKind,
+              pending?.sessionFormat ?? sessionRow?.format,
+              pending?.analysisDepth ?? handoff.depth,
+            ),
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (uid) {
+        await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") {
+        console.error("[answer/resume-ui] failed", e);
+      }
+      setError(pickAnswerErrorCode(e, "stream_failed"));
+    } finally {
+      setBootstrapLoading(false);
+    }
+  }, [
+    sessionId,
+    CLOUD,
+    user,
+    detailQuery.data?.session,
+    detailQuery.data?.turns.length,
+    seedQ,
+    handoff,
+    stream,
+    streamId,
+    lastSeq,
     queryClient,
     uid,
   ]);
@@ -477,11 +633,17 @@ export default function AnswerScreen() {
         if (!result.ok) {
           bootstrapInFlightRef.current = null;
           setFollowUp(submittedQ);
+          skipAutoResumeSessionRef.current = row.id;
+          primeEmptySessionDetailCache(queryClient, row, submittedQ);
+          setSearchParams(answerSessionUrlParams(row.id, seedQ, handoff), {
+            replace: true,
+          });
           // Session row already exists — failure is the primary SSE turn, not create.
           setError(pickAnswerErrorCode(result.error, "stream_failed"));
           return;
         }
 
+        skipAutoResumeSessionRef.current = null;
         logUsage("answer_turn_append", { session_id: row.id, kind: "primary" });
         if (result.finalPayload) {
           const synthesized: AnswerTurnRow = {
@@ -511,11 +673,7 @@ export default function AnswerScreen() {
               ),
           );
         }
-        const nextParams = new URLSearchParams({ session: row.id, q: seedQ });
-        nextParams.set("depth", handoff.depth);
-        if (handoff.mode) nextParams.set("mode", handoff.mode);
-        if (handoff.from) nextParams.set("from", handoff.from);
-        setSearchParams(nextParams, { replace: true });
+        setSearchParams(answerSessionUrlParams(row.id, seedQ, handoff), { replace: true });
         if (uid) {
           await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
         }
@@ -954,9 +1112,25 @@ export default function AnswerScreen() {
                 </div>
               ) : null}
               {error ? (
-                <p className="mt-4 text-sm text-[var(--gv-danger)]">
-                  {analysisErrorCopy(error)}
-                </p>
+                <div className="mt-4">
+                  <p className="text-sm text-[var(--gv-danger)]">
+                    {RETRYABLE_STREAM_ERRORS.has(error)
+                      ? answerStreamErrorCopy(error, canResumeInterruptedStream)
+                      : analysisErrorCopy(error)}
+                  </p>
+                  {canResumeInterruptedStream ? (
+                    <Btn
+                      variant="ink"
+                      size="sm"
+                      type="button"
+                      className="mt-3"
+                      data-testid="resume-stream-btn"
+                      onClick={() => void resumeInterruptedStream()}
+                    >
+                      Tiếp tục phân tích
+                    </Btn>
+                  ) : null}
+                </div>
               ) : null}
               {detailQuery.isError && sessionId ? (
                 <p className="mt-4 text-sm text-[var(--gv-danger)]">
@@ -1022,7 +1196,7 @@ export default function AnswerScreen() {
                   <div className="h-4 w-2/3 rounded-md bg-[color:var(--gv-rule)]" />
                   <div className="mt-6 h-24 w-full rounded-[var(--gv-radius-md)] bg-[color:var(--gv-rule)]" />
                 </div>
-              ) : sessionId && !loading ? (
+              ) : sessionId && !loading && !canResumeInterruptedStream ? (
                 <div className="mt-4 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
                   <p className="gv-serif text-[17px] leading-snug text-[color:var(--gv-ink)]">
                     Chưa có lượt trong phiên này.

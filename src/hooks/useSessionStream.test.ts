@@ -363,6 +363,52 @@ describe("useSessionStream — answer_turn TD-4 retry on stream drop", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("preserves pipeline steps when opening a resume stream", async () => {
+    const stepLine = `data: {"stream_id":"sid-steps","seq":1,"type":"step_process","label":"Đang tải","done":false}\n\n`;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(mockFetchStream([stepLine]))
+      .mockResolvedValueOnce(mockFetchStream([`data: {"stream_id":"sid-steps","seq":2,"done":true}\n\n`]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+
+    void result.current.stream(ANSWER_PARAMS);
+    await waitFor(() => expect(result.current.steps.length).toBeGreaterThan(0), {
+      timeout: 3000,
+    });
+    const stepsBefore = result.current.steps.length;
+
+    await result.current.stream({
+      ...ANSWER_PARAMS,
+      resumeStreamId: "sid-steps",
+      lastSeq: 1,
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
+    expect(result.current.steps.length).toBe(stepsBefore);
+  });
+
+  it("keeps sessionStorage pending when replay handles exist after retry exhaust", async () => {
+    const { loadPendingAnswerStream } = await import("@/lib/sseResume");
+    const makeChunks = () => [
+      `data: {"stream_id":"sid-x","seq":1,"payload":{"kind":"generic"},"done":false}\n\n`,
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(mockFetchStream(makeChunks()))
+      .mockResolvedValueOnce(mockFetchStream(makeChunks()));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+
+    void result.current.stream(ANSWER_PARAMS);
+
+    await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
+    const pending = loadPendingAnswerStream("sess-1");
+    expect(pending?.streamId).toBe("sid-x");
+    expect(pending?.seq).toBe(1);
+  });
+
   it("does not retry 402/429 (semantic errors must surface on first attempt)", async () => {
     const fetchMock = vi
       .fn()

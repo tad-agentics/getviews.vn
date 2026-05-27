@@ -63,10 +63,10 @@ export function analysisErrorCopy(error: unknown): string {
     return "Câu hỏi tiếp theo chưa gửi được. Thử lại sau vài giây.";
   }
   if (code === "stream_failed") {
-    return "Kết nối streaming bị ngắt. Thử gửi lại câu hỏi.";
+    return "Kết nối streaming bị ngắt. Thử gửi lại câu hỏi — có thể tốn thêm 1 credit.";
   }
   if (code === "stream_timeout") {
-    return "Server im lặng quá lâu — có thể đang quá tải. Thử lại sau ít giây.";
+    return "Server im lặng quá lâu — có thể đang quá tải. Thử gửi lại sau ít giây.";
   }
   if (code === "session_not_found") {
     return "Phiên không tồn tại hoặc đã bị xoá. Mở phiên khác từ Lịch sử.";
@@ -121,4 +121,20 @@ export function analysisErrorCopy(error: unknown): string {
     return error.message || "Lỗi không xác định";
   }
   return "Lỗi không xác định";
+}
+
+/**
+ * Answer-screen stream errors — copy depends on whether TD-4 replay handles exist.
+ */
+export function answerStreamErrorCopy(
+  code: string,
+  canReplayResume: boolean,
+): string {
+  if (code === "stream_failed" && canReplayResume) {
+    return "Kết nối streaming bị ngắt. Bấm Tiếp tục phân tích — thường không tốn thêm credit trong 60 giây.";
+  }
+  if (code === "stream_timeout" && canReplayResume) {
+    return "Server im lặng quá lâu. Bấm Tiếp tục phân tích để nối lại từ bước đang chạy.";
+  }
+  return analysisErrorCopy(code);
 }

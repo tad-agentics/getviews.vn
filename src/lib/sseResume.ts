@@ -72,6 +72,19 @@ export interface PendingAnswerStream {
   sessionFormat?: string | null;
   /** Video primary depth — when absent (legacy blob), infer as ``basic``. */
   analysisDepth?: AnalysisDepth | null;
+  /** Video diagnosis win/flop — omitted on non-video turns. */
+  videoMode?: "win" | "flop" | null;
+}
+
+/** True when TD-4 replay can reconnect (sessionStorage or in-memory hook handles). */
+export function hasAnswerStreamReplayHandles(
+  sessionId: string,
+  hookStreamId: string | null | undefined,
+  hookLastSeq: number,
+  now: number = Date.now(),
+): boolean {
+  if (loadPendingAnswerStream(sessionId, now)) return true;
+  return Boolean(hookStreamId && hookLastSeq > 0);
 }
 
 function safeStorage(): Storage | null {
@@ -142,11 +155,13 @@ export function loadPendingAnswerStream(
     "analysisDepth" in parsed && parsed.analysisDepth !== undefined
       ? parsed.analysisDepth
       : null;
+  const videoMode =
+    "videoMode" in parsed && parsed.videoMode !== undefined ? parsed.videoMode : null;
   const creditsUsed =
     typeof parsed.creditsUsed === "number"
       ? parsed.creditsUsed
       : optimisticAnswerCreditsUsed(parsed.turnKind, fmt, depth);
-  return { ...parsed, creditsUsed, sessionFormat: fmt, analysisDepth: depth };
+  return { ...parsed, creditsUsed, sessionFormat: fmt, analysisDepth: depth, videoMode };
 }
 
 export const PENDING_ANSWER_STREAM_KEY = KEY;
