@@ -21,13 +21,6 @@ export const pricingPlans = {
       credits: "80 lượt phân tích chuyên sâu/tháng + lướt xu hướng không giới hạn",
       popular: false,
     },
-    {
-      name: "Agency",
-      label: "Agency",
-      price: "1.490.000đ",
-      credits: "250 lượt phân tích chuyên sâu/tháng + tối đa 10 tài khoản thành viên",
-      popular: false,
-    },
   ],
   biannual: [
     {
@@ -51,13 +44,6 @@ export const pricingPlans = {
       credits: "80 lượt phân tích chuyên sâu/tháng + lướt xu hướng không giới hạn",
       popular: false,
     },
-    {
-      name: "Agency",
-      label: "Agency",
-      price: "1.350.000đ",
-      credits: "250 lượt phân tích chuyên sâu/tháng + tối đa 10 tài khoản thành viên",
-      popular: false,
-    },
   ],
   annual: [
     {
@@ -79,13 +65,6 @@ export const pricingPlans = {
       label: "Pro",
       price: "399.000đ",
       credits: "80 lượt phân tích chuyên sâu/tháng + lướt xu hướng không giới hạn",
-      popular: false,
-    },
-    {
-      name: "Agency",
-      label: "Agency",
-      price: "1.190.000đ",
-      credits: "250 lượt phân tích chuyên sâu/tháng + tối đa 10 tài khoản thành viên",
       popular: false,
     },
   ],

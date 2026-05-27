@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, Zap, Sparkles, Building2, Gift } from "lucide-react";
+import { Check, Zap, Sparkles, Gift } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { Btn } from "@/components/v2/Btn";
@@ -58,22 +58,6 @@ const plans = {
         "Hỗ trợ kỹ thuật ưu tiên cao",
       ],
     },
-    {
-      name: "Agency",
-      priceDisplay: "1.490.000đ",
-      tagline: "Doanh nghiệp & Đội nhóm",
-      icon: Building2,
-      popular: false,
-      cta: "Liên hệ Agency",
-      features: [
-        "250 lượt phân tích chuyên sâu/tháng",
-        "Hỗ trợ tối đa 10 tài khoản thành viên",
-        "Bao gồm toàn bộ đặc quyền gói Pro",
-        "Dữ liệu TikTok cập nhật liên tục",
-        "Trang tổng quan quản lý nhóm",
-        "Hỗ trợ kỹ thuật riêng biệt 24/7",
-      ],
-    },
   ],
   biannual: [
     {
@@ -120,22 +104,6 @@ const plans = {
         "Hỗ trợ kỹ thuật ưu tiên cao",
       ],
     },
-    {
-      name: "Agency",
-      priceDisplay: "1.350.000đ",
-      tagline: "Doanh nghiệp & Đội nhóm",
-      icon: Building2,
-      popular: false,
-      cta: "Liên hệ Agency",
-      features: [
-        "250 lượt phân tích chuyên sâu/tháng",
-        "Hỗ trợ tối đa 10 tài khoản thành viên",
-        "Bao gồm toàn bộ đặc quyền gói Pro",
-        "Dữ liệu TikTok cập nhật liên tục",
-        "Trang tổng quan quản lý nhóm",
-        "Hỗ trợ kỹ thuật riêng biệt 24/7",
-      ],
-    },
   ],
   annual: [
     {
@@ -180,22 +148,6 @@ const plans = {
         "Thư viện video TikTok 30 ngày gần nhất",
         "So sánh đối chiếu ngách đa chiều",
         "Hỗ trợ kỹ thuật ưu tiên cao",
-      ],
-    },
-    {
-      name: "Agency",
-      priceDisplay: "1.190.000đ",
-      tagline: "Doanh nghiệp & Đội nhóm",
-      icon: Building2,
-      popular: false,
-      cta: "Liên hệ Agency",
-      features: [
-        "250 lượt phân tích chuyên sâu/tháng",
-        "Hỗ trợ tối đa 10 tài khoản thành viên",
-        "Bao gồm toàn bộ đặc quyền gói Pro",
-        "Dữ liệu TikTok cập nhật liên tục",
-        "Trang tổng quan quản lý nhóm",
-        "Hỗ trợ kỹ thuật riêng biệt 24/7",
       ],
     },
   ],
@@ -295,10 +247,6 @@ function PlanCard({
     if (plan.name === "Pro") {
       if (period === "biannual") return "Thanh toán 2.694.000đ mỗi 6 tháng";
       return "Thanh toán 4.788.000đ mỗi năm";
-    }
-    if (plan.name === "Agency") {
-      if (period === "biannual") return "Thanh toán 8.100.000đ mỗi 6 tháng";
-      return "Thanh toán 14.280.000đ mỗi năm";
     }
     return "";
   };
@@ -414,8 +362,8 @@ function PricingSkeleton() {
       <div className="h-4 w-64 rounded bg-[color:var(--gv-canvas-2)]" />
       <div className="h-20 rounded-lg bg-[color:var(--gv-canvas-2)]" />
       <div className="mx-auto h-10 w-64 rounded-lg bg-[color:var(--gv-canvas-2)]" />
-      <div className="grid grid-cols-1 gap-4 min-[700px]:grid-cols-2">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 gap-4 min-[700px]:grid-cols-3">
+        {[0, 1, 2].map((i) => (
           <div key={i} className="h-64 rounded-xl bg-[color:var(--gv-canvas-2)]" />
         ))}
       </div>
@@ -525,7 +473,7 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
         </div>
 
         <AnimatePresence mode="wait">
-          <div key={period} className="mb-10 grid grid-cols-1 gap-4 min-[700px]:grid-cols-2">
+          <div key={period} className="mb-10 grid grid-cols-1 gap-4 min-[700px]:grid-cols-3">
             {currentPlans.map((plan, i) => (
               <PlanCard
                 key={plan.name}

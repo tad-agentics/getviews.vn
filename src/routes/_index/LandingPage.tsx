@@ -1189,7 +1189,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-4">
             {plans.map((plan, idx) => (
               <motion.div
                 key={plan.name}
