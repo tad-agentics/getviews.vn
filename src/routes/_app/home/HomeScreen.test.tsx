@@ -221,34 +221,50 @@ describe("HomeScreen", () => {
     expect(headline.textContent).toContain("ngách của bạn");
   });
 
-  it("renders the corpus count chip when the selected niche has hot > 0", () => {
-    // Default mock: useNicheRowsForIds returns []. Override to surface a
-    // niche with a hot count matching the user's selected niche.
+  it("renders the hot badge on NichePicker when user has 2+ niches and hot > 0", () => {
     mockUseProfile.mockReturnValue({
       data: { id: "u", display_name: "An", creator_niche_id: 3 },
     });
     mockUseNicheRowsForIds.mockReturnValue({
-      data: [{ id: 4, name: "Ẩm thực", hot: 1240 }],
+      data: [
+        { id: 4, name: "Ẩm thực", hot: 1240 },
+        { id: 5, name: "Làm đẹp", hot: 50 },
+      ],
     });
     renderHome();
-    expect(screen.getByText(/1,240\+ video/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Ngách đang xem: Ẩm thực/ })).toBeTruthy();
+    expect(screen.getByText(/↑1240 hot/)).toBeTruthy();
   });
 
-  it("hides the corpus count chip when the selected niche has hot = 0", () => {
+  it("hides the hot badge on NichePicker when user has 2+ niches and hot = 0", () => {
     mockUseProfile.mockReturnValue({
       data: { id: "u", display_name: "An", creator_niche_id: 3 },
     });
     mockUseNicheRowsForIds.mockReturnValue({
-      data: [{ id: 4, name: "Ẩm thực", hot: 0 }],
+      data: [
+        { id: 4, name: "Ẩm thực", hot: 0 },
+        { id: 5, name: "Làm đẹp", hot: 50 },
+      ],
     });
     renderHome();
-    expect(screen.queryByText(/\+ video/)).toBeNull();
+    expect(screen.getByRole("button", { name: /Ngách đang xem: Ẩm thực/ })).toBeTruthy();
+    expect(screen.queryByText(/↑\d+ hot/)).toBeNull();
   });
 
   it("does not show duplicate pill row below composer", () => {
     renderHome();
     expect(screen.queryByText("Phím tắt")).toBeNull();
     expect(screen.getAllByRole("button", { name: "Sửa video flop" })).toHaveLength(1);
+  });
+
+  it("updates textarea placeholder when studio intent pill changes", () => {
+    renderHome();
+    expect(screen.getByPlaceholderText(/flop/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Soi kênh đối thủ" }));
+    expect(screen.getByPlaceholderText(/@username|kênh TikTok/i)).toBeTruthy();
+    expect(screen.queryByPlaceholderText(/flop/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Viết kịch bản" }));
+    expect(screen.getByPlaceholderText(/kịch bản/i)).toBeTruthy();
   });
 
   it("does not downgrade Chuyên sâu while profile credits are still loading", () => {

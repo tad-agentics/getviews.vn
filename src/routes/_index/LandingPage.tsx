@@ -1,14 +1,21 @@
-import { useCallback, useMemo, useState, useEffect, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { Link, useNavigate } from "react-router";
-import { buildAnswerHandoffPath } from "@/lib/answerHandoff";
-import { r2FrameUrl } from "@/lib/r2";
+import { r2FrameUrl, r2ThumbnailUrl } from "@/lib/r2";
 import { formatCorpusMarketingCount } from "@/lib/formatters";
-import { buildLoginPath } from "@/lib/postLoginRedirect";
-import { nonTikTokUrlValidationMessage } from "@/lib/tiktokUrl";
+import { resolveLandingHeroSubmit } from "@/lib/landingHeroCta";
+import { persistPostLoginNextFromSearch } from "@/lib/postLoginRedirect";
+import { formatTikTokSidebarHint, queryUrlChipState } from "@/lib/tiktokUrl";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown, Database, Play, Globe, Zap, Search, MessageCircle, ExternalLink, RefreshCw } from "lucide-react";
-import { Input } from "@/components/ui/Input";
 import { pricingPlans, pricingSavings } from "@/lib/mock-data";
+import { planPricePresentation } from "@/lib/pricingDisplay";
 
 /**
  * Landing page is prerendered at build time and is the entry point for
@@ -87,8 +94,8 @@ const testimonials = [
     niche: "Review đồ gia dụng",
     followers: "~50K",
     quote:
-      "Quăng link video bị flop vào, 1 phút sau biết ngay lỗi: hook chậm 2.3 giây, không có mặt người ở đầu. Sửa lại đúng theo gợi ý — video sau lên thẳng 89K lượt xem.",
-    stat: "89K lượt xem",
+      "Dán link video flop, ~1 phút có 3 lỗi cụ thể: hook 2,3 giây, không mặt ở frame đầu. Biết sửa gì trước khi quay lại — không phải đoán cảm tính.",
+    stat: "3 lỗi có số",
   },
   {
     initials: "LH",
@@ -96,8 +103,8 @@ const testimonials = [
     niche: "Làm đẹp · Skincare",
     followers: "~120K",
     quote:
-      "Trước đây toàn phải tự lướt lưu video thủ công rồi quên sạch. Giờ chỉ cần hỏi \"hook nào hot tuần này\" — hệ thống lọc ra luôn 5 mẫu đạt lượt xem cao nhất, kèm link video gốc để học theo.",
-    stat: "X3.2 lượt xem TB",
+      "Hỏi hook hot tuần này — ra top 5 kèm link video gốc trong ngách. Không còn lưu TikTok rồi quên mất.",
+    stat: "Top 5 + link",
   },
   {
     initials: "TN",
@@ -105,19 +112,20 @@ const testimonials = [
     niche: "Công nghệ / Tech",
     followers: "~30K",
     quote:
-      "Phân tích chiến lược nội dung của 3 đối thủ lớn chỉ trong 2 câu lệnh. Đỡ mất công ngồi mò mẫm cả buổi tối. Tiết kiệm được ít nhất 4-5 tiếng nghiên cứu mỗi tuần.",
-    stat: "−4h/tuần",
+      "Soi 3 kênh đối thủ bằng @handle, không phải ngồi lướt cả tối. Tiết kiệm ~4–5 giờ research mỗi tuần.",
+    stat: "~4h/tuần",
   },
 ];
 
+/** Minh họa hook ranking — hệ số TB ngách + khung thời gian, không hứa view. */
 const hookTicker = [
-  '"Cảnh Báo: Đừng mua trước khi xem" · 2.4M lượt xem · Skincare',
-  '"3 sai lầm khiến da sạm đi buổi sáng" · 1.8M lượt xem · Làm đẹp',
-  '"Tôi đã mua thử để bạn không mất tiền" · 1.2M lượt xem · Review',
-  '"So sánh công tâm giữa hai siêu phẩm" · 610K lượt xem · Tech',
-  '"Sự thật về sản phẩm này không ai nói..." · 890K lượt xem · Food',
-  '"Thử nghiệm thực tế sau 30 ngày dùng:" · 750K lượt xem · Gia dụng',
-  '"Đừng làm điều này nếu bạn đang dùng..." · 3.1M lượt xem · Skincare',
+  '"Cảnh Báo: Đừng mua trước khi xem" · 2,4× TB ngách · Skincare · 7 ngày',
+  '"3 sai lầm khiến da sạm đi buổi sáng" · 1,9× TB ngách · Làm đẹp · 7 ngày',
+  '"Tôi đã mua thử để bạn không mất tiền" · 1,6× TB ngách · Review · 7 ngày',
+  '"So sánh công tâm giữa hai siêu phẩm" · 1,4× TB ngách · Tech · 7 ngày',
+  '"Sự thật về sản phẩm này không ai nói..." · 1,7× TB ngách · Food · 7 ngày',
+  '"Thử nghiệm thực tế sau 30 ngày dùng:" · 1,5× TB ngách · Gia dụng · 7 ngày',
+  '"Đừng làm điều này nếu bạn đang dùng..." · 2,1× TB ngách · Skincare · 7 ngày',
 ];
 
 const painPoints = [
@@ -217,23 +225,32 @@ function VideoThumb({
    *  every thumbnail below the fold keeps the lazy default. */
   priority?: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
-  const url = r2FrameUrl(id);
-  useEffect(() => { setFailed(false); }, [url]);
-  if (!url || failed) {
-    return <div className={`bg-[color:var(--gv-canvas-2)] ${className}`} />;
+  const candidates = useMemo(() => landingThumbSrcCandidates(id), [id]);
+  const [srcIndex, setSrcIndex] = useState(0);
+  useEffect(() => {
+    setSrcIndex(0);
+  }, [id]);
+  const src = candidates[srcIndex];
+  if (!src || srcIndex >= candidates.length) {
+    return (
+      <div
+        className={`flex items-center justify-center bg-[color:var(--gv-canvas-2)] ${className}`}
+        aria-hidden
+      >
+        <Play className="h-4 w-4 text-[color:var(--gv-ink-4)] opacity-40" strokeWidth={1.5} />
+      </div>
+    );
   }
   return (
     <img
-      src={url}
+      src={src}
       alt=""
       className={`object-cover ${className}`}
       loading={priority ? "eager" : "lazy"}
-      // ``fetchPriority="high"`` is React 19's camelCase form of the
-      // standard ``fetchpriority`` attribute — accepted by all
-      // browsers since Chrome 101 / Safari 17.2 / Firefox 132.
       fetchPriority={priority ? "high" : "auto"}
-      onError={() => setFailed(true)}
+      onError={() => {
+        setSrcIndex((i) => (i + 1 < candidates.length ? i + 1 : candidates.length));
+      }}
     />
   );
 }
@@ -425,14 +442,26 @@ const HOOK_EXAMPLES: { id: string; phrase: string; hookType: string; views: stri
   { id: "7624842569465220368", phrase: "Mai mốt mà em có mở quán cơm á thì em sẽ bán món ba rọi chao", hookType: "bold_claim", views: "2.2M" },
 ];
 
-// 4 confirmed R2-frame IDs per niche for the scroll strip (5 niches)
+// 4× R2-confirmed frame IDs per showcase column (probed 2026-04-09 — see STRIP_FRAME_IDS)
 const NICHE_STRIP: { label: string; ids: string[] }[] = [
-  { label: "Ẩm thực",   ids: ["7619285253022125333","7624842569465220368","7621904918978252039","7626756818085203207"] },
-  { label: "Thời trang", ids: ["7622669408665652488","7624501870622444821","7620112412523433237","7627444741767974152"] },
-  { label: "Công nghệ", ids: ["7627432133937679624","7627069060844457233","7620672683994402069","7627665640186268948"] },
-  { label: "Sức khỏe",  ids: ["7621463359350656277","7625973407997267221","7627068868820864276","7622902141807578389"] },
-  { label: "Giải trí",  ids: ["7615811534962330901","7616572388544695573","7620342789313776917","7617676901603101973"] },
+  { label: "Ẩm thực", ids: ["7619285253022125333", "7624842569465220368", "7621904918978252039", "7626756818085203207"] },
+  { label: "Thời trang", ids: ["7622669408665652488", "7624501870622444821", "7620112412523433237", "7627166762894740757"] },
+  { label: "Công nghệ", ids: ["7627432133937679624", "7627069060844457233", "7620672683994402069", "7627475293153905941"] },
+  { label: "Sức khỏe", ids: ["7621463359350656277", "7625973407997267221", "7627068868820864276", "7624873937884826900"] },
+  { label: "Giải trí", ids: ["7615811534962330901", "7616572388544695573", "7620342789313776917", "7617676901603101973"] },
 ];
+
+function landingThumbSrcCandidates(videoId: string): string[] {
+  const out: string[] = [];
+  const push = (url: string | null) => {
+    if (url && !out.includes(url)) out.push(url);
+  };
+  push(r2ThumbnailUrl(videoId, "webp"));
+  push(r2ThumbnailUrl(videoId, "png"));
+  push(r2FrameUrl(videoId));
+  push(r2ThumbnailUrl(videoId, "jpg"));
+  return out;
+}
 
 const HOOK_TYPE_LABELS: Record<string, string> = {
   warning: "Cảnh báo",
@@ -512,7 +541,7 @@ function LiveDemoSection({
             transition={{ duration: 0.4, delay: 0.1 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-1"
           >
-            <p className="font-bold text-[color:var(--gv-ink)] mb-3">Mẫu Hook "Ăn" Tiền</p>
+            <p className="font-bold text-[color:var(--gv-ink)] mb-3">Hook dẫn trong corpus (video thật)</p>
 
             {HOOK_EXAMPLES.map((h, i) => (
               <div key={h.id} className="flex items-center gap-3 py-2 border-b border-[color:var(--gv-rule)] last:border-0">
@@ -534,9 +563,21 @@ function LiveDemoSection({
           transition={{ duration: 0.4, delay: 0.2 }}
           className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[color:var(--gv-ink)]">Database {corpusLabel} Video Creator Việt</h3>
-            <Link to="/app/trends" className="text-xs text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors duration-200">Tìm đối thủ →</Link>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="text-balance font-bold text-[color:var(--gv-ink)]">
+                Corpus TikTok Việt Nam
+              </h3>
+              <p className="mt-1 font-[family-name:var(--gv-font-mono)] text-sm font-semibold tabular-nums text-[color:var(--gv-ink-3)]">
+                {corpusLabel} video đã lập chỉ mục
+              </p>
+            </div>
+            <Link
+              to="/app/trends"
+              className="shrink-0 text-xs text-[color:var(--gv-ink-3)] transition-colors duration-200 hover:text-[color:var(--gv-ink)]"
+            >
+              Tìm đối thủ →
+            </Link>
           </div>
 
           <div className="flex gap-4 overflow-x-auto pb-1">
@@ -667,8 +708,8 @@ function CredibilitySection({
           <h2
             className="gv-landing-h3-tight font-extrabold text-[color:var(--gv-ink)] mb-5 leading-tight"
           >
-            Bắt đầu tăng trưởng lượt xem{" "}
-            <span className="text-[color:var(--gv-accent)]">ngay hôm nay</span>
+            Quyết định nội dung{" "}
+            <span className="text-[color:var(--gv-accent)]">có căn cứ số liệu</span>
           </h2>
           <p className="text-sm text-[color:var(--gv-ink-3)] leading-relaxed mb-6">
             Chúng tôi là những nhà sáng tạo nội dung tự xây kênh TikTok từ con số 0 — và thấu hiểu sâu sắc việc đưa ra quyết định nội dung theo cảm tính dễ dẫn đến thất bại như thế nào. GetViews ra đời để thay đổi điều đó: toàn bộ gợi ý phân tích đều có dẫn chứng video thực tế làm bằng chứng trực quan, hỗ trợ bạn kiểm chứng trực tiếp chỉ bằng một cú chạm.
@@ -734,7 +775,7 @@ function HowItWorksSection() {
     {
       num: "03",
       title: "Nhận chẩn đoán & tối ưu",
-      body: "Biết rõ lý do vì sao video bị flop, cần tối ưu lại công thức hook ở giây thứ mấy, hay áp dụng định dạng nào để lên xu hướng dễ dàng hơn.",
+      body: "Biết rõ lý do video flop, hook cần sửa ở giây thứ mấy, và định dạng nào đang dẫn trong ngách — kèm video mẫu để đối chiếu.",
     },
   ];
 
@@ -782,10 +823,9 @@ interface LandingStats {
   corpus_indexed_count: number | null;
 }
 
-function landingLoginPath(pastedUrl?: string): string {
-  const q = pastedUrl?.trim();
-  if (!q) return buildLoginPath();
-  return buildLoginPath(buildAnswerHandoffPath({ q, from: "landing" }));
+function loginPathFromHeroPaste(pasted: string): string {
+  const result = resolveLandingHeroSubmit(pasted);
+  return result.ok ? result.loginPath : "/login";
 }
 
 export default function LandingPage({ stats }: { stats: LandingStats }) {
@@ -796,20 +836,30 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
   const [heroUrlError, setHeroUrlError] = useState<string | null>(null);
   const corpusLabel = formatCorpusMarketingCount(stats.corpus_indexed_count);
   const faqs = buildFaqs(corpusLabel);
-  const loginPath = useMemo(() => landingLoginPath(heroUrl), [heroUrl]);
+  const heroUrlChip = queryUrlChipState(heroUrl);
+  const loginPath = useMemo(() => loginPathFromHeroPaste(heroUrl), [heroUrl]);
 
-  const goToLogin = useCallback(() => {
-    const raw = heroUrl.trim();
-    if (raw) {
-      const invalid = nonTikTokUrlValidationMessage(raw);
-      if (invalid) {
-        setHeroUrlError(invalid);
-        return;
-      }
+  const submitHeroCta = useCallback(() => {
+    const result = resolveLandingHeroSubmit(heroUrl);
+    if (!result.ok) {
+      setHeroUrlError(result.error);
+      return;
     }
     setHeroUrlError(null);
-    navigate(landingLoginPath(raw));
+    const q = result.loginPath.split("?")[1];
+    if (q) {
+      persistPostLoginNextFromSearch(new URLSearchParams(q));
+    }
+    navigate(result.loginPath);
   }, [heroUrl, navigate]);
+
+  const handleHeroFormSubmit = useCallback(
+    (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      submitHeroCta();
+    },
+    [submitHeroCta],
+  );
 
   useEffect(() => {
     const handleScroll = () => setStickyVisible(window.scrollY > 480);
@@ -871,7 +921,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 transition={{ duration: 0.32 }}
               >
                 <div className="inline-flex items-center gap-2 bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-full px-4 py-2 mb-6">
-                  <span className="text-sm font-medium text-[color:var(--gv-ink-3)]">Trợ lý AI số 1 cho TikTok Creator Việt</span>
+                  <span className="text-sm font-medium text-[color:var(--gv-ink-3)]">Chẩn đoán TikTok · corpus video thật · Việt Nam</span>
                 </div>
 
                 <h1 className="gv-landing-h1 font-extrabold leading-[1.2] mb-6">
@@ -887,86 +937,114 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   <span className="font-semibold text-[color:var(--gv-ink)]">định dạng nào cắn đề xuất</span>. Dựa trên số liệu thực tế, không phỏng đoán cảm tính.
                 </p>
 
-                {/* CTA Input */}
-                <div className="mb-4">
-                  <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-1.5 shadow-sm mb-3 transition-all duration-200 hover:border-[color:var(--gv-ink)]/30 hover:shadow-md">
-                    <div className="flex items-center gap-2 px-3 py-2">
-                      <Input
+                {/* CTA — one form so Enter and button share the same submit path */}
+                <form
+                  className="mb-0"
+                  onSubmit={handleHeroFormSubmit}
+                  aria-label="Dán link TikTok và bắt đầu phân tích"
+                >
+                  <div
+                    className={`flex flex-col gap-2 rounded-xl border bg-[color:var(--gv-paper)] p-1.5 shadow-sm transition-all duration-200 sm:flex-row sm:items-stretch ${
+                      heroUrlError
+                        ? "border-[color:var(--destructive)]"
+                        : "border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink)]/30 hover:shadow-md"
+                    }`}
+                  >
+                    <div className="flex min-h-[44px] flex-1 items-center gap-2 px-3 py-2">
+                      <input
                         type="url"
                         inputMode="url"
                         autoComplete="url"
+                        name="tiktok_url"
+                        aria-label="Link video hoặc kênh TikTok"
+                        aria-invalid={heroUrlError ? true : undefined}
+                        aria-describedby={
+                          heroUrlError
+                            ? "hero-url-error"
+                            : heroUrlChip.kind === "tiktok"
+                              ? "hero-url-ok"
+                              : undefined
+                        }
                         placeholder="https://tiktok.com/@..."
                         value={heroUrl}
                         onChange={(e) => {
                           setHeroUrl(e.target.value);
                           if (heroUrlError) setHeroUrlError(null);
                         }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            goToLogin();
-                          }
-                        }}
-                        className="flex-1 border-0 bg-transparent text-base focus:outline-none focus:ring-0 placeholder:text-[color:var(--gv-ink-4)]"
+                        className="min-w-0 flex-1 border-0 bg-transparent text-base text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] focus:outline-none focus:ring-0"
                       />
                     </div>
+                    <button
+                      type="submit"
+                      className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-lg bg-[color:var(--gv-accent)] px-6 py-3 text-base font-semibold text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-accent-deep)] active:scale-[0.98] sm:rounded-lg"
+                    >
+                      Phân tích →
+                    </button>
                   </div>
+                  {heroUrlChip.kind === "tiktok" ? (
+                    <p
+                      id="hero-url-ok"
+                      className="mt-2 text-sm text-[color:var(--gv-ink-3)]"
+                    >
+                      {formatTikTokSidebarHint(heroUrl) ? (
+                        <>
+                          Đã nhận link TikTok{" "}
+                          <span className="font-[family-name:var(--gv-font-mono)] text-[color:var(--gv-ink)]">
+                            {formatTikTokSidebarHint(heroUrl)}
+                          </span>
+                          {" "}
+                          — bấm Phân tích hoặc Enter để tiếp tục.
+                        </>
+                      ) : (
+                        "Đã nhận link TikTok — bấm Phân tích hoặc Enter để tiếp tục."
+                      )}
+                    </p>
+                  ) : null}
                   {heroUrlError ? (
-                    <p className="mb-2 text-sm text-[color:var(--destructive)]" role="alert">
+                    <p
+                      id="hero-url-error"
+                      className="mt-2 text-sm text-[color:var(--destructive)]"
+                      role="alert"
+                    >
                       {heroUrlError}
                     </p>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={goToLogin}
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-[color:var(--gv-ink)] px-8 py-4 text-base font-semibold text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-ink-2)] active:scale-[0.98]"
-                  >
-                    Phân tích video miễn phí ngay →
-                  </button>
-                </div>
+                </form>
 
-                <div className="flex items-center gap-4 text-xs text-[color:var(--gv-ink-3)]">
-                  {["10 lượt dùng thử", "Không cần thẻ", "Dùng được ngay"].map((label) => (
-                    <div key={label} className="flex items-center gap-1">
-                      <svg className="h-4 w-4 text-[color:var(--success)]" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>{label}</span>
-                    </div>
-                  ))}
-                </div>
+                <p className="mt-3 max-w-lg border-t border-[color:var(--gv-rule-2)] pt-3 text-[11px] leading-relaxed text-[color:var(--gv-ink-4)]">
+                  <span className="font-medium text-[color:var(--gv-ink-3)]">Sau khi đăng nhập —</span>{" "}
+                  10 lượt dùng thử · không cần thẻ · dùng được ngay
+                </p>
               </motion.div>
             </div>
 
-            {/* Right: Visual Proof */}
+            {/* Right: demo diagnosis card (no absolute overlays — avoids collision at ~1558px) */}
             <motion.div
               initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="relative hidden lg:block"
+              className="hidden min-w-0 lg:block"
             >
-              {/* Floating Stats Card */}
-              <div className="absolute top-8 -left-8 bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-4 z-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded bg-[color:var(--gv-ink)] flex items-center justify-center">
-                    <span className="text-white font-mono font-bold text-sm">↑</span>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[color:var(--gv-ink-3)] mb-0.5">Hiệu quả trung bình</p>
-                    <p className="font-mono font-bold text-lg text-[color:var(--gv-ink)]">+312%</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Main Mock Chat */}
               <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[color:var(--gv-rule)]">
-                  <div className="w-10 h-10 rounded bg-[color:var(--gv-ink)] flex items-center justify-center text-white font-bold text-xs">GV</div>
-                  <div>
-                    <p className="font-semibold text-sm text-[color:var(--gv-ink)]">GetViews AI</p>
-                    <p className="text-xs text-[color:var(--gv-ink-3)] flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-[color:var(--gv-ink)] rounded-full" />
-                      Đang soi dữ liệu video...
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-[color:var(--gv-rule)] pb-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-[color:var(--gv-ink)] text-xs font-bold text-white">
+                      GV
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[color:var(--gv-ink)]">GetViews AI</p>
+                      <p className="flex items-center gap-1 text-xs text-[color:var(--gv-ink-3)]">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--gv-ink)]" />
+                        Đang soi dữ liệu video...
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 py-2 text-right">
+                    <p className="text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+                      Video trong corpus
+                    </p>
+                    <p className="font-[family-name:var(--gv-font-mono)] text-base font-bold tabular-nums text-[color:var(--gv-ink)]">
+                      {corpusLabel}
                     </p>
                   </div>
                 </div>
@@ -986,7 +1064,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="font-bold text-[color:var(--danger)]">✕</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[color:var(--gv-ink)] mb-1">Thiếu "mặt người" ở đầu</p>
-                        <p className="text-xs text-[color:var(--gv-ink-3)]">89% video nhiều lượt xem mở bằng mặt chính chủ</p>
+                        <p className="text-xs text-[color:var(--gv-ink-3)]">92% video nhiều view trong ngách mở mặt trong 0,5 giây</p>
                       </div>
                     </div>
                   </div>
@@ -995,21 +1073,22 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="font-bold text-[color:var(--success)]">✓</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[color:var(--gv-ink)] mb-1">Dùng Hook "Cảnh Báo" là chuẩn</p>
-                        <p className="text-xs text-[color:var(--gv-ink-3)]">Mẫu này tăng 340% lượt xem so với "Kể Chuyện"</p>
+                        <p className="text-xs text-[color:var(--gv-ink-3)]">Cảnh Báo · 3,4× lượt xem TB ngách so với Kể Chuyện</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-[color:var(--gv-rule)]">
-                  <p className="text-xs font-mono text-[color:var(--gv-ink-3)]">So khớp với 1.247 video skincare · 7 ngày qua</p>
+                <div className="mt-4 flex flex-col gap-2 border-t border-[color:var(--gv-rule)] pt-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+                  <p className="min-w-0 text-xs font-[family-name:var(--gv-font-mono)] text-[color:var(--gv-ink-3)]">
+                    Minh họa · so khớp corpus skincare · 7 ngày qua
+                  </p>
+                  <p className="shrink-0 text-[10px] leading-snug text-[color:var(--gv-ink-4)]">
+                    <span className="font-medium text-[color:var(--gv-ink-3)]">21 niche creator</span>
+                    <span className="hidden sm:inline"> · </span>
+                    <span className="block sm:inline">Skincare · Review · Food · Affiliate…</span>
+                  </p>
                 </div>
-              </div>
-
-              {/* Floating Niche Badge */}
-              <div className="absolute -bottom-4 -right-4 bg-[color:var(--gv-ink)] text-white rounded-xl px-5 py-3 border border-[color:var(--gv-ink)]">
-                <p className="text-xs opacity-70 mb-0.5">Phủ sóng 21 niche creator</p>
-                <p className="font-bold text-sm">Skincare · Review · Food · Affiliate...</p>
               </div>
             </motion.div>
           </div>
@@ -1035,7 +1114,9 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             transition={{ duration: 0.32, delay: 0.4 }}
             className="mt-10 overflow-hidden border-t border-[color:var(--gv-rule)] pt-5"
           >
-            <p className="text-xs text-[color:var(--gv-ink-3)] mb-3 text-center">Các mẫu Hook đang "lên ngôi" tuần này</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)] mb-3 text-center">
+              Ví dụ hook trong corpus (hệ số TB ngách · 7 ngày — không phải lời hứa view)
+            </p>
             <div className="flex gap-3 animate-scroll-ticker">
               {[...hookTicker, ...hookTicker].map((hook, i) => (
                 <div key={i} className="flex-shrink-0 border border-[color:var(--gv-rule)] rounded bg-[color:var(--gv-paper)] px-4 py-2">
@@ -1051,7 +1132,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       <section className="px-4 py-20 md:py-28 bg-[color:var(--gv-paper)]">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="gv-landing-h2-lg font-extrabold text-[color:var(--gv-ink)] leading-[1.4]">
-            Công cụ duy nhất tự động "soi" hàng nghìn video mỗi&nbsp;ngày để tìm ra công&nbsp;thức breakout cho bạn
+            Corpus TikTok Việt được lập chỉ mục liên tục — so sánh video của bạn với mẫu đang chạy trong từng&nbsp;ngách
           </h2>
         </div>
       </section>
@@ -1119,12 +1200,12 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       {/* ── Results ─────────────────────────────────────────────── */}
       <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
         <div className="max-w-5xl mx-auto">
-          <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-3">Kết quả thực</p>
+          <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-3">Minh họa sản phẩm</p>
           <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-3">
-            Số liệu nói thay lời
+            Chẩn đoán có số, không hứa view
           </h2>
           <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
-            Creator thật, kết quả đo được — không phải lời hứa.
+            GetViews chỉ ra lỗi cấu trúc và so với mẫu trong ngách — bạn tự quyết định quay lại thế nào.
           </p>
 
           <motion.div
@@ -1133,49 +1214,36 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             viewport={{ once: true }}
             transition={{ duration: 0.4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-6 md:p-8 mb-6"
-            aria-label="TRƯỚC 2.000 lượt xem · video review nồi chiên — SAU 45.000 lượt xem · quay lại theo gợi ý"
+            aria-label="Ví dụ chẩn đoán video flop — lỗi hook và so sánh ngách"
           >
-            <div className="grid md:grid-cols-[1fr_80px_1fr] gap-6 items-center">
-              <div>
-                <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">Trước</p>
-                <div className="gv-landing-stat font-mono font-bold text-[color:var(--gv-ink-3)] mb-1">2.000</div>
-                <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">lượt xem · video review nồi chiên</p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-[color:var(--danger)]">✕</span>
-                    <span className="text-sm text-[color:var(--gv-ink-3)]">Hook vào chậm 2.3 giây</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-[color:var(--danger)]">✕</span>
-                    <span className="text-sm text-[color:var(--gv-ink-3)]">Không có mặt người trong 3 giây đầu</span>
-                  </div>
+            <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">
+              Ví dụ · video review đồ gia dụng
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-2">
+                <span className="text-sm font-bold text-[color:var(--danger)]">✕</span>
+                <div>
+                  <p className="text-sm font-medium text-[color:var(--gv-ink)]">Hook vào chậm 2,3 giây</p>
+                  <p className="text-xs text-[color:var(--gv-ink-3)]">92% video nhiều view trong ngách mở mặt trong 0,5 giây</p>
                 </div>
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-10 h-10 border border-[color:var(--gv-rule)] rounded flex items-center justify-center bg-[color:var(--gv-paper)]">
-                  <span className="font-mono font-bold text-sm text-[color:var(--gv-ink)] hidden md:inline">→</span>
-                  <span className="font-mono font-bold text-sm text-[color:var(--gv-ink)] md:hidden">↓</span>
+              <div className="flex items-start gap-2">
+                <span className="text-sm font-bold text-[color:var(--danger)]">✕</span>
+                <div>
+                  <p className="text-sm font-medium text-[color:var(--gv-ink)]">Không có mặt người ở 3 giây đầu</p>
+                  <p className="text-xs text-[color:var(--gv-ink-3)]">So với mẫu top trong corpus cùng ngách</p>
                 </div>
-                <p className="text-xs text-[color:var(--gv-ink-3)] font-mono text-center">GetViews</p>
               </div>
-              <div>
-                <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">Sau khi tối ưu</p>
-                <div className="gv-landing-stat font-mono font-bold text-[color:var(--gv-ink)] mb-1">45.000</div>
-                <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">lượt xem · dựng lại theo gợi ý</p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-[color:var(--success)]">✓</span>
-                    <span className="text-sm text-[color:var(--gv-ink-3)]">Xuất hiện mặt người ngay từ giây đầu tiên</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-[color:var(--success)]">✓</span>
-                    <span className="text-sm text-[color:var(--gv-ink-3)]">Áp dụng Hook &ldquo;Cảnh Báo&rdquo; đúng mảng nội dung</span>
-                  </div>
+              <div className="flex items-start gap-2">
+                <span className="text-sm font-bold text-[color:var(--success)]">✓</span>
+                <div>
+                  <p className="text-sm font-medium text-[color:var(--gv-ink)]">Hook &ldquo;Cảnh Báo&rdquo; đang dẫn trong ngách</p>
+                  <p className="text-xs text-[color:var(--gv-ink-3)]">3,4× lượt xem TB so với &ldquo;Kể Chuyện&rdquo; · 7 ngày qua</p>
                 </div>
               </div>
             </div>
             <p className="text-xs font-mono text-[color:var(--gv-ink-3)] mt-6 pt-4 border-t border-[color:var(--gv-rule)]">
-              Phân tích từ 412 video review đồ gia dụng · 7 ngày qua · Cập nhật 4 giờ trước
+              Minh họa · so khớp corpus review đồ gia dụng · 7 ngày qua — không cam kết kết quả view
             </p>
           </motion.div>
 
@@ -1241,10 +1309,15 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-4">
-            {plans.map((plan, idx) => (
+          <div
+            key={billingPeriod}
+            className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-4"
+          >
+            {plans.map((plan, idx) => {
+              const price = planPricePresentation(plan.name, billingPeriod);
+              return (
               <motion.div
-                key={plan.name}
+                key={`${plan.name}-${billingPeriod}`}
                 initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -1260,11 +1333,33 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   </div>
                 )}
                 <h3 className="font-bold text-[color:var(--gv-ink)] mb-1">{plan.label}</h3>
-                <div className="mb-3">
-                  <span className="font-mono font-bold text-[color:var(--gv-ink)]" style={{ fontSize: "1.25rem" }}>{plan.price}</span>
-                  {plan.name !== "Free" && billingPeriod !== "monthly" && (
-                    <span className="text-xs text-[color:var(--gv-ink-3)]">/tháng</span>
-                  )}
+                <div className="mb-3 min-h-[4.5rem]">
+                  <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                    {price.strikePrice ? (
+                      <span className="font-[family-name:var(--gv-font-mono)] text-sm text-[color:var(--gv-ink-4)] line-through tabular-nums">
+                        {price.strikePrice}
+                      </span>
+                    ) : null}
+                    <span
+                      className="font-[family-name:var(--gv-font-mono)] font-bold tabular-nums text-[color:var(--gv-ink)]"
+                      style={{ fontSize: "1.25rem" }}
+                    >
+                      {price.mainPrice}
+                    </span>
+                    {price.showPerMonthSuffix ? (
+                      <span className="text-xs text-[color:var(--gv-ink-3)]">/tháng</span>
+                    ) : null}
+                  </div>
+                  {price.billingLine ? (
+                    <p className="mt-1 font-[family-name:var(--gv-font-mono)] text-[11px] leading-snug text-[color:var(--gv-ink-3)]">
+                      {price.billingLine}
+                    </p>
+                  ) : null}
+                  {price.savingsLine ? (
+                    <p className="mt-0.5 text-[11px] font-medium leading-snug text-[color:var(--gv-accent-deep)]">
+                      {price.savingsLine}
+                    </p>
+                  ) : null}
                 </div>
                 <p className="text-xs text-[color:var(--gv-ink-3)] mb-5" style={{ lineHeight: "1.5" }}>{plan.credits}</p>
                 <Link
@@ -1278,7 +1373,8 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   {plan.name === "Free" ? "Bắt đầu miễn phí" : `Nâng cấp ${plan.name}`}
                 </Link>
               </motion.div>
-            ))}
+            );
+            })}
           </div>
 
           {pricingSavings[billingPeriod] && (

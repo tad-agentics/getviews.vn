@@ -1,13 +1,23 @@
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryComposer } from "./QueryComposer";
+
+function renderComposer(ui: ReactElement) {
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
+    ),
+  });
+}
 
 describe("QueryComposer (C.1.0)", () => {
   afterEach(cleanup);
   it("calls onSubmit when Enter is pressed with non-empty text", () => {
     const onSubmit = vi.fn();
     const onChange = vi.fn();
-    render(
+    renderComposer(
       <QueryComposer
         value="hello"
         onChange={onChange}
@@ -22,7 +32,7 @@ describe("QueryComposer (C.1.0)", () => {
 
   it("does not submit on Enter when text is empty (allows newline)", () => {
     const onSubmit = vi.fn();
-    render(
+    renderComposer(
       <QueryComposer value="" onChange={vi.fn()} onSubmit={onSubmit} />,
     );
     const ta = screen.getByPlaceholderText(/Hỏi về hook/);
@@ -32,7 +42,7 @@ describe("QueryComposer (C.1.0)", () => {
 
   it("does not submit on Shift+Enter", () => {
     const onSubmit = vi.fn();
-    render(
+    renderComposer(
       <QueryComposer
         value="line"
         onChange={vi.fn()}
@@ -45,7 +55,7 @@ describe("QueryComposer (C.1.0)", () => {
   });
 
   it("shows URL chip when showUrlChip is true", () => {
-    render(
+    renderComposer(
       <QueryComposer
         value="x"
         onChange={vi.fn()}
@@ -58,7 +68,7 @@ describe("QueryComposer (C.1.0)", () => {
 
   it("disables Gửi and blocks submit when disabled", () => {
     const onSubmit = vi.fn();
-    render(
+    renderComposer(
       <QueryComposer
         value="hi"
         onChange={vi.fn()}
@@ -77,24 +87,59 @@ describe("QueryComposer (C.1.0)", () => {
 
   it("does not submit empty text via Gửi click", () => {
     const onSubmit = vi.fn();
-    render(
+    renderComposer(
       <QueryComposer value="   " onChange={vi.fn()} onSubmit={onSubmit} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Gửi/i }));
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("shows visible depth hint with cost and comparison before submit", () => {
+    renderComposer(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        studioPill="channel"
+        onStudioPillChange={vi.fn()}
+        analysisDepth="deep"
+        creditsRemaining={9}
+      />,
+    );
+    expect(screen.getByText(/Chuyên sâu · 3 credit\/lần/)).toBeTruthy();
+    expect(screen.getByText(/Cơ bản · 0 credit/)).toBeTruthy();
+    expect(screen.getByText(/còn 9 credit/)).toBeTruthy();
+  });
+
   it("renders Cơ bản / Chuyên sâu depth pills by default", () => {
-    render(
+    renderComposer(
       <QueryComposer value="" onChange={vi.fn()} onSubmit={vi.fn()} />,
     );
     expect(screen.getByRole("button", { name: "Cơ bản" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Chuyên sâu" })).toBeTruthy();
   });
 
+  it("wraps depth pills in Radix tooltip triggers", () => {
+    renderComposer(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        studioPill="video_flop"
+        onStudioPillChange={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Cơ bản" }).getAttribute("data-slot"),
+    ).toBe("tooltip-trigger");
+    expect(
+      screen.getByRole("button", { name: "Chuyên sâu" }).getAttribute("data-slot"),
+    ).toBe("tooltip-trigger");
+  });
+
   it("calls onAnalysisDepthChange when depth pill clicked", () => {
     const onDepth = vi.fn();
-    render(
+    renderComposer(
       <QueryComposer
         value=""
         onChange={vi.fn()}
@@ -108,7 +153,7 @@ describe("QueryComposer (C.1.0)", () => {
   });
 
   it("hides depth pills when studio pill is Tạo kịch bản", () => {
-    render(
+    renderComposer(
       <QueryComposer
         value=""
         onChange={vi.fn()}
@@ -122,7 +167,7 @@ describe("QueryComposer (C.1.0)", () => {
   });
 
   it("hides depth pills when showDepthPicker is false", () => {
-    render(
+    renderComposer(
       <QueryComposer
         value=""
         onChange={vi.fn()}
@@ -133,8 +178,34 @@ describe("QueryComposer (C.1.0)", () => {
     expect(screen.queryByRole("button", { name: "Cơ bản" })).toBeNull();
   });
 
+  it("updates placeholder when studioPill prop changes", () => {
+    const { rerender } = renderComposer(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        studioPill="video_flop"
+        onStudioPillChange={vi.fn()}
+        placeholder="Dán link video bị flop…"
+      />,
+    );
+    expect(screen.getByPlaceholderText(/flop/)).toBeTruthy();
+    rerender(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        studioPill="channel"
+        onStudioPillChange={vi.fn()}
+        placeholder="Nhập @username hoặc dán link kênh TikTok…"
+      />,
+    );
+    expect(screen.getByPlaceholderText(/kênh TikTok/)).toBeTruthy();
+    expect(screen.queryByPlaceholderText(/flop/)).toBeNull();
+  });
+
   it("renders studio intent pills when studioPill props provided", () => {
-    render(
+    renderComposer(
       <QueryComposer
         value=""
         onChange={vi.fn()}
@@ -148,7 +219,7 @@ describe("QueryComposer (C.1.0)", () => {
   });
 
   it("does not disable Chuyên sâu on Khám Kênh while credits are unknown", () => {
-    render(
+    renderComposer(
       <QueryComposer
         value=""
         onChange={vi.fn()}
@@ -162,7 +233,7 @@ describe("QueryComposer (C.1.0)", () => {
   });
 
   it("disables Chuyên sâu on Khám Kênh when credits are below channel cost", () => {
-    render(
+    renderComposer(
       <QueryComposer
         value=""
         onChange={vi.fn()}

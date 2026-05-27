@@ -7,151 +7,55 @@ import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { Btn } from "@/components/v2/Btn";
 import { env } from "@/lib/env";
 import { pricingSavings } from "@/lib/mock-data";
+import { planPricePresentation, type BillingPeriod } from "@/lib/pricingDisplay";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 
-type Period = "monthly" | "biannual" | "annual";
+type Period = BillingPeriod;
 
-const plans = {
-  monthly: [
-    {
-      name: "Free",
-      priceDisplay: "Miễn phí",
-      tagline: "Trải nghiệm GetViews",
-      icon: Gift,
-      popular: false,
-      cta: "Bắt đầu miễn phí",
-      features: [
-        "10 lượt phân tích chuyên sâu",
-        "Xem ý tưởng & xu hướng cơ bản",
-        "Tư vấn chatbot AI không giới hạn",
-        "Hỗ trợ qua email nhanh chóng",
-      ],
-    },
-    {
-      name: "Starter",
-      priceDisplay: "249.000đ",
-      tagline: "Nhà sáng tạo tự do",
-      icon: Zap,
-      popular: true,
-      cta: "Chọn gói Starter",
-      features: [
-        "30 lượt phân tích chuyên sâu/tháng",
-        "Xem đầy đủ bảng xếp hạng xu hướng",
-        "Tư vấn chatbot AI không giới hạn",
-        "Thư viện video TikTok 7 ngày gần nhất",
-        "Hỗ trợ kỹ thuật ưu tiên",
-      ],
-    },
-    {
-      name: "Pro",
-      priceDisplay: "499.000đ",
-      tagline: "Nhà sáng tạo chuyên nghiệp",
-      icon: Sparkles,
-      popular: false,
-      cta: "Đăng ký Pro",
-      features: [
-        "80 lượt phân tích chuyên sâu/tháng",
-        "Xem đầy đủ bảng xếp hạng xu hướng",
-        "Thư viện video TikTok 30 ngày gần nhất",
-        "So sánh đối chiếu ngách đa chiều",
-        "Hỗ trợ kỹ thuật ưu tiên cao",
-      ],
-    },
-  ],
-  biannual: [
-    {
-      name: "Free",
-      priceDisplay: "Miễn phí",
-      tagline: "Trải nghiệm GetViews",
-      icon: Gift,
-      popular: false,
-      cta: "Bắt đầu miễn phí",
-      features: [
-        "10 lượt phân tích chuyên sâu",
-        "Xem ý tưởng & xu hướng cơ bản",
-        "Tư vấn chatbot AI không giới hạn",
-        "Hỗ trợ qua email nhanh chóng",
-      ],
-    },
-    {
-      name: "Starter",
-      priceDisplay: "199.000đ",
-      tagline: "Nhà sáng tạo tự do",
-      icon: Zap,
-      popular: true,
-      cta: "Chọn gói Starter",
-      features: [
-        "30 lượt phân tích chuyên sâu/tháng",
-        "Xem đầy đủ bảng xếp hạng xu hướng",
-        "Tư vấn chatbot AI không giới hạn",
-        "Thư viện video TikTok 7 ngày gần nhất",
-        "Hỗ trợ kỹ thuật ưu tiên",
-      ],
-    },
-    {
-      name: "Pro",
-      priceDisplay: "449.000đ",
-      tagline: "Nhà sáng tạo chuyên nghiệp",
-      icon: Sparkles,
-      popular: false,
-      cta: "Đăng ký Pro",
-      features: [
-        "80 lượt phân tích chuyên sâu/tháng",
-        "Xem đầy đủ bảng xếp hạng xu hướng",
-        "Thư viện video TikTok 30 ngày gần nhất",
-        "So sánh đối chiếu ngách đa chiều",
-        "Hỗ trợ kỹ thuật ưu tiên cao",
-      ],
-    },
-  ],
-  annual: [
-    {
-      name: "Free",
-      priceDisplay: "Miễn phí",
-      tagline: "Trải nghiệm GetViews",
-      icon: Gift,
-      popular: false,
-      cta: "Bắt đầu miễn phí",
-      features: [
-        "10 lượt phân tích chuyên sâu",
-        "Xem ý tưởng & xu hướng cơ bản",
-        "Tư vấn chatbot AI không giới hạn",
-        "Hỗ trợ qua email nhanh chóng",
-      ],
-    },
-    {
-      name: "Starter",
-      priceDisplay: "199.000đ",
-      tagline: "Nhà sáng tạo tự do",
-      icon: Zap,
-      popular: true,
-      cta: "Chọn gói Starter",
-      features: [
-        "30 lượt phân tích chuyên sâu/tháng",
-        "Xem đầy đủ bảng xếp hạng xu hướng",
-        "Tư vấn chatbot AI không giới hạn",
-        "Thư viện video TikTok 7 ngày gần nhất",
-        "Hỗ trợ kỹ thuật ưu tiên",
-      ],
-    },
-    {
-      name: "Pro",
-      priceDisplay: "399.000đ",
-      tagline: "Nhà sáng tạo chuyên nghiệp",
-      icon: Sparkles,
-      popular: false,
-      cta: "Đăng ký Pro",
-      features: [
-        "80 lượt phân tích chuyên sâu/tháng",
-        "Xem đầy đủ bảng xếp hạng xu hướng",
-        "Thư viện video TikTok 30 ngày gần nhất",
-        "So sánh đối chiếu ngách đa chiều",
-        "Hỗ trợ kỹ thuật ưu tiên cao",
-      ],
-    },
-  ],
-};
+const planCards = [
+  {
+    name: "Free",
+    tagline: "Trải nghiệm GetViews",
+    icon: Gift,
+    popular: false,
+    cta: "Bắt đầu miễn phí",
+    features: [
+      "10 lượt phân tích chuyên sâu",
+      "Xem ý tưởng & xu hướng cơ bản",
+      "Tư vấn chatbot AI không giới hạn",
+      "Hỗ trợ qua email nhanh chóng",
+    ],
+  },
+  {
+    name: "Starter",
+    tagline: "Nhà sáng tạo tự do",
+    icon: Zap,
+    popular: true,
+    cta: "Chọn gói Starter",
+    features: [
+      "30 lượt phân tích chuyên sâu/tháng",
+      "Xem đầy đủ bảng xếp hạng xu hướng",
+      "Tư vấn chatbot AI không giới hạn",
+      "Thư viện video TikTok 7 ngày gần nhất",
+      "Hỗ trợ kỹ thuật ưu tiên",
+    ],
+  },
+  {
+    name: "Pro",
+    tagline: "Nhà sáng tạo chuyên nghiệp",
+    icon: Sparkles,
+    popular: false,
+    cta: "Đăng ký Pro",
+    features: [
+      "80 lượt phân tích chuyên sâu/tháng",
+      "Xem đầy đủ bảng xếp hạng xu hướng",
+      "Thư viện video TikTok 30 ngày gần nhất",
+      "So sánh đối chiếu ngách đa chiều",
+      "Hỗ trợ kỹ thuật ưu tiên cao",
+    ],
+  },
+] as const;
 
 const periodLabels: Record<Period, string> = {
   monthly: "Tháng",
@@ -218,7 +122,7 @@ function PlanCard({
   userTier,
   compact = false,
 }: {
-  plan: (typeof plans.monthly)[number];
+  plan: (typeof planCards)[number];
   period: Period;
   index: number;
   subscription: SubRow;
@@ -239,19 +143,7 @@ function PlanCard({
     navigate("/app/checkout", { state: { plan: planKey, billingPeriod: period } });
   };
 
-  const subtextPrice = () => {
-    if (isFree) return "";
-    if (period === "monthly") return "Gia hạn hàng tháng";
-    if (isStarter) {
-      if (period === "biannual") return "Thanh toán 1.194.000đ mỗi 6 tháng";
-      return "Thanh toán 2.388.000đ mỗi năm";
-    }
-    if (plan.name === "Pro") {
-      if (period === "biannual") return "Thanh toán 2.694.000đ mỗi 6 tháng";
-      return "Thanh toán 4.788.000đ mỗi năm";
-    }
-    return "";
-  };
+  const price = planPricePresentation(plan.name, period);
 
   return (
     <motion.div
@@ -304,28 +196,46 @@ function PlanCard({
           </div>
         </div>
 
-        <div className={`flex flex-col justify-center ${compact ? "mb-3 min-h-[40px]" : "mb-4 min-h-[52px]"}`}>
+        <div className={`flex flex-col justify-center ${compact ? "mb-3 min-h-[40px]" : "mb-4 min-h-[4.5rem]"}`}>
           {isFree ? (
             <p className={`font-mono font-bold text-[color:var(--gv-ink)] ${compact ? "text-xl" : "text-2xl"}`}>
               Miễn phí
             </p>
           ) : (
-            <div className="flex flex-wrap items-baseline gap-1">
-              <p
-                className={`font-mono font-bold leading-none text-[color:var(--gv-ink)] ${
-                  compact ? "text-lg" : "text-[1.75rem]"
-                }`}
-              >
-                {plan.priceDisplay}
-              </p>
-              <span className="text-[10px] font-medium text-[color:var(--gv-ink-3)] sm:text-xs">/tháng</span>
-            </div>
+            <>
+              <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5">
+                {price.strikePrice ? (
+                  <span
+                    className={`font-mono tabular-nums text-[color:var(--gv-ink-4)] line-through ${
+                      compact ? "text-xs" : "text-sm"
+                    }`}
+                  >
+                    {price.strikePrice}
+                  </span>
+                ) : null}
+                <p
+                  className={`font-mono font-bold leading-none tabular-nums text-[color:var(--gv-ink)] ${
+                    compact ? "text-lg" : "text-[1.75rem]"
+                  }`}
+                >
+                  {price.mainPrice}
+                </p>
+                {price.showPerMonthSuffix ? (
+                  <span className="text-[10px] font-medium text-[color:var(--gv-ink-3)] sm:text-xs">/tháng</span>
+                ) : null}
+              </div>
+              {!compact && price.billingLine ? (
+                <p className="mt-1 font-mono text-[10px] font-medium leading-snug text-[color:var(--gv-ink-3)]">
+                  {price.billingLine}
+                </p>
+              ) : null}
+              {!compact && price.savingsLine ? (
+                <p className="mt-0.5 text-[10px] font-medium leading-snug text-[color:var(--gv-accent-deep)]">
+                  {price.savingsLine}
+                </p>
+              ) : null}
+            </>
           )}
-          {!isFree && !compact ? (
-            <p className="mt-1 font-mono text-[10px] font-medium uppercase tracking-wider text-[color:var(--gv-ink-4)]">
-              {subtextPrice()}
-            </p>
-          ) : null}
         </div>
 
         <ul className={`flex-1 space-y-1.5 ${compact ? "mb-3" : "mb-5 space-y-2"}`}>
@@ -400,7 +310,7 @@ export type PricingContentProps = {
 export function PricingContent({ embedded = false, onBack }: PricingContentProps = {}) {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>("annual");
-  const currentPlans = plans[period];
+  const currentPlans = planCards;
   const savingsMsg = pricingSavings[period];
   const { data: profile, isPending: profileLoading } = useProfile();
   const { data: subscription } = useSubscription();

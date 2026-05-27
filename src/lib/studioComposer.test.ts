@@ -1,6 +1,41 @@
 import { describe, expect, it } from "vitest";
 
-import { planStudioComposerSubmit } from "./studioComposer";
+import {
+  composerDepthHint,
+  composerDepthTooltip,
+  planStudioComposerSubmit,
+} from "./studioComposer";
+
+describe("composerDepthHint", () => {
+  it("explains channel deep cost and remaining runs", () => {
+    const hint = composerDepthHint("channel", "deep", 10);
+    expect(hint.activeLine).toMatch(/Chuyên sâu · 3 credit/);
+    expect(hint.compareLine).toMatch(/Cơ bản · 0 credit/);
+    expect(hint.creditsLine).toMatch(/còn 10 credit/);
+    expect(hint.creditsLine).toMatch(/khoảng 3 lần/);
+  });
+
+  it("explains video basic with run estimate", () => {
+    const hint = composerDepthHint("video_flop", "basic", 5);
+    expect(hint.activeLine).toMatch(/Cơ bản · 1 credit/);
+    expect(hint.creditsLine).toMatch(/khoảng 5 lần/);
+  });
+});
+
+describe("composerDepthTooltip", () => {
+  it("includes cost, deliverable, and run estimate for video deep", () => {
+    const tip = composerDepthTooltip("video_flop", "deep", 6);
+    expect(tip).toMatch(/Chuyên sâu — 2 credit/);
+    expect(tip).toMatch(/heatmap giờ đăng/i);
+    expect(tip).toMatch(/khoảng 3 lần/);
+  });
+
+  it("warns when channel deep credits are insufficient", () => {
+    const tip = composerDepthTooltip("channel", "deep", 2, 3);
+    expect(tip).toMatch(/Cần tối thiểu 3 credit/);
+    expect(tip).toMatch(/còn 2/);
+  });
+});
 
 describe("planStudioComposerSubmit", () => {
   it("routes Khám Kênh to /app/channel with handle and depth", () => {

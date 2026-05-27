@@ -312,7 +312,7 @@ export default function HomeScreen() {
               onChange={handleComposerChange}
               onSubmit={submitStudioComposer}
               placeholder={studioComposerPlaceholder(studioPill, nicheLabel)}
-              nicheLabel={nicheLabel}
+              showNicheCaption={false}
               showUrlChip={composerUrlChip.kind === "tiktok"}
               urlInvalidMessage={
                 composerUrlChip.kind === "invalid" ? composerUrlChip.message : undefined

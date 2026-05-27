@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-27 — Landing marketing audit + shared pricing + studio depth UX
+
+- **Landing:** Anti-guru copy; hero `<form>` + `landingHeroCta` handoff; pricing cards via `planPricePresentation` (per-month, total due, savings); niche-strip R2 thumb fallbacks; hero demo without overlapping badges.
+- **App:** `PricingScreen` uses same `pricingDisplay` helper; `QueryComposer` depth tooltips + hint block; `HomeScreen` hides niche caption in composer.
+- **Test:** `landingHeroCta`, `pricingDisplay`, `QueryComposer` tooltips, `HomeScreen` NichePicker hot badge (2+ niches).
+
 ## 2026-05-27 — Marketing → login funnel fix
 
 - **Fix:** Vercel SPA rewrite `__spa-fallback.html` → `index.html` so `/login` renders auth (was dead-end landing). Landing hero URL + Enter → `/login?next=/app/answer?...`; `postLoginRedirect` persists `next` through OAuth.

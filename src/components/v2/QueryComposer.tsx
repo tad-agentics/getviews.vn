@@ -6,10 +6,12 @@
 import { forwardRef, type ReactNode } from "react";
 import { ArrowUp } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
+import { TooltipContent, TooltipRoot, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
 import {
   STUDIO_COMPOSER_PILLS,
-  composerDepthTitles,
+  composerDepthHint,
+  composerDepthTooltip,
   type StudioComposerPill,
 } from "@/lib/studioComposer";
 
@@ -66,6 +68,42 @@ function intentPillClass(active: boolean): string {
     : "inline-flex min-h-[36px] shrink-0 items-center rounded-full border border-[var(--gv-rule)] bg-[var(--gv-paper)] px-3 text-xs text-[var(--gv-ink-3)] hover:border-[var(--gv-ink-4)] hover:text-[var(--gv-ink)]";
 }
 
+const DEPTH_TOOLTIP_CLASS =
+  "max-w-[min(280px,calc(100vw-2rem))] border border-[color:var(--gv-rule)] bg-[color:var(--gv-ink)] px-3 py-2 text-xs leading-snug text-[color:var(--gv-paper)] shadow-[0_6px_24px_-8px_rgba(0,0,0,0.35)]";
+
+function DepthPillWithTooltip({
+  label,
+  active,
+  disabled,
+  tooltip,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  disabled?: boolean;
+  tooltip: string;
+  onClick: () => void;
+}) {
+  return (
+    <TooltipRoot>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className={depthPillClass(active)}
+          aria-pressed={active}
+          disabled={disabled}
+          onClick={onClick}
+        >
+          {label}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={8} className={DEPTH_TOOLTIP_CLASS}>
+        <p className="m-0 whitespace-pre-line">{tooltip}</p>
+      </TooltipContent>
+    </TooltipRoot>
+  );
+}
+
 export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>(
   function QueryComposer(
     {
@@ -96,20 +134,34 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
 
     const depthVisible =
       (showDepthPicker ?? !followUpSlot) && studioPill !== "script";
-    const depthTitles = composerDepthTitles(studioPill ?? "video_flop");
+    const pillForDepth = studioPill ?? "video_flop";
+    const depthHint =
+      depthVisible && studioPill != null
+        ? composerDepthHint(pillForDepth, analysisDepth, creditsRemaining)
+        : null;
+    const basicTooltip = composerDepthTooltip(
+      pillForDepth,
+      "basic",
+      creditsRemaining,
+      channelDeepCreditCost,
+    );
+    const deepTooltip = composerDepthTooltip(
+      pillForDepth,
+      "deep",
+      creditsRemaining,
+      channelDeepCreditCost,
+    );
     const showStudioPills = studioPill != null && onStudioPillChange != null && !followUpSlot;
     const channelDeepDisabled =
       studioPill === "channel" &&
       creditsRemaining != null &&
       creditsRemaining < channelDeepCreditCost;
-    const channelDeepTitle = channelDeepDisabled
-      ? `Cần ${channelDeepCreditCost} credit — bạn còn ${creditsRemaining}`
-      : depthTitles.deep;
 
     return (
     <div className="gv-surface-brutal">
       <div className="px-5 pt-4 pb-2">
         <textarea
+          key={studioPill ?? "composer"}
           ref={ref}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -129,6 +181,20 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
           <p className="mt-1 gv-kicker text-[var(--gv-ink-4)]">
             NGHIÊN CỨU · {nicheLabel}
           </p>
+        ) : null}
+        {depthHint ? (
+          <div
+            id="composer-depth-hint"
+            className="mt-3 space-y-1 border-t border-[color:var(--gv-rule-2)] pt-3 text-[11px] leading-snug text-[color:var(--gv-ink-3)]"
+          >
+            <p className="m-0 font-medium text-[color:var(--gv-ink-2)]">{depthHint.activeLine}</p>
+            <p className="m-0 text-[color:var(--gv-ink-4)]">{depthHint.compareLine}</p>
+            {depthHint.creditsLine ? (
+              <p className="m-0 font-[family-name:var(--gv-font-mono)] text-[color:var(--gv-ink-3)]">
+                {depthHint.creditsLine}
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--gv-rule)] px-3 py-2">
@@ -176,27 +242,22 @@ export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>
               className="flex shrink-0 items-center gap-1.5"
               role="group"
               aria-label="Mức phân tích"
+              aria-describedby={depthHint ? "composer-depth-hint" : undefined}
             >
-              <button
-                type="button"
-                className={depthPillClass(analysisDepth === "basic")}
-                aria-pressed={analysisDepth === "basic"}
-                title={depthTitles.basic}
+              <DepthPillWithTooltip
+                label="Cơ bản"
+                active={analysisDepth === "basic"}
                 disabled={disabled}
+                tooltip={basicTooltip}
                 onClick={() => onAnalysisDepthChange?.("basic")}
-              >
-                Cơ bản
-              </button>
-              <button
-                type="button"
-                className={depthPillClass(analysisDepth === "deep")}
-                aria-pressed={analysisDepth === "deep"}
-                title={channelDeepTitle}
+              />
+              <DepthPillWithTooltip
+                label="Chuyên sâu"
+                active={analysisDepth === "deep"}
                 disabled={disabled || channelDeepDisabled}
+                tooltip={deepTooltip}
                 onClick={() => onAnalysisDepthChange?.("deep")}
-              >
-                Chuyên sâu
-              </button>
+              />
             </div>
           ) : null}
           <Btn
