@@ -62,7 +62,7 @@ def test_try_on_demand_cache_hit_repairs_poisoned_blob() -> None:
         "computed_at": "2099-01-01T00:00:00+00:00",
     }
     mock_sb = MagicMock()
-    mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+    mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
         data=[row],
     )
 

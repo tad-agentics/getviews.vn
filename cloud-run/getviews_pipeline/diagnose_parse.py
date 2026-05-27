@@ -71,11 +71,36 @@ def _format_views_compact_vi(n: int) -> str:
 
 
 _SECTION_TILE_NARRATIVE_ANGLE: dict[str, str] = {
-    "hook_analysis": "Góc hook: 3 giây đầu mở bằng gì, nhịp cắt và lời thoại khác clip của bạn thế nào.",
-    "diagnosis": "Góc hiệu quả: format và cách giữ chân giúp video này chạy tốt trong ngách — áp dụng phần nào cho clip của bạn.",
-    "niche_pattern": "Góc pattern: format/hook đang thắng trong ngách — xem họ lặp lại yếu tố nào.",
-    "distribution": "Góc phân phối: thời điểm đăng và tín hiệu FYP — so với khung giờ bạn đang dùng.",
-    "script_structure": "Góc cấu trúc: nhịp segment và CTA — đối chiếu với timeline clip của bạn.",
+    "hook_analysis": "Hãy quan sát kỹ cách video này tối ưu 3 giây đầu (về nhịp cắt cảnh, cách hiện chữ overlay và hình ảnh mở đầu) để học hỏi cách lôi cuốn người lướt ngay lập tức.",
+    "diagnosis": "Phân tích cách video này xây dựng format và giữ chân khán giả ổn định xuyên suốt thời lượng để áp dụng các điểm tương đồng vào clip của bạn.",
+    "niche_pattern": "Đây là một công thức đang thắng lớn trong ngách. Hãy xem cách họ lặp lại các yếu tố cốt lõi để đưa vào kịch bản tiếp theo của bạn.",
+    "distribution": "Tham khảo khung giờ đăng và nhịp cắn xu hướng của video này để tối ưu hóa thời điểm phân phối hiệu quả nhất cho kênh của bạn.",
+    "script_structure": "Hãy đối chiếu nhịp phân đoạn, diễn tiến câu chuyện và cách họ chuyển cảnh (transitions) với cấu trúc clip của bạn.",
+}
+
+CONTENT_FORMAT_VI: dict[str, str] = {
+    "tutorial": "hướng dẫn (tutorial)",
+    "review": "đánh giá (review)",
+    "haul": "mua sắm (haul)",
+    "grwm": "GRWM (chuẩn bị cùng tôi)",
+    "vlog": "vlog",
+    "before_after": "trước và sau (before/after)",
+    "pov": "POV (góc nhìn)",
+    "talking_head": "nói trước camera (talking head)",
+    "storytime": "kể chuyện",
+    "listicle": "danh sách (listicle)",
+    "mukbang": "mukbang",
+    "recipe": "nấu ăn",
+    "comparison": "so sánh",
+    "storytelling": "kể chuyện",
+    "comedy_skit": "tiểu phẩm hài",
+    "outfit_transition": "phối đồ / biến hình (outfit transition)",
+    "dance": "nhảy",
+    "faceless": "không lộ mặt",
+    "highlight": "tóm tắt clip",
+    "gameplay": "chơi game",
+    "lesson": "bài học",
+    "other": "khác",
 }
 
 
@@ -88,24 +113,58 @@ def fallback_tile_narrative_vi(
     handle = str(tile.get("author_handle") or "").strip()
     if handle and not handle.startswith("@"):
         handle = f"@{handle}"
-    desc = str(tile.get("caption_snippet") or "").strip()
-    if len(desc) > 100:
-        desc = desc[:97] + "…"
-    hook = str(tile.get("hook_type") or "").strip()
-    fmt = str(tile.get("content_format") or "").strip()
-    lead = f"Video tham chiếu «{desc}»" if desc else "Video tham chiếu trong cùng ngách"
-    parts = [lead]
-    if views > 0:
-        parts.append(f"đạt {_format_views_compact_vi(views)} view")
+
+    hook_raw = str(tile.get("hook_type") or "").strip()
+    fmt_raw = str(tile.get("content_format") or "").strip()
+
+    # Translate hook and format
+    from getviews_pipeline.enum_labels_vi import hook_type_vi
+
+    hook_translated = ""
+    if hook_raw:
+        hook_translated = hook_type_vi(hook_raw, default="")
+        if hook_translated and hook_translated.lower() != "khác":
+            hook_translated = f"dạng hook '{hook_translated}'"
+
+    fmt_translated = ""
+    if fmt_raw:
+        fmt_translated = CONTENT_FORMAT_VI.get(fmt_raw.lower().replace(" ", "_"), "")
+        if fmt_translated and fmt_translated.lower() != "khác":
+            fmt_translated = f"định dạng '{fmt_translated}'"
+
+    # Views label
+    views_label = f"{_format_views_compact_vi(views)} view" if views > 0 else ""
+
+    # Subject
     if handle:
-        parts.append(f"từ {handle}")
-    if hook:
-        parts.append(f"hook {hook}")
-    elif fmt:
-        parts.append(f"format {fmt}")
+        if views_label:
+            subject = f"Kênh {handle} ({views_label})"
+        else:
+            subject = f"Kênh {handle}"
+    else:
+        if views_label:
+            subject = f"Một video cùng ngách đạt {views_label}"
+        else:
+            subject = "Một video cùng ngách"
+
+    # Action / context
+    details = []
+    if fmt_translated:
+        details.append(fmt_translated)
+    if hook_translated:
+        details.append(hook_translated)
+
+    if details:
+        action = f"triển khai rất thành công {' kết hợp với '.join(details)}"
+    else:
+        action = "đang vận hành cực kỳ hiệu quả"
+
+    # Section-specific instruction/value
     angle = _SECTION_TILE_NARRATIVE_ANGLE.get(section_id.strip(), "")
-    body = " — ".join(parts) + "."
-    return f"{body} {angle}" if angle else f"{body} So sánh hook và nhịp dẫn với clip của bạn."
+    if not angle:
+        angle = "Hãy đối chiếu cách mở đầu và giữ chân của video này để cải thiện cho clip của bạn."
+
+    return f"{subject} {action}. {angle}"
 
 
 def ensure_distinct_tile_narratives(
