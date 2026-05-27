@@ -24,15 +24,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
-        {/* Favicon — SVG mark on magenta tile per Branding Guideline.
-         * Modern browsers pick the SVG; Safari / older Edge fall back to
-         * the .ico. ``apple-touch-icon`` reuses the SVG (iOS 17+ accepts
-         * it; pre-17 falls back to a system-generated 180×180 from the
-         * <link rel=icon>). The PNG fallback for Android home-screen
-         * icons lives in manifest.json. */}
+        {/* Favicon + PWA icons — magenta tile + white mark (Branding §07).
+         * SVG for modern tabs; PNG/ICO fallbacks for Safari, iOS, Android. */}
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="48x48" />
-        <link rel="apple-touch-icon" href="/favicon.svg" />
+        <link rel="icon" type="image/png" href="/icons/icon-32.png" sizes="32x32" />
+        <link rel="icon" type="image/png" href="/icons/icon-16.png" sizes="16x16" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/icons/icon-180.png" sizes="180x180" />
         {/* PWA manifest + theme — magenta brand accent for the URL bar
          * on Android Chrome standalone PWA. */}
         <meta name="theme-color" content="#F72585" />
