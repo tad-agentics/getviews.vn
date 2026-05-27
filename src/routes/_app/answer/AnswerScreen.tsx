@@ -277,6 +277,7 @@ export default function AnswerScreen() {
     preSynthesisData,
     channelContext,
     narrativeReady,
+    reset: resetStream,
   } = useSessionStream<ReportV1>({
     invalidateKeys: uid ? [answerSessionKeys.listsForUser(uid)] : [],
   });
@@ -367,6 +368,11 @@ export default function AnswerScreen() {
     hasReplayHandles &&
     Boolean(error && RETRYABLE_STREAM_ERRORS.has(error));
 
+  /** Stream disconnect errors only apply while the session has no persisted turn. */
+  const showAnswerErrorBanner = Boolean(
+    error && (turnCount === 0 || !RETRYABLE_STREAM_ERRORS.has(error)),
+  );
+
   // Legacy state handoff → canonical query params (§3.1).
   useEffect(() => {
     const state = location.state as { initialPrompt?: string; prefillUrl?: string } | null | undefined;
@@ -396,6 +402,31 @@ export default function AnswerScreen() {
   const resumeFiredRef = useRef<string | null>(null);
   /** Skip tab-reload auto-resume right after bootstrap stream fail (user picks "Tiếp tục"). */
   const skipAutoResumeSessionRef = useRef<string | null>(null);
+  const prevSessionIdRef = useRef<string | null>(null);
+
+  /** Drop composer/stream stale state when switching between two open sessions. */
+  useEffect(() => {
+    const prev = prevSessionIdRef.current;
+    const next = sessionId ?? null;
+    prevSessionIdRef.current = next;
+    if (prev === next) return;
+    // First attach of ?session= after bootstrap must keep the stream-fail banner.
+    if (prev === null) return;
+    setError(null);
+    resetStream();
+    resumeFiredRef.current = null;
+    skipAutoResumeSessionRef.current = null;
+  }, [sessionId, resetStream]);
+
+  /** Completed sessions must not show a prior stream-fail banner or pipeline snapshot. */
+  useEffect(() => {
+    if (turnCount === 0 || streamInFlight || bootstrapLoading) return;
+    setError((prev) => (prev && RETRYABLE_STREAM_ERRORS.has(prev) ? null : prev));
+    if (streamStatus !== "idle") {
+      resetStream();
+    }
+    clearPendingAnswerStream();
+  }, [turnCount, streamInFlight, bootstrapLoading, streamStatus, resetStream]);
 
   useEffect(() => {
     if (!sessionId || !CLOUD || !user) return;
@@ -1111,10 +1142,10 @@ export default function AnswerScreen() {
                   </Btn>
                 </div>
               ) : null}
-              {error ? (
+              {showAnswerErrorBanner ? (
                 <div className="mt-4">
                   <p className="text-sm text-[var(--gv-danger)]">
-                    {RETRYABLE_STREAM_ERRORS.has(error)
+                    {error && RETRYABLE_STREAM_ERRORS.has(error)
                       ? answerStreamErrorCopy(error, canResumeInterruptedStream)
                       : analysisErrorCopy(error)}
                   </p>

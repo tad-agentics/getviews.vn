@@ -187,6 +187,7 @@ vi.mock("@/hooks/useAnswerSessionQueries", async () => {
 });
 
 const mockStream = vi.fn();
+const mockResetStream = vi.fn();
 vi.mock("@/hooks/useSessionStream", () => ({
   useSessionStream: () => ({
     stream: mockStream,
@@ -203,7 +204,7 @@ vi.mock("@/hooks/useSessionStream", () => ({
     narrativeReady: null,
     heartbeatElapsedSec: 0,
     abort: vi.fn(),
-    reset: vi.fn(),
+    reset: mockResetStream,
   }),
 }));
 
@@ -458,6 +459,52 @@ describe("AnswerScreen state transitions", () => {
       expect(router.state.location.search).toContain("session=new-sess");
     });
     expect(screen.getByTestId("resume-stream-btn")).toBeTruthy();
+  });
+
+  it("clears stale stream error when navigating to a completed session", async () => {
+    const failQ = "https://www.tiktok.com/@creator/video/111";
+    mockCreateAnswerSession.mockResolvedValue({
+      id: "fail-sess",
+      user_id: "user-1",
+      title: null,
+      initial_q: failQ,
+      intent_type: "video_diagnosis",
+      format: "video",
+      niche_id: null,
+    });
+    mockStream.mockResolvedValue({ ok: false, error: "stream_failed" });
+
+    const router = createMemoryRouter(
+      [{ path: "/app/answer", element: <AnswerScreen /> }],
+      { initialEntries: [`/app/answer?q=${encodeURIComponent(failQ)}&depth=basic`] },
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Kết nối streaming bị ngắt/)).toBeTruthy();
+    });
+
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: {
+        session: makeSession({ id: "done-sess", format: "video" }),
+        turns: [makeTurn({ session_id: "done-sess", payload: { kind: "video", report: {} } as ReportV1 })],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    await router.navigate(`/app/answer?session=done-sess`);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Kết nối streaming bị ngắt/)).toBeNull();
+    });
+    expect(screen.getByTestId("turn-0")).toBeTruthy();
+    expect(mockResetStream).toHaveBeenCalled();
   });
 
   it("does not show resume button when stream fails without replay handles", async () => {
