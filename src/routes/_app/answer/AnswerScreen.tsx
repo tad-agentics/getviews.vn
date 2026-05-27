@@ -128,12 +128,6 @@ function showInlineRetryButton(opts: {
   return turnCount === 0 && Boolean(primaryRetryQuery);
 }
 
-function relatedFromReport(p: ReportV1 | null): string[] {
-  if (!p) return [];
-  const report = p.report as { related_questions?: string[] };
-  return report.related_questions ?? [];
-}
-
 function answerSessionUrlParams(
   sessionId: string,
   q: string,
@@ -1304,8 +1298,6 @@ export default function AnswerScreen() {
     sessionId && lastPayload && !loading && !streamInFlight && turnCount > 0,
   );
 
-  const relatedQuestions = useMemo(() => relatedFromReport(lastPayload), [lastPayload]);
-
   const appendVideoTurnQuery = useCallback(
     (query: string) => {
       if (!sessionId) return;
@@ -1627,11 +1619,11 @@ export default function AnswerScreen() {
               ) : null}
               {showIntentCtaRail ? (
                 <div
-                  className="sticky bottom-0 z-20 -mx-4 border-t border-[color:var(--gv-rule)] bg-[color:color-mix(in_srgb,var(--gv-canvas)_94%,transparent)] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md min-[900px]:-mx-6"
+                  className="sticky bottom-3 z-20 mt-6 mb-5 -mx-4 border-t border-[color:var(--gv-rule)] bg-[color:color-mix(in_srgb,var(--gv-canvas)_94%,transparent)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-md min-[900px]:bottom-4 min-[900px]:-mx-6"
                   aria-label="Gợi ý bước tiếp theo (cố định)"
                 >
-                  <p className="mb-2 gv-kicker text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
-                    Vuốt lên để đọc báo cáo · chọn bước tiếp theo bên dưới
+                  <p className="mb-3 gv-kicker text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
+                    Tiếp tục nghiên cứu
                   </p>
                   <IntentCtaRail
                     context={intentCtaContext}
@@ -1641,18 +1633,7 @@ export default function AnswerScreen() {
                   />
                 </div>
               ) : null}
-              {sessionId && turnCount > 0 ? (
-                <FollowUpComposer
-                  value={followUp}
-                  onChange={setFollowUp}
-                  onSubmit={submitComposer}
-                  variant="followUp"
-                  suggestedPrompts={relatedQuestions}
-                  disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
-                  analysisDepth={handoff.depth}
-                  onAnalysisDepthChange={setAnalysisDepth}
-                />
-              ) : (
+              {!sessionId || turnCount === 0 ? (
                 <FollowUpComposer
                   value={followUp}
                   onChange={setFollowUp}
@@ -1662,7 +1643,7 @@ export default function AnswerScreen() {
                   analysisDepth={handoff.depth}
                   onAnalysisDepthChange={setAnalysisDepth}
                 />
-              )}
+              ) : null}
             </TimelineRail>
           }
         />

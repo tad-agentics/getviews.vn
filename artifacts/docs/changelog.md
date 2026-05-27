@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-27 — Answer CTA rail (drop duplicate composer)
+
+- **UI:** Sticky `IntentCtaRail` only after a report turn — removed duplicate `FollowUpComposer` (kicker + pills + Gửi). Kicker →「Tiếp tục nghiên cứu」; spacing on sticky footer. Initial composer kept for empty session.
+
 ## 2026-05-27 — Video report coherence (mode / tier / copy)
 
 - **Fix:** `video_report_coherence` — reconcile `mode=flop` → `win` when `performance_tier=hit` or channel ratio ≥2×; filter modeled retention errors on win-framing; deterministic `related_questions`; synthesis prompt breakout note + Vietnamese copy rules (`view`, tỷ lệ tương tác).

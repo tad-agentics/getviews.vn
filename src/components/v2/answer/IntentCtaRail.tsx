@@ -55,7 +55,7 @@ export function IntentCtaRail({
           Tiếp tục nghiên cứu
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
+      <div className={compact ? "flex flex-wrap gap-2.5" : "flex flex-wrap gap-2"}>
         {suggestions.map((s) => (
           <button
             key={s.id}
