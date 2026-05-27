@@ -273,6 +273,20 @@ class IngestResult:
     hashtags_queried: int = 0
 
 
+def _merge_sub_ingest_result(dst: IngestResult, src: IngestResult) -> None:
+    """Copy counters from ``_ingest_candidate_awemes`` sub-result into ``ingest_niche`` result."""
+    dst.inserted = src.inserted
+    dst.skipped = src.skipped
+    dst.failed = src.failed
+    dst.subject_matter_inserted = src.subject_matter_inserted
+    dst.errors = src.errors
+    dst.hi13_batch_line_ok = src.hi13_batch_line_ok
+    dst.hi13_batch_line_fail = src.hi13_batch_line_fail
+    dst.hi13_sync_fallback = src.hi13_sync_fallback
+    dst.hi13_batch_jobs_ok = src.hi13_batch_jobs_ok
+    dst.hi13_batch_jobs_failed = src.hi13_batch_jobs_failed
+
+
 @dataclass
 class BatchSummary:
     total_inserted: int = 0
@@ -3129,10 +3143,7 @@ async def ingest_niche(
         niche_signal_hashtags_by_id=niche_signal_hashtags_by_id,
         ingest_batch_ctx=ingest_batch_ctx,
     )
-    result.inserted = sub.inserted
-    result.skipped = sub.skipped
-    result.failed = sub.failed
-    result.errors = sub.errors
+    _merge_sub_ingest_result(result, sub)
     return result
 
 

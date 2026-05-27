@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-27 — HI-13 dashboard metrics + batch ingest observability
+
+- **Fix:** `ingest_niche()` now merges `hi13_*` counters from `_ingest_candidate_awemes` via `_merge_sub_ingest_result()` — admin HI-13 panel was 0 while `CORPUS_INGEST_USE_GEMINI_BATCH=true` and `gemini_calls.video_extraction_batch` logged real lines.
+- **Ops:** Manually closed stale `batch_job_runs` rows for ingest shifts B/C 27/05 (`failed`, timeout before finalize). Issue: `artifacts/issues/batch-ingest-shift-bc-stale-running.md`.
+- **Test:** `cloud-run/tests/test_ingest_niche_hi13_merge.py`.
+
 ## 2026-05-26 — Wave 2 utilization (B + selective A)
 
 - **B:** `manifest_telemetry()` + `log_manifest_telemetry()` on v6 synthesis; `test_manifest_telemetry.py` section emit QA.
