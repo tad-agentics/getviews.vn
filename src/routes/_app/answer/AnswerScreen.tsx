@@ -128,6 +128,12 @@ function showInlineRetryButton(opts: {
   return turnCount === 0 && Boolean(primaryRetryQuery);
 }
 
+function relatedFromReport(p: ReportV1 | null): string[] {
+  if (!p) return [];
+  const report = p.report as { related_questions?: string[] };
+  return report.related_questions ?? [];
+}
+
 function answerSessionUrlParams(
   sessionId: string,
   q: string,
@@ -737,89 +743,120 @@ export default function AnswerScreen() {
     uid,
   ]);
 
-  const retryFollowUpTurn = useCallback(async () => {
-    if (!sessionId || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
-    const q = followUp.trim();
-    if (!q) return;
-    const turnKind = appendTurnKindForQuery(q, true);
-    setBootstrapLoading(true);
-    setError(null);
-    try {
-      const result = await stream({
-        mode: "answer_turn",
-        answerSessionId: sessionId,
-        query: q,
-        turnKind,
-        sessionFormat: detailQuery.data?.session?.format,
-        sourceEntry: "error_retry_ui",
-        analysisDepth: handoff.depth,
-        videoMode: handoff.mode ?? undefined,
-      });
-      if (!result.ok) {
-        setError(pickAnswerErrorCode(result.error, "follow_up_failed"));
+  const appendFollowUpTurn = useCallback(
+    async (opts: { sourceEntry: "composer" | "error_retry_ui"; clearComposerOnSuccess: boolean }) => {
+      if (!sessionId || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
+      const q = followUp.trim();
+      if (!q) return;
+      const urlBlock = nonTikTokUrlValidationMessage(q);
+      if (urlBlock) {
+        setError("non_tiktok_url");
         return;
       }
-      logUsage("answer_turn_append", {
-        session_id: sessionId,
-        kind: turnKind,
-        source_entry: "error_retry_ui",
-      });
-      if (result.finalPayload) {
-        const cached = queryClient.getQueryData<AnswerDetailCache>(
-          answerSessionKeys.detail(sessionId),
-        );
-        const nextIndex = cached?.turns.length ?? 0;
-        const synthesized: AnswerTurnRow = {
-          id: `optimistic-${sessionId}-${nextIndex}`,
-          session_id: sessionId,
-          turn_index: nextIndex,
-          kind: turnKind,
+      setBootstrapLoading(true);
+      setError(null);
+      try {
+        const entry = planAnswerEntry(q, true);
+        if (entry.kind === "blocked") {
+          setError(entry.reason === "non_tiktok_url" ? "non_tiktok_url" : "follow_up_failed");
+          return;
+        }
+        if (entry.kind === "redirect") {
+          navigate(entry.to);
+          if (opts.clearComposerOnSuccess) setFollowUp("");
+          return;
+        }
+        const turnKind = appendTurnKindForQuery(q, true);
+        const result = await stream({
+          mode: "answer_turn",
+          answerSessionId: sessionId,
           query: q,
-          payload: result.finalPayload,
-          credits_used: turnKind === "script" ? 3 : 0,
-          created_at: new Date().toISOString(),
-        };
-        queryClient.setQueryData<AnswerDetailCache>(
-          answerSessionKeys.detail(sessionId),
-          (prev) => {
-            const fallbackSession = prev?.session ?? {
-              id: sessionId,
-              user_id: user.id,
-              title: null,
-              initial_q: q,
-              intent_type: "follow_up_unclassifiable",
-              format: detailQuery.data?.session?.format ?? "generic",
-              niche_id: null,
-            };
-            return injectOptimisticTurn(prev, fallbackSession, synthesized);
-          },
-        );
+          turnKind,
+          sessionFormat: detailQuery.data?.session?.format,
+          sourceEntry: opts.sourceEntry,
+          analysisDepth: handoff.depth,
+          videoMode: handoff.mode ?? undefined,
+        });
+        if (!result.ok) {
+          setError(pickAnswerErrorCode(result.error, "follow_up_failed"));
+          return;
+        }
+        if (opts.clearComposerOnSuccess) setFollowUp("");
+        logUsage("answer_turn_append", {
+          session_id: sessionId,
+          kind: turnKind,
+          intent_type: entry.intent_type,
+          source_entry: opts.sourceEntry,
+        });
+        if (result.finalPayload) {
+          const cached = queryClient.getQueryData<AnswerDetailCache>(
+            answerSessionKeys.detail(sessionId),
+          );
+          const nextIndex = cached?.turns.length ?? 0;
+          const synthesized: AnswerTurnRow = {
+            id: `optimistic-${sessionId}-${nextIndex}`,
+            session_id: sessionId,
+            turn_index: nextIndex,
+            kind: turnKind,
+            query: q,
+            payload: result.finalPayload,
+            credits_used: turnKind === "script" ? 3 : 0,
+            created_at: new Date().toISOString(),
+          };
+          queryClient.setQueryData<AnswerDetailCache>(
+            answerSessionKeys.detail(sessionId),
+            (prev) => {
+              const fallbackSession = prev?.session ?? {
+                id: sessionId,
+                user_id: user.id,
+                title: null,
+                initial_q: q,
+                intent_type: entry.intent_type,
+                format: detailQuery.data?.session?.format ?? "generic",
+                niche_id: null,
+              };
+              return injectOptimisticTurn(prev, fallbackSession, synthesized);
+            },
+          );
+        }
+        if (uid) {
+          await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
+        }
+      } catch (e) {
+        if (typeof console !== "undefined") {
+          console.error("[answer/follow-up] failed", e);
+        }
+        setError(pickAnswerErrorCode(e, "follow_up_failed"));
+      } finally {
+        setBootstrapLoading(false);
       }
-      if (uid) {
-        await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
-      }
-    } catch (e) {
-      if (typeof console !== "undefined") {
-        console.error("[answer/retry-follow-up] failed", e);
-      }
-      setError(pickAnswerErrorCode(e, "follow_up_failed"));
-    } finally {
-      setBootstrapLoading(false);
-    }
-  }, [
-    sessionId,
-    CLOUD,
-    user,
-    bootstrapLoading,
-    streamInFlight,
-    followUp,
-    stream,
-    queryClient,
-    uid,
-    handoff.depth,
-    handoff.mode,
-    detailQuery.data?.session?.format,
-  ]);
+    },
+    [
+      sessionId,
+      CLOUD,
+      user,
+      bootstrapLoading,
+      streamInFlight,
+      followUp,
+      navigate,
+      stream,
+      queryClient,
+      uid,
+      handoff.depth,
+      handoff.mode,
+      detailQuery.data?.session?.format,
+    ],
+  );
+
+  const submitFollowUpFromComposer = useCallback(
+    () => void appendFollowUpTurn({ sourceEntry: "composer", clearComposerOnSuccess: true }),
+    [appendFollowUpTurn],
+  );
+
+  const retryFollowUpTurn = useCallback(
+    () => void appendFollowUpTurn({ sourceEntry: "error_retry_ui", clearComposerOnSuccess: false }),
+    [appendFollowUpTurn],
+  );
 
   useEffect(() => {
     if (!sessionId && !seedQ.trim()) {
@@ -1181,7 +1218,9 @@ export default function AnswerScreen() {
     }
     if (turnCount === 0) {
       void retryFailedPrimaryTurn();
+      return;
     }
+    void submitFollowUpFromComposer();
   }, [
     followUp,
     CLOUD,
@@ -1193,6 +1232,7 @@ export default function AnswerScreen() {
     setSearchParams,
     turnCount,
     retryFailedPrimaryTurn,
+    submitFollowUpFromComposer,
   ]);
 
   const retryFromErrorBanner = useCallback(() => {
@@ -1263,6 +1303,8 @@ export default function AnswerScreen() {
   const showIntentCtaRail = Boolean(
     sessionId && lastPayload && !loading && !streamInFlight && turnCount > 0,
   );
+
+  const relatedQuestions = useMemo(() => relatedFromReport(lastPayload), [lastPayload]);
 
   const appendVideoTurnQuery = useCallback(
     (query: string) => {
@@ -1598,6 +1640,18 @@ export default function AnswerScreen() {
                     onCta={handleIntentCta}
                   />
                 </div>
+              ) : null}
+              {sessionId && turnCount > 0 ? (
+                <FollowUpComposer
+                  value={followUp}
+                  onChange={setFollowUp}
+                  onSubmit={submitComposer}
+                  variant="followUp"
+                  suggestedPrompts={relatedQuestions}
+                  disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
+                  analysisDepth={handoff.depth}
+                  onAnalysisDepthChange={setAnalysisDepth}
+                />
               ) : (
                 <FollowUpComposer
                   value={followUp}

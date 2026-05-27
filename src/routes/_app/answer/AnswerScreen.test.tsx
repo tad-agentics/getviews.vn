@@ -673,7 +673,7 @@ describe("AnswerScreen state transitions", () => {
     });
   });
 
-  it("shows IntentCtaRail instead of follow-up composer when session has turns", () => {
+  it("shows IntentCtaRail and follow-up composer when session has turns", () => {
     mockUseAnswerSessionDetail.mockReturnValue({
       data: { session: makeSession({ format: "video" }), turns: [makeTurn()] },
       isLoading: false,
@@ -682,7 +682,33 @@ describe("AnswerScreen state transitions", () => {
     });
     renderScreen("/app/answer?session=sess-abc");
     expect(screen.getByTestId("intent-cta-rail")).toBeTruthy();
-    expect(screen.queryByTestId("follow-up-composer")).toBeNull();
+    expect(screen.getByTestId("follow-up-composer").getAttribute("data-variant")).toBe(
+      "followUp",
+    );
+  });
+
+  it("appends a follow-up turn from composer when session already has turns", async () => {
+    mockStream.mockResolvedValue({ ok: true, finalPayload: { kind: "generic", report: {} } });
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: {
+        session: makeSession({ id: "sess-abc", format: "generic" }),
+        turns: [makeTurn()],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderScreen("/app/answer?session=sess-abc");
+    const input = screen.getByTestId("composer-input") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "Hỏi thêm về hook" } });
+    fireEvent.click(screen.getByTestId("composer-submit"));
+
+    await waitFor(() => {
+      expect(mockStream).toHaveBeenCalled();
+    });
+    expect(mockStream.mock.calls[0]?.[0]?.sourceEntry).toBe("composer");
+    expect(mockStream.mock.calls[0]?.[0]?.mode).toBe("answer_turn");
   });
 
   it("shows initial composer when no session is active", () => {
