@@ -1,0 +1,11 @@
+{
+  "applied": "20260527140000_backfill_cross_niche_in_niche",
+  "rows": 48,
+  "in_niche_route": 25,
+  "spotlight": {
+    "video_id": "7643982250861759764",
+    "old_cc": 23,
+    "new_cc": 63,
+    "inferred_cn": 11
+  }
+}
