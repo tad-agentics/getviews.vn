@@ -167,11 +167,9 @@ function exploreVideoPreviewItem(v: ExploreGridVideo): CorpusVideoPreviewItem {
 function VideoCard({
   video,
   onNavigate,
-  nicheLabel,
 }: {
   video: ExploreGridVideo;
   onNavigate?: () => void;
-  nicheLabel?: string;
 }) {
   const [hoverClip, setHoverClip] = useState(false);
   const clipRef = useRef<HTMLVideoElement>(null);
@@ -271,21 +269,19 @@ function VideoCard({
             <CarouselBadge />
           </div>
         ) : null}
-        <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 text-white">
-          <p className="mb-0.5 gv-kicker">↑ {video.views}</p>
+        <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 z-20 text-white">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate gv-kicker text-[11px] text-white/90">{video.handle}</span>
+            <span className="shrink-0 gv-mono text-[11px] font-semibold tabular-nums text-white">
+              {video.views === "—" ? "—" : `${video.views} view`}
+            </span>
+          </div>
           <p className="line-clamp-2 text-[12px] font-medium leading-tight">{video.text || video.caption}</p>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-2 px-0.5">
-        <span className="truncate gv-kicker text-[var(--gv-ink-3)]">{video.handle}</span>
-        <span className="shrink-0 gv-kicker text-[var(--faint)]">{video.time}</span>
-      </div>
       {onNavigate ? (
-        <div className="flex items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1.5 text-[11px] text-[var(--gv-ink-3)]">
-          <span className="min-w-0 truncate">Phân tích video →</span>
-          <span className="max-w-[45%] shrink-0 truncate gv-kicker text-[var(--faint)]">
-            {nicheLabel ?? video.contentFormat ?? "—"}
-          </span>
+        <div className="rounded-md border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1.5 text-[11px] text-[var(--gv-ink-3)]">
+          Phân tích video →
         </div>
       ) : null}
     </button>
@@ -1072,7 +1068,6 @@ export default function ExploreScreen() {
                   >
                     <VideoCard
                       video={video}
-                      nicheLabel={selectedNicheName}
                       onNavigate={() => openCorpusPreview(video)}
                     />
                   </motion.div>
