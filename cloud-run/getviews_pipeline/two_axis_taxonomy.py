@@ -48,14 +48,14 @@ FORMAT_AXIS_SLUGS: Final[tuple[str, ...]] = (
 
 CREATOR_NICHE_VI: Final[dict[str, str]] = {
     "beauty": "Làm đẹp · Skincare",
-    "fashion": "Thời trang · Phụ kiện",
+    "fashion": "Thời trang · Phụ kiện (bao gồm phối đồ, OOTD, giới thiệu quần áo/giày dép/phụ kiện, bán hàng thời trang, và cả review/affiliate Shopee/Lazada/TikTok Shop về quần áo, thời trang, phụ kiện)",
     "food": "Ẩm thực · Ăn uống",
     "lifestyle": "Đời sống · Tâm sự",
     "comedy": "Hài · Giải trí",
     "family": "Nuôi con · Gia đình",
     "education": "Giáo dục · Sự nghiệp",
     "tech_gaming": "Công nghệ · Gaming",
-    "business": "Kinh doanh · Tài chính",
+    "business": "Kinh doanh · Tài chính (khởi nghiệp, đầu tư tài chính, quản trị doanh nghiệp, bài học bán hàng chung. LƯU Ý: Nếu là kinh doanh/bán hàng/review/affiliate các mặt hàng thời trang, quần áo, trang sức, túi xách, phụ kiện trên Shopee/Lazada/TikTok Shop, bắt buộc xếp vào ngách 'fashion' chứ không xếp vào 'business')",
     "wellness": "Sức khoẻ · Wellness",
     "travel": "Du lịch · Thể thao",
     "auto": "Ô tô · Xe máy",
