@@ -108,10 +108,10 @@ function NicheOfYoursBlock() {
   return (
     <div className="px-4 pb-2.5 pt-[14px]">
       <div className="mb-2.5 flex items-center justify-between gap-2">
-        <p className="gv-uc text-[11px] text-[color:var(--gv-ink-3)]">Ngách Của Bạn</p>
+        <p className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-2)]">Ngách Của Bạn</p>
         <button
           type="button"
-          onClick={() => navigate("/app/settings")}
+          onClick={() => navigate("/app/settings?section=niches")}
           className="min-h-[44px] shrink-0 px-1 text-[11px] font-semibold text-[color:var(--gv-ink-3)] transition-colors hover:text-[color:var(--gv-ink)]"
         >
           + ĐỔI
@@ -823,7 +823,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
           {recent.length > 0 && (
             <>
-              <p className="gv-uc mb-2.5 text-[11px] text-[color:var(--gv-ink-3)]">Gần Đây</p>
+              <p className="gv-uc mb-2.5 text-[11px] font-semibold text-[color:var(--gv-ink-2)]">Gần Đây</p>
               <div className="flex flex-col gap-0">
                 {recent.map((session) => (
                   <SessionRow

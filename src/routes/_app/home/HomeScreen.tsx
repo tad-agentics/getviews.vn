@@ -252,7 +252,7 @@ export default function HomeScreen() {
           <FirstRunWelcomeStrip
             firstName={firstName}
             nicheLabel={nicheLabel}
-            onEditNiches={() => navigate("/app/settings")}
+            onEditNiches={() => navigate("/app/settings?section=niches")}
             onDismiss={dismissFirstRun}
           />
         ) : null}
@@ -275,7 +275,7 @@ export default function HomeScreen() {
                     setSelectedNicheId(id);
                     logUsage("home_niche_pick", { niche_id: id });
                   }}
-                  onEditNiches={() => navigate("/app/settings")}
+                  onEditNiches={() => navigate("/app/settings?section=niches")}
                 />
               ) : null}
             </div>
