@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import {
-  Search,
   X,
   ChevronDown,
   Loader2,
@@ -909,13 +908,11 @@ export default function ExploreScreen() {
           ) : null}
 
           <section className="pb-4">
-            {/* Ref: kicker + thesis on the left; search pill on the right (vertical center vs. left block); filters on a second full-width row. */}
-            <div className="mb-3 flex min-w-0 flex-col gap-3 min-[1100px]:mb-4 min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-between min-[1100px]:gap-8">
-              <div className="min-w-0 flex-1">
-                <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]">
-                  Phần II — Thư viện video
-                </p>
-                <h2 className="gv-tight m-0 max-w-full text-[clamp(20px,2.3vw,28px)] font-bold leading-[1.2] tracking-[-0.02em] text-[color:var(--gv-ink)]">
+            <div className="mb-3 min-[1100px]:mb-4">
+              <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]">
+                Phần II — Thư viện video
+              </p>
+              <h2 className="gv-tight m-0 max-w-full text-[clamp(20px,2.3vw,28px)] font-bold leading-[1.2] tracking-[-0.02em] text-[color:var(--gv-ink)]">
                 {selectedNicheName ? (
                   <>
                     <span className="font-bold">Tìm trong</span>{" "}
@@ -940,26 +937,7 @@ export default function ExploreScreen() {
                     ) : null}
                   </span>
                 )}
-                </h2>
-              </div>
-
-              <div className="w-full shrink-0 min-[1100px]:w-[min(100%,22rem)] min-[1100px]:max-w-[40%]">
-                <div className="flex h-11 w-full min-w-0 items-center gap-2.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)] focus-within:border-[color:var(--gv-accent)] focus-within:ring-2 focus-within:ring-[color:var(--gv-accent)] focus-within:ring-offset-1">
-                  <Search
-                    className="h-3.5 w-3.5 shrink-0 text-[var(--faint)]"
-                    strokeWidth={1.8}
-                    aria-hidden
-                  />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setFilter({ q: e.target.value || null })}
-                    className="min-h-0 min-w-0 flex-1 border-none bg-transparent py-0.5 text-base font-medium leading-tight text-[var(--ink)] outline-none placeholder:text-[var(--faint)]"
-                    placeholder="Tìm hook, creator, từ khoá…"
-                    aria-label="Tìm video trong kho"
-                  />
-                </div>
-              </div>
+              </h2>
             </div>
 
             <div
