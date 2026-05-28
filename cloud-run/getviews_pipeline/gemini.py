@@ -1183,12 +1183,12 @@ def _inject_fallback_embedded_tiles(
             if t.get("aweme_id")
             and (t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"))
         ]
-        for t in resolved:
+        for idx, t in enumerate(resolved):
             aid = str(t.get("aweme_id") or "").strip()
             if aid:
                 used_aweme.add(aid)
             if not str(t.get("narrative_vi") or "").strip():
-                t["narrative_vi"] = fallback_tile_narrative_vi(t, sid)
+                t["narrative_vi"] = fallback_tile_narrative_vi(t, sid, idx)
         if resolved:
             ensure_distinct_tile_narratives(resolved, sid)
             sec["embedded_tiles"] = resolved[:_MAX_EMBEDDED_TILES_PER_SECTION]

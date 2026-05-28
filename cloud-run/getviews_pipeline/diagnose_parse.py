@@ -70,12 +70,32 @@ def _format_views_compact_vi(n: int) -> str:
     return str(n)
 
 
-_SECTION_TILE_NARRATIVE_ANGLE: dict[str, str] = {
-    "hook_analysis": "Hãy quan sát kỹ cách video này tối ưu 3 giây đầu (về nhịp cắt cảnh, cách hiện chữ overlay và hình ảnh mở đầu) để học hỏi cách lôi cuốn người lướt ngay lập tức.",
-    "diagnosis": "Phân tích cách video này xây dựng format và giữ chân khán giả ổn định xuyên suốt thời lượng để áp dụng các điểm tương đồng vào clip của bạn.",
-    "niche_pattern": "Đây là một công thức đang thắng lớn trong ngách. Hãy xem cách họ lặp lại các yếu tố cốt lõi để đưa vào kịch bản tiếp theo của bạn.",
-    "distribution": "Tham khảo khung giờ đăng và nhịp cắn xu hướng của video này để tối ưu hóa thời điểm phân phối hiệu quả nhất cho kênh của bạn.",
-    "script_structure": "Hãy đối chiếu nhịp phân đoạn, diễn tiến câu chuyện và cách họ chuyển cảnh (transitions) với cấu trúc clip của bạn.",
+_SECTION_TILE_NARRATIVE_ANGLE: dict[str, list[str]] = {
+    "hook_analysis": [
+        "Hãy quan sát kỹ cách video này tối ưu 3 giây đầu (về nhịp cắt cảnh, cách hiện chữ overlay và hình ảnh mở đầu) để học hỏi cách lôi cuốn người lướt ngay lập tức.",
+        "Đặc biệt chú ý đến cú hook mở màn trong 3 giây đầu — cách họ dùng âm thanh kết hợp hình ảnh trực quan để giữ chân người xem không lướt qua.",
+        "Hãy tham khảo nhịp điệu mở đầu của clip này, từ cách đặt tiêu đề chữ nổi bật đến việc đổi góc quay nhanh để tạo cảm giác tò mò lập tức."
+    ],
+    "diagnosis": [
+        "Phân tích cách video này xây dựng format và giữ chân khán giả ổn định xuyên suốt thời lượng để áp dụng các điểm tương đồng vào clip của bạn.",
+        "Hãy quan sát cấu trúc kịch bản và cách họ sắp xếp diễn biến để giữ nhịp độ cuốn hút từ đầu đến cuối mà không bị nhàm chán.",
+        "Chú ý cách họ duy trì tương tác giữa chừng và chốt hạ clip bằng lời kêu gọi hành động tự nhiên, giúp kéo dài thời gian xem trung bình."
+    ],
+    "niche_pattern": [
+        "Đây là một công thức đang thắng lớn trong ngách. Hãy xem cách họ lặp lại các yếu tố cốt lõi để đưa vào kịch bản tiếp theo của bạn.",
+        "Một mô-típ nội dung điển hình đang lên xu hướng mạnh mẽ. Bạn có thể học hỏi cách họ khai thác chủ đề quen thuộc nhưng với cách kể mới lạ.",
+        "Ý tưởng và phong cách thể hiện này rất được ưa chuộng gần đây. Hãy ứng dụng bộ khung này và lồng ghép cá tính riêng của bạn."
+    ],
+    "distribution": [
+        "Tham khảo khung giờ đăng và nhịp cắn xu hướng của video này để tối ưu hóa thời điểm phân phối hiệu quả nhất cho kênh của bạn.",
+        "Quan sát tốc độ tăng trưởng và phản hồi của người xem dưới phần bình luận để rút ra bài học về cách tương tác phù hợp.",
+        "Xem xét nhịp đăng tải và cách điều phối nội dung của kênh này nhằm cải thiện chiến lược phân phối video lên xu hướng tốt hơn."
+    ],
+    "script_structure": [
+        "Hãy đối chiếu nhịp phân đoạn, diễn tiến câu chuyện và cách họ chuyển cảnh (transitions) với cấu trúc clip của bạn.",
+        "Tham khảo mạch kịch bản chi tiết, sự phân bổ thời lượng giữa các phần và cách chuyển ý mượt mà để hoàn thiện cấu trúc clip của bạn.",
+        "Học hỏi nhịp dựng phim, cách ghép nhạc nền bổ trợ cho câu chuyện và lối dẫn dắt gãy gọn để áp dụng vào kịch bản mới."
+    ],
 }
 
 CONTENT_FORMAT_VI: dict[str, str] = {
@@ -107,6 +127,7 @@ CONTENT_FORMAT_VI: dict[str, str] = {
 def fallback_tile_narrative_vi(
     tile: dict[str, Any],
     section_id: str = "",
+    idx: int = 0,
 ) -> str:
     """Deterministic comparison blurb when Gemini omits ``narrative_vi`` on a tile."""
     views = int(tile.get("views") or 0)
@@ -138,14 +159,30 @@ def fallback_tile_narrative_vi(
     # Subject
     if handle:
         if views_label:
-            subject = f"Kênh {handle} ({views_label})"
+            if idx % 3 == 0:
+                subject = f"Kênh {handle} ({views_label})"
+            elif idx % 3 == 1:
+                subject = f"Tài khoản {handle} (với {views_label})"
+            else:
+                subject = f"Nhà sáng tạo {handle} (đạt {views_label})"
         else:
-            subject = f"Kênh {handle}"
+            if idx % 3 == 0:
+                subject = f"Kênh {handle}"
+            elif idx % 3 == 1:
+                subject = f"Tài khoản {handle}"
+            else:
+                subject = f"Trang {handle}"
     else:
         if views_label:
-            subject = f"Một video cùng ngách đạt {views_label}"
+            if idx % 2 == 0:
+                subject = f"Một video cùng ngách đạt {views_label}"
+            else:
+                subject = f"Clip cùng chủ đề thu hút {views_label}"
         else:
-            subject = "Một video cùng ngách"
+            if idx % 2 == 0:
+                subject = "Một video cùng ngách"
+            else:
+                subject = "Clip cùng chủ đề"
 
     # Action / context
     details = []
@@ -157,12 +194,24 @@ def fallback_tile_narrative_vi(
     if details:
         action = f"triển khai rất thành công {' kết hợp với '.join(details)}"
     else:
-        action = "đang vận hành cực kỳ hiệu quả"
+        if idx % 3 == 0:
+            action = "đang vận hành cực kỳ hiệu quả"
+        elif idx % 3 == 1:
+            action = "ghi nhận hiệu suất tương tác rất tốt"
+        else:
+            action = "đạt các chỉ số tăng trưởng rất ấn tượng"
 
     # Section-specific instruction/value
-    angle = _SECTION_TILE_NARRATIVE_ANGLE.get(section_id.strip(), "")
-    if not angle:
-        angle = "Hãy đối chiếu cách mở đầu và giữ chân của video này để cải thiện cho clip của bạn."
+    angles = _SECTION_TILE_NARRATIVE_ANGLE.get(section_id.strip())
+    if angles:
+        angle = angles[idx % len(angles)]
+    else:
+        if idx % 3 == 0:
+            angle = "Hãy đối chiếu cách mở đầu và giữ chân của video này để cải thiện cho clip của bạn."
+        elif idx % 3 == 1:
+            angle = "Tham khảo cách thức truyền tải nội dung và giữ nhịp của clip này để tối ưu video tiếp theo."
+        else:
+            angle = "Quan sát nhịp dựng và cách tương tác ở clip này để áp dụng linh hoạt cho sản phẩm của bạn."
 
     return f"{subject} {action}. {angle}"
 
@@ -173,12 +222,12 @@ def ensure_distinct_tile_narratives(
 ) -> None:
     """Regenerate fallback copy when Gemini repeats the same ``narrative_vi`` on multiple tiles."""
     seen: set[str] = set()
-    for tile in tiles:
+    for idx, tile in enumerate(tiles):
         if not isinstance(tile, dict):
             continue
         narrative = str(tile.get("narrative_vi") or "").strip()
         if not narrative or narrative in seen:
-            tile["narrative_vi"] = fallback_tile_narrative_vi(tile, section_id)
+            tile["narrative_vi"] = fallback_tile_narrative_vi(tile, section_id, idx)
         seen.add(str(tile.get("narrative_vi") or "").strip())
 
 

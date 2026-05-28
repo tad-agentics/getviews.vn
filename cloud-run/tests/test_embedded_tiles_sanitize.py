@@ -221,3 +221,39 @@ def test_validate_citations_invokes_tile_sanitize() -> None:
     tiles = diag_vi["sections"][0]["embedded_tiles"]
     assert len(tiles) == 1
     assert "đồng hồ" in (tiles[0].get("caption_snippet") or "")
+
+
+def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
+    from getviews_pipeline.diagnose_parse import (
+        fallback_tile_narrative_vi,
+        ensure_distinct_tile_narratives,
+    )
+
+    t1 = {"author_handle": "user1", "views": 100000}
+    t2 = {"author_handle": "user2", "views": 200000}
+    t3 = {"author_handle": "user3", "views": 300000}
+
+    # Verify that different indices generate different phrasings
+    narrative_1 = fallback_tile_narrative_vi(t1, "hook_analysis", 0)
+    narrative_2 = fallback_tile_narrative_vi(t2, "hook_analysis", 1)
+    narrative_3 = fallback_tile_narrative_vi(t3, "hook_analysis", 2)
+
+    assert "tối ưu 3 giây đầu" in narrative_1
+    assert "hook mở màn" in narrative_2
+    assert "nhịp điệu mở đầu" in narrative_3
+
+    assert "đang vận hành cực kỳ hiệu quả" in narrative_1
+    assert "ghi nhận hiệu suất tương tác rất tốt" in narrative_2
+    assert "đạt các chỉ số tăng trưởng rất ấn tượng" in narrative_3
+
+    # Test ensure_distinct_tile_narratives rotates them correctly
+    tiles = [
+        {"aweme_id": "111", "author_handle": "user1", "views": 100000, "narrative_vi": None},
+        {"aweme_id": "222", "author_handle": "user2", "views": 200000, "narrative_vi": None},
+        {"aweme_id": "333", "author_handle": "user3", "views": 300000, "narrative_vi": ""},
+    ]
+    ensure_distinct_tile_narratives(tiles, "hook_analysis")
+
+    assert "tối ưu 3 giây đầu" in tiles[0]["narrative_vi"]
+    assert "hook mở màn" in tiles[1]["narrative_vi"]
+    assert "nhịp điệu mở đầu" in tiles[2]["narrative_vi"]
