@@ -101,15 +101,50 @@ export function buildDiagnosisReferenceTiles(
   return merged.slice(0, 3);
 }
 
+const LEGACY_REF_NARRATIVE_LEAD_RE =
+  /^(?:Kênh|Tài khoản|Nhà sáng tạo|Trang)\s+@\S+/iu;
+const VIEW_COUNT_IN_NARRATIVE_RE = /\([\d.,]+[KM]?\s*view\)/iu;
+const LEGACY_WEAK_MIDDLE_RE =
+  /^(?:đang vận hành cực kỳ hiệu quả|ghi nhận hiệu suất tương tác rất tốt|đạt các chỉ số tăng trưởng rất ấn tượng)\.\s*/iu;
+
+/** Strip handle/view boilerplate from cached tile narratives (footer already shows both). */
+export function sanitizeReferenceTileNarrative(text: string): string {
+  let t = text.trim();
+  if (!t) return t;
+  if (LEGACY_REF_NARRATIVE_LEAD_RE.test(t) || VIEW_COUNT_IN_NARRATIVE_RE.test(t)) {
+    t = t.replace(
+      /^(?:Kênh|Tài khoản|Nhà sáng tạo|Trang)\s+@\S+\s*\([^)]*view\)\s*/iu,
+      "",
+    );
+    t = t.replace(LEGACY_WEAK_MIDDLE_RE, "");
+  }
+  return t.trim();
+}
+
+function referenceFallbackNarrative(tile: DiagnosisReferenceTile): string {
+  const hook = tile.hook_type?.trim();
+  const fmt = tile.content_format?.trim();
+  const parts: string[] = [];
+  if (hook) parts.push(`hook ${hook}`);
+  if (fmt) parts.push(`format ${fmt}`);
+  if (parts.length > 0) {
+    return `Được chọn vì ${parts.join(" và ")} làm tốt hơn median — đối chiếu nhịp mở và cách giữ chân với clip của bạn.`;
+  }
+  return "Được chọn vì cấu trúc format giữ chân ổn định — đối chiếu hook, nhịp dẫn và cách chốt với clip của bạn.";
+}
+
 export function referenceTileNarrative(tile: DiagnosisReferenceTile): string {
   const custom = tile.narrative_vi?.trim();
-  if (custom) return custom;
+  if (custom) {
+    const cleaned = sanitizeReferenceTileNarrative(custom);
+    if (cleaned.length >= 32) return cleaned;
+  }
   const desc = tile.caption_snippet?.trim();
   if (desc) {
     const clipped = desc.length > 180 ? `${desc.slice(0, 177)}…` : desc;
-    return `Video trong ngách làm cùng chủ đề: «${clipped}». So sánh cách mở đầu và nhịp dẫn với clip của bạn.`;
+    return `Được chọn vì cùng chủ đề «${clipped}» — so sánh cách mở đầu và nhịp dẫn với clip của bạn.`;
   }
-  return "Video tham chiếu trong cùng ngách — quan sát hook, nhịp dẫn và cách giữ chân ở vài giây đầu.";
+  return referenceFallbackNarrative(tile);
 }
 
 export function formatCreatorHandle(handle: string | null | undefined): string | null {

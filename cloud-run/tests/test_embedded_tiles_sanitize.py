@@ -223,6 +223,17 @@ def test_validate_citations_invokes_tile_sanitize() -> None:
     assert "đồng hồ" in (tiles[0].get("caption_snippet") or "")
 
 
+def test_tile_narrative_needs_regen_legacy_handle_views() -> None:
+    from getviews_pipeline.diagnose_parse import tile_narrative_needs_regen
+
+    assert tile_narrative_needs_regen(
+        "Kênh @tuyetmia204 (210.2K view) đang vận hành cực kỳ hiệu quả."
+    )
+    assert not tile_narrative_needs_regen(
+        "Được chọn vì hook dạng câu hỏi giữ chân ngay 3 giây đầu."
+    )
+
+
 def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
     from getviews_pipeline.diagnose_parse import (
         fallback_tile_narrative_vi,
@@ -242,9 +253,9 @@ def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
     assert "hook mở màn" in narrative_2
     assert "nhịp điệu mở đầu" in narrative_3
 
-    assert "đang vận hành cực kỳ hiệu quả" in narrative_1
-    assert "ghi nhận hiệu suất tương tác rất tốt" in narrative_2
-    assert "đạt các chỉ số tăng trưởng rất ấn tượng" in narrative_3
+    assert "Được chọn" in narrative_1 or "Tham chiếu" in narrative_1 or "Lý do tham chiếu" in narrative_1
+    assert "đang vận hành cực kỳ hiệu quả" not in narrative_1
+    assert "@user1" not in narrative_1
 
     # Test ensure_distinct_tile_narratives rotates them correctly
     tiles = [

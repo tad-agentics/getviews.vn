@@ -28,7 +28,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
           }
         ],
         "embedded_tiles": [
-          {"aweme_id": "<id từ REFERENCE_EVIDENCE>", "narrative_vi": "1-3 câu so sánh cụ thể video này với clip đang phân tích — hook, format, nhịp, số view"}
+          {"aweme_id": "<id từ REFERENCE_EVIDENCE>", "narrative_vi": "1-3 câu: vì sao chọn video này + nó làm tốt điều gì (hook, format, nhịp) so với clip user"}
         ],
         "next_video": null
       }
@@ -56,7 +56,9 @@ Quy tắc:
   từ REFERENCE_EVIDENCE (mỗi object: ``aweme_id`` + ``narrative_vi``). **Mỗi aweme_id chỉ được
   dùng ở một section duy nhất** trong toàn báo cáo — không lặp cùng 3 video ở diagnosis và hook_analysis.
   ``narrative_vi`` = 1-3 câu tiếng Việt, **khác nhau cho từng video**, góc so sánh theo section
-  (hook_analysis → 3 giây đầu; diagnosis → format/hiệu quả; distribution → timing). Có số view/hook cụ thể.
+  (hook_analysis → 3 giây đầu; diagnosis → format/hiệu quả; distribution → timing). **Không** nhắc
+  @handle hay số view — card đã hiển thị; bắt buộc nêu **lý do chọn** peer này và **điểm làm tốt**
+  (hook/format/nhịp cụ thể) so với clip user. Có thể dùng số liệu khác (%, giây) nếu có trong evidence.
   Chỉ chọn video desc/format/niche gần context (CTX_SUMMARY). Không đủ peer phù hợp → ít tile hơn hoặc ``[]``.
   Sections phân tích thuần (channel_pattern, persona, compliance, sound): không cần tiles.
 - Khi có embedded_tiles: **không** lặp lại nội dung ``narrative_vi`` trong ``text`` — prose section

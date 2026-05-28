@@ -145,8 +145,24 @@ describe("referenceTileNarrative", () => {
         views: 1,
         caption_snippet: "caption",
         posted_at: "",
-        narrative_vi: "So sánh cụ thể với video 34K view.",
+        narrative_vi: "Được chọn vì hook câu hỏi mạnh hơn median.",
       }),
-    ).toBe("So sánh cụ thể với video 34K view.");
+    ).toBe("Được chọn vì hook câu hỏi mạnh hơn median.");
+  });
+
+  it("strips legacy handle and view count from cached narrative", () => {
+    expect(
+      referenceTileNarrative({
+        video_url: "",
+        thumbnail_url: "",
+        views: 210_200,
+        caption_snippet: "",
+        posted_at: "",
+        narrative_vi:
+          "Kênh @tuyetmia204 (210.2K view) đang vận hành cực kỳ hiệu quả. Phân tích cách video này xây dựng format.",
+      }),
+    ).toBe(
+      "Phân tích cách video này xây dựng format.",
+    );
   });
 });

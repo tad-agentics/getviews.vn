@@ -124,96 +124,96 @@ CONTENT_FORMAT_VI: dict[str, str] = {
 }
 
 
+def _tile_hook_fmt_phrases(tile: dict[str, Any]) -> tuple[str, str]:
+    """Return (hook_phrase, format_phrase) for narrative — empty if unknown."""
+    from getviews_pipeline.enum_labels_vi import hook_type_vi
+
+    hook_raw = str(tile.get("hook_type") or "").strip()
+    fmt_raw = str(tile.get("content_format") or "").strip()
+
+    hook_phrase = ""
+    if hook_raw:
+        hook_vi = hook_type_vi(hook_raw, default="")
+        if hook_vi and hook_vi.lower() != "khác":
+            hook_phrase = f"hook dạng {hook_vi}"
+
+    fmt_phrase = ""
+    if fmt_raw:
+        fmt_vi = CONTENT_FORMAT_VI.get(fmt_raw.lower().replace(" ", "_"), "")
+        if fmt_vi and fmt_vi.lower() != "khác":
+            fmt_phrase = f"format {fmt_vi}"
+
+    return hook_phrase, fmt_phrase
+
+
+_LEGACY_TILE_NARRATIVE_LEAD_RE = re.compile(
+    r"^(?:Kênh|Tài khoản|Nhà sáng tạo|Trang)\s+@\S+",
+    re.IGNORECASE,
+)
+
+
+def tile_narrative_needs_regen(narrative: str) -> bool:
+    """True when copy repeats handle/views the card footer already shows."""
+    n = narrative.strip()
+    if not n:
+        return True
+    if _LEGACY_TILE_NARRATIVE_LEAD_RE.match(n):
+        return True
+    if re.search(r"@\w", n) and re.search(r"[\d.,]+[KM]?\s*view", n, re.IGNORECASE):
+        return True
+    return False
+
+
+def _reference_strength_sentence(tile: dict[str, Any], idx: int) -> str:
+    """Why this peer was picked — no @handle or view count (shown on card footer)."""
+    hook_phrase, fmt_phrase = _tile_hook_fmt_phrases(tile)
+    if hook_phrase and fmt_phrase:
+        templates = [
+            f"Được chọn vì {hook_phrase} trên nền {fmt_phrase} giữ chân rõ ngay từ nhịp mở.",
+            f"Tham chiếu vì {fmt_phrase} kết hợp {hook_phrase} tạo lý do dừng lướt ngay đầu clip.",
+            f"Lý do tham chiếu: {hook_phrase} và {fmt_phrase} làm tốt hơn median ngách ở cùng góc so sánh.",
+        ]
+    elif hook_phrase:
+        templates = [
+            f"Được chọn vì {hook_phrase} tạo lý do dừng lướt ngay 3 giây đầu.",
+            f"Tham chiếu vì {hook_phrase} mạnh hơn cách mở clip của bạn ở cùng chủ đề.",
+            f"Lý do tham chiếu: {hook_phrase} giữ nhịp tò mò ngay khung mở.",
+        ]
+    elif fmt_phrase:
+        templates = [
+            f"Được chọn vì {fmt_phrase} giữ nhịp và cấu trúc ổn định suốt clip.",
+            f"Tham chiếu vì {fmt_phrase} duy trì momentum giữa clip tốt hơn median.",
+            f"Lý do tham chiếu: {fmt_phrase} là điểm mạnh cần đối chiếu với video của bạn.",
+        ]
+    else:
+        templates = [
+            "Được chọn vì cấu trúc format và nhịp dẫn nhất quán suốt clip.",
+            "Tham chiếu vì clip này giữ chân ổn định hơn median ở cùng ngách.",
+            "Lý do tham chiếu: nhịp dựng và cách triển khai ý chính rõ ràng, dễ học theo.",
+        ]
+    return templates[idx % len(templates)]
+
+
 def fallback_tile_narrative_vi(
     tile: dict[str, Any],
     section_id: str = "",
     idx: int = 0,
 ) -> str:
     """Deterministic comparison blurb when Gemini omits ``narrative_vi`` on a tile."""
-    views = int(tile.get("views") or 0)
-    handle = str(tile.get("author_handle") or "").strip()
-    if handle and not handle.startswith("@"):
-        handle = f"@{handle}"
+    strength = _reference_strength_sentence(tile, idx)
 
-    hook_raw = str(tile.get("hook_type") or "").strip()
-    fmt_raw = str(tile.get("content_format") or "").strip()
-
-    # Translate hook and format
-    from getviews_pipeline.enum_labels_vi import hook_type_vi
-
-    hook_translated = ""
-    if hook_raw:
-        hook_translated = hook_type_vi(hook_raw, default="")
-        if hook_translated and hook_translated.lower() != "khác":
-            hook_translated = f"dạng hook '{hook_translated}'"
-
-    fmt_translated = ""
-    if fmt_raw:
-        fmt_translated = CONTENT_FORMAT_VI.get(fmt_raw.lower().replace(" ", "_"), "")
-        if fmt_translated and fmt_translated.lower() != "khác":
-            fmt_translated = f"định dạng '{fmt_translated}'"
-
-    # Views label
-    views_label = f"{_format_views_compact_vi(views)} view" if views > 0 else ""
-
-    # Subject
-    if handle:
-        if views_label:
-            if idx % 3 == 0:
-                subject = f"Kênh {handle} ({views_label})"
-            elif idx % 3 == 1:
-                subject = f"Tài khoản {handle} (với {views_label})"
-            else:
-                subject = f"Nhà sáng tạo {handle} (đạt {views_label})"
-        else:
-            if idx % 3 == 0:
-                subject = f"Kênh {handle}"
-            elif idx % 3 == 1:
-                subject = f"Tài khoản {handle}"
-            else:
-                subject = f"Trang {handle}"
-    else:
-        if views_label:
-            if idx % 2 == 0:
-                subject = f"Một video cùng ngách đạt {views_label}"
-            else:
-                subject = f"Clip cùng chủ đề thu hút {views_label}"
-        else:
-            if idx % 2 == 0:
-                subject = "Một video cùng ngách"
-            else:
-                subject = "Clip cùng chủ đề"
-
-    # Action / context
-    details = []
-    if fmt_translated:
-        details.append(fmt_translated)
-    if hook_translated:
-        details.append(hook_translated)
-
-    if details:
-        action = f"triển khai rất thành công {' kết hợp với '.join(details)}"
-    else:
-        if idx % 3 == 0:
-            action = "đang vận hành cực kỳ hiệu quả"
-        elif idx % 3 == 1:
-            action = "ghi nhận hiệu suất tương tác rất tốt"
-        else:
-            action = "đạt các chỉ số tăng trưởng rất ấn tượng"
-
-    # Section-specific instruction/value
     angles = _SECTION_TILE_NARRATIVE_ANGLE.get(section_id.strip())
     if angles:
         angle = angles[idx % len(angles)]
     else:
         if idx % 3 == 0:
-            angle = "Hãy đối chiếu cách mở đầu và giữ chân của video này để cải thiện cho clip của bạn."
+            angle = "Đối chiếu cách mở đầu và giữ chân với clip của bạn."
         elif idx % 3 == 1:
-            angle = "Tham khảo cách thức truyền tải nội dung và giữ nhịp của clip này để tối ưu video tiếp theo."
+            angle = "Quan sát nhịp truyền tải và cách chốt ý để áp dụng cho video tiếp theo."
         else:
-            angle = "Quan sát nhịp dựng và cách tương tác ở clip này để áp dụng linh hoạt cho sản phẩm của bạn."
+            angle = "Học cách họ duy trì momentum giữa clip mà không bị rời nhịp."
 
-    return f"{subject} {action}. {angle}"
+    return f"{strength} {angle}"
 
 
 def ensure_distinct_tile_narratives(
@@ -226,7 +226,7 @@ def ensure_distinct_tile_narratives(
         if not isinstance(tile, dict):
             continue
         narrative = str(tile.get("narrative_vi") or "").strip()
-        if not narrative or narrative in seen:
+        if not narrative or narrative in seen or tile_narrative_needs_regen(narrative):
             tile["narrative_vi"] = fallback_tile_narrative_vi(tile, section_id, idx)
         seen.add(str(tile.get("narrative_vi") or "").strip())
 
