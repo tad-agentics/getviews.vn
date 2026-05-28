@@ -1,10 +1,12 @@
 import { memo, useRef, useState, useCallback } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ArrowRight } from "lucide-react";
 import { CarouselBadge } from "@/components/CarouselBadge";
+import { Btn } from "@/components/v2/Btn";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { formatViews } from "@/lib/formatters";
+import { logUsage } from "@/lib/logUsage";
 import { useTopBreakouts, type BreakoutVideo } from "@/hooks/useTopBreakouts";
 
 /**
@@ -26,8 +28,20 @@ const FALLBACK_PANEL = [
   "bg-[color:var(--gv-avatar-4)]",
 ] as const;
 
+/** Answer-session handoff for a corpus breakout tile (mirrors Explore preview analyze). */
+export function breakoutAnalyzePath(v: Pick<BreakoutVideo, "video_id" | "tiktok_url" | "creator_handle">): string {
+  const handle = v.creator_handle.replace(/^@/, "");
+  const q =
+    v.tiktok_url?.trim() ||
+    (handle
+      ? `https://www.tiktok.com/@${handle}/video/${v.video_id}`
+      : v.video_id);
+  return `/app/answer?q=${encodeURIComponent(q)}&depth=basic&mode=win&from=home-breakout`;
+}
+
 /** Single breakout tile with hover-to-play video preview. */
 function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -53,18 +67,18 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
   }, []);
 
   return (
-    <a
-      key={v.video_id}
-      href={v.tiktok_url}
-      target="_blank"
-      rel="noreferrer"
-      className="group block text-left"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <div
-        className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
+    <div className="flex flex-col">
+      <a
+        href={v.tiktok_url}
+        target="_blank"
+        rel="noreferrer"
+        className="group block text-left"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
+        <div
+          className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
+        >
         {/* Thumbnail — fades out when video is playing */}
         <div className={`absolute inset-0 transition-opacity duration-300 ${playing ? "opacity-0" : "opacity-100"}`}>
           <VideoThumbnail
@@ -131,7 +145,8 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
             )}
           </div>
         </div>
-      </div>
+        </div>
+      </a>
       <div className="mt-3 space-y-1">
         <div className="flex items-center justify-between gap-2">
           <span className="gv-kicker text-[color:var(--gv-ink-3)]">
@@ -154,7 +169,19 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
           </p>
         ) : null}
       </div>
-    </a>
+      <Btn
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="mt-3 w-full"
+        onClick={() => {
+          logUsage("home_breakout_analyze_click", { video_id: v.video_id });
+          navigate(breakoutAnalyzePath(v));
+        }}
+      >
+        Phân tích video
+      </Btn>
+    </div>
   );
 }
 

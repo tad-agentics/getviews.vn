@@ -9,10 +9,10 @@ import { HooksTable } from "./HooksTable";
 import { StudioHero } from "./StudioHero";
 
 function hookTierTitle(nicheId: number | null, isPending: boolean, count: number): string {
-  if (nicheId == null) return "Công thức hook đứng sau gợi ý";
-  if (isPending) return "Công thức hook đứng sau gợi ý";
-  if (count === 0) return "Chưa có công thức hook sau gợi ý";
-  return `${count} công thức hook đứng sau gợi ý`;
+  if (nicheId == null) return "Gợi ý công thức hot trend";
+  if (isPending) return "Gợi ý công thức hot trend";
+  if (count === 0) return "Chưa có công thức hot trend";
+  return `Gợi ý ${count} công thức hot trend`;
 }
 
 const SEE_ALL_TRENDS = (
@@ -75,7 +75,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           tag="CÔNG THỨC HOOK"
           tagTone="pos"
           title={tier02Title}
-          caption="Khung tiêu đề (hook) thu hút người xem nhất 7 ngày qua — ba ý tưởng gợi ý ở trên đều được phát triển dựa theo các công thức này. Hãy giữ nguyên cấu trúc và thay đổi chủ đề theo phong cách của bạn."
+          caption="Hook (Phần mở đầu) thu hút người xem nhất 7 ngày qua — ba ý tưởng gợi ý ở trên đều được phát triển dựa theo các công thức này. Hãy giữ nguyên cấu trúc và thay đổi chủ đề theo phong cách của bạn."
         />
         <HooksTable embedded patternScope={patternScope} />
       </div>
