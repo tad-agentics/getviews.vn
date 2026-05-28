@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-28 — Fashion Shopee affiliate niche remap (A+B+C)
+
+- **Cloud Run:** Deterministic `apply_fashion_commerce_niche_remap()` — business mislabels for fashion/accessories Shopee affiliate → `fashion` slug + fashion junction `content_class_id` (live `_finish_analysis`, batch ingest, ME-17 backfill).
+- **Prompt (A):** HI-9 few-shot ví dụ 4 — Shopee fashion review → `fashion` + `review_unboxing` (not `business`).
+- **Backfill (C):** `run_fashion_commerce_remap_backfill()` for rows with `inferred_creator_niche_id=9` or business commerce classes 47–49; ME-17 fix `ingest_loop_niche_id` resolver (was dropped `niche_id`).
+
 ## 2026-05-27 — Landing marketing audit + shared pricing + studio depth UX
 
 - **Landing:** Anti-guru copy; hero `<form>` + `landingHeroCta` handoff; pricing cards via `planPricePresentation` (per-month, total due, savings); niche-strip R2 thumb fallbacks; hero demo without overlapping badges.

@@ -2580,6 +2580,14 @@ async def _ingest_candidate_awemes(
                 resolved_nid,
                 per_niche_hits.get(resolved_nid, 0),
             )
+        from getviews_pipeline.fashion_commerce_niche_remap import (
+            apply_fashion_commerce_niche_remap,
+        )
+
+        fashion_remap = apply_fashion_commerce_niche_remap(
+            analysis.get("analysis") or {},
+            video_id=vid,
+        )
         route_nid, cc_override = _route_niche_and_class_override(
             analysis,
             resolved_nid,
@@ -2587,6 +2595,8 @@ async def _ingest_candidate_awemes(
             loop_content_class_id=aweme.get("_ingest_loop_content_class_id"),
             loop_legacy_niche_id=loop_nid,
         )
+        if fashion_remap.remapped and fashion_remap.content_class_id is not None:
+            cc_override = fashion_remap.content_class_id
         row = _build_corpus_row(
             aweme,
             analysis,

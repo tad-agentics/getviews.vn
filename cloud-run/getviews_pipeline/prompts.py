@@ -150,6 +150,14 @@ Ví dụ 3 — Hài + skit_scripted:
   niche_classification.confidence: 0.93
   niche_classification.rationale: "Nhiều vai, thoại kịch bản, cài twist — không phải talking head tư vấn."
   niche_classification.alternative_creator_niche_slug: null
+
+Ví dụ 4 — Thời trang + review_unboxing (Shopee affiliate — KHÔNG xếp business):
+  content_context.subject_matter: "Review set váy áo mua trên Shopee, phối đồ và CTA link giỏ hàng cuối video."
+  niche_classification.creator_niche_slug: "fashion"
+  niche_classification.format_axis: "review_unboxing"
+  niche_classification.confidence: 0.9
+  niche_classification.rationale: "Trọng tâm quần áo/phụ kiện và affiliate sàn — ngách thời trang, không phải kinh doanh chung."
+  niche_classification.alternative_creator_niche_slug: "business"
 """
 
 

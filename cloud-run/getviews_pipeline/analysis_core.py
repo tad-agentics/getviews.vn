@@ -164,6 +164,15 @@ async def _finish_analysis(
         out["entry_cost"] = {"tier": tier, "reasons": reasons}
     except Exception as exc:  # pragma: no cover — score_entry_cost is pure
         logger.warning("entry_cost scoring failed: %s", exc)
+    try:
+        from getviews_pipeline.fashion_commerce_niche_remap import (
+            apply_fashion_commerce_niche_remap,
+        )
+
+        vid = str(getattr(metadata, "video_id", "") or "")
+        apply_fashion_commerce_niche_remap(analysis_dict, video_id=vid)
+    except Exception as exc:  # pragma: no cover — fail-soft guard
+        logger.warning("fashion_commerce_niche_remap failed: %s", exc)
     return out
 
 
