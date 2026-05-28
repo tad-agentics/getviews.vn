@@ -213,7 +213,7 @@ function VideoCard({
       type="button"
       aria-label={cardLabel}
       onClick={() => onNavigate?.()}
-      className="flex w-full cursor-pointer flex-col gap-2 rounded-none border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
+      className="flex w-full cursor-pointer flex-col rounded-none border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
     >
       <div
         className="relative overflow-hidden rounded-lg bg-[var(--surface-alt)] border border-[var(--border)] transition-colors duration-[120ms] hover:border-[var(--gv-ink)]"
@@ -277,13 +277,13 @@ function VideoCard({
             </span>
           </div>
           <p className="line-clamp-2 text-[12px] font-medium leading-tight">{video.text || video.caption}</p>
+          {onNavigate ? (
+            <div className="mt-1.5 rounded-md border border-white/25 bg-black/45 px-2.5 py-1.5 text-[11px] text-white/90 backdrop-blur-[2px]">
+              Phân tích video →
+            </div>
+          ) : null}
         </div>
       </div>
-      {onNavigate ? (
-        <div className="rounded-md border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1.5 text-[11px] text-[var(--gv-ink-3)]">
-          Phân tích video →
-        </div>
-      ) : null}
     </button>
   );
 }

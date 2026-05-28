@@ -2,7 +2,6 @@ import { memo, useRef, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowRight } from "lucide-react";
 import { CarouselBadge } from "@/components/CarouselBadge";
-import { Btn } from "@/components/v2/Btn";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { formatViews } from "@/lib/formatters";
@@ -52,6 +51,12 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
     : (FALLBACK_PANEL[idx % FALLBACK_PANEL.length] ?? "bg-[color:var(--gv-ink-2)]");
   const hookShort =
     v.hook_phrase && v.hook_phrase.length > 48 ? `${v.hook_phrase.slice(0, 48)}…` : v.hook_phrase;
+  const handleLabel = v.creator_handle.startsWith("@")
+    ? v.creator_handle
+    : `@${v.creator_handle}`;
+  const cardLabel = v.hook_phrase
+    ? `Phân tích video ${handleLabel}: ${v.hook_phrase}`
+    : `Phân tích video ${handleLabel}`;
 
   const handleMouseEnter = useCallback(() => {
     if (!v.video_url || !videoRef.current) return;
@@ -67,18 +72,20 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
   }, []);
 
   return (
-    <div className="flex flex-col">
-      <a
-        href={v.tiktok_url}
-        target="_blank"
-        rel="noreferrer"
-        className="group block text-left"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+    <button
+      type="button"
+      aria-label={cardLabel}
+      onClick={() => {
+        logUsage("home_breakout_analyze_click", { video_id: v.video_id });
+        navigate(breakoutAnalyzePath(v));
+      }}
+      className="group flex w-full cursor-pointer flex-col rounded-none border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div
+        className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
       >
-        <div
-          className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
-        >
         {/* Thumbnail — fades out when video is playing */}
         <div className={`absolute inset-0 transition-opacity duration-300 ${playing ? "opacity-0" : "opacity-100"}`}>
           <VideoThumbnail
@@ -104,7 +111,7 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
 
         {/* Hover-to-play hint — only shown when video is available and not playing */}
         {v.video_url && !playing ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <div className="pointer-events-none absolute inset-0 z-[12] flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="white" aria-hidden>
                 <path d="M3 2.5l10 5.5-10 5.5V2.5z" />
@@ -113,13 +120,11 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
           </div>
         ) : null}
 
-        {v.thumbnail_url || playing ? (
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 via-black/20 to-transparent"
-            aria-hidden
-          />
-        ) : null}
-        <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3.5 text-white">
+        <div
+          className="pointer-events-none absolute inset-0 z-[15] bg-gradient-to-b from-transparent from-40% to-black/70"
+          aria-hidden
+        />
+        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-between p-3.5 text-white">
           <div className="flex items-start justify-between gap-2">
             <span className="rounded px-2 py-0.5 gv-kicker text-white bg-[color:var(--gv-accent)]">
               {isBreakout ? "BỨT PHÁ" : "ĐANG THỊNH HÀNH"}
@@ -130,58 +135,29 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
               <span className="gv-kicker opacity-95">{dur}</span>
             ) : null}
           </div>
-          <div className="min-h-0 flex-1 flex flex-col justify-end pt-8">
+          <div className="min-h-0">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate gv-kicker text-[11px] text-white">{handleLabel}</span>
+              <span className="shrink-0 gv-mono text-[11px] font-semibold tabular-nums text-white">
+                ↑ {formatViews(v.views)} view
+              </span>
+            </div>
             {v.hook_phrase ? (
-              <p
-                className="gv-tight line-clamp-4 text-[22px] leading-[1.1] text-white"
-                style={{ textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}
-              >
-                &ldquo;{v.hook_phrase}&rdquo;
+              <p className="line-clamp-2 text-[12px] font-medium leading-tight">
+                Hook · &ldquo;{hookShort}&rdquo;
               </p>
-            ) : (
-              <p className="gv-tight text-[22px] leading-[1.1] text-white/90" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}>
-                @{v.creator_handle}
+            ) : v.hook_type ? (
+              <p className="line-clamp-2 text-[12px] font-medium leading-tight">
+                Hook · {v.hook_type}
               </p>
-            )}
+            ) : null}
+            <div className="mt-1.5 rounded-md border border-white/25 bg-black/45 px-2.5 py-1.5 text-[11px] text-white/90 backdrop-blur-[2px]">
+              Phân tích video →
+            </div>
           </div>
         </div>
-        </div>
-      </a>
-      <div className="mt-3 space-y-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className="gv-kicker text-[color:var(--gv-ink-3)]">
-            @{v.creator_handle}
-          </span>
-          <span className="gv-kicker text-[color:var(--gv-pos-deep)]">
-            ↑ {formatViews(v.views)}
-          </span>
-        </div>
-        {v.hook_phrase ? (
-          <p className="text-[12px] text-[color:var(--gv-ink-3)]">
-            Hook ·{" "}
-            <span className="font-semibold text-[color:var(--gv-ink-2)]">
-              &ldquo;{hookShort}&rdquo;
-            </span>
-          </p>
-        ) : v.hook_type ? (
-          <p className="text-[12px] text-[color:var(--gv-ink-3)]">
-            Hook · <span className="font-semibold text-[color:var(--gv-ink-2)]">{v.hook_type}</span>
-          </p>
-        ) : null}
       </div>
-      <Btn
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="mt-3 w-full"
-        onClick={() => {
-          logUsage("home_breakout_analyze_click", { video_id: v.video_id });
-          navigate(breakoutAnalyzePath(v));
-        }}
-      >
-        Phân tích video
-      </Btn>
-    </div>
+    </button>
   );
 }
 
@@ -217,10 +193,10 @@ export const BreakoutGrid = memo(function BreakoutGrid({
         ) : null}
         <div className="grid [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-[18px]">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="flex flex-col gap-3">
-              <div className="aspect-[4/5] animate-pulse rounded-[10px] bg-[color:var(--gv-canvas-2)]" />
-              <div className="h-10 animate-pulse rounded-md bg-[color:var(--gv-canvas-2)]" />
-            </div>
+            <div
+              key={i}
+              className="aspect-[4/5] animate-pulse rounded-[10px] bg-[color:var(--gv-canvas-2)]"
+            />
           ))}
         </div>
       </section>
