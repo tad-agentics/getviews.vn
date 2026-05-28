@@ -8,7 +8,7 @@ import type { NicheWithHot } from "@/hooks/useTopNiches";
  * (today: one element from ``profileFirstNicheId`` + ``useNicheRowsForIds``).
  *
  * Behaviour:
- *   • Một ngách → chip tĩnh (không dropdown).
+ *   • Một ngách → chip bấm được → mở Cài đặt (``onEditNiches``).
  *   • ≥2 rows → nút mở listbox; chọn gọi ``onSelectNiche``; footer mở Cài đặt qua ``onEditNiches``.
  *
  * Không đổi TikTok handle trên profile; chỉ đổi ngách đang ghim cho Home (gợi ý, ticker, pulse, ritual).
@@ -67,19 +67,21 @@ export const NichePicker = memo(function NichePicker({
 
   if (!current) return null;
 
-  // Single-niche profile renders as a static chip (no dropdown).
+  // Single-niche profile: chip opens Settings → Ngách nội dung.
   if (niches.length <= 1) {
     return (
-      <span
-        className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-sm font-medium text-[color:var(--gv-ink)]"
-        aria-label="Ngách đang theo dõi"
+      <button
+        type="button"
+        onClick={onEditNiches}
+        className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-sm font-medium text-[color:var(--gv-ink)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
+        aria-label={`Ngách đang theo dõi: ${current.name}. Mở cài đặt ngách nội dung`}
       >
         <span
           className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--gv-accent)]"
           aria-hidden
         />
         <span className="min-w-0 truncate">{current.name}</span>
-      </span>
+      </button>
     );
   }
 

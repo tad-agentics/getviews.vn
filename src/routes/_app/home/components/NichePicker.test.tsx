@@ -30,17 +30,18 @@ describe("NichePicker", () => {
     expect(container.querySelector("button")).toBeNull();
   });
 
-  it("renders a static chip (no button) when only 1 niche", () => {
-    const { queryByRole, getByLabelText } = render(
+  it("opens settings when the single-niche chip is clicked", () => {
+    const onEdit = vi.fn();
+    const { getByRole } = render(
       <NichePicker
         niches={[niches[0]]}
         selectedNicheId={4}
         onSelectNiche={() => {}}
-        onEditNiches={() => {}}
+        onEditNiches={onEdit}
       />,
     );
-    expect(queryByRole("button")).toBeNull();
-    expect(getByLabelText("Ngách đang theo dõi")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: /Ngách đang theo dõi: Ẩm thực/ }));
+    expect(onEdit).toHaveBeenCalledOnce();
   });
 
   it("opens the dropdown on click and lists each niche option", () => {
