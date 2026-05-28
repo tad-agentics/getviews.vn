@@ -198,7 +198,7 @@ describe("QueryComposer (C.1.0)", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "Soi kênh đối thủ" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Sửa video flop" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Phân tích video" })).toBeTruthy();
   });
 
   it("does not disable Chuyên sâu on Khám Kênh while credits are unknown", () => {

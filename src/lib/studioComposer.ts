@@ -11,7 +11,7 @@ import { planAnswerEntry } from "@/routes/_app/intent-router";
 export type StudioComposerPill = "video_flop" | "video_win" | "channel" | "script";
 
 export const STUDIO_COMPOSER_PILLS: { id: StudioComposerPill; label: string }[] = [
-  { id: "video_flop", label: "Sửa video flop" },
+  { id: "video_flop", label: "Phân tích video" },
   { id: "video_win", label: "Học video viral" },
   { id: "channel", label: "Soi kênh đối thủ" },
   { id: "script", label: "Viết kịch bản" },

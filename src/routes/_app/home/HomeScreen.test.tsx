@@ -254,7 +254,7 @@ describe("HomeScreen", () => {
   it("does not show duplicate pill row below composer", () => {
     renderHome();
     expect(screen.queryByText("Phím tắt")).toBeNull();
-    expect(screen.getAllByRole("button", { name: "Sửa video flop" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Phân tích video" })).toHaveLength(1);
   });
 
   it("updates textarea placeholder when studio intent pill changes", () => {
