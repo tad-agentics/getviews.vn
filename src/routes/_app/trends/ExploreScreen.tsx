@@ -271,7 +271,7 @@ function VideoCard({
         ) : null}
         <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 z-20 text-white">
           <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate gv-kicker text-[11px] text-white/90">{video.handle}</span>
+            <span className="min-w-0 truncate gv-kicker text-[11px] text-white">{video.handle}</span>
             <span className="shrink-0 gv-mono text-[11px] font-semibold tabular-nums text-white">
               {video.views === "—" ? "—" : `${video.views} view`}
             </span>
