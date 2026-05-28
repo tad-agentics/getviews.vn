@@ -99,6 +99,30 @@ def test_skips_food_review_without_fashion() -> None:
     assert result.remapped is False
 
 
+def test_remaps_beauty_apparel_shopee_to_fashion() -> None:
+    aj = {
+        "content_context": {
+            "subject_matter": "Review váy nâu cổ V tay cánh tiên trên Shopee.",
+            "content_purpose": "review",
+        },
+        "commerce_intent": {"verbal_cta_quote": "Vào săn sale lẹ đi mấy bà."},
+        "niche_classification": {
+            "creator_niche_slug": "beauty",
+            "format_axis": "review_unboxing",
+            "confidence": 0.88,
+        },
+    }
+    result = apply_fashion_commerce_niche_remap(
+        aj,
+        video_id="7633003576469523733",
+        current_content_class_id=49,
+    )
+    assert result.remapped is True
+    assert aj["niche_classification"]["creator_niche_slug"] == "fashion"
+    assert aj["niche_classification"]["alternative_creator_niche_slug"] == "beauty"
+    assert result.content_class_id == 7
+
+
 def test_noop_when_already_fashion_and_class_aligned() -> None:
     aj = {
         "content_context": {

@@ -132,6 +132,20 @@ def has_fashion_commerce_signals(analysis_json: dict[str, Any]) -> bool:
     return bool(_FASHION_PRODUCT_RE.search(haystack))
 
 
+def _slug_eligible_for_fashion_remap(slug: str, haystack: str) -> bool:
+    """Sources that may be re-mapped to ``fashion`` when apparel-commerce signals fire."""
+    if slug in ("", "business"):
+        return True
+    if slug == "beauty":
+        # Apparel Shopee reviews are sometimes mis-filed as beauty (e.g. váy/đồ).
+        if not _FASHION_PRODUCT_RE.search(haystack):
+            return False
+        return not (
+            _BEAUTY_ONLY_RE.search(haystack) and not _FASHION_PRODUCT_RE.search(haystack)
+        )
+    return False
+
+
 def _fashion_content_class_for_format(format_axis: str | None) -> int | None:
     fmt = str(format_axis or "").strip()
     if fmt:
@@ -155,18 +169,28 @@ def apply_fashion_commerce_niche_remap(
     if not has_fashion_commerce_signals(analysis_json):
         return FashionCommerceRemapResult(remapped=False)
 
+    haystack = _analysis_signal_haystack(analysis_json)
     nc_raw = analysis_json.get("niche_classification")
     nc: dict[str, Any] = dict(nc_raw) if isinstance(nc_raw, dict) else {}
     previous_slug = str(nc.get("creator_niche_slug") or "").strip() or None
     slug = previous_slug or ""
 
-    if slug and slug not in ("business", "fashion"):
+    if slug == "fashion" and not (
+        current_content_class_id is not None
+        and int(current_content_class_id) in _BUSINESS_COMMERCE_CLASS_IDS
+    ):
+        return FashionCommerceRemapResult(
+            remapped=False,
+            previous_slug=previous_slug,
+        )
+
+    if slug and slug not in ("business", "fashion", "beauty", ""):
         return FashionCommerceRemapResult(remapped=False, previous_slug=previous_slug)
 
     fmt_axis = str(nc.get("format_axis") or "").strip() or None
     target_cc = _fashion_content_class_for_format(fmt_axis)
 
-    slug_needs_remap = slug in ("", "business")
+    slug_needs_remap = slug != "fashion" and _slug_eligible_for_fashion_remap(slug, haystack)
     class_needs_realign = (
         current_content_class_id is not None
         and int(current_content_class_id) in _BUSINESS_COMMERCE_CLASS_IDS
@@ -183,8 +207,8 @@ def apply_fashion_commerce_niche_remap(
 
     if slug_needs_remap:
         nc["creator_niche_slug"] = "fashion"
-        if previous_slug == "business":
-            nc["alternative_creator_niche_slug"] = "business"
+        if previous_slug in ("business", "beauty"):
+            nc["alternative_creator_niche_slug"] = previous_slug
         rationale = str(nc.get("rationale") or "").strip()
         suffix = (
             " Nội dung bán/review thời trang trên sàn — chuẩn hoá ngách fashion "

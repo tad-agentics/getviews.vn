@@ -3,6 +3,7 @@
 ## 2026-05-28 — Fashion Shopee affiliate niche remap (A+B+C)
 
 - **Cloud Run:** Deterministic `apply_fashion_commerce_niche_remap()` — business mislabels for fashion/accessories Shopee affiliate → `fashion` slug + fashion junction `content_class_id` (live `_finish_analysis`, batch ingest, ME-17 backfill).
+- **Edge case:** Also remaps mis-filed `beauty` slug when subject is apparel (e.g. váy Shopee) with business commerce class 47–49.
 - **Prompt (A):** HI-9 few-shot ví dụ 4 — Shopee fashion review → `fashion` + `review_unboxing` (not `business`).
 - **Backfill (C):** `run_fashion_commerce_remap_backfill()` for rows with `inferred_creator_niche_id=9` or business commerce classes 47–49; ME-17 fix `ingest_loop_niche_id` resolver (was dropped `niche_id`).
 
