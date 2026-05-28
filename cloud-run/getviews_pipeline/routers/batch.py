@@ -561,6 +561,48 @@ async def batch_backfill_classification(
     return JSONResponse({"ok": True, **result})
 
 
+class BatchCrossNicheRemapBackfillRequest(StrictBody):
+    batch_size: int = Field(default=500, ge=1, le=5000)
+    max_runtime_s: int = Field(default=3300, ge=60, le=7200)
+    dry_run: bool = Field(default=False)
+    video_ids: list[str] | None = None
+
+
+@router.post("/batch/backfill-cross-niche-remap")
+async def batch_backfill_cross_niche_remap(
+    body: BatchCrossNicheRemapBackfillRequest = BatchCrossNicheRemapBackfillRequest(),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.classification_backfill import run_cross_niche_class_remap_backfill
+    from getviews_pipeline.runtime import run_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info(
+        "POST /batch/backfill-cross-niche-remap batch_size=%d dry_run=%s",
+        body.batch_size,
+        body.dry_run,
+    )
+    client = get_service_client()
+
+    async with record_job_run(client, "batch/backfill-cross-niche-remap") as obs_summary:
+        try:
+            result = await run_sync(
+                run_cross_niche_class_remap_backfill,
+                client=client,
+                batch_size=body.batch_size,
+                max_runtime_s=float(body.max_runtime_s),
+                dry_run=body.dry_run,
+                video_ids=body.video_ids,
+            )
+        except Exception as exc:
+            logger.exception("Batch backfill-cross-niche-remap failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(result)
+
+    return JSONResponse({"ok": True, **result})
+
+
 @router.post("/batch/sound-aggregate")
 async def batch_sound_aggregate(
     request: Request,

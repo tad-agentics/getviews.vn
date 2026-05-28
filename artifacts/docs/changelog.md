@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-05-28 — Cross-niche HI-11 loop misfile fix (A+B+C, completeness 10/10)
+
+- **Cloud Run:** `cross_niche_class_remap.py` — when Gemini topic (conf ≥0.6) disagrees with ingest-loop `content_class_id` (e.g. baby vlog → `real_estate_listing` class 51), remap to junction for inferred slug (`family` × `vlog_daily` → class 30). Wired after HI-11 route via `resolve_post_route_content_class_id()` (live analysis, batch ingest, ME-17 backfill).
+- **Prompt (A):** HI-9 few-shot ví dụ 5 — em bé gội đầu ≠ BĐS; glossary notes on `family` / `real_estate` and「miếng」baby talk.
+- **Backfill (C):** `run_cross_niche_class_remap_backfill()` + `POST /batch/backfill-cross-niche-remap` + `POST /admin/trigger/cross_niche_remap_backfill`.
+- **FE guard:** `applyInferredTopicGuard()` on Explore browse — hide rows where high-confidence `inferred_creator_niche_id` ≠ browsed creator niche (extends carousel guard to all classes).
+
 ## 2026-05-28 — Fashion Shopee affiliate niche remap (A+B+C)
 
 - **Cloud Run:** Deterministic `apply_fashion_commerce_niche_remap()` — business mislabels for fashion/accessories Shopee affiliate → `fashion` slug + fashion junction `content_class_id` (live `_finish_analysis`, batch ingest, ME-17 backfill).

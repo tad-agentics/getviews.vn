@@ -7,9 +7,11 @@ vi.mock("@/lib/supabase", () => ({
 import {
   applyBrowsableCorpusFilter,
   applyCarouselTopicGuard,
+  applyInferredTopicGuard,
   applyVideoCorpusNicheFilter,
   CAROUSEL_FORMAT_CLASS_IDS,
   fetchContentClassIdsForCreatorNiche,
+  INFERRED_TOPIC_CONFIDENCE_FLOOR,
 } from "./corpusNicheFilter";
 import { supabase } from "./supabase";
 
@@ -69,6 +71,23 @@ describe("applyVideoCorpusNicheFilter", () => {
     expect(q.calls[1]?.op).toBe("or");
     expect(String(q.calls[1]?.val)).toContain("inferred_creator_niche_id.eq.15");
     expect(String(q.calls[1]?.val)).toContain(CAROUSEL_FORMAT_CLASS_IDS.join(","));
+    expect(q.calls[2]?.op).toBe("or");
+    expect(String(q.calls[2]?.val)).toContain("inferred_creator_niche_id.eq.15");
+    expect(String(q.calls[2]?.val)).toContain(`niche_resolution_confidence.lt.${INFERRED_TOPIC_CONFIDENCE_FLOOR}`);
+  });
+});
+
+describe("applyInferredTopicGuard", () => {
+  it("builds postgrest or filter for high-confidence inferred topic mismatch", () => {
+    const q = mockQuery();
+    applyInferredTopicGuard(q, 16);
+    expect(q.calls).toEqual([
+      {
+        op: "or",
+        col: "postgrest",
+        val: `inferred_creator_niche_id.is.null,niche_resolution_confidence.is.null,niche_resolution_confidence.lt.${INFERRED_TOPIC_CONFIDENCE_FLOOR},inferred_creator_niche_id.eq.16`,
+      },
+    ]);
   });
 });
 

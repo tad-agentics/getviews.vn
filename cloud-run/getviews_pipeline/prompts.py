@@ -158,6 +158,14 @@ Ví dụ 4 — Thời trang + review_unboxing (Shopee affiliate — KHÔNG xếp
   niche_classification.confidence: 0.9
   niche_classification.rationale: "Trọng tâm quần áo/phụ kiện và affiliate sàn — ngách thời trang, không phải kinh doanh chung."
   niche_classification.alternative_creator_niche_slug: "business"
+
+Ví dụ 5 — Gia đình + vlog_daily (em bé — KHÔNG xếp real_estate):
+  content_context.subject_matter: "Em bé gội đầu nói「Chắc chắn miếng đi」— clip nuôi con hài hước."
+  niche_classification.creator_niche_slug: "family"
+  niche_classification.format_axis: "vlog_daily"
+  niche_classification.confidence: 0.87
+  niche_classification.rationale: "Cảnh em bé gội đầu, không có căn hộ/listing/m² — ngách gia đình, không phải BĐS."
+  niche_classification.alternative_creator_niche_slug: "lifestyle"
 """
 
 

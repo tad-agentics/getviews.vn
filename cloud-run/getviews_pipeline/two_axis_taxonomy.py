@@ -52,7 +52,7 @@ CREATOR_NICHE_VI: Final[dict[str, str]] = {
     "food": "Ẩm thực · Ăn uống",
     "lifestyle": "Đời sống · Tâm sự",
     "comedy": "Hài · Giải trí",
-    "family": "Nuôi con · Gia đình",
+    "family": "Nuôi con · Gia đình (em bé gội đầu, nuôi con, mẹ bỉm — xếp family dù hook có từ「miếng」/baby talk dễ nhầm với BĐS)",
     "education": "Giáo dục · Sự nghiệp",
     "tech_gaming": "Công nghệ · Gaming",
     "business": "Kinh doanh · Tài chính (khởi nghiệp, đầu tư tài chính, quản trị doanh nghiệp, bài học bán hàng chung. LƯU Ý: Nếu là kinh doanh/bán hàng/review/affiliate các mặt hàng thời trang, quần áo, trang sức, túi xách, phụ kiện trên Shopee/Lazada/TikTok Shop, bắt buộc xếp vào ngách 'fashion' chứ không xếp vào 'business')",
@@ -61,7 +61,7 @@ CREATOR_NICHE_VI: Final[dict[str, str]] = {
     "auto": "Ô tô · Xe máy",
     "gym_fitness": "Gym · Fitness",
     "music_dance": "Âm nhạc · Vũ đạo",
-    "real_estate": "Bất động sản · Nhà đất",
+    "real_estate": "Bất động sản · Nhà đất (CHỈ khi nội dung thật về căn hộ/nhà đất/listing/m² — KHÔNG xếp video em bé/gia đình/hài chỉ vì hook có「miếng đi」)",
     "art_craft": "Nghệ thuật · Thủ công",
 }
 

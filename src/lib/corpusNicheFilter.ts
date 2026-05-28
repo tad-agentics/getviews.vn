@@ -3,6 +3,9 @@ import { supabase } from "@/lib/supabase";
 /** HI-16 carousel format buckets — junction-linked to every creator niche; topic = ``inferred_creator_niche_id``. */
 export const CAROUSEL_FORMAT_CLASS_IDS = [75, 76, 77, 78, 79] as const;
 
+/** HI-9 confidence floor — below this, browse may show loop-assigned class without inferred guard. */
+export const INFERRED_TOPIC_CONFIDENCE_FLOOR = 0.6;
+
 /** PostgREST query builder subset used for ``video_corpus`` niche scoping. */
 export type CorpusNicheFilterableQuery = {
   eq: (column: string, value: number) => CorpusNicheFilterableQuery;
@@ -61,6 +64,21 @@ export function applyCarouselTopicGuard<T extends Pick<CorpusNicheFilterableQuer
 }
 
 /**
+ * When Gemini inferred topic (``inferred_creator_niche_id``) disagrees with the
+ * browse niche, hide the row unless confidence is low or inferred is missing.
+ * Prevents HI-11 loop misfiles (e.g. baby vlog under BĐS ``real_estate_listing``).
+ */
+export function applyInferredTopicGuard<T extends Pick<CorpusNicheFilterableQuery, "or">>(
+  query: T,
+  creatorNicheId: number,
+): T {
+  const floor = INFERRED_TOPIC_CONFIDENCE_FLOOR;
+  return query.or(
+    `inferred_creator_niche_id.is.null,niche_resolution_confidence.is.null,niche_resolution_confidence.lt.${floor},inferred_creator_niche_id.eq.${creatorNicheId}`,
+  ) as unknown as T;
+}
+
+/**
  * Class-first browse: ``content_class_id IN (...)`` when junction classes exist.
  * Phase C: no ``video_corpus.niche_id`` fallback — empty junction returns unscoped query.
  */
@@ -75,6 +93,7 @@ export function applyVideoCorpusNicheFilter<T extends CorpusNicheFilterableQuery
   }
   if (scope.creatorNicheId != null && scope.creatorNicheId > 0) {
     q = applyCarouselTopicGuard(q, scope.creatorNicheId) as T;
+    q = applyInferredTopicGuard(q, scope.creatorNicheId) as T;
   }
   return q;
 }

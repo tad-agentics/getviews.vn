@@ -14,13 +14,17 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 from getviews_pipeline.corpus_ingest import _niche_resolution_shadow_fields  # noqa: PLC2701
+from getviews_pipeline.cross_niche_class_remap import (
+    apply_cross_niche_class_remap,
+    resolve_post_route_content_class_id,
+)
 from getviews_pipeline.fashion_commerce_niche_remap import apply_fashion_commerce_niche_remap
 from getviews_pipeline.models import (
     CarouselNicheClassification,
     ContentContext,
     NicheClassification,
 )
-from getviews_pipeline.profile_niches import CREATOR_NICHE_SLUG_TO_ID
+from getviews_pipeline.profile_niches import CREATOR_NICHE_SLUG_TO_ID, creator_niche_id_for_legacy_niche
 from getviews_pipeline.two_axis_taxonomy import (
     build_carousel_extraction_niche_glossary_block,
     build_extraction_niche_glossary_block,
@@ -255,10 +259,12 @@ def run_classification_backfill(
             current_cc = int(current_cc)
         elif not isinstance(current_cc, int):
             current_cc = None
-        fashion_remap = apply_fashion_commerce_niche_remap(
+        loop_creator_cn = creator_niche_id_for_legacy_niche(resolver_nid)
+        resolved_cc = resolve_post_route_content_class_id(
             merged,
+            route_content_class_id=current_cc,
             video_id=vid,
-            current_content_class_id=current_cc,
+            loop_creator_niche_id=loop_creator_cn,
         )
         shadow = _backfill_shadow_columns(
             merged,
@@ -267,8 +273,8 @@ def run_classification_backfill(
             content_type=ct,
         )
         update_payload: dict[str, Any] = {"analysis_json": merged, **shadow}
-        if fashion_remap.remapped and fashion_remap.content_class_id is not None:
-            update_payload["content_class_id"] = fashion_remap.content_class_id
+        if resolved_cc is not None and resolved_cc != current_cc:
+            update_payload["content_class_id"] = resolved_cc
         try:
             (
                 client.table("video_corpus")
@@ -408,6 +414,135 @@ def run_fashion_commerce_remap_backfill(
 
     logger.info(
         "[fashion_commerce_remap_backfill] candidates=%d processed=%d "
+        "skipped_no_remap=%d failed_update=%d reason=%s",
+        stats["candidates"],
+        stats["processed"],
+        stats["skipped_no_remap"],
+        stats["failed_update"],
+        stats["stopped_reason"],
+    )
+    return stats
+
+
+def run_cross_niche_class_remap_backfill(
+    *,
+    client: Any | None = None,
+    batch_size: int = 500,
+    max_runtime_s: float = _DEFAULT_MAX_RUNTIME_S,
+    dry_run: bool = False,
+    video_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    """Re-align ``content_class_id`` when Gemini topic disagrees with HI-11 loop class."""
+    from getviews_pipeline.supabase_client import get_service_client
+
+    if client is None:
+        client = get_service_client()
+
+    select_cols = (
+        "video_id, ingest_loop_niche_id, content_type, analysis_json, "
+        "content_class_id, inferred_creator_niche_id, niche_resolution_confidence"
+    )
+    if video_ids:
+        q = (
+            client.table("video_corpus")
+            .select(select_cols)
+            .in_("video_id", video_ids)
+            .not_.is_("analysis_json", "null")
+        )
+    else:
+        q = (
+            client.table("video_corpus")
+            .select(select_cols)
+            .not_.is_("analysis_json", "null")
+            .gte("niche_resolution_confidence", 0.6)
+            .order("indexed_at", desc=True)
+            .limit(batch_size * 4)
+        )
+    rows: list[dict[str, Any]] = (q.execute()).data or []
+
+    stats: dict[str, Any] = {
+        "ok": True,
+        "candidates": len(rows),
+        "processed": 0,
+        "skipped_no_remap": 0,
+        "failed_update": 0,
+        "dry_run": dry_run,
+        "max_runtime_s": max_runtime_s,
+        "stopped_reason": "complete",
+        "video_ids_filter": video_ids,
+    }
+
+    if dry_run or not rows:
+        if not rows:
+            stats["stopped_reason"] = "no_rows"
+        return stats
+
+    started = time.monotonic()
+    for row in rows:
+        if stats["processed"] >= batch_size:
+            stats["stopped_reason"] = "batch_cap"
+            break
+        if time.monotonic() - started > max_runtime_s:
+            stats["stopped_reason"] = "time_budget"
+            break
+
+        vid = str(row.get("video_id") or "")
+        aj = row.get("analysis_json")
+        if not isinstance(aj, dict) or not aj:
+            stats["skipped_no_remap"] += 1
+            continue
+
+        merged = dict(aj)
+        current_cc = row.get("content_class_id")
+        if isinstance(current_cc, str) and current_cc.isdigit():
+            current_cc = int(current_cc)
+        elif not isinstance(current_cc, int):
+            current_cc = None
+
+        loop_nid = int(row.get("ingest_loop_niche_id") or 0)
+        loop_creator_cn = creator_niche_id_for_legacy_niche(loop_nid)
+        cross_remap = apply_cross_niche_class_remap(
+            merged,
+            video_id=vid,
+            current_content_class_id=current_cc,
+            loop_creator_niche_id=loop_creator_cn,
+        )
+        if not cross_remap.remapped:
+            stats["skipped_no_remap"] += 1
+            continue
+
+        shadow = _backfill_shadow_columns(
+            merged,
+            resolver_niche_id=loop_nid,
+            video_id=vid,
+            content_type=str(row.get("content_type") or "video"),
+        )
+        update_payload: dict[str, Any] = {"analysis_json": merged, **shadow}
+        if cross_remap.content_class_id is not None:
+            update_payload["content_class_id"] = cross_remap.content_class_id
+
+        if dry_run:
+            stats["processed"] += 1
+            continue
+
+        try:
+            (
+                client.table("video_corpus")
+                .update(update_payload)
+                .eq("video_id", vid)
+                .execute()
+            )
+            stats["processed"] += 1
+        except Exception as exc:
+            logger.warning(
+                "[cross_niche_remap_backfill] update failed video_id=%s: %s",
+                vid,
+                exc,
+            )
+            stats["failed_update"] += 1
+
+    logger.info(
+        "[cross_niche_remap_backfill] candidates=%d processed=%d "
         "skipped_no_remap=%d failed_update=%d reason=%s",
         stats["candidates"],
         stats["processed"],

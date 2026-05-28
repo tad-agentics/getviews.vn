@@ -473,6 +473,15 @@ class AdminBackfillClassificationBody(StrictBody):
     dry_run: bool = False
 
 
+class AdminCrossNicheRemapBackfillBody(StrictBody):
+    """Deterministic cross-niche ``content_class_id`` realignment (HI-11 loop misfiles)."""
+
+    batch_size: int = Field(default=500, ge=1, le=5000)
+    max_runtime_s: int = Field(default=3300, ge=30, le=7200)
+    dry_run: bool = False
+    video_ids: list[str] | None = None
+
+
 class AdminAssignmentTierBackfillBody(StrictBody):
     """ACQE — backfill ``class_assignment_tier`` on legacy rows + junction repair."""
 
@@ -608,6 +617,23 @@ async def _admin_run_backfill_classification(body: AdminBackfillClassificationBo
         batch_size=body.batch_size,
         max_runtime_s=float(body.max_runtime_s),
         dry_run=body.dry_run,
+    )
+
+
+async def _admin_run_cross_niche_remap_backfill(
+    body: AdminCrossNicheRemapBackfillBody,
+) -> dict[str, Any]:
+    from getviews_pipeline.classification_backfill import run_cross_niche_class_remap_backfill
+    from getviews_pipeline.runtime import run_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    return await run_sync(
+        run_cross_niche_class_remap_backfill,
+        client=get_service_client(),
+        batch_size=body.batch_size,
+        max_runtime_s=float(body.max_runtime_s),
+        dry_run=body.dry_run,
+        video_ids=body.video_ids,
     )
 
 
@@ -1541,6 +1567,24 @@ async def admin_trigger_backfill_classification(
             "dry_run": body.dry_run,
         },
         runner=lambda: _admin_run_backfill_classification(body),
+    )
+
+
+@router.post("/admin/trigger/cross_niche_remap_backfill")
+async def admin_trigger_cross_niche_remap_backfill(
+    body: AdminCrossNicheRemapBackfillBody = AdminCrossNicheRemapBackfillBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="backfill.cross_niche_remap",
+        params={
+            "batch_size": body.batch_size,
+            "max_runtime_s": body.max_runtime_s,
+            "dry_run": body.dry_run,
+            "video_ids": body.video_ids,
+        },
+        runner=lambda: _admin_run_cross_niche_remap_backfill(body),
     )
 
 
