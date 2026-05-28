@@ -34,5 +34,10 @@ describe("CorpusVideoPreviewDialog", () => {
     expect(video).toBeTruthy();
     expect(video?.getAttribute("src")).toContain("7633003576469523733");
     expect(container.querySelector("iframe")).toBeNull();
+
+    const tiktokLink = container.querySelector('a[href*="tiktok.com"]');
+    expect(tiktokLink).toBeTruthy();
+    expect(tiktokLink?.getAttribute("target")).toBe("_blank");
+    expect(tiktokLink?.getAttribute("aria-label")).toBe("Mở video trên TikTok");
   });
 });

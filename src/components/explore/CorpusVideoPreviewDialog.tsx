@@ -70,23 +70,29 @@ function PreviewMedia({
   const shellStyle = { aspectRatio: "9 / 16" as const };
 
   if (clipSrc) {
-    return (
-      <div className={shellClass} style={shellStyle}>
-        <video
-          ref={videoRef}
-          key={clipSrc}
-          src={clipSrc}
-          muted
-          loop
-          playsInline
-          controls
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+    const videoEl = (
+      <video
+        ref={videoRef}
+        key={clipSrc}
+        src={clipSrc}
+        muted
+        loop
+        playsInline
+        controls={!tiktokUrl}
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    );
+
+    const inner = (
+      <>
+        {videoEl}
         {autoplayBlocked ? (
           <button
             type="button"
             aria-label="Phát video"
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               setAutoplayBlocked(false);
               try {
                 const playPromise = videoRef.current?.play();
@@ -104,6 +110,27 @@ function PreviewMedia({
             </span>
           </button>
         ) : null}
+      </>
+    );
+
+    if (tiktokUrl?.startsWith("http")) {
+      return (
+        <a
+          href={tiktokUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${shellClass} block transition-opacity hover:opacity-95`}
+          style={shellStyle}
+          aria-label="Mở video trên TikTok"
+        >
+          {inner}
+        </a>
+      );
+    }
+
+    return (
+      <div className={shellClass} style={shellStyle}>
+        {inner}
       </div>
     );
   }
