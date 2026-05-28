@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-05-28 — Marketing Corpus Pick API
+
+- **DB:** `marketing_video_picks` + RPCs `select_marketing_corpus_video`, `record_marketing_video_pick` (service_role only).
+- **Cloud Run:** `POST /batch/marketing-corpus-pick` — weighted random corpus video (>100k views, 10 niches), `run_video_analyze_pipeline` (basic/win), record pick on success.
+- **Edge:** `marketing-corpus-pick` — `requireServiceRole` proxy to batch (120s timeout).
+- **Docs:** `artifacts/integrations/marketing-corpus-pick.md`.
+
 ## 2026-05-28 — Cross-niche HI-11 loop misfile fix (A+B+C, completeness 10/10)
 
 - **Cloud Run:** `cross_niche_class_remap.py` — when Gemini topic (conf ≥0.6) disagrees with ingest-loop `content_class_id` (e.g. baby vlog → `real_estate_listing` class 51), remap to junction for inferred slug (`family` × `vlog_daily` → class 30). Wired after HI-11 route via `resolve_post_route_content_class_id()` (live analysis, batch ingest, ME-17 backfill).

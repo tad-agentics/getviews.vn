@@ -287,6 +287,18 @@ Structured and free-text follow-ups inside `/app/answer` use **`answer_turn`** S
 | `payos-webhook` | PayOS HTTP POST | Payment confirmation → credit grant |
 | `create-payment` | Browser call | Creates PayOS payment link |
 | `send-email` | Internal | Resend transactional email (expiry reminders etc.) |
+| `marketing-corpus-pick` | Server script (service_role JWT) | Proxies to `POST /batch/marketing-corpus-pick` — marketing team random corpus video + basic diagnosis |
+
+### Marketing Corpus Pick (server-only)
+
+Marketing team automation: **one POST** returns thumbnail, metadata, and a full **basic/win** video diagnosis.
+
+1. Edge `marketing-corpus-pick` validates **service_role** JWT.
+2. Batch `POST /batch/marketing-corpus-pick` (`X-Batch-Secret`): RPC `select_marketing_corpus_video()` → weighted random row (>100k views, 10 creator niches, not in `marketing_video_picks`).
+3. `run_video_analyze_pipeline` (no credit deduction) — cache hit or fresh Gemini synthesis.
+4. On `narrative_vi` present → `record_marketing_video_pick()`; else 502 `analysis_failed` (video remains eligible).
+
+See [`artifacts/integrations/marketing-corpus-pick.md`](../integrations/marketing-corpus-pick.md).
 
 ### pg_cron → Cloud Run batch pod (via Supabase Vault URL)
 

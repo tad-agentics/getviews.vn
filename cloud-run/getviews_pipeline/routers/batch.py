@@ -1557,3 +1557,41 @@ async def batch_douyin_patterns(
         "failed_synth": summary.failed_synth,
         "failed_upsert": summary.failed_upsert,
     })
+
+
+@router.post("/batch/marketing-corpus-pick")
+async def batch_marketing_corpus_pick(
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Marketing API — pick random corpus video (>100k views), run basic/win diagnosis.
+
+    Proxied from Supabase Edge ``marketing-corpus-pick`` (service_role JWT).
+    Records pick only after ``narrative_vi`` is present. Typical latency 20–40s.
+    """
+    from getviews_pipeline.marketing_corpus_pick import (
+        ANALYSIS_FAILED,
+        POOL_EXHAUSTED,
+        run_marketing_corpus_pick,
+    )
+
+    logger.info("POST /batch/marketing-corpus-pick triggered")
+    try:
+        payload = await run_sync(run_marketing_corpus_pick)
+    except RuntimeError as exc:
+        code = str(exc)
+        if code == POOL_EXHAUSTED:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": POOL_EXHAUSTED},
+            ) from exc
+        if code == ANALYSIS_FAILED:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={"error": ANALYSIS_FAILED},
+            ) from exc
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("[batch/marketing-corpus-pick] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({"ok": True, **payload})
