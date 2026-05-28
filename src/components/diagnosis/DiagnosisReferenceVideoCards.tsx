@@ -66,7 +66,7 @@ function ReferenceVideoCard({ tile }: { tile: DiagnosisReferenceTile }) {
 
 export function DiagnosisReferenceVideoCards({
   tiles,
-  label = "Video tham chiếu trong ngách",
+  label = "Video tham chiếu",
 }: {
   tiles: DiagnosisReferenceTile[];
   label?: string;

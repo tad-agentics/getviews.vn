@@ -19,7 +19,7 @@ import { useDouyinPatterns } from "@/hooks/useDouyinPatterns";
  * hover and the card lifts 1px.
  *
  * D7 (2026-06-06) — pulls live counts from ``useDouyinPatterns`` +
- * ``useDouyinFeed`` so the mid-line reads "N pattern đang nổ ở TQ ·
+ * ``useDouyinFeed`` so the mid-line reads "N pattern đang nổ ở Douyin ·
  * M video đã sub VN" with real numbers (design pack line 376).
  * Falls back to count-less copy when either hook is still pending /
  * empty so the card always renders something useful.
@@ -39,8 +39,8 @@ export const TrendsDouyinCard = memo(function TrendsDouyinCard() {
   // the count-less fallback so the card stays meaningful pre-cron.
   const headlineLine =
     patternCount > 0 && videoCount > 0
-      ? `${patternCount} công thức thịnh hành ở TQ · ${videoCount} video đã dịch phụ đề`
-      : "Công thức thịnh hành ở TQ · video đã dịch phụ đề";
+      ? `${patternCount} công thức thịnh hành ở Douyin · ${videoCount} video đã dịch phụ đề`
+      : "Công thức thịnh hành ở Douyin · video đã dịch phụ đề";
 
   return (
     <button
@@ -67,7 +67,7 @@ export const TrendsDouyinCard = memo(function TrendsDouyinCard() {
             {headlineLine}
           </span>
           <span className="gv-mono mt-0.5 text-[11px] text-[color:var(--gv-ink-4)]">
-            Đi trước VN 4–10 tuần · Xem trực tiếp trên GetViews · không cần đổi region
+            Đi trước trend 4–10 tuần · Xem trực tiếp trên GetViews
           </span>
         </span>
       </span>
