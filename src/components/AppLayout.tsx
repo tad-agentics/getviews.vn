@@ -108,7 +108,7 @@ function NicheOfYoursBlock() {
   return (
     <div className="px-4 pb-2.5 pt-[14px]">
       <div className="mb-2.5 flex items-center justify-between gap-2">
-        <p className="gv-uc text-[11px] font-semibold text-[color:var(--gv-ink-2)]">Ngách Của Bạn</p>
+        <p className="gv-uc text-[11px] font-semibold text-[color:var(--gv-accent)]">Ngách Của Bạn</p>
         <button
           type="button"
           onClick={() => navigate("/app/settings?section=niches")}
