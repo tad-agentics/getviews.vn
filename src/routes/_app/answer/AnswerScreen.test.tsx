@@ -734,6 +734,62 @@ describe("AnswerScreen state transitions", () => {
     expect(mockStream.mock.calls[0]?.[0]?.mode).toBe("answer_turn");
   });
 
+  it("re-bootstraps deep analysis when the same TikTok URL was already used at basic depth", async () => {
+    const tiktokQ = "https://www.tiktok.com/@creator/video/7123456789";
+    mockCreateAnswerSession
+      .mockResolvedValueOnce({
+        id: "basic-sess",
+        user_id: "user-1",
+        title: null,
+        initial_q: tiktokQ,
+        intent_type: "video_diagnosis",
+        format: "video",
+        niche_id: null,
+      })
+      .mockResolvedValueOnce({
+        id: "deep-sess",
+        user_id: "user-1",
+        title: null,
+        initial_q: tiktokQ,
+        intent_type: "video_diagnosis",
+        format: "video",
+        niche_id: null,
+      });
+    mockStream.mockResolvedValue({
+      ok: true,
+      finalPayload: { kind: "video", report: { video_id: "7123456789" } },
+    });
+
+    const router = createMemoryRouter(
+      [{ path: "/app/answer", element: <AnswerScreen /> }],
+      {
+        initialEntries: [
+          `/app/answer?q=${encodeURIComponent(tiktokQ)}&depth=basic&mode=win`,
+        ],
+      },
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(mockCreateAnswerSession).toHaveBeenCalledTimes(1);
+    });
+    expect(mockStream.mock.calls[0]?.[0]?.analysisDepth).toBe("basic");
+
+    router.navigate(
+      `/app/answer?q=${encodeURIComponent(tiktokQ)}&depth=deep&mode=win`,
+    );
+
+    await waitFor(() => {
+      expect(mockCreateAnswerSession).toHaveBeenCalledTimes(2);
+    });
+    expect(mockStream.mock.calls.at(-1)?.[0]?.analysisDepth).toBe("deep");
+  });
+
   it("shows initial composer when no session is active", () => {
     renderScreen("/app/answer");
     const composer = screen.getByTestId("follow-up-composer");

@@ -460,11 +460,15 @@ export default function AnswerScreen() {
   }, [location.state, location.pathname, navigate, searchParams]);
 
   /**
-   * Blocks duplicate bootstrap for the same `?q=` (React Strict Mode) but must not
-   * stay true forever — otherwise a later Studio submit to `/app/answer?q=…` never runs
-   * while this route stays mounted.
+   * Blocks duplicate bootstrap for the same `?q=` + `depth` (React Strict Mode) but
+   * must not block a basic→deep upgrade on the same TikTok URL while this route stays
+   * mounted.
    */
   const bootstrapInFlightRef = useRef<string | null>(null);
+
+  function bootstrapDedupeKey(q: string, depth: ParsedAnswerHandoff["depth"]): string {
+    return `${q.trim()}|${depth}`;
+  }
 
   /**
    * Resume-on-reload guard. ``loadPendingAnswerStream`` validates the
@@ -896,8 +900,9 @@ export default function AnswerScreen() {
   useEffect(() => {
     if (sessionId || !seedQ.trim() || !CLOUD || !user) return;
     const submittedQ = seedQ.trim();
-    if (bootstrapInFlightRef.current === submittedQ) return;
-    bootstrapInFlightRef.current = submittedQ;
+    const bootstrapKey = bootstrapDedupeKey(submittedQ, handoff.depth);
+    if (bootstrapInFlightRef.current === bootstrapKey) return;
+    bootstrapInFlightRef.current = bootstrapKey;
 
     void (async () => {
       setBootstrapLoading(true);
@@ -1113,6 +1118,8 @@ export default function AnswerScreen() {
       creatorHandle: typeof meta?.creator === "string" ? meta.creator : null,
     });
     if (!url) return;
+    // Same TikTok URL as the basic session — clear dedupe so bootstrap re-runs at depth=deep.
+    bootstrapInFlightRef.current = null;
     navigate(
       buildAnswerHandoffPath({
         q: url,
