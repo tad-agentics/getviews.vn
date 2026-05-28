@@ -40,6 +40,7 @@ const samplePayload = (overrides: Partial<TrendsRailPayload> = {}): TrendsRailPa
     {
       video_id: "b1",
       thumbnail_url: "https://t/1.jpg",
+      video_url: "https://cdn.example/v/b1.mp4",
       creator_handle: "an.tech",
       tiktok_url: "https://www.tiktok.com/@an.tech/video/b1",
       views: 250_000,

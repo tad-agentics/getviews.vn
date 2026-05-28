@@ -17,6 +17,7 @@ import { pickRotatingBreakoutWindow } from "./useTopBreakouts";
 export type TrendsRailVideo = {
   video_id: string;
   thumbnail_url: string | null;
+  video_url: string | null;
   creator_handle: string | null;
   tiktok_url: string | null;
   views: number;
@@ -52,7 +53,7 @@ export type TrendsRailScope = {
 const RAIL_LIMIT = 5;
 const RAIL_POOL_LIMIT = 20;
 const RAIL_COLS =
-  "video_id, thumbnail_url, creator_handle, tiktok_url, views, posted_at, indexed_at, hook_phrase, hook_type, breakout_multiplier, content_format, content_type";
+  "video_id, thumbnail_url, video_url, creator_handle, tiktok_url, views, posted_at, indexed_at, hook_phrase, hook_type, breakout_multiplier, content_format, content_type";
 
 const RECENT_DAYS = 14;
 const MIN_BREAKOUT = 1.0;

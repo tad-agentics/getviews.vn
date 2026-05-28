@@ -160,6 +160,7 @@ function exploreVideoPreviewItem(v: ExploreGridVideo): CorpusVideoPreviewItem {
     subtitle: `${v.handle} · ↑ ${v.views}`,
     thumbnail_url: thumbUrl,
     tiktok_url: v.tiktok_url,
+    video_url: v.videoUrl?.trim() || null,
   };
 }
 

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 import { Btn } from "@/components/v2/Btn";
@@ -18,6 +19,8 @@ export type CorpusVideoPreviewItem = {
   subtitle: string;
   thumbnail_url: string | null;
   tiktok_url: string | null;
+  /** Public R2 clip — preferred over TikTok iframe (reliable in Radix dialog). */
+  video_url?: string | null;
 };
 
 type CorpusVideoPreviewDialogProps = {
@@ -31,6 +34,117 @@ type CorpusVideoPreviewDialogProps = {
   showTikTokLinkButton?: boolean;
 };
 
+function PreviewMedia({
+  video,
+  open,
+  showTikTokLinkButton,
+}: {
+  video: CorpusVideoPreviewItem;
+  open: boolean;
+  showTikTokLinkButton: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const clipSrc = video.video_url?.trim() ?? "";
+  const tiktokUrl = video.tiktok_url?.trim() || null;
+  const embedId = tiktokAwemeIdForEmbed(video.video_id, video.tiktok_url);
+
+  useEffect(() => {
+    if (!open || !clipSrc) return;
+    setAutoplayBlocked(false);
+    const el = videoRef.current;
+    if (!el) return;
+    el.load();
+    try {
+      const playPromise = el.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        void playPromise.catch(() => setAutoplayBlocked(true));
+      }
+    } catch {
+      setAutoplayBlocked(true);
+    }
+  }, [open, clipSrc, video.video_id]);
+
+  const shellClass =
+    "relative mx-auto max-w-[280px] overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]";
+  const shellStyle = { aspectRatio: "9 / 16" as const };
+
+  if (clipSrc) {
+    return (
+      <div className={shellClass} style={shellStyle}>
+        <video
+          ref={videoRef}
+          key={clipSrc}
+          src={clipSrc}
+          muted
+          loop
+          playsInline
+          controls
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        {autoplayBlocked ? (
+          <button
+            type="button"
+            aria-label="Phát video"
+            onClick={() => {
+              setAutoplayBlocked(false);
+              try {
+                const playPromise = videoRef.current?.play();
+                if (playPromise && typeof playPromise.catch === "function") {
+                  void playPromise.catch(() => setAutoplayBlocked(true));
+                }
+              } catch {
+                setAutoplayBlocked(true);
+              }
+            }}
+            className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 text-white"
+          >
+            <span className="rounded-full bg-black/50 px-4 py-2 text-[12px] font-semibold backdrop-blur-sm">
+              Nhấn để phát
+            </span>
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (embedId) {
+    return (
+      <div className={shellClass} style={shellStyle}>
+        <iframe
+          key={embedId}
+          title={`TikTok video ${embedId}`}
+          src={`https://www.tiktok.com/embed/v2/${embedId}`}
+          className="absolute inset-0 h-full w-full border-0"
+          allow="encrypted-media; fullscreen; autoplay; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={shellClass} style={shellStyle}>
+      <VideoThumbnail
+        thumbnailUrl={video.thumbnail_url}
+        videoId={video.video_id}
+        className="absolute inset-0 h-full w-full"
+        placeholderClassName=""
+      />
+      {tiktokUrl && !showTikTokLinkButton ? (
+        <a
+          href={tiktokUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="gv-mono absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-ink)] shadow-sm hover:border-[color:var(--gv-ink)]"
+        >
+          Mở trên TikTok
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 export function CorpusVideoPreviewDialog({
   video,
   open,
@@ -40,7 +154,6 @@ export function CorpusVideoPreviewDialog({
   description = "Xem trước video trước khi phân tích hoặc mở TikTok",
   showTikTokLinkButton = true,
 }: CorpusVideoPreviewDialogProps) {
-  const embedId = video ? tiktokAwemeIdForEmbed(video.video_id, video.tiktok_url) : null;
   const tiktokUrl = video?.tiktok_url?.trim() || null;
 
   return (
@@ -72,42 +185,11 @@ export function CorpusVideoPreviewDialog({
             </header>
             <DialogDescription className="sr-only">{description}</DialogDescription>
             <div className="px-4 pb-4 pt-4 min-[420px]:px-5">
-              {embedId ? (
-                <div
-                  className="relative mx-auto max-w-[280px] overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]"
-                  style={{ aspectRatio: "9 / 16" }}
-                >
-                  <iframe
-                    key={embedId}
-                    title={`TikTok video ${embedId}`}
-                    src={`https://www.tiktok.com/embed/v2/${embedId}`}
-                    className="absolute inset-0 h-full w-full border-0"
-                    allow="encrypted-media; fullscreen; autoplay; picture-in-picture"
-                  />
-                </div>
-              ) : (
-                <div
-                  className="relative mx-auto max-w-[280px] overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]"
-                  style={{ aspectRatio: "9 / 16" }}
-                >
-                  <VideoThumbnail
-                    thumbnailUrl={video.thumbnail_url}
-                    videoId={video.video_id}
-                    className="absolute inset-0 h-full w-full"
-                    placeholderClassName=""
-                  />
-                  {tiktokUrl && !showTikTokLinkButton ? (
-                    <a
-                      href={tiktokUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="gv-mono absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-ink)] shadow-sm hover:border-[color:var(--gv-ink)]"
-                    >
-                      Mở trên TikTok
-                    </a>
-                  ) : null}
-                </div>
-              )}
+              <PreviewMedia
+                video={video}
+                open={open}
+                showTikTokLinkButton={showTikTokLinkButton}
+              />
             </div>
             <div className="flex flex-col gap-2 border-t border-[color:var(--gv-rule)] px-4 py-4 min-[420px]:px-5">
               {showTikTokLinkButton && tiktokUrl?.startsWith("http") ? (

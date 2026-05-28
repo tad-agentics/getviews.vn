@@ -81,6 +81,7 @@ function previewItemForVideo(video: TrendsRailVideo): CorpusVideoPreviewItem {
     subtitle,
     thumbnail_url: video.thumbnail_url,
     tiktok_url: tiktokUrlForVideo(video),
+    video_url: video.video_url?.trim() || null,
   };
 }
 
