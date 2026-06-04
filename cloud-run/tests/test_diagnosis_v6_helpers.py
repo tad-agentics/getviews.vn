@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from getviews_pipeline.diagnose_sections import select_sections_to_emit
-from getviews_pipeline.diagnosis_quality import score_diagnosis_output_v6
+from getviews_pipeline.diagnosis_quality import (
+    diagnosis_v6_word_budget_exceeded,
+    score_diagnosis_output_v6,
+)
 from getviews_pipeline.gemini import _v6_section_body_and_narrative
 from getviews_pipeline.signals.registry import build_diagnosis_ctx, build_signal_manifest
 
@@ -123,11 +126,39 @@ def test_v6_section_body_and_narrative() -> None:
     assert nv["loi_chinh_narrative"][0]["error_id"] == "v6_summary"
 
 
+def test_diagnosis_v6_word_budget_exceeded_on_long_section() -> None:
+    diag = {
+        "sections": [
+            {"section_id": "diagnosis", "text": "word " * 60},
+        ],
+    }
+    assert diagnosis_v6_word_budget_exceeded(diag) is True
+
+
+def test_diagnosis_v6_word_budget_ok_when_brief() -> None:
+    diag = {
+        "sections": [
+            {
+                "section_id": "diagnosis",
+                "text": "**Verdict.** " + "ngắn " * 8,
+                "findings": [
+                    {
+                        "title_vi": "Hook yếu",
+                        "body_vi": "1 câu.",
+                        "fix_vi": "Đổi hook.",
+                    }
+                ],
+            },
+        ],
+    }
+    assert diagnosis_v6_word_budget_exceeded(diag) is False
+
+
 def test_score_diagnosis_output_v6_ok() -> None:
     diag = {
         "headline_vi": "X",
         "sections": [
-            {"section_id": "diagnosis", "text": "word " * 80},
+            {"section_id": "diagnosis", "text": "**Verdict.** " + "ngắn " * 8},
         ],
         "evidence_anchors": [
             {

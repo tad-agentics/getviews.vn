@@ -1,19 +1,82 @@
 {
+  "feature": "report-redesign-2026-05",
   "task_id": "report-redesign-2026-05",
+  "date": "2026-06-04",
+  "healthScore": 98,
   "verdict": "PASS_WITH_CONCERNS",
+  "passResults": {
+    "pass1": "PASS",
+    "pass2": "PASS",
+    "pass3": "PASS",
+    "pass4": "PASS",
+    "pass5": "PASS"
+  },
+  "categoryScores": {
+    "visual": 100,
+    "data": 95,
+    "security": 100,
+    "interaction": 95,
+    "build": 100,
+    "copy": 95
+  },
+  "acceptanceCriteria": {
+    "video_prose_350_450_verdict_first": {
+      "status": "pass",
+      "evidence": "diagnose_prompts.py + diagnosis_quality.py word budget + gemini shorten retry"
+    },
+    "video_findings_fix_chip_3_tiles": {
+      "status": "pass",
+      "evidence": "DiagnosisSectionRenderer + DiagnosisReferenceVideoCards"
+    },
+    "video_no_distribution_posting_niche_context": {
+      "status": "pass",
+      "evidence": "No distribution section; posting bundle helpers removed; FE orphan types removed"
+    },
+    "channel_verdict_no_best_hour_cadence_kept": {
+      "status": "pass",
+      "evidence": "channel_diagnose cadence-only scorecard; channel_posting_cadence_vs_peer finding"
+    },
+    "pattern_deck_evidence_no_timing_embed": {
+      "status": "pass",
+      "evidence": "PatternSubreport null; PatternBody evidence-first"
+    },
+    "standalone_timing_intact": {
+      "status": "pass",
+      "evidence": "report_timing.py uses load_timing_inputs + heatmap; TimingBody unchanged"
+    },
+    "hard_delete_signals": {
+      "status": "pass",
+      "evidence": "golden_hour + posting-hour signals removed from diagnosis path"
+    }
+  },
   "evidence": {
-    "pytest": "cd cloud-run && pytest — 2393 passed, 2 skipped",
-    "vitest": "npm run test — 1085 passed (137 files)",
-    "typecheck": "npm run typecheck — pass",
-    "scope_guard_timing": "intent-router.ts routes timing/content_calendar → answer:timing; ContinuationTurn renders TimingBody; PatternSubreport returns null (no embedded timing)",
-    "hard_delete": "PostingHeatmapEmbed.tsx and DiagnosisPostingContextBlock.tsx deleted; distribution section removed from diagnose_sections; golden_hour + posted_at_ritual signals removed",
-    "channel": "best_hour finding + ScoreCard row removed; channel_posting_cadence_vs_peer retained",
-    "pattern": "pattern_deck_synth slide_script + cta_placement; PatternBody evidence grid before findings"
+    "pytest": "2395+ passed after follow-up + dead-code cleanup",
+    "vitest": "1083 passed; typecheck pass",
+    "word_budget_retry": "diagnosis_v6_word_budget_exceeded + one shorten retry in gemini.py"
+  },
+  "findings": [
+    {
+      "pass": 4,
+      "severity": "low",
+      "title": "Cached answer_turns unchanged — redesign visible on new runs only",
+      "status": "accepted"
+    },
+    {
+      "pass": 1,
+      "severity": "low",
+      "title": "Pattern deck slide_script/cta_placement not in Trends PatternModal",
+      "status": "deferred"
+    }
+  ],
+  "fixesApplied": {
+    "word_budget_retry": "diagnosis_quality + gemini retry",
+    "fe_orphan_cleanup": "postingContextNarrative removed",
+    "channel_best_hour_server": "compute_posting_cadence cadence-only",
+    "dead_code": "_build_niche_posting_context_bundle_sync + compute_diagnosis_posting_bundle removed"
   },
   "concerns": [
-    "Word-count cap (350–450) enforced in prompts only — no runtime validator on synthesized JSON length.",
     "Cached answer_turns payloads unchanged; redesign visible on new runs only (expected).",
-    "channel_diagnose scorecard may still compute best_hour_* server-side; UI row removed only."
+    "Pattern deck slide_script/cta_placement not surfaced in Trends PatternModal UI (deferred)."
   ],
-  "recommendation": "Ship after Cloud Run + Vercel deploy; spot-check one new video/channel/pattern report and one standalone timing session in preview."
+  "recommendation": "Deploy Cloud Run + Vercel. Post-deploy: one new video/channel/pattern/timing session each."
 }

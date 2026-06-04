@@ -29,7 +29,6 @@ import { STEP_EVENT_TYPES, type StepEvent } from "@/lib/types/sse-events";
 import type {
   BrightSpotSignal,
   ChannelContext,
-  DiagnosisPostingContextPayload,
   FormatCard,
   NarrativeVi,
   ReferenceVideoCard,
@@ -551,23 +550,12 @@ function mergeNarrativeReady(
   if (Array.isArray(tokVs) && tokVs.length > 0) {
     view_scenarios = tokVs as ViewScenario[];
   }
-  const tokPc = token.niche_posting_context;
-  let niche_posting_context = prev?.niche_posting_context;
-  if (
-    tokPc != null &&
-    typeof tokPc === "object" &&
-    !Array.isArray(tokPc) &&
-    Array.isArray((tokPc as DiagnosisPostingContextPayload).grid)
-  ) {
-    niche_posting_context = tokPc as DiagnosisPostingContextPayload;
-  }
   return {
     narrative_vi,
     format_cards,
     errors,
     bright_spot_signal,
     view_scenarios,
-    niche_posting_context,
   };
 }
 

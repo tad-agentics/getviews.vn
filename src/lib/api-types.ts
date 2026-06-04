@@ -1099,17 +1099,6 @@ export interface ReferenceVideoCard {
   source: "corpus" | "live_search";
 }
 
-/** Corpus timing slice for video/carousel diagnosis body (not full TimingReportPayload). */
-export interface DiagnosisPostingContextPayload {
-  grid: number[][];
-  variance_note: Record<string, string>;
-  top_3_windows: Array<Record<string, unknown>>;
-  sample_size: number;
-  window_days: number;
-  niche_label?: string;
-  user_post_window_vi?: string | null;
-}
-
 /** Partial payload streamed before final Vietnamese synthesis lands on `ReportV1`. */
 export interface VideoAnswerPreSynthesisPayload {
   bright_spot_signal?: BrightSpotSignal;
@@ -1123,7 +1112,6 @@ export interface VideoAnswerNarrativeReadyPayload {
   errors?: VideoFlopIssue[];
   bright_spot_signal?: BrightSpotSignal;
   view_scenarios?: ViewScenario[];
-  niche_posting_context?: DiagnosisPostingContextPayload;
 }
 
 // ── Diagnostic template (2026-04-22) ──────────────────────────────────────
@@ -1209,8 +1197,6 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   reference_videos?: ReferenceVideoCard[];
   /** Account-refined tier when available: `hit` | `average` | `flop` | `unknown` */
   performance_tier?: string;
-  /** Niche posting heatmap + top windows (diagnosis embed; optional). */
-  niche_posting_context?: DiagnosisPostingContextPayload;
   /** §4.11.3 — echo billing tier on persisted video report. */
   analysis_depth?: "basic" | "deep";
   /** §4.6 — turn-1 handoff attribution (trends / composer / evidence / …). */
@@ -1606,11 +1592,6 @@ export interface ChannelScoreCardData {
   recent_avg_views: number;
   posts_per_week: number;
   peer_median_posts_per_week: number;
-  best_hour_range: string;
-  best_hour_avg_views: number;
-  worst_hour: number | null;
-  worst_hour_avg_views: number;
-  best_hour_ratio: number;
   sample_size_videos: number;
 }
 

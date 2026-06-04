@@ -74,6 +74,14 @@ NICHE_PATTERN:
 - Ngôn ngữ: tiếng Việt peer-to-peer. Dùng **view** (không "lượt xem"), **tỷ lệ tương tác** (không "engagement rate"). Tránh quote tiếng Anh thô — diễn đạt format/hook bằng tiếng Việt. Khi performance_tier=hit: khung breakout, hook chỉ là polish — không mô tả như flop.
 """
 
+DIAGNOSIS_V6_SHORTEN_RETRY_APPEND = """
+BẮT BUỘC RÚT GỌN (lần 2): Bản trước quá dài. Trả lại JSON đầy đủ cùng schema.
+- TỔNG ≤450 từ (mọi section.text + findings).
+- Mỗi section.text (trừ next_video): ≤50 từ — 1 verdict **in đậm** + tối đa 2 câu chứng minh.
+- Giữ đủ findings (2-3/issue section) và embedded_tiles; cắt prose thừa, KHÔNG bỏ fix_vi.
+- next_video: giữ bullet script • Hook → Beat → CTA, gọn hơn nếu cần.
+"""
+
 
 def _signal_payload(manifest_trim: dict[str, list[Signal]]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []

@@ -1429,6 +1429,47 @@ def _v6_section_body_and_narrative(
     return body_md, narrative_vi
 
 
+def _parse_diagnosis_v6_pool_response(
+    text: str,
+    *,
+    allowed: set[str],
+    reference_videos: list[dict[str, Any]],
+) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None, dict[str, Any] | None]:
+    """Parse v6 section-pool Gemini text → body, narrative, format_cards, raw diagnosis_vi."""
+    raw_obj, remainder = _split_diagnosis_leading_json(text)
+    narrative_vi: dict[str, Any] | None = None
+    format_cards: list[dict[str, Any]] | None = None
+    body = ""
+    diag_vi: dict[str, Any] | None = None
+
+    if raw_obj:
+        diag_vi = raw_obj.get("diagnosis_vi")
+        if isinstance(diag_vi, dict):
+            body, narrative_vi = _v6_section_body_and_narrative(diag_vi)
+            fc = raw_obj.get("format_cards")
+            format_cards = fc if isinstance(fc, list) else None
+            narrative_vi, format_cards = _validate_narrative_citations(
+                narrative_vi, format_cards, allowed, reference_videos
+            )
+            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
+            if not body.strip():
+                body = remainder.strip()
+        else:
+            nv = raw_obj.get("narrative_vi")
+            fc = raw_obj.get("format_cards")
+            narrative_vi = nv if isinstance(nv, dict) else None
+            format_cards = fc if isinstance(fc, list) else None
+            narrative_vi, format_cards = _validate_narrative_citations(
+                narrative_vi, format_cards, allowed, reference_videos
+            )
+            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
+            body = remainder.strip()
+    else:
+        body = text.strip()
+
+    return body, narrative_vi, format_cards, diag_vi if isinstance(diag_vi, dict) else None
+
+
 def _synthesize_diagnosis_v6_section_pool(
     content_format: str,
     niche_name: str,
@@ -1455,9 +1496,16 @@ def _synthesize_diagnosis_v6_section_pool(
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """Section-pool diagnosis: signals → section pick list → JSON-first v6 prompt."""
     from getviews_pipeline.compliance import collect_compliance_flags
-    from getviews_pipeline.diagnose_prompts import build_diagnosis_v6_user_prompt
+    from getviews_pipeline.diagnose_prompts import (
+        DIAGNOSIS_V6_SHORTEN_RETRY_APPEND,
+        build_diagnosis_v6_user_prompt,
+    )
     from getviews_pipeline.diagnose_sections import select_sections_to_emit
-    from getviews_pipeline.diagnosis_quality import score_diagnosis_output_v6
+    from getviews_pipeline.diagnosis_quality import (
+        diagnosis_v6_word_budget_exceeded,
+        diagnosis_v6_word_counts,
+        score_diagnosis_output_v6,
+    )
     from getviews_pipeline.signals.registry import (
         build_diagnosis_ctx,
         build_signal_manifest,
@@ -1524,58 +1572,57 @@ def _synthesize_diagnosis_v6_section_pool(
         temperature=GEMINI_TEMPERATURE,
         max_output_tokens=max_tokens,
     )
-    response = _generate_content_models(
-        [prompt],
-        primary_model=model,
-        fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
-        config=cfg,
-        call_site="diagnosis_synthesis_v6_section_pool",
-        synthesis_cache_kind="diag_v6",
-        synthesis_cache_system_text=sys_inst,
-    )
-    text = _response_text(response)
-    if not text.strip():
-        raise ValueError("synthesize_diagnosis_v6_section_pool returned empty response")
-
-    raw_obj, remainder = _split_diagnosis_leading_json(text)
+    body = ""
     narrative_vi: dict[str, Any] | None = None
     format_cards: list[dict[str, Any]] | None = None
-    body = ""
+    diag_vi: dict[str, Any] | None = None
 
-    if raw_obj:
-        diag_vi = raw_obj.get("diagnosis_vi")
-        if isinstance(diag_vi, dict):
-            body, narrative_vi = _v6_section_body_and_narrative(diag_vi)
-            fc = raw_obj.get("format_cards")
-            format_cards = fc if isinstance(fc, list) else None
-            narrative_vi, format_cards = _validate_narrative_citations(
-                narrative_vi, format_cards, allowed, reference_videos
-            )
-            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
-            q = score_diagnosis_output_v6(
-                diag_vi, section_ids_expected=sections_ordered
-            )
-            logger.debug(
-                "[diagnosis_v6] quality footprint sections=%s scores=%s",
-                sections_ordered,
-                q,
-            )
-            if not body.strip():
-                body = remainder.strip()
-        else:
-            nv = raw_obj.get("narrative_vi")
-            fc = raw_obj.get("format_cards")
-            narrative_vi = nv if isinstance(nv, dict) else None
-            format_cards = fc if isinstance(fc, list) else None
-            narrative_vi, format_cards = _validate_narrative_citations(
-                narrative_vi, format_cards, allowed, reference_videos
-            )
-            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
-            body = remainder.strip()
-    else:
-        body = text.strip()
+    for attempt in range(2):
+        attempt_prompt = (
+            prompt if attempt == 0 else prompt + DIAGNOSIS_V6_SHORTEN_RETRY_APPEND
+        )
+        response = _generate_content_models(
+            [attempt_prompt],
+            primary_model=model,
+            fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
+            config=cfg,
+            call_site="diagnosis_synthesis_v6_section_pool",
+            synthesis_cache_kind="diag_v6",
+            synthesis_cache_system_text=sys_inst,
+        )
+        text = _response_text(response)
+        if not text.strip():
+            raise ValueError("synthesize_diagnosis_v6_section_pool returned empty response")
 
-    scan_target = body if raw_obj else text.strip()
+        body, narrative_vi, format_cards, diag_vi = _parse_diagnosis_v6_pool_response(
+            text,
+            allowed=allowed,
+            reference_videos=reference_videos,
+        )
+        if attempt == 0 and diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi):
+            wc = diagnosis_v6_word_counts(diag_vi)
+            logger.info(
+                "[diagnosis_v6] word budget exceeded total=%s — shorten retry",
+                wc.get("total"),
+            )
+            continue
+        if attempt == 1 and diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi):
+            wc = diagnosis_v6_word_counts(diag_vi)
+            logger.warning(
+                "[diagnosis_v6] word budget still exceeded after shorten retry total=%s",
+                wc.get("total"),
+            )
+        break
+
+    if diag_vi:
+        q = score_diagnosis_output_v6(diag_vi, section_ids_expected=sections_ordered)
+        logger.debug(
+            "[diagnosis_v6] quality footprint sections=%s scores=%s",
+            sections_ordered,
+            q,
+        )
+
+    scan_target = body.strip() if body.strip() else text.strip()
     try:
         from getviews_pipeline.analysis_guards import (
             scan_synthesis_for_fabricated_metrics,
