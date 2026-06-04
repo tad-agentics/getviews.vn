@@ -66,7 +66,6 @@ import {
   buildMetadataFallbackProse,
   buildScriptStructureFallbackProse,
   diagnosisSectionText,
-  shouldShowHookAnalysisBlock,
   shouldShowMetadataBlock,
   shouldShowScriptStructureBlock,
 } from "@/lib/videoAdjunctSections";
@@ -282,15 +281,6 @@ export function VideoBody({
       embeds.scriptStructure = {
         segments: report.segments!,
         durationSec: duration,
-      };
-    }
-    if (shouldShowHookAnalysisBlock(report)) {
-      embeds.hookAnalysis = {
-        phases: report.hook_phases,
-        timeline: report.hook_timeline,
-        chartCaption: report.hook_phases?.length
-          ? "Ba thẻ theo cửa sổ 0–3s: hình mở, kiểu hook, chỗ lời/kết nối sớm — tóm tắt từ cùng luồng phân tích hình."
-          : undefined,
       };
     }
     if (shouldShowMetadataBlock(meta, report.enrichment)) {
@@ -733,26 +723,6 @@ export function VideoBody({
             referenceVideos={refVideos}
             videoEmbeds={videoSectionEmbeds}
             fallbackProse={buildScriptStructureFallbackProse(duration)}
-          />
-        ) : null}
-
-        {!sectionIds.has("hook_analysis") && shouldShowHookAnalysisBlock(report) ? (
-          <DiagnosisSectionRenderer
-            section={{
-              section_id: "hook_analysis",
-              title: adjunctSectionTitle("hook_analysis", undefined, adjunctTier),
-              title_vi: adjunctSectionTitle("hook_analysis", undefined, adjunctTier),
-              text: "",
-              findings: [],
-            }}
-            referenceVideos={refVideos}
-            videoEmbeds={videoSectionEmbeds}
-            fallbackProse={buildHookAnalysisFallbackProse(
-              report.hook_phases,
-              isFlop,
-              narrativeVi,
-              flopIssuesForNarrative,
-            )}
           />
         ) : null}
 

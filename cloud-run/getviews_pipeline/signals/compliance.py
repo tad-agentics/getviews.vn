@@ -127,45 +127,9 @@ def extract_price_anchor_compliance_signal(ctx: dict) -> list[Signal]:
     return []
 
 
-def extract_disclosure_compliance_signal(ctx: dict) -> list[Signal]:
-    """Ad Law 2025 — compliance section (dịch vụ §10; commerce section giữ §0)."""
-    ua = ctx.get("user_analysis") or {}
-    if not isinstance(ua, dict):
-        return []
-    ci = _as_commerce_dict(ua)
-    promo = str(ua.get("promotion_type") or "organic").lower()
-    if not _is_commercial(ua, ci):
-        return []
-    if ci:
-        if ci.get("disclosure_present"):
-            return []
-        quote = "disclosure_present=false"
-        loc = "user_analysis.commerce_intent.disclosure_present"
-    else:
-        if promo not in ("brand_deal", "affiliate"):
-            return []
-        quote = f"promotion_type={promo} (không có commerce_intent.disclosure)"
-        loc = "user_analysis.promotion_type"
-    return [
-        Signal(
-            id="compliance_ad_law_disclosure_missing",
-            section_id="compliance",
-            taxonomy_ref="§10",
-            salience=0.9,
-            claim=(
-                "Quan hệ thương mại hiển nhiên nhưng thiếu tiết lộ rõ — rủi ro "
-                "Luật Quảng cáo VN 2025."
-            ),
-            evidence=[
-                Evidence(
-                    type="user_analysis_field",
-                    quote=quote,
-                    location=loc,
-                )
-            ],
-            suggested_fix="Thêm tiết lộ voice/#qc/chữ nổi theo Khung an toàn quảng cáo.",
-        )
-    ]
+def extract_disclosure_compliance_signal(_ctx: dict) -> list[Signal]:
+    """Disabled — commercial #qc/voice disclosure findings removed from video diagnosis."""
+    return []
 
 
 def extract_safe_zone_compliance_signal(ctx: dict) -> list[Signal]:
@@ -433,10 +397,7 @@ def extract_legacy_compliance_hit(ctx: dict) -> list[Signal]:
                     location=str(first.get("location") or "compliance_flags[0]"),
                 )
             ],
-            suggested_fix=(
-                "Viết lại theo Khung an toàn quảng cáo và chú thích #qc / voice "
-                "khi có quan hệ thương mại."
-            ),
+            suggested_fix="Viết lại theo Khung an toàn quảng cáo và tránh claim gây hiểu nhầm.",
         )
     ]
 
@@ -448,7 +409,7 @@ def extract_compliance_signals(ctx: dict) -> list[Signal]:
     out.extend(extract_safe_zone_compliance_signal(ctx))
     out.extend(extract_engagement_bait_hashtag_signal(ctx))
     out.extend(extract_copyright_music_compliance_signal(ctx))
-    out.extend(extract_disclosure_compliance_signal(ctx))
+    # Commercial relationship disclosure (#qc / Ad Law) — out of scope for video diagnosis.
     out.extend(extract_ai_disclosure_compliance_signal(ctx))
     out.extend(extract_shadowban_distribution_risk_signal(ctx))
     out.extend(extract_legacy_compliance_hit(ctx))

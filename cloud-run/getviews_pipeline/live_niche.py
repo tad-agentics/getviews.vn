@@ -26,7 +26,7 @@ async def resolve_live_niche_id(
     fallback_session_niche_id: int | None = None,
     user_id: str | None = None,
 ) -> int:
-    """CREATOR_NICHE_OVERRIDE → hashtags → caption match → session → profile."""
+    """CREATOR_NICHE_OVERRIDE → session (when set) → hashtags → caption → profile."""
     from getviews_pipeline import ensemble
     from getviews_pipeline.creator_blocklist import niche_override_for_handle
     from getviews_pipeline.hashtag_niche_map import classify_from_hashtags
@@ -45,6 +45,11 @@ async def resolve_live_niche_id(
     if override is not None:
         return int(override)
 
+    # Studio answer sessions pin cohort to the user's selected niche — do not
+    # let video hashtags / caption classifier override session or profile.
+    if fallback_session_niche_id and int(fallback_session_niche_id) > 0:
+        return int(fallback_session_niche_id)
+
     try:
         nid = await classify_from_hashtags(meta.hashtags, service_sb)
         if nid:
@@ -60,9 +65,6 @@ async def resolve_live_niche_id(
                 return int(match.niche_id)
         except Exception as exc:  # noqa: BLE001
             logger.warning("[live_niche] caption niche match failed: %s", exc)
-
-    if fallback_session_niche_id and int(fallback_session_niche_id) > 0:
-        return int(fallback_session_niche_id)
 
     if user_id:
         try:

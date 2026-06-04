@@ -28,7 +28,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
           }
         ],
         "embedded_tiles": [
-          {"aweme_id": "<id từ REFERENCE_EVIDENCE>", "narrative_vi": "1-3 câu: vì sao chọn video này + nó làm tốt điều gì (hook, format, nhịp) so với clip user"}
+          {"aweme_id": "<id từ REFERENCE_EVIDENCE>", "narrative_vi": "1-3 câu: vì sao chọn video này + nó làm tốt điều gì (hook, format, nhịp) so với clip đang phân tích"}
         ],
         "next_video": null
       }
@@ -52,13 +52,14 @@ Quy tắc:
 
 FINDINGS (đơn vị hiển thị chính của section issue-based):
 - Section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure): 2-3 findings — đây là phần creator đọc kỹ nhất. Mỗi finding: title_vi (≤10 từ, "Vấn đề — hậu quả"), body_vi (1 câu + số liệu), fix_vi (1 hành động copy-paste: hook template, con số, thao tác cụ thể — KHÔNG "cải thiện hook").
+- KHÔNG tạo finding về tiết lộ thương mại / #qc / #ad / Luật Quảng cáo disclosure — ngoài phạm vi sản phẩm video diagnosis.
 - Section không issue-based (next_video, niche_pattern, channel_pattern, douyin_origin, persona): findings: [].
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
 - CHỐNG pad: mỗi câu advance argument; không lặp ý. evidence_anchors khớp claim trong text.
 
 REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
 - Section show được trực quan (niche_pattern, diagnosis, hook_analysis, script_structure): điền tối đa **3** embedded_tiles **khác aweme_id** từ REFERENCE_EVIDENCE. niche_pattern ưu tiên đủ 3 tile — đây là lưới "top ngách đang làm gì", reference là nhân vật chính, prose dẫn vào chỉ 1 câu.
-- Mỗi aweme_id chỉ dùng ở MỘT section. narrative_vi = 1 câu (tối đa 2) **khác nhau cho từng video**: nêu **điều cần copy** (hook/format/nhịp cụ thể) so với clip user. Góc theo section (hook_analysis → 3 giây đầu; diagnosis/niche_pattern → format/hiệu quả). KHÔNG nhắc @handle hay số view (card đã hiển thị). KHÔNG lặp narrative_vi vào text.
+- Mỗi aweme_id chỉ dùng ở MỘT section. narrative_vi = 1 câu (tối đa 2) **khác nhau cho từng video**: nêu **điều cần copy** (hook/format/nhịp cụ thể) so với clip đang phân tích. Góc theo section (hook_analysis → 3 giây đầu; diagnosis/niche_pattern → format/hiệu quả). KHÔNG nhắc @handle hay số view (card đã hiển thị). KHÔNG lặp narrative_vi vào text. Tuân thủ ADDRESSING_MODE trong DIAGNOSTIC_CONTEXT.
 - Chỉ chọn video gần context (CTX_SUMMARY). Không đủ peer phù hợp → ít tile hơn hoặc [].
 - Section phân tích thuần (channel_pattern, persona, compliance): tile tùy chọn, không bắt buộc.
 
@@ -170,6 +171,8 @@ def build_diagnosis_v6_user_prompt(
     niche_posting_context_block: str = "",
     collapsed_questions: list[str] | None = None,
     cross_format_signal: dict[str, Any] | None = None,
+    addressing_mode: str = "third_party",
+    video_creator_handle: str | None = None,
 ) -> str:
     tier = str(performance_tier or "unknown").lower()
     default_titles = {
@@ -198,6 +201,8 @@ def build_diagnosis_v6_user_prompt(
             "content_format": content_format,
             "corpus_size": corpus_size,
             "performance_tier": performance_tier,
+            "addressing_mode": addressing_mode,
+            "video_creator_handle": (video_creator_handle or "").strip().lstrip("@") or None,
         },
         "user_stats_trim": {
             k: user_stats.get(k)
@@ -212,8 +217,22 @@ def build_diagnosis_v6_user_prompt(
         "cross_format_signal": cross_format_trim,
         "errors_head": (errors or [])[:3],
     }
+    from getviews_pipeline.analysis_addressing import (
+        AddressingMode,
+        build_addressing_prompt_block,
+    )
+
+    mode: AddressingMode = (
+        "viewer_own" if addressing_mode == "viewer_own" else "third_party"
+    )
+    addressing_block = build_addressing_prompt_block(
+        mode,
+        creator_handle=video_creator_handle,
+    )
+
     blocks = [
         DIAGNOSIS_V6_JSON_INSTRUCTION.strip(),
+        f"\n\n{addressing_block}\n",
         "\nDIAGNOSTIC_CONTEXT_JSON:\n",
         json.dumps(payload, ensure_ascii=False, indent=2),
         "\n\nUSER_ANALYSIS_JSON (truncated keys):\n",

@@ -64,7 +64,7 @@ def test_restricted_off_platform_in_overlay() -> None:
     assert any(s.id == "compliance_restricted_phrase" for s in extract_compliance_signals(ctx))
 
 
-def test_disclosure_compliance_section() -> None:
+def test_commercial_disclosure_compliance_signal_disabled() -> None:
     ua = {
         "promotion_type": "organic",
         "commerce_intent": {
@@ -78,11 +78,8 @@ def test_disclosure_compliance_section() -> None:
         "text_overlays": [],
     }
     ctx = _ctx(ua=ua, flags=[])
-    sigs = extract_compliance_signals(ctx)
-    ids = [s.id for s in sigs]
-    assert "compliance_ad_law_disclosure_missing" in ids
-    disc = next(s for s in sigs if s.id == "compliance_ad_law_disclosure_missing")
-    assert disc.salience == 0.9
+    ids = [s.id for s in extract_compliance_signals(ctx)]
+    assert "compliance_ad_law_disclosure_missing" not in ids
 
 
 def test_inflated_price_anchor_numeric() -> None:

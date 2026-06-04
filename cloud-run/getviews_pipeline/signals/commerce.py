@@ -151,7 +151,7 @@ def extract_conversion_objective_signal(ctx: dict) -> list[Signal]:
             section_id="commerce",
             taxonomy_ref="§0",
             salience=0.6,
-            claim=f"Mục tiêu chuyển đổi: {obj} — cần CTA và tiết lộ rõ khi có quan hệ thương mại.",
+            claim=f"Mục tiêu chuyển đổi: {obj} — cần CTA rõ khi có quan hệ thương mại.",
             evidence=[
                 Evidence(
                     type="user_analysis_field",
@@ -227,47 +227,9 @@ def extract_price_tier_hook_mismatch_signal(ctx: dict) -> list[Signal]:
     ]
 
 
-def extract_disclosure_signal(ctx: dict) -> list[Signal]:
-    ua = ctx.get("user_analysis") or {}
-    if not isinstance(ua, dict):
-        return []
-    ci = _as_commerce_dict(ua)
-    promo = str(ua.get("promotion_type") or "organic").lower()
-    if not _is_commercial(ua, ci):
-        return []
-    if ci:
-        if ci.get("disclosure_present"):
-            return []
-        salience = 0.85
-        loc = "user_analysis.commerce_intent.disclosure_present"
-        quote = "disclosure_present=false"
-    else:
-        # Legacy row: flag when relationship likely but no structured disclosure.
-        if promo not in ("brand_deal", "affiliate"):
-            return []
-        salience = 0.78
-        loc = "user_analysis.promotion_type"
-        quote = f"promotion_type={promo} (no commerce_intent.disclosure)"
-    return [
-        Signal(
-            id="commerce_disclosure_missing",
-            section_id="commerce",
-            taxonomy_ref="§0",
-            salience=salience,
-            claim=(
-                "Thương mại hiển nhiên nhưng thiếu tiết lộ rõ "
-                "(#qc / giọng / chữ) — rủi ro Ad Law."
-            ),
-            evidence=[
-                Evidence(
-                    type="user_analysis_field",
-                    quote=quote,
-                    location=loc,
-                )
-            ],
-            suggested_fix="Thêm tiết lộ voice hoặc #qc / chữ overlay theo Khung an toàn quảng cáo.",
-        )
-    ]
+def extract_disclosure_signal(_ctx: dict) -> list[Signal]:
+    """Disabled — commercial disclosure findings removed from video diagnosis."""
+    return []
 
 
 def extract_creator_type_consistency_signal(ctx: dict) -> list[Signal]:
@@ -332,7 +294,7 @@ def extract_legacy_promotion_signal(ctx: dict) -> list[Signal]:
             section_id="commerce",
             taxonomy_ref="§0",
             salience=0.6,
-            claim=f"Video mang tính thương mại (promotion_type={promo}) — cần chấm CTA và tiết lộ.",
+            claim=f"Video mang tính hướng thương mại (promotion_type={promo}) — cần chấm CTA.",
             evidence=[
                 Evidence(
                     type="user_analysis_field",
@@ -340,7 +302,7 @@ def extract_legacy_promotion_signal(ctx: dict) -> list[Signal]:
                     location="user_analysis.promotion_type",
                 )
             ],
-            suggested_fix="Rõ ràng CTA voice + tiết lộ quan hệ khi có brand/affiliate.",
+            suggested_fix="Rõ ràng CTA voice khi có brand/affiliate.",
         )
     ]
     if not cta:
@@ -372,7 +334,6 @@ def extract_commerce_signals(ctx: dict) -> list[Signal]:
     merged.extend(extract_commerce_silent_cta_signal(ctx))
     merged.extend(extract_commerce_price_tier_structure_signal(ctx))
     merged.extend(extract_price_tier_hook_mismatch_signal(ctx))
-    merged.extend(extract_disclosure_signal(ctx))
     merged.extend(extract_creator_type_consistency_signal(ctx))
     merged.extend(extract_legacy_promotion_signal(ctx))
     return merged

@@ -473,6 +473,7 @@ def build_video_report(
             mode=resolved_mode,  # type: ignore[arg-type]
             step_queue=step_queue,
             analysis_depth=analysis_depth,
+            session_niche_id=session_niche_id,
         )
     except ValueError as exc:
         msg = str(exc)

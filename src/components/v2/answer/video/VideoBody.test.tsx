@@ -236,9 +236,9 @@ describe("VideoBody render", () => {
     expect(screen.queryByText("HIT")).toBeNull();
   });
 
-  it("renders the win-mode hook phase + lessons sections", () => {
+  it("renders the win-mode lessons section (hook phase grid hidden)", () => {
     renderInRouter(makeWinReport());
-    expect(screen.getByTestId("hook-phase-grid")).toBeTruthy();
+    expect(screen.queryByTestId("hook-phase-grid")).toBeNull();
     expect(screen.getByText(/3 điều bạn có thể copy/)).toBeTruthy();
     expect(screen.getByText("L1")).toBeTruthy();
     expect(screen.getByText("L3")).toBeTruthy();
@@ -253,12 +253,10 @@ describe("VideoBody render", () => {
     ).toBeTruthy();
   });
 
-  it("renders hook phase grid in flop mode when hook_phases are present", () => {
+  it("does not render hook phase grid in flop mode", () => {
     renderInRouter(makeFlopReport());
-    expect(screen.getByTestId("hook-phase-grid")).toBeTruthy();
-    // Copy was tightened: "3 giây đầu — nhịp mở dễ mất người xem" →
-    // "3 giây đầu dễ mất người xem". Test asserts the current form.
-    expect(screen.getByText(/3 giây đầu dễ mất người xem/)).toBeTruthy();
+    expect(screen.queryByTestId("hook-phase-grid")).toBeNull();
+    expect(screen.queryByText(/Dòng thời gian hook/)).toBeNull();
   });
 
   it("renders flop issues + detail/fix + script CTA (no projected views)", () => {
@@ -684,8 +682,8 @@ describe("VideoBody render", () => {
     expect(screen.queryByTestId("video-deep-upsell")).toBeNull();
   });
 
-  it("embeds hook charts inside hook_analysis section when v6 section exists", () => {
-    const { container } = renderInRouter(
+  it("shows hook_analysis prose only — no phase grid or timeline embed", () => {
+    renderInRouter(
       makeWinReport({
         hook_timeline: [{ t: 0.5, event: "face_enter" }],
         narrative_vi: {
@@ -701,10 +699,9 @@ describe("VideoBody render", () => {
       }),
     );
     expect(screen.getByText("Hook prose.")).toBeTruthy();
-    expect(screen.getByText(/Dòng thời gian hook/)).toBeTruthy();
-    expect(screen.getByText(/Khuôn mặt xuất hiện/)).toBeTruthy();
+    expect(screen.queryByText(/Dòng thời gian hook/)).toBeNull();
+    expect(screen.queryByTestId("hook-phase-grid")).toBeNull();
     expect(screen.getAllByText("Phân tích hook")).toHaveLength(1);
-    expect(container.querySelectorAll("[data-testid='hook-phase-grid']").length).toBe(1);
   });
 
   it("renders script_structure adjunct with fallback prose when segments exist", () => {

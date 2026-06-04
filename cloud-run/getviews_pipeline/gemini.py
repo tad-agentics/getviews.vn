@@ -1010,12 +1010,19 @@ def count_valid_embedded_tiles(diagnosis_vi: dict[str, Any] | None) -> int:
 def repair_diagnosis_vi_embedded_tiles(
     diagnosis_vi: dict[str, Any],
     reference_videos: list[dict[str, Any]],
+    *,
+    addressing_mode: str = "third_party",
 ) -> int:
     """Re-run sanitize + fallback inject; return valid tile count after."""
     allowed = _allowed_aweme_ids(reference_videos)
     if not allowed or not reference_videos:
         return count_valid_embedded_tiles(diagnosis_vi)
-    _sanitize_diagnosis_embedded_tiles(diagnosis_vi, reference_videos, allowed)
+    _sanitize_diagnosis_embedded_tiles(
+        diagnosis_vi,
+        reference_videos,
+        allowed,
+        addressing_mode=addressing_mode,
+    )
     return count_valid_embedded_tiles(diagnosis_vi)
 
 
@@ -1116,6 +1123,8 @@ def _inject_fallback_embedded_tiles(
     diagnosis_vi: dict[str, Any],
     reference_videos: list[dict[str, Any]],
     embed_allowed: set[str],
+    *,
+    addressing_mode: str = "third_party",
 ) -> None:
     """When the pool is non-empty but Gemini left ``embedded_tiles`` blank, attach unused peers per section."""
     from getviews_pipeline.diagnose_parse import (
@@ -1187,9 +1196,11 @@ def _inject_fallback_embedded_tiles(
             if aid:
                 used_aweme.add(aid)
             if not str(t.get("narrative_vi") or "").strip():
-                t["narrative_vi"] = fallback_tile_narrative_vi(t, sid, idx)
+                t["narrative_vi"] = fallback_tile_narrative_vi(
+                    t, sid, idx, addressing_mode  # type: ignore[arg-type]
+                )
         if resolved:
-            ensure_distinct_tile_narratives(resolved, sid)
+            ensure_distinct_tile_narratives(resolved, sid, addressing_mode)  # type: ignore[arg-type]
             sec["embedded_tiles"] = resolved[:_MAX_EMBEDDED_TILES_PER_SECTION]
 
 
@@ -1220,6 +1231,8 @@ def _sanitize_diagnosis_embedded_tiles(
     diagnosis_vi: dict[str, Any],
     reference_videos: list[dict[str, Any]],
     allowed_aweme: set[str],
+    *,
+    addressing_mode: str = "third_party",
 ) -> None:
     """Resolve ``embedded_tiles`` from the reference pool only — drop hallucinated or off-topic ids."""
     from getviews_pipeline.diagnose_parse import (
@@ -1281,10 +1294,15 @@ def _sanitize_diagnosis_embedded_tiles(
             if t.get("aweme_id")
             and (t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"))
         ]
-        ensure_distinct_tile_narratives(tiles_out, section_id)
+        ensure_distinct_tile_narratives(tiles_out, section_id, addressing_mode)  # type: ignore[arg-type]
         sec["embedded_tiles"] = tiles_out
 
-    _inject_fallback_embedded_tiles(diagnosis_vi, reference_videos, embed_allowed)
+    _inject_fallback_embedded_tiles(
+        diagnosis_vi,
+        reference_videos,
+        embed_allowed,
+        addressing_mode=addressing_mode,
+    )
     _dedupe_embedded_tiles_across_sections(diagnosis_vi)
 
 
@@ -1493,6 +1511,8 @@ def _synthesize_diagnosis_v6_section_pool(
     niche_posting_context_block: str = "",
     analysis_depth: str = "basic",
     comment_radar: dict[str, Any] | None = None,
+    addressing_mode: str = "third_party",
+    video_creator_handle: str | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """Section-pool diagnosis: signals → section pick list → JSON-first v6 prompt."""
     from getviews_pipeline.compliance import collect_compliance_flags
@@ -1561,6 +1581,8 @@ def _synthesize_diagnosis_v6_section_pool(
         collapsed_questions=collapsed_questions,
         cross_format_signal=cross_format_signal,
         niche_posting_context_block="",
+        addressing_mode=addressing_mode,
+        video_creator_handle=video_creator_handle,
     )
     prompt = _prefix_user_sections(
         [layer0_context or "", creator_format_history_block or ""],
@@ -1662,6 +1684,8 @@ def synthesize_diagnosis_v2(
     niche_posting_context_block: str = "",
     analysis_depth: str = "basic",
     comment_radar: dict[str, Any] | None = None,
+    addressing_mode: str = "third_party",
+    video_creator_handle: str | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """V2 narrative diagnosis — Markdown body plus optional structured narrative/format cards."""
 
@@ -1688,6 +1712,8 @@ def synthesize_diagnosis_v2(
             niche_posting_context_block=niche_posting_context_block,
             analysis_depth=analysis_depth,
             comment_radar=comment_radar,
+            addressing_mode=addressing_mode,
+            video_creator_handle=video_creator_handle,
         )
 
     allowed = _allowed_aweme_ids(reference_videos)
@@ -1709,8 +1735,24 @@ def synthesize_diagnosis_v2(
         errors=errors,
         reference_evidence_block=reference_evidence_block,
     )
+    from getviews_pipeline.analysis_addressing import (
+        AddressingMode,
+        build_addressing_prompt_block,
+    )
+
+    legacy_addr: AddressingMode = (
+        "viewer_own" if addressing_mode == "viewer_own" else "third_party"
+    )
     prompt = _prefix_user_sections(
-        [layer0_context or "", creator_format_history_block or "", niche_posting_context_block or ""],
+        [
+            build_addressing_prompt_block(
+                legacy_addr,
+                creator_handle=video_creator_handle,
+            ),
+            layer0_context or "",
+            creator_format_history_block or "",
+            niche_posting_context_block or "",
+        ],
         prompt,
     )
     if collapsed_questions:

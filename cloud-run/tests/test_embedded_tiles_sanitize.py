@@ -251,7 +251,7 @@ def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
 
     assert "tối ưu 3 giây đầu" in narrative_1
     assert "hook mở màn" in narrative_2
-    assert "nhịp điệu mở đầu" in narrative_3
+    assert "nhịp mở đầu" in narrative_3
 
     assert "Được chọn" in narrative_1 or "Tham chiếu" in narrative_1 or "Lý do tham chiếu" in narrative_1
     assert "đang vận hành cực kỳ hiệu quả" not in narrative_1
@@ -267,4 +267,4 @@ def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
 
     assert "tối ưu 3 giây đầu" in tiles[0]["narrative_vi"]
     assert "hook mở màn" in tiles[1]["narrative_vi"]
-    assert "nhịp điệu mở đầu" in tiles[2]["narrative_vi"]
+    assert "nhịp mở đầu" in tiles[2]["narrative_vi"]

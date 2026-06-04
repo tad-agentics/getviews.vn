@@ -24,17 +24,9 @@ import {
 } from "@/components/v2/answer/video/blocks/ChannelProofBlock";
 import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
 import { Timeline } from "@/components/v2/Timeline";
-import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
-import { HookTimelineStrip } from "@/routes/_app/components/HookTimelineStrip";
 import { DiagnosisReferenceVideoCards } from "@/components/diagnosis/DiagnosisReferenceVideoCards";
 import { NextVideoCard, NextVideoCardEmpty } from "@/routes/_app/channel/components/NextVideoCard";
-import type {
-  HookTimelineEvent,
-  VideoAnalyzeMeta,
-  VideoEnrichment,
-  VideoHookPhase,
-  VideoSegment,
-} from "@/lib/api-types";
+import type { VideoAnalyzeMeta, VideoEnrichment, VideoSegment } from "@/lib/api-types";
 
 function sectionTitle(s: DiagnosisSectionVi): string {
   const raw = (s.title_vi || s.title || "").trim();
@@ -157,11 +149,6 @@ export interface ChannelPatternEmbedProps {
 
 export interface VideoDiagnosisSectionEmbeds {
   scriptStructure?: { segments: VideoSegment[]; durationSec: number };
-  hookAnalysis?: {
-    phases?: VideoHookPhase[];
-    timeline?: HookTimelineEvent[];
-    chartCaption?: string;
-  };
   metadata?: { meta: VideoAnalyzeMeta; enrichment?: VideoEnrichment | null };
 }
 
@@ -274,21 +261,6 @@ export function DiagnosisSectionRenderer({
             segments={videoEmbeds.scriptStructure.segments}
             durationSec={videoEmbeds.scriptStructure.durationSec}
           />
-        </div>
-      ) : null}
-      {sid === "hook_analysis" && videoEmbeds?.hookAnalysis ? (
-        <div className="mt-4">
-          {videoEmbeds.hookAnalysis.chartCaption ? (
-            <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
-              {videoEmbeds.hookAnalysis.chartCaption}
-            </p>
-          ) : null}
-          {videoEmbeds.hookAnalysis.phases?.length ? (
-            <HookPhaseGrid phases={videoEmbeds.hookAnalysis.phases} />
-          ) : null}
-          {videoEmbeds.hookAnalysis.timeline?.length ? (
-            <HookTimelineStrip events={videoEmbeds.hookAnalysis.timeline} />
-          ) : null}
         </div>
       ) : null}
       {sid === "metadata" && videoEmbeds?.metadata ? (
