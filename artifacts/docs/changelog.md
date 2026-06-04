@@ -1,5 +1,16 @@
 # Changelog — GetViews.vn
 
+## 2026-06-04 — Report redesign hygiene (dead diagnosis timing helpers)
+
+- **Removed:** `_build_niche_posting_context_bundle_sync` (`pipelines.py`), `compute_diagnosis_posting_bundle` / `build_diagnosis_posting_context_text` (`report_timing_compute.py`), `test_diagnosis_posting_context.py`.
+- **Standalone timing** unchanged — `report_timing.py` still uses `load_timing_inputs` + heatmap builders directly.
+
+## 2026-06-04 — Report redesign follow-up (QA concerns 1–3)
+
+- **Word budget:** `diagnosis_quality.py` brevity metrics + one Gemini shorten retry when total >480 từ or section prose too long (`DIAGNOSIS_V6_SHORTEN_RETRY_APPEND`).
+- **FE cleanup:** removed `postingContextNarrative`, `DiagnosisPostingContextPayload`, stream merge for `niche_posting_context`.
+- **Channel scorecard:** `compute_posting_cadence` cadence-only; dropped `best_hour_*` fields and captions from `channel_diagnose.py` + `ChannelScoreCardData`.
+
 ## 2026-06-04 — Report redesign 2026-05 (verdict-first, no clock-time in diagnosis)
 
 - **Video diagnosis (Cloud Run + FE):** Verdict-first prompts (~350–450 từ); findings-first `DiagnosisSectionRenderer` (chip Sửa, reference tiles "Sao chép cách này"); `next_video` shot script; section order `diagnosis → niche_pattern → next_video → deep` with deep cap ≤7; removed `distribution` section + `NICHE_POSTING_CONTEXT` inject; hard-deleted posting-hour / golden-hour signals.
