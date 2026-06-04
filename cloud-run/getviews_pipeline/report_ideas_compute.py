@@ -188,7 +188,7 @@ def compute_ideas_blocks(
                 f"cụ thể trong 12s đầu."
             )[:240],
             why_works=(
-                f"Trong corpus 7–14 ngày, {label} đạt retention {_fmt_pct(ret)} "
+                f"Trong kho video 7–14 ngày qua, {label} đạt retention {_fmt_pct(ret)} "
                 f"trên {uses} video từ {creators} creator."
             ),
             evidence_video_ids=ev_ids,

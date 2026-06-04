@@ -129,7 +129,7 @@ def fill_pattern_narrative(
 """
         ab_ex = (ab_context or "").strip() or "(không tìm thấy cặp A/B)"
         ab_block = f"""
---- A/B corpus (có thể cite vào phần tóm lại tuần này hoặc thesis) ---
+--- A/B kho video (có thể cite vào phần tóm lại tuần này hoặc thesis) ---
 {ab_ex}
 """
         # AQ-1 — WoW delta injection: build block when corpus is adequate
@@ -223,7 +223,7 @@ Câu hỏi người dùng: "{query_clean or '(không nêu rõ — trả lời d�
 Hook đang thắng (xếp hạng): {top_hook_labels}
 Hook suy (nếu có): {stalled_hook_labels}
 
-Micro-element từ corpus (dùng để tăng độ cụ thể trong hook_narratives + hook_insights + cross_pattern_synthesis):
+Micro-element từ kho video mẫu (dùng để tăng độ cụ thể trong hook_narratives + hook_insights + cross_pattern_synthesis):
 {micro_inject}
 
 Creator count per pattern (dùng để framing cross-creator validation):

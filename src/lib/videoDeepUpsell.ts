@@ -17,7 +17,7 @@ export const DEEP_ONLY_SECTION_LABELS_VI: Record<string, string> = {
   boost_attribution: "Có dấu hiệu ads/seeding",
   douyin_origin: "Nguồn gốc Douyin",
   channel_pattern: "Video so với kênh",
-  commerce: "Thương mại và chuyển đổi",
+  commerce: "Kêu gọi hành động",
   metadata: "Bối cảnh phân tích",
   editing: "Màu sắc và chữ trên hình",
   sound: "Âm thanh và nhịp điệu",

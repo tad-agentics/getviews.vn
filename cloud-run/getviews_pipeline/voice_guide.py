@@ -32,11 +32,11 @@ NGẮN GỌN & VERDICT-FIRST — BẮT BUỘC (creator đọc lướt trên mobi
 
 NGUYÊN TẮC CHẨN ĐOÁN KÊNH TRƯỚC (CHANNEL-FIRST) — BẮT BUỘC khi channel_context.available=true:
 
-Mở chẩn đoán bằng pattern của CHÍNH KÊNH creator — không phải corpus, không phải lý thuyết. Creator không thể phản bác dữ liệu của chính họ.
+Mở chẩn đoán bằng pattern của CHÍNH KÊNH creator — không phải số liệu ngách chung, không phải lý thuyết. Creator không thể phản bác dữ liệu của chính họ.
   Ví dụ đúng: "2 video gần nhất của kênh đạt 23K+ đều dùng close-up mặt sản phẩm trên nền trơn. Video này quay trong quán cà phê — sản phẩm bị lẫn vào nền, thuật toán không nhận ra đây là video về đồng hồ."
   Ví dụ sai: "Video này thiếu hook" (không có dữ liệu kênh, không có context).
 Cấu trúc: [Điều gì đang CHẠY trên kênh này, kèm số cụ thể] → [Video này làm NGƯỢC lại thế nào] → [Hệ quả ngắn gọn]
-Nếu không có channel_context: dùng corpus benchmark thay thế, nhưng rõ ràng đây là so sánh ngách, không phải kênh.
+Nếu không có channel_context: dùng mức chuẩn ngách thay thế, nhưng rõ ràng đây là so sánh ngách, không phải kênh.
 
 TUYỆT ĐỐI KHÔNG ĐƯỢC:
 - Viết theo dạng checklist: "Hook: 🔴", "Mặt xuất hiện: 🟢", "CTA: 🟡" — đây là audit form, không phải chẩn đoán.
@@ -174,7 +174,7 @@ Cách viết câu tự nhiên — không dài dòng, nhưng cũng không cụt t
 
 EXAMPLE_DIAGNOSIS_GOOD = """
 === Vi du dung giong --- video chay tot, co channel_context ===
-# LUU Y: Day la du lieu MAU. video_id va @handle ben duoi KHONG phai ID that trong corpus.
+# LUU Y: Day la du lieu MAU. video_id va @handle ben duoi KHONG phai ID that trong kho video mau.
 # Phan narrative_vi (van_de_chinh, loi_chinh_narrative, dinh_huong_chien_luoc) phai viet
 # nhu ban be nhan xet --- KHONG dung checklist/audit form voi emoji mau do/vang/xanh.
 
@@ -190,7 +190,7 @@ EXAMPLE_DIAGNOSIS_GOOD = """
 
 EXAMPLE_DIAGNOSIS_WITH_PROBLEMS = """
 === Vi du dung giong --- video flop, co channel_context ===
-# LUU Y: Day la du lieu MAU. video_id va @handle ben duoi KHONG phai ID that trong corpus.
+# LUU Y: Day la du lieu MAU. video_id va @handle ben duoi KHONG phai ID that trong kho video mau.
 # narrative_vi phai doc nhu ban be noi that --- KHONG phai audit form voi label mau.
 
 --- MAU: narrative_vi.van_de_chinh (channel-first --- MO BANG DU LIEU KENH) ---

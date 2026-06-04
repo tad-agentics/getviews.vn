@@ -15,7 +15,7 @@ function CorpusEvidenceCard({ ex }: { ex: FormatCardExample }) {
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-[color:var(--gv-rule)] px-1.5 py-0.5 gv-kicker text-[color:var(--gv-ink-4)]">
-            Từ corpus
+            Từ kho video mẫu
           </span>
           {ex.creator_handle ? (
             <span className="text-[11px] text-[color:var(--gv-ink-3)]">@{ex.creator_handle}</span>

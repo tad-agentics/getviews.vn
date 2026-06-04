@@ -491,7 +491,7 @@ Với mỗi shot, viết:
 - overlay_winner: gợi ý style overlay ngắn (có thể tiếng Anh) — ví dụ "white sans 28pt · bottom-center".
 
 Thêm các dimension mô tả shot (dùng để matcher tìm video tham chiếu
-tương tự trong corpus — enum phải trùng đúng taxonomy; nếu không chắc
+tương tự trong kho video mẫu — enum phải trùng đúng taxonomy; nếu không chắc
 để null):
 - framing: close_up | medium | wide | extreme_close_up
 - pace: static | slow | medium | fast | cut_heavy

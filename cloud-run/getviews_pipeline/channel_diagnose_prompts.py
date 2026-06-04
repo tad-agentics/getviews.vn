@@ -452,13 +452,13 @@ def build_channel_diagnosis_context(
                 f"@{handle_c} | {followers_str} | avg {_fmt_views(avg_v)} | {fmt} | samples: {sample_str}"
             )
         blocks.append(
-            f"<<<KÊNH CÙNG NGÁCH (corpus-verified, peer_source={src})>>>\n"
+            f"<<<KÊNH CÙNG NGÁCH (đã có trong kho video mẫu, peer_source={src})>>>\n"
             + "\n".join(ugc_lines)
         )
     else:
         blocks.append(
             f"<<<KÊNH CÙNG NGÁCH (peer_source={src})>>>\n"
-            "(Không đủ peer trong corpus để so sánh — nói rõ trong competitive_landscape.)"
+            "(Không đủ kênh cùng ngách trong kho dữ liệu để so sánh — nói rõ trong competitive_landscape.)"
         )
 
     # --- <<<NICHE BENCHMARK>>> ---

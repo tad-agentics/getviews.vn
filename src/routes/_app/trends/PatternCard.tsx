@@ -199,7 +199,7 @@ function CollageTile({ cell }: { cell: PatternVideo }) {
         thumbnailUrl={cell.thumbnail_url}
         videoId={cell.video_id}
         className="absolute inset-0 h-full w-full"
-        placeholderClassName=""
+        placeholderClassName="bg-[color:var(--gv-canvas-2)]"
       />
       <div
         className="absolute inset-0"

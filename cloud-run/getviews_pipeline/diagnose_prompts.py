@@ -223,7 +223,7 @@ def build_diagnosis_v6_user_prompt(
         ),
     ]
     if corpus_citation:
-        blocks.append(f"\n\nCORPUS_CITATION_BLOCK:\n{corpus_citation}")
+        blocks.append(f"\n\nKHO_VIDEO_CITATION_BLOCK:\n{corpus_citation}")
     if persona_block:
         blocks.append(f"\n\nPERSONA_BLOCK:\n{persona_block}")
     if reference_evidence_block:

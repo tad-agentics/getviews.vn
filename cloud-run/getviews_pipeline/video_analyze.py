@@ -883,7 +883,7 @@ def resolve_video_id(sb: Any, *, video_id: str | None, tiktok_url: str | None) -
             )
             rows = res.data or []
             if not rows:
-                raise ValueError("Không tìm thấy video trong corpus cho id này")
+                raise ValueError("Không tìm thấy video này trong kho dữ liệu")
             return str(rows[0]["video_id"])
         return vid
     if not tiktok_url or not str(tiktok_url).strip():
@@ -898,7 +898,7 @@ def resolve_video_id(sb: Any, *, video_id: str | None, tiktok_url: str | None) -
     )
     rows = res.data or []
     if not rows:
-        raise ValueError("Không tìm thấy video trong corpus cho URL này")
+        raise ValueError("Không tìm thấy video này trong kho dữ liệu")
     return str(rows[0]["video_id"])
 
 

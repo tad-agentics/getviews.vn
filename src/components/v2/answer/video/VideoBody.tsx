@@ -145,7 +145,7 @@ function buildVideoScriptHandoffPrompt(
   const issues = d.errors ?? [];
   const winFraming = tierImpliesWinFraming(performanceTier, d.meta);
   const lines = [
-    `Corpus video_id: ${d.video_id}`,
+    `Mã video: ${d.video_id}`,
     ...(watchUrl?.trim() ? [`Link TikTok đã soi: ${watchUrl.trim()}`] : []),
     "",
     winFraming
@@ -391,7 +391,7 @@ export function VideoBody({
     navigate("/app/answer", {
       state: {
         initialPrompt: [
-          `Corpus video_id: ${report.video_id}`,
+          `Mã video: ${report.video_id}`,
           "",
           "Áp lesson từ video đang nổ trên Getviews:",
           `**${lesson.title}**`,

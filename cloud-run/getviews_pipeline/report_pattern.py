@@ -261,7 +261,7 @@ def build_empty_pattern_report(
             ActionCardPayload(
                 icon="calendar",
                 title="Theo dõi trend",
-                sub="Xem khi corpus cập nhật",
+                sub="Xem khi kho dữ liệu cập nhật",
                 cta="Xem",
                 route="/app/trends",
                 forecast={"expected_range": "—", "baseline": "—"},
@@ -372,10 +372,10 @@ def build_pattern_report(
             step_tool_start,
         )
 
-        emit(step_queue, step_status(1, "Đang quét corpus TikTok Việt Nam..."))
+        emit(step_queue, step_status(1, "Đang quét kho video TikTok Việt Nam..."))
         emit(
             step_queue,
-            step_tool_start("Tải corpus ngách...", 1, 0, tool="corpus"),
+            step_tool_start("Tải kho video ngách...", 1, 0, tool="corpus"),
         )
 
     ctx = load_pattern_inputs(sb, niche_id, window_days)
@@ -607,7 +607,7 @@ def build_pattern_report(
     sources = [
         SourceRow(
             kind="video",
-            label="Corpus quét",
+            label="Kho video đã quét",
             count=len(corpus),
             sub=f"{len(creators)} creator · {eff_win}d",
         )

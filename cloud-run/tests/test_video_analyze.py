@@ -656,7 +656,7 @@ def test_resolve_video_id_uuid_with_no_corpus_row_raises() -> None:
     chain = sb.table.return_value.select.return_value.eq.return_value.limit.return_value
     chain.execute.return_value = SimpleNamespace(data=[])
 
-    with pytest.raises(ValueError, match="Không tìm thấy video trong corpus cho id này"):
+    with pytest.raises(ValueError, match="Không tìm thấy video này trong kho dữ liệu"):
         resolve_video_id(
             sb,
             video_id="00000000-0000-0000-0000-000000000000",

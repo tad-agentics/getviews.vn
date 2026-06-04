@@ -36,7 +36,7 @@ _SYSTEM_HEDGE = (
     "Bạn đang trả lời câu hỏi ngoài taxonomy (confidence thấp). "
     "QUY TẮC:\n"
     "1. Không hứa chắc, không dùng từ 'chắc chắn', 'hiệu quả', 'sẽ'.\n"
-    "2. Chỉ nêu hướng gần đúng dựa trên corpus rộng, không kết luận ngách cụ thể.\n"
+    "2. Chỉ nêu hướng gần đúng dựa trên kho video đa ngách, không kết luận ngách cụ thể.\n"
     "3. Kết bằng câu gợi ý mở công cụ chuyên biệt (Soi Kênh / Xưởng Viết / Tìm KOL).\n"
     "Trả về JSON đúng shape: "
     '{"paragraphs": ["đoạn 1 ≤ 260 ký tự", "đoạn 2 ≤ 260 ký tự"]}.'
@@ -90,7 +90,7 @@ def fill_generic_narrative(
     except Exception as exc:  # pragma: no cover — defensive
         logger.info("[generic-budget] budget check failed: %s", exc)
 
-    scope_line = f"niche {niche_label}" if niche_label else "corpus rộng đa ngách"
+    scope_line = f"niche {niche_label}" if niche_label else "kho video đa ngách"
 
     # AQ-9 — inject primary turn context so Gemini can reference concrete
     # hook findings when answering the follow-up question.

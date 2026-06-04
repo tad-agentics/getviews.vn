@@ -164,7 +164,7 @@ def test_build_video_report_aweme_id_corpus_miss_does_not_call_on_demand() -> No
     that misses corpus must hard-404, not silently degrade."""
 
     def _pipeline_raises(*_a, **_kw):
-        raise ValueError("Không tìm thấy video trong corpus cho URL này")
+        raise ValueError("Không tìm thấy video này trong kho dữ liệu")
 
     pipeline_mock = MagicMock(side_effect=_pipeline_raises)
     on_demand_mock = MagicMock(return_value="must-not-be-called")
@@ -173,7 +173,7 @@ def test_build_video_report_aweme_id_corpus_miss_does_not_call_on_demand() -> No
                pipeline_mock), \
          patch("getviews_pipeline.report_video.run_video_analyze_on_demand",
                on_demand_mock):
-        with pytest.raises(ValueError, match="cho id này"):
+        with pytest.raises(ValueError, match="trong kho dữ liệu"):
             build_video_report(
                 service_sb=MagicMock(),
                 user_sb=MagicMock(),
@@ -270,7 +270,7 @@ def test_build_video_report_falls_through_to_on_demand_on_corpus_miss() -> None:
     expected["source"] = "on_demand"  # on-demand path tags the response
 
     def _pipeline_raises(*_a, **_kw):
-        raise ValueError("Không tìm thấy video trong corpus cho URL này")
+        raise ValueError("Không tìm thấy video này trong kho dữ liệu")
 
     pipeline_mock = MagicMock(side_effect=_pipeline_raises)
     on_demand_mock = MagicMock(return_value=expected)

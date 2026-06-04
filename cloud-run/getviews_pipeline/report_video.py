@@ -481,7 +481,7 @@ def build_video_report(
         # malformed inputs still raise.
         url_miss = (
             msg == "video not in corpus"
-            or "Không tìm thấy video trong corpus cho URL này" in msg
+            or "Không tìm thấy video này trong kho dữ liệu" in msg
         )
         if not url_miss:
             raise
@@ -490,7 +490,7 @@ def build_video_report(
         # aweme_id-only request that misses corpus is a hard 404.
         if not url:
             raise ValueError(
-                "Không tìm thấy video trong corpus cho id này"
+                "Không tìm thấy video này trong kho dữ liệu"
             ) from exc
         logger.info("[report_video] corpus miss → on-demand path url=%s", url)
         out = run_video_analyze_on_demand(
