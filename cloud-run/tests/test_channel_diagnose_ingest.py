@@ -7,6 +7,7 @@ they normalise fixture JSON via _normalise_aweme and exercise every public funct
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -178,7 +179,11 @@ def test_compute_inflection_point_returns_none_for_new_account():
 # ---------------------------------------------------------------------------
 
 
-def test_trajectory_decline_from_peak():
+@patch(
+    "getviews_pipeline.channel_diagnose._now",
+    return_value=datetime(2026, 5, 1, tzinfo=UTC),
+)
+def test_trajectory_decline_from_peak(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -710,7 +715,7 @@ def test_render_score_card_captions_has_five_keys():
         "peak_age_months": 4,
     }
     caps = render_score_card_captions(card)
-    for k in ("trajectory", "percentile", "cadence", "best_hour", "peak_recent"):
+    for k in ("trajectory", "percentile", "cadence", "peak_recent"):
         assert k in caps and len(caps[k]) > 10
 
 

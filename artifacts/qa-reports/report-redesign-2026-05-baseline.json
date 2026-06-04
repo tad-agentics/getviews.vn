@@ -1,0 +1,19 @@
+{
+  "task_id": "report-redesign-2026-05",
+  "verdict": "PASS_WITH_CONCERNS",
+  "evidence": {
+    "pytest": "cd cloud-run && pytest — 2393 passed, 2 skipped",
+    "vitest": "npm run test — 1085 passed (137 files)",
+    "typecheck": "npm run typecheck — pass",
+    "scope_guard_timing": "intent-router.ts routes timing/content_calendar → answer:timing; ContinuationTurn renders TimingBody; PatternSubreport returns null (no embedded timing)",
+    "hard_delete": "PostingHeatmapEmbed.tsx and DiagnosisPostingContextBlock.tsx deleted; distribution section removed from diagnose_sections; golden_hour + posted_at_ritual signals removed",
+    "channel": "best_hour finding + ScoreCard row removed; channel_posting_cadence_vs_peer retained",
+    "pattern": "pattern_deck_synth slide_script + cta_placement; PatternBody evidence grid before findings"
+  },
+  "concerns": [
+    "Word-count cap (350–450) enforced in prompts only — no runtime validator on synthesized JSON length.",
+    "Cached answer_turns payloads unchanged; redesign visible on new runs only (expected).",
+    "channel_diagnose scorecard may still compute best_hour_* server-side; UI row removed only."
+  ],
+  "recommendation": "Ship after Cloud Run + Vercel deploy; spot-check one new video/channel/pattern report and one standalone timing session in preview."
+}

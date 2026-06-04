@@ -14,17 +14,17 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
 ```json
 {
   "diagnosis_vi": {
-    "headline_vi": "một câu ≤20 từ — finding mạnh nhất",
+    "headline_vi": "một câu ≤16 từ — verdict dứt khoát + đòn bẩy lớn nhất (KHÔNG kiểu 'tốt nhưng cần tối ưu')",
     "sections": [
       {
         "section_id": "<id>",
         "title": "tiêu đề tiếng Việt — câu thường (chữ đầu viết hoa), KHÔNG viết hoa toàn bộ; dùng DEFAULT_TITLES_HINT khi có",
-        "text": "1-2 đoạn văn ngắn gọn, mỗi đoạn cách nhau bằng \\n\\n, mục tiêu 150-200 từ mỗi section",
+        "text": "MỘT câu verdict in đậm (**...**) là kết luận section — đọc riêng câu này là đủ hiểu. Sau đó TỐI ĐA 2 câu chứng minh bằng số/dữ liệu kênh. KHÔNG quá 50 từ. KHÔNG viết đoạn 150-200 từ.",
         "findings": [
           {
-            "title_vi": "Tên vấn đề — mô tả ngắn ≤12 từ",
-            "body_vi": "Giải thích 1-2 câu với số liệu cụ thể (X views, Y% mẫu)",
-            "fix_vi": "Hành động sửa cụ thể creator cần làm"
+            "title_vi": "Tên vấn đề — hậu quả, ≤10 từ",
+            "body_vi": "1 câu + số liệu cụ thể (X views, Y% mẫu)",
+            "fix_vi": "1 hành động copy-paste được creator làm ngay (hook template, con số, thao tác)"
           }
         ],
         "embedded_tiles": [
@@ -42,30 +42,35 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
 ```
 
 Quy tắc:
-- Chỉ tạo các section có trong SECTIONS_TO_EMIT, đúng thứ tự đó.
-- Mỗi section: prose tiếng Việt. Bullet points (dấu •) CHỈ dùng khi liệt kê bước hành động cụ thể, checklist, hoặc danh sách song song — ưu tiên cho: next_video (việc creator cần làm), script_structure (checklist cấu trúc cần sửa), niche_pattern (pattern list), hook_analysis (các lỗi hook cụ thể). Các section phân tích sâu (diagnosis, channel_pattern, sound, persona, compliance, distribution) dùng prose thuần — bullet trong những mục này là dấu hiệu của suy nghĩ hời hợt.
-- Bullet format: "• [hành động cụ thể]" — mỗi bullet ≤2 dòng, ngắt bằng ký tự xuống dòng đơn (\n), đoạn prose cách bullet bằng dòng trắng (\n\n).
-- Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng đoạn.
-- channel_pattern section: dùng channel_context trong DIAGNOSTIC_CONTEXT_JSON — trích dẫn số liệu cụ thể (top video X views, bottom video Y views, median kênh). Đặt câu hỏi: tại sao video này lại ở mức đó so với median kênh? Creator nên nhân đôi cái gì? Nếu source="live" thì ghi chú nhẹ rằng dữ liệu kênh là live (chưa qua phân tích sâu) và format chưa được phân loại.
-- CHỐNG pad: mỗi câu phải advance argument; không lặp lại cùng một ý.
-- evidence_anchors khớp với các claim trong text.
-- findings: mỗi section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure) phải có 1–3 findings là điểm cụ thể nhất trong section — mỗi finding: title_vi (≤12 từ, dạng "Vấn đề — hậu quả"), body_vi (1-2 câu + số liệu), fix_vi (hành động creator làm ngay). Sections không phải issue-based (next_video, niche_pattern, channel_pattern, distribution, douyin_origin, persona): để findings: [].
-- next_video section: next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" } CHỈ cho section đó; text của section này có thể liệt kê 3-5 bullet • những việc creator cần làm cụ thể để thực hiện concept; findings: [].
-- embedded_tiles: Với mỗi section có thể show trực quan (hook_analysis, diagnosis,
-  niche_pattern, distribution, script_structure), chọn tối đa **3** object **khác aweme_id**
-  từ REFERENCE_EVIDENCE (mỗi object: ``aweme_id`` + ``narrative_vi``). **Mỗi aweme_id chỉ được
-  dùng ở một section duy nhất** trong toàn báo cáo — không lặp cùng 3 video ở diagnosis và hook_analysis.
-  ``narrative_vi`` = 1-3 câu tiếng Việt, **khác nhau cho từng video**, góc so sánh theo section
-  (hook_analysis → 3 giây đầu; diagnosis → format/hiệu quả; distribution → timing). **Không** nhắc
-  @handle hay số view — card đã hiển thị; bắt buộc nêu **lý do chọn** peer này và **điểm làm tốt**
-  (hook/format/nhịp cụ thể) so với clip user. Có thể dùng số liệu khác (%, giây) nếu có trong evidence.
-  Chỉ chọn video desc/format/niche gần context (CTX_SUMMARY). Không đủ peer phù hợp → ít tile hơn hoặc ``[]``.
-  Sections phân tích thuần (channel_pattern, persona, compliance, sound): không cần tiles.
-- Khi có embedded_tiles: **không** lặp lại nội dung ``narrative_vi`` trong ``text`` — prose section
-  chỉ giải thích finding; mỗi video tự mang phần so sánh của nó. Không kết thúc ``text`` bằng
-  câu generic kiểu "video dưới đây".
-- Khi có NICHE_POSTING_CONTEXT: đây là tóm tắt khung giờ đăng theo corpus ngách (heatmap 7×8, top cửa sổ + độ tin cậy). Tích hợp 1–2 đoạn prose vào section **distribution** nếu distribution có trong SECTIONS_TO_EMIT; nếu không thì gói vào **diagnosis**. So sánh bucket đăng của video user (dòng cuối block, nếu có) với top cửa sổ; không tạo section riêng cho timing, không mô tả lại toàn bộ heatmap — chỉ dùng số liệu đã cho, không bịa thêm ô giờ.
-- niche_pattern: có thể điền embedded_tiles với aweme_id từ reference pool (thumbnail_url optional); findings: []. Nếu cross_format_signal có trong DIAGNOSTIC_CONTEXT_JSON: trích dẫn cụ thể — "format X đang chạy ở N ngách", hook nào đang đạt view cao nhất, và creator nên học gì từ đó. Đây là so sánh với pattern viral trong ngách — không chỉ mô tả mà phải ra conclusion rõ ràng.
+
+ĐỘ DÀI & CẤU TRÚC (ưu tiên cao nhất — audience là creator, đọc lướt trên mobile):
+- TỔNG báo cáo ~350-450 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 2 câu chứng minh (≤50 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 3 câu prose.
+- VERDICT-FIRST: câu đầu mỗi section là kết luận in đậm — đọc các câu đậm xuyên suốt bài là hiểu toàn bộ. Phần còn lại chỉ chứng minh + fix + reference.
+- ĐƠN VỊ CHÍNH là FINDINGS + REFERENCE, KHÔNG phải prose. Khi phân vân giữa viết thêm 1 đoạn giải thích và đưa thêm 1 finding/1 reference tile → luôn chọn finding/reference. Prose chỉ là 1 câu verdict dẫn vào.
+- DẠY VIỆC CẦN LÀM > chẩn đoán. Nén chẩn đoán còn 1 câu; dồn không gian cho fix cụ thể, reference video, và script clip tiếp theo.
+- Chỉ tạo các section có trong SECTIONS_TO_EMIT, đúng thứ tự đó. KHÔNG tạo section timing/giờ đăng/distribution dù có data — giờ đăng không phải yếu tố xếp hạng.
+
+FINDINGS (đơn vị hiển thị chính của section issue-based):
+- Section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure): 2-3 findings — đây là phần creator đọc kỹ nhất. Mỗi finding: title_vi (≤10 từ, "Vấn đề — hậu quả"), body_vi (1 câu + số liệu), fix_vi (1 hành động copy-paste: hook template, con số, thao tác cụ thể — KHÔNG "cải thiện hook").
+- Section không issue-based (next_video, niche_pattern, channel_pattern, douyin_origin, persona): findings: [].
+- Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
+- CHỐNG pad: mỗi câu advance argument; không lặp ý. evidence_anchors khớp claim trong text.
+
+REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
+- Section show được trực quan (niche_pattern, diagnosis, hook_analysis, script_structure): điền tối đa **3** embedded_tiles **khác aweme_id** từ REFERENCE_EVIDENCE. niche_pattern ưu tiên đủ 3 tile — đây là lưới "top ngách đang làm gì", reference là nhân vật chính, prose dẫn vào chỉ 1 câu.
+- Mỗi aweme_id chỉ dùng ở MỘT section. narrative_vi = 1 câu (tối đa 2) **khác nhau cho từng video**: nêu **điều cần copy** (hook/format/nhịp cụ thể) so với clip user. Góc theo section (hook_analysis → 3 giây đầu; diagnosis/niche_pattern → format/hiệu quả). KHÔNG nhắc @handle hay số view (card đã hiển thị). KHÔNG lặp narrative_vi vào text.
+- Chỉ chọn video gần context (CTX_SUMMARY). Không đủ peer phù hợp → ít tile hơn hoặc [].
+- Section phân tích thuần (channel_pattern, persona, compliance): tile tùy chọn, không bắt buộc.
+
+CHANNEL_PATTERN (Ref-style: kênh tự chứng minh):
+- Dùng channel_context: trích số cụ thể (top video X views, bottom Y views, mức view thường của kênh). 1 câu verdict in đậm: video này so với mức thường của kênh thế nào + creator nên nhân đôi cái gì. Tối đa 2 câu. Nếu source="live": ghi chú nhẹ dữ liệu kênh là live.
+
+NEXT_VIDEO (script copy-paste được, KHÔNG concept trừu tượng):
+- next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" }; findings: [].
+- text của section = script theo cảnh, mỗi dòng 1 bullet •: "• Hook (0-1s): [câu copy-paste]" → "• Beat 2: ..." → "• Beat 3: ..." → "• CTA: ...". Creator phải quay được ngay mà không cần nghĩ thêm.
+
+NICHE_PATTERN:
+- embedded_tiles từ reference pool (ưu tiên đủ 3); findings: []. Nếu có cross_format_signal: 1 câu verdict in đậm — "format X đang chạy ở N ngách / hook nào đạt view cao nhất" + creator học gì. Phải ra conclusion, không chỉ mô tả.
 - Ngôn ngữ: tiếng Việt peer-to-peer. Dùng **view** (không "lượt xem"), **tỷ lệ tương tác** (không "engagement rate"). Tránh quote tiếng Anh thô — diễn đạt format/hook bằng tiếng Việt. Khi performance_tier=hit: khung breakout, hook chỉ là polish — không mô tả như flop.
 """
 
@@ -215,8 +220,6 @@ def build_diagnosis_v6_user_prompt(
         blocks.append(f"\n\nPERSONA_BLOCK:\n{persona_block}")
     if reference_evidence_block:
         blocks.append(f"\n\nREFERENCE_EVIDENCE:\n{reference_evidence_block}")
-    if niche_posting_context_block:
-        blocks.append(f"\n\n{niche_posting_context_block.strip()}")
     if wants_directions:
         blocks.append(
             "\n\nBổ sung sau diagnosis_vi: trong format_cards để 1-4 gợi ý hướng "
@@ -254,8 +257,9 @@ def build_diagnosis_v6_user_prompt(
             "không viết như video flop; dùng **view**, **tỷ lệ tương tác**."
         )
     blocks.append(
-        "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 150-200 từ — đủ sâu nhưng không lặp ý. "
-        "Tổng báo cáo ~900-1200 từ. Mỗi câu phải advance argument."
+        "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 2 câu "
+        "chứng minh (≤50 từ). Tổng báo cáo ~350-450 từ. Ưu tiên fix + reference video hơn giải "
+        "thích dài. KHÔNG tạo section timing/giờ đăng. Mỗi câu phải advance argument."
         + tier_note
     )
     return "".join(blocks)

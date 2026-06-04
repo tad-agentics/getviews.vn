@@ -28,7 +28,6 @@ class VideoSectionId(StrEnum):
     diagnosis = "diagnosis"
     compliance = "compliance"
     hook_analysis = "hook_analysis"
-    distribution = "distribution"
     niche_pattern = "niche_pattern"
     douyin_origin = "douyin_origin"
     channel_pattern = "channel_pattern"
@@ -70,10 +69,6 @@ def _applies_compliance(ctx: dict, manifest: Manifest) -> bool:
     if ctx.get("compliance_flags"):
         return True
     return bool(manifest.get("compliance"))
-
-
-def _applies_distribution(ctx: dict, manifest: Manifest) -> bool:
-    return _has_gate(manifest, "distribution", ctx)
 
 
 def _applies_niche_pattern(ctx: dict, _manifest: Manifest) -> bool:
@@ -232,7 +227,6 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.diagnosis, 10, True, lambda _c, _m: True),
     SectionSpec(VideoSectionId.compliance, 15, False, _applies_compliance),
     SectionSpec(VideoSectionId.hook_analysis, 20, False, _applies_hook_analysis),
-    SectionSpec(VideoSectionId.distribution, 30, False, _applies_distribution),
     SectionSpec(VideoSectionId.niche_pattern, 40, False, _applies_niche_pattern),
     SectionSpec(VideoSectionId.douyin_origin, 45, False, _applies_douyin_origin),
     SectionSpec(VideoSectionId.channel_pattern, 50, False, _applies_channel_pattern),
@@ -260,10 +254,6 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("hook_analysis", "average"): "Phân tích hook",
     ("hook_analysis", "flop"): "Phân tích hook",
     ("hook_analysis", "unknown"): "Phân tích hook",
-    ("distribution", "hit"): "Khung giờ đăng trong ngách",
-    ("distribution", "average"): "Khung giờ đăng trong ngách",
-    ("distribution", "flop"): "Khung giờ đăng trong ngách",
-    ("distribution", "unknown"): "Khung giờ đăng trong ngách",
     ("niche_pattern", "hit"): "Công thức đang chạy trong ngách",
     ("niche_pattern", "average"): "Công thức đang chạy trong ngách",
     ("niche_pattern", "flop"): "Công thức đang chạy trong ngách",
@@ -332,6 +322,36 @@ BASIC_SECTION_ALLOWLIST = frozenset({
     "next_video",
 })
 
+# Redesign 2026-05: actionable blocks first; cap deep narrative sections.
+_REDESIGN_PRIORITY_ORDER: tuple[str, ...] = (
+    "diagnosis",
+    "compliance",
+    "hook_analysis",
+    "niche_pattern",
+    "next_video",
+)
+DEEP_SECTION_CAP = 7
+
+
+def _section_display_order() -> dict[str, int]:
+    return {spec.section_id.value: spec.display_order for spec in SECTION_POOL}
+
+
+def _reorder_and_cap_sections(sections: list[str], *, depth: str) -> list[str]:
+    """Put diagnosis → niche_pattern → next_video first; cap deep at DEEP_SECTION_CAP."""
+    pri = [s for s in _REDESIGN_PRIORITY_ORDER if s in sections]
+    rest = [s for s in sections if s not in _REDESIGN_PRIORITY_ORDER]
+    order_map = _section_display_order()
+    rest.sort(key=lambda s: order_map.get(s, 999))
+    out = pri + rest
+    if depth != "deep" or len(out) <= DEEP_SECTION_CAP:
+        return out
+    pri_set = frozenset(_REDESIGN_PRIORITY_ORDER)
+    priority = [s for s in out if s in pri_set]
+    other = [s for s in out if s not in pri_set]
+    slots = max(0, DEEP_SECTION_CAP - len(priority))
+    return priority + other[:slots]
+
 
 def _select_sections_full(manifest: Manifest, ctx: dict) -> list[str]:
     """Salience pool selection (pre-depth filter)."""
@@ -375,8 +395,10 @@ def select_sections_to_emit(
     """
     full = _select_sections_full(manifest, _ctx_with_emit_threshold(ctx, depth=depth))
     if depth == "basic":
-        return [s for s in full if s in BASIC_SECTION_ALLOWLIST]
-    return full
+        filtered = [s for s in full if s in BASIC_SECTION_ALLOWLIST]
+    else:
+        filtered = full
+    return _reorder_and_cap_sections(filtered, depth=depth)
 
 
 _BOOST_ATTRIBUTION_TEASER_VI = (

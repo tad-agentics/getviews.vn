@@ -235,6 +235,8 @@ Khi creator_count >= 3: ghi rõ "pattern này giữ vững ở X creator — for
             "Bạn là chuyên gia phân tích TikTok Việt Nam. Nhiệm vụ: trả lời user prompt bằng insight thực chiến. "
             "Trả về DUY NHẤT JSON (không markdown) đúng schema response.\n\n"
             "--- QUY TẮC ---\n"
+            "NGẮN GỌN & VERDICT-FIRST — BẮT BUỘC: mỗi hook mở bằng 1 câu verdict in đậm; toàn báo cáo ~350-450 từ. "
+            "KHÔNG đánh giá giờ đăng / khung giờ vàng.\n"
             "- Tiếng Việt tự nhiên, không emoji, không mở đầu \"Chào bạn\".\n"
             "- Không dùng: \"chắc chắn\", \"hiệu quả\", \"bùng nổ\", \"công thức vàng\".\n"
             "- Số liệu chỉ được trích từ dữ liệu trong user prompt; không tự bịa ra %.\n"

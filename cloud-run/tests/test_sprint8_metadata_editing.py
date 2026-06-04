@@ -80,7 +80,7 @@ def test_sections_emit_metadata_and_editing() -> None:
         performance_tier="average",
     )
     manifest = build_signal_manifest(ctx)
-    out = select_sections_to_emit(manifest, ctx)
+    out = select_sections_to_emit(manifest, ctx, depth="deep")
     assert "metadata" in out
     assert "editing" in out
     assert out.index("metadata") < out.index("editing")
@@ -101,5 +101,5 @@ def test_editing_section_gate_uses_floor_salience() -> None:
     overlay = [s for s in manifest.get("editing", []) if s.id == "editing_text_overlay_readability"]
     assert len(overlay) == 1
     assert overlay[0].salience == EDITING_SECTION_MIN_SALIENCE
-    out = select_sections_to_emit(manifest, ctx)
+    out = select_sections_to_emit(manifest, ctx, depth="deep")
     assert "editing" in out

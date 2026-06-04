@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import UTC, datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from getviews_pipeline.corpus_boost_suspect import (
     boost_percentiles_from_niche_intel,
@@ -14,7 +12,6 @@ from getviews_pipeline.signals.base import Evidence, Signal
 from getviews_pipeline.stats_history_m4 import compute_distribution_shape
 
 logger = logging.getLogger(__name__)
-_ICT = ZoneInfo("Asia/Ho_Chi_Minh")
 
 _GENERIC_HASHTAGS = frozenset(
     {
@@ -42,7 +39,7 @@ def extract_distribution_signals(ctx: dict) -> list[Signal]:
         out.append(
             Signal(
                 id="caption_thin",
-                section_id="distribution",
+                section_id="metadata",
                 taxonomy_ref="§meta",
                 salience=0.72,
                 claim=f"Caption chỉ {cap_len} ký tự — mỏng hơn chuẩn discoverability.",
@@ -63,7 +60,7 @@ def extract_distribution_signals(ctx: dict) -> list[Signal]:
             out.append(
                 Signal(
                     id="hashtag_generic_cluster",
-                    section_id="distribution",
+                    section_id="metadata",
                     taxonomy_ref="§meta",
                     salience=0.68,
                     claim="Hashtag chủ yếu generic — thuật toán khó phân loại ngách.",
@@ -83,7 +80,7 @@ def extract_distribution_signals(ctx: dict) -> list[Signal]:
         out.append(
             Signal(
                 id="sound_original",
-                section_id="distribution",
+                section_id="metadata",
                 taxonomy_ref="§6",
                 salience=0.52,
                 claim="Nhạc original — kiểm tra có đang bỏ lỡ sound trending ngách.",
@@ -98,7 +95,6 @@ def extract_distribution_signals(ctx: dict) -> list[Signal]:
             )
         )
 
-    out.extend(extract_posted_at_ritual_hint_signal(ctx))
     return out
 
 
@@ -335,91 +331,6 @@ def extract_boost_tradeoff_education_signal(ctx: dict) -> list[Signal]:
                 "Chạy thử organic trước; nếu boost, theo dõi comment/ER 24h và "
                 "tách cohort benchmark."
             ),
-        )
-    ]
-
-
-def _posting_hour_from_iso(raw: object) -> int | None:
-    if not raw:
-        return None
-    s = str(raw).strip()
-    if len(s) < 16:
-        return None
-    try:
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    return dt.astimezone(_ICT).hour
-
-
-def _channel_posting_heatmap(ctx: dict) -> dict[int, float]:
-    ch = ctx.get("channel_context") or {}
-    if isinstance(ch, dict):
-        raw = ch.get("posting_hour_views")
-        if isinstance(raw, dict) and raw:
-            out: dict[int, float] = {}
-            for k, v in raw.items():
-                try:
-                    out[int(k)] = float(v)
-                except (TypeError, ValueError):
-                    continue
-            if out:
-                return out
-    buckets: dict[int, list[int]] = {}
-    for src in (ctx.get("reference_videos") or [], (ctx.get("channel_context") or {}).get("recent_videos") or []):
-        if not isinstance(src, list):
-            continue
-        for row in src:
-            if not isinstance(row, dict):
-                continue
-            if row.get("reference_eligible") is False:
-                continue
-            hour = _posting_hour_from_iso(row.get("posted_at") or row.get("create_time"))
-            if hour is None:
-                continue
-            views = int(row.get("views") or row.get("statistics", {}).get("play_count") or 0)
-            buckets.setdefault(hour, []).append(views)
-    if not buckets:
-        return {}
-    return {h: sum(vals) / len(vals) for h, vals in buckets.items()}
-
-
-def extract_posted_at_ritual_hint_signal(ctx: dict) -> list[Signal]:
-    """P2 — đăng ngoài khung giờ audience kênh hay online."""
-    us = _user_stats(ctx)
-    posted_hour = _posting_hour_from_iso(us.get("posted_at"))
-    if posted_hour is None:
-        return []
-    heatmap = _channel_posting_heatmap(ctx)
-    if len(heatmap) < 2:
-        return []
-
-    best_hour = max(heatmap, key=lambda h: heatmap[h])
-    best_avg = heatmap[best_hour]
-    posted_avg = heatmap.get(posted_hour, 0.0)
-    if posted_avg >= best_avg * 0.75:
-        return []
-
-    return [
-        Signal(
-            id="distribution_posted_at_ritual_hint",
-            section_id="distribution",
-            taxonomy_ref="§2",
-            salience=0.48,
-            claim=(
-                f"Đăng lúc {posted_hour}h ICT — TB view ~{posted_avg:,.0f} so với "
-                f"khung mạnh nhất {best_hour}h (~{best_avg:,.0f}) trên heatmap kênh/peers."
-            ),
-            evidence=[
-                Evidence(
-                    type="channel_field",
-                    quote=f"posted_hour={posted_hour} best_hour={best_hour} best_avg={best_avg:.0f}",
-                    location="user_stats.posted_at+channel_context.posting_hour_views",
-                )
-            ],
-            suggested_fix=f"Thử lịch quanh {best_hour}h–{min(best_hour + 2, 23)}h ICT cho brief tiếp theo.",
         )
     ]
 

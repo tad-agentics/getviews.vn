@@ -1,5 +1,13 @@
 # Changelog — GetViews.vn
 
+## 2026-06-04 — Report redesign 2026-05 (verdict-first, no clock-time in diagnosis)
+
+- **Video diagnosis (Cloud Run + FE):** Verdict-first prompts (~350–450 từ); findings-first `DiagnosisSectionRenderer` (chip Sửa, reference tiles "Sao chép cách này"); `next_video` shot script; section order `diagnosis → niche_pattern → next_video → deep` with deep cap ≤7; removed `distribution` section + `NICHE_POSTING_CONTEXT` inject; hard-deleted posting-hour / golden-hour signals.
+- **Channel:** Verdict-first `channel_diagnose_prompts`; removed `best_hour` finding + ScoreCard row (cadence finding kept); findings-first `SectionRenderer`.
+- **Pattern:** Deck fields `slide_script` + `cta_placement`; evidence grid hero in `PatternBody`; `PatternSubreport` no longer embeds timing subreport.
+- **FE deleted:** `PostingHeatmapEmbed`, `DiagnosisPostingContextBlock` (standalone `TimingBody` / `TimingHeatmap` / `VarianceNote` unchanged).
+- **Tests:** Updated section-emit tests for `depth=deep`; fixed diagnostics cache mocks; trajectory fixture frozen `_now`.
+
 ## 2026-05-28 — Marketing Corpus Pick API
 
 - **DB:** `marketing_video_picks` + RPCs `select_marketing_corpus_video`, `record_marketing_video_pick` (service_role only).

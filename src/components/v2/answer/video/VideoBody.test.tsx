@@ -721,7 +721,7 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/8 nhịp kịch bản/)).toBeTruthy();
   });
 
-  it("renders StatsHistoryStrip after distribution section on deep depth", () => {
+  it("renders StatsHistoryStrip on deep depth when diagnosis sections exist", () => {
     const base = makeWinReport();
     renderInRouter(
       makeWinReport({
@@ -740,7 +740,7 @@ describe("VideoBody render", () => {
           diagnosis_vi: {
             headline_vi: "H",
             sections: [
-              { section_id: "distribution", title: "Phân phối", text: "Dist prose." },
+              { section_id: "diagnosis", title: "Chẩn đoán", text: "**Video đang chạy tốt.**" },
             ],
           },
         },

@@ -153,5 +153,5 @@ def test_sound_section_emits_via_manifest() -> None:
         channel_context=None,
         performance_tier="average",
     )
-    sections = select_sections_to_emit(manifest, ctx)
+    sections = select_sections_to_emit(manifest, ctx, depth="deep")
     assert "sound" in sections

@@ -105,7 +105,7 @@ def _f():
         (19, "tutorial", 71),
         (19, "lesson", 70),
         (19, "storytelling", 72),
-        (19, "other", 69),
+        (19, "other", 72),
         # Home
         (20, "tutorial", 74),
         (20, "haul", 73),

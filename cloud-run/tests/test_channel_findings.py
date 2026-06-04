@@ -352,28 +352,6 @@ def test_finding_channel_posting_cadence_vs_peer():
     assert hit.section_hint == "what_falling"
 
 
-def test_finding_channel_best_hour_underused():
-    base = datetime.now(tz=UTC) - timedelta(days=1)
-    videos = []
-    for i, hour in enumerate([3, 4, 5, 6, 22, 23]):
-        videos.append({
-            "views": 5000 if hour >= 22 else 500,
-            "likes": 50,
-            "comments": 5,
-            "posted_at": base.replace(hour=hour, minute=0) - timedelta(days=i),
-            "content_format": "product_closeup",
-            "caption": "test",
-            "duration_sec": 20,
-        })
-    findings = build_channel_findings(
-        videos=videos,
-        channel_pattern={},
-        recent_window_30d={"avg_views": 2000, "video_count": 6},
-        inflection=None,
-    )
-    assert any(f.id == "channel_best_hour_underused" for f in findings)
-
-
 def test_finding_channel_mega_sale_dip(monkeypatch):
     sale_day = datetime(2026, 11, 11, 12, 0, tzinfo=UTC)
     monkeypatch.setattr(

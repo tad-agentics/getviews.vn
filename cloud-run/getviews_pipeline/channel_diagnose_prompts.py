@@ -30,6 +30,16 @@ kiểm toán, KHÔNG phải bảng đánh giá theo tiêu chí.
 
 """ + _CHANNEL_COPY_RULES_BLOCK + """
 
+NGẮN GỌN & VERDICT-FIRST — BẮT BUỘC (creator đọc lướt trên mobile):
+- Mỗi section mở bằng MỘT câu verdict in đậm (hoặc câu đầu in đậm) — đọc riêng các câu đậm xuyên suốt là đủ hiểu.
+- Tối đa 2 câu chứng minh sau verdict. Toàn memo ~350-450 từ. KHÔNG luận văn.
+- Ưu tiên VIỆC CẦN LÀM + VIDEO THAM CHIẾU hơn giải thích dài.
+
+ĐĂNG BÀI — KHÔNG ĐÁNH GIÁ GIỜ ĐĂNG (BẮT BUỘC):
+- Giờ đăng KHÔNG quyết định view. View do nội dung quyết định.
+- TUYỆT ĐỐI KHÔNG viết "đăng sai giờ", "khung giờ vàng", "lệch khung giờ". KHÔNG heatmap giờ đăng.
+- Cadence (đăng đều 3-4 lần/tuần) được phép nhắc 1 câu; giờ-trong-ngày thì không.
+
 === QUY TẮC BẮT BUỘC: DỮ LIỆU + DIỄN GIẢI ===
 Mọi số liệu (view, P%, tỉ lệ format…) phải có ngay câu giải thích ý nghĩa cho creator \
 (không để số trần). Mỗi đoạn: nêu số → giải thích → hàm ý hành động (ngắn).

@@ -43,12 +43,6 @@ export function ScoreCard({ card }: ScoreCardProps) {
       caption: c.cadence,
     },
     {
-      key: "best_hour",
-      label: "Khung giờ mạnh",
-      value: `${card.best_hour_range ?? "—"}`,
-      caption: c.best_hour,
-    },
-    {
       key: "peak_recent",
       label: "Đỉnh vs gần đây",
       value: `${fmtViews(card.peak_views ?? 0)} → ${fmtViews(card.recent_avg_views ?? 0)}`,

@@ -9,10 +9,7 @@ from getviews_pipeline.signals.commerce import (
     extract_commerce_price_tier_structure_signal,
     extract_commerce_silent_cta_signal,
 )
-from getviews_pipeline.signals.distribution import (
-    extract_boost_tradeoff_education_signal,
-    extract_posted_at_ritual_hint_signal,
-)
+from getviews_pipeline.signals.distribution import extract_boost_tradeoff_education_signal
 from getviews_pipeline.signals.editing import extract_editing_broll_ratio_low_signal
 from getviews_pipeline.signals.engagement import (
     extract_comment_hook_missing_signal,
@@ -46,7 +43,6 @@ PHASE2C_IDS = frozenset(
         "script_zero_value_stretch",
         "engagement_comment_hook_missing",
         "engagement_save_trigger_weak",
-        "distribution_posted_at_ritual_hint",
         "channel_video_vs_eligible_peers",
         "seeding_comment_pattern",
     }
@@ -209,12 +205,6 @@ def test_engagement_save_trigger_weak_hit_tier() -> None:
     sigs = extract_save_trigger_weak_signal(ctx)
     assert len(sigs) == 1
     assert sigs[0].id == "engagement_save_trigger_weak"
-
-
-def test_distribution_posted_at_ritual_hint() -> None:
-    sigs = extract_posted_at_ritual_hint_signal(_ctx())
-    assert len(sigs) == 1
-    assert sigs[0].id == "distribution_posted_at_ritual_hint"
 
 
 def test_channel_video_vs_eligible_peers() -> None:

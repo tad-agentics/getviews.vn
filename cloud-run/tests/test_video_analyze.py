@@ -334,9 +334,14 @@ def _make_analyze_mocks(
     def user_table(name: str) -> MagicMock:
         t = MagicMock()
         if name == "video_diagnostics":
-            t.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-                data=diag_list
-            )
+            diag_execute = MagicMock(data=diag_list)
+            diag_limit = MagicMock()
+            diag_limit.execute.return_value = diag_execute
+            diag_depth_eq = MagicMock()
+            diag_depth_eq.limit.return_value = diag_limit
+            diag_vid_eq = MagicMock()
+            diag_vid_eq.eq.return_value = diag_depth_eq
+            t.select.return_value.eq.return_value = diag_vid_eq
         elif name == "video_corpus":
             t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = (
                 SimpleNamespace(data=video_row)

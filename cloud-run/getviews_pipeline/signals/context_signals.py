@@ -1,10 +1,7 @@
-"""§2 Context signals (golden hours, tương tác chéo) — distribution section."""
+"""§2 Context signals (tương tác chéo) — no clock-time posting ratings (redesign 2026-05)."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
-from getviews_pipeline.golden_hours import in_vietnam_golden_window
 from getviews_pipeline.signals.base import Evidence, Signal
 
 
@@ -15,47 +12,6 @@ def _cheo_detail(weak_watch: bool, weak_reach: bool) -> str:
     if weak_reach:
         parts.append("reach so với trung bình ngách yếu")
     return " và ".join(parts) if parts else "watch/reach lệch baseline"
-
-
-def extract_golden_hour_signal(ctx: dict) -> list[Signal]:
-    """Miss signal when posted_at available and outside VN golden ICT bands."""
-    st = ctx.get("user_stats") if isinstance(ctx.get("user_stats"), dict) else {}
-    raw = st.get("posted_at")
-    if not raw:
-        return []
-    s = str(raw).strip()
-    if len(s) < 16:
-        # Need clock time — date-only strings are too ambiguous for hour gates
-        return []
-    try:
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except ValueError:
-        return []
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    if in_vietnam_golden_window(dt):
-        return []
-    return [
-        Signal(
-            id="context_golden_hour_miss",
-            section_id="distribution",
-            taxonomy_ref="§2",
-            salience=0.45,
-            claim=(
-                "Thời đăng ngoài các khung giờ vàng VN phổ biến "
-                "(sáng 6–9h, trưa 11h30–13h30, chiều 18–20h, khuya 22–24h; "
-                "cộng peak tối thứ Năm 19–21h ICT)."
-            ),
-            evidence=[
-                Evidence(
-                    type="user_analysis_field",
-                    quote=f"posted_at={s}",
-                    location="user_stats.posted_at",
-                )
-            ],
-            suggested_fix="Thử dịch ±30–45 phút vào khung trên hoặc lịch thứ Năm tối khi hợp brief.",
-        )
-    ]
 
 
 def extract_tuong_tac_cheo_signal(ctx: dict) -> list[Signal]:
@@ -87,7 +43,7 @@ def extract_tuong_tac_cheo_signal(ctx: dict) -> list[Signal]:
     return [
         Signal(
             id="context_tuong_tac_cheo_heuristic",
-            section_id="distribution",
+            section_id="diagnosis",
             taxonomy_ref="§2",
             salience=0.7,
             claim=(
@@ -111,7 +67,4 @@ def extract_tuong_tac_cheo_signal(ctx: dict) -> list[Signal]:
 
 
 def extract_context_signals(ctx: dict) -> list[Signal]:
-    out: list[Signal] = []
-    out.extend(extract_golden_hour_signal(ctx))
-    out.extend(extract_tuong_tac_cheo_signal(ctx))
-    return out
+    return extract_tuong_tac_cheo_signal(ctx)

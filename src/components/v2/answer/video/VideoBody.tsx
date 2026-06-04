@@ -34,7 +34,6 @@ import {
   DiagnosisSectionRenderer,
   type VideoDiagnosisSectionEmbeds,
 } from "@/components/diagnosis/DiagnosisSectionRenderer";
-import { DiagnosisPostingContextBlock } from "@/components/diagnosis/DiagnosisPostingContextBlock";
 import { CreatorComparisonCard } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopDiagnosisStrip } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
 import { StatsHistoryStrip } from "@/components/v2/answer/video/blocks/StatsHistoryStrip";
@@ -211,8 +210,6 @@ export function VideoBody({
     report.bright_spot_signal;
   const viewScenariosEffective: ViewScenario[] | undefined =
     narrativeReady?.view_scenarios ?? report.view_scenarios;
-  const nichePostingContextEffective =
-    narrativeReady?.niche_posting_context ?? report.niche_posting_context ?? null;
   const channelEffective: ChannelContext | undefined =
     channelContext ?? report.channel_context;
   const streamedErrs = narrativeReady?.errors;
@@ -267,7 +264,6 @@ export function VideoBody({
   const renderDeepUpsell = showDeepUpsell && isBasicDepth;
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const hasChannelPattern = sectionIds.has("channel_pattern");
-  const hasDistribution = sectionIds.has("distribution");
   const hasBoostAttribution = sectionIds.has("boost_attribution");
   const adjunctTier = (
     ["hit", "average", "flop", "unknown"] as const
@@ -612,9 +608,6 @@ export function VideoBody({
                     section={sec}
                     referenceVideos={refVideos}
                     evidenceAnchors={narrativeVi?.diagnosis_vi?.evidence_anchors}
-                    postingContext={
-                      sid === "distribution" ? nichePostingContextEffective : undefined
-                    }
                     creatorComparison={
                       sid === "channel_pattern" ? report.creator_comparison ?? null : undefined
                     }
@@ -648,12 +641,6 @@ export function VideoBody({
                               : undefined
                     }
                   />
-                  {sid === "distribution" && showStatsHistoryStrip ? (
-                    <StatsHistoryStrip
-                      history={meta.stats_history}
-                      distributionShape={meta.distribution_shape}
-                    />
-                  ) : null}
                   {sid === "boost_attribution" ? (
                     <BoostAttributionBlock
                       attribution={meta.boost_attribution}
@@ -667,13 +654,7 @@ export function VideoBody({
           </div>
         ) : null}
 
-        {diagnosisSections.length > 0 &&
-        nichePostingContextEffective &&
-        !hasDistribution ? (
-          <DiagnosisPostingContextBlock payload={nichePostingContextEffective} />
-        ) : null}
-
-        {!hasDistribution && showStatsHistoryStrip ? (
+        {diagnosisSections.length > 0 && showStatsHistoryStrip ? (
           <StatsHistoryStrip
             history={meta.stats_history}
             distributionShape={meta.distribution_shape}

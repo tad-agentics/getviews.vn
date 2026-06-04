@@ -975,7 +975,7 @@ def _split_diagnosis_leading_json(full_text: str) -> tuple[dict[str, Any] | None
 
 _EMBEDDED_TILE_MIN_PROXIMITY = 1
 _EMBED_TILE_SECTION_IDS: frozenset[str] = frozenset(
-    {"hook_analysis", "diagnosis", "niche_pattern", "distribution", "script_structure"},
+    {"hook_analysis", "diagnosis", "niche_pattern", "script_structure"},
 )
 
 # Bump when embedded-tile sanitize/inject contract changes (finalize-lite repair gate).
@@ -1157,7 +1157,6 @@ def _inject_fallback_embedded_tiles(
         "diagnosis",
         "hook_analysis",
         "niche_pattern",
-        "distribution",
         "script_structure",
     ):
         if sid not in _EMBED_TILE_SECTION_IDS:
@@ -1513,7 +1512,7 @@ def _synthesize_diagnosis_v6_section_pool(
         reference_evidence_block=reference_evidence_block,
         collapsed_questions=collapsed_questions,
         cross_format_signal=cross_format_signal,
-        niche_posting_context_block=niche_posting_context_block,
+        niche_posting_context_block="",
     )
     prompt = _prefix_user_sections(
         [layer0_context or "", creator_format_history_block or ""],
@@ -1764,17 +1763,9 @@ def synthesize_diagnosis_carousel_v2(
         [
             layer0_context or "",
             creator_format_history_block or "",
-            niche_posting_context_block or "",
         ],
         prompt,
     )
-    if (niche_posting_context_block or "").strip():
-        prompt = (
-            prompt.rstrip()
-            + "\n\nNếu có khối bắt đầu bằng NICHE_POSTING_CONTEXT phía trên: nhúng vào "
-            "**TẦNG 1 — PHÂN PHỐI** (ưu tiên PHẦN 1B — phân phối carousel này); "
-            "không mở mục “khung giờ đăng” hay timing riêng.\n"
-        )
     if collapsed_questions:
         question_block = (
             "\n\nNgười dùng hỏi nhiều câu; thêm mục có tiêu đề rõ cho từng câu:\n"

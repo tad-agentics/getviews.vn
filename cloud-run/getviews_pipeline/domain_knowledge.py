@@ -34,7 +34,7 @@ Sóng 2 — FYP rộng (~5K-50K views):
 - Thời gian: 6-24 giờ
 - Thuật toán kiểm tra: tất cả tín hiệu + tốc độ tăng tương tác (velocity)
 - Đây là nơi đa số content "tốt nhưng không viral" dừng lại
-- Nếu chết ở đây: velocity quá chậm — timing sai hoặc ngách đã bão hoà format này
+- Nếu chết ở đây: velocity quá chậm — ngách đã bão hoà format này hoặc hook không giữ chân
 
 Sóng 3 — Viral push (~50K+ views):
 - Thuật toán đẩy ra nhiều nhóm demographic khác nhau
@@ -43,7 +43,7 @@ Sóng 3 — Viral push (~50K+ views):
 ÁP DỤNG KHI CHẨN ĐOÁN:
 - View thấp + ER tốt = kẹt Sóng 0 → vấn đề hook, KHÔNG phải nội dung dở
 - View cao + ER thấp = lên Sóng 1 nhưng dừng → nội dung không giữ chân
-- View dừng ~5K = fail Sóng 2 → velocity chậm hoặc bão hoà format
+- View dừng ~5K = fail Sóng 2 → velocity chậm hoặc bão hoà format (KHÔNG quy cho giờ đăng)
 - Save cao + share thấp = utility content → thuật toán đẩy nhưng không viral
 - Share cao + save thấp = entertainment → viral tiềm năng nhưng không bền
 - Comment nhiều trong 30 phút đầu = tín hiệu mạnh gấp 3x so với comment muộn
@@ -102,12 +102,10 @@ QUY MÔ:
 - 50 triệu+ người dùng hàng tháng — thị trường lớn thứ 3 thế giới (sau Mỹ, Indonesia)
 - Người dùng trung bình mở TikTok 10+ lần/ngày, xem 90+ phút/ngày
 
-THỜI GIAN ĐĂNG TỐI ƯU (giờ Việt Nam, UTC+7):
-- Khung vàng sáng: 7:00-9:00 (trước giờ làm/đi học — Minh đăng lúc 7 AM)
-- Khung vàng trưa: 11:30-13:00 (giờ nghỉ trưa)
-- Khung vàng tối: 19:00-22:00 (sau giờ làm — peak traffic)
-- Chủ nhật: traffic cao hơn 15-20% so với ngày thường
-- THỨ HAI sáng: nếu muốn lên FYP đầu tuần, đăng Chủ nhật 21:00-22:00
+ĐĂNG BÀI — KHÔNG ĐÁNH GIÁ GIỜ ĐĂNG (BẮT BUỘC):
+- Giờ đăng KHÔNG quyết định view. View do nội dung quyết định.
+- TUYỆT ĐỐI KHÔNG viết "đăng sai giờ", "khung giờ vàng", "lệch khung giờ". KHÔNG heatmap giờ đăng.
+- Cadence (đăng đều 3-4 lần/tuần) được phép nhắc 1 câu; giờ-trong-ngày thì không.
 
 NGÁCH PHỔ BIẾN NHẤT (theo thứ tự lượt xem):
 - Review đồ Shopee / TikTok Shop (đập hộp, chấm điểm, so sánh)

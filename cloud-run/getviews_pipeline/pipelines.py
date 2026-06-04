@@ -1876,11 +1876,7 @@ async def run_video_diagnosis(
                 include_carousel_directions,
                 bool(creator_format_history_block),
             )
-            carousel_posting_ctx, niche_posting_context_ui = _build_niche_posting_context_bundle_sync(
-                user_aweme,
-                niche_id,
-                log_tag="carousel_diagnosis",
-            )
+            niche_posting_context_ui = None
             diagnosis = await run_sync(
                 synthesize_diagnosis_carousel_v2,
                 carousel_format=carousel_format,
@@ -1896,7 +1892,7 @@ async def run_video_diagnosis(
                 corpus_citation=citation,
                 persona_block=persona_block,
                 creator_format_history_block=creator_format_history_block,
-                niche_posting_context_block=carousel_posting_ctx,
+                niche_posting_context_block="",
             )
         else:
             loop_fmt = asyncio.get_event_loop()
@@ -2040,11 +2036,7 @@ async def run_video_diagnosis(
                 int(niche_id) if niche_id is not None else 0,
             )
 
-            niche_posting_context_block, niche_posting_context_ui = _build_niche_posting_context_bundle_sync(
-                user_aweme,
-                niche_id,
-                log_tag="video_diagnosis",
-            )
+            niche_posting_context_ui = None
 
             diagnosis_md, narrative_vi_out, format_cards_out = await run_sync(
                 synthesize_diagnosis_v2,
@@ -2065,7 +2057,7 @@ async def run_video_diagnosis(
                 errors=errors_prompt,
                 reference_evidence_block=evidence_block,
                 creator_format_history_block=creator_format_history_block_v,
-                niche_posting_context_block=niche_posting_context_block,
+                niche_posting_context_block="",
                 analysis_depth="deep",
             )
             if format_cards_out and niche_id:

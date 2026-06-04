@@ -8,6 +8,7 @@
  */
 
 import { SectionProseBlocks } from "@/components/SectionProseBlocks";
+import { splitVerdictProse } from "@/lib/humanizeStatsProse";
 import type { ChannelSection, ChannelRecommendation, ChannelDiagnosisFinding } from "@/lib/api-types";
 import { VideoTileRow } from "./VideoTileRow";
 import { CreatorTileRow } from "./CreatorTileRow";
@@ -128,44 +129,51 @@ export function SectionRenderer({
     );
   }
 
+  const { verdict, support } = splitVerdictProse(text);
+
   return (
     <div className="mb-6">
-      {/* Section heading */}
       <h2 className="gv-type-h3 text-[color:var(--foreground)] leading-snug">
         {title}
       </h2>
 
-      {/* Prose body */}
-      <div className="relative">
-        <SectionProseBlocks text={text} />
+      {embedded_tiles && embedded_tiles.length > 0 ? (
+        <VideoTileRow tiles={embedded_tiles} />
+      ) : null}
+
+      {embedded_creators && embedded_creators.length > 0 ? (
+        <CreatorTileRow creators={embedded_creators} />
+      ) : null}
+
+      <div className="relative mt-3">
+        {verdict ? (
+          <p className="m-0 text-[17px] font-bold leading-snug text-[color:var(--foreground)]">
+            {verdict}
+          </p>
+        ) : null}
+        {support ? (
+          <SectionProseBlocks
+            text={support}
+            paragraphClassName="text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]"
+          />
+        ) : !verdict ? (
+          <SectionProseBlocks text={text} />
+        ) : null}
         {streaming && !text && (
-          // Active-section, no text_chunk yet — bridge the gap so the
-          // section card isn't a bare heading for the second or two
-          // between section_start and the first text_chunk landing.
           <p
-            className="text-sm italic text-[color:var(--muted)] mt-2"
+            className="mt-2 text-sm italic text-[color:var(--muted)]"
             aria-live="polite"
           >
             Đang viết phân tích…
           </p>
         )}
-        {streaming && text && (
+        {streaming && text ? (
           <span
-            className="inline-block w-0.5 h-4 bg-[color:var(--primary)] animate-pulse ml-0.5 align-text-bottom"
+            className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[color:var(--primary)] align-text-bottom"
             aria-hidden
           />
-        )}
+        ) : null}
       </div>
-
-      {/* Embedded video tiles */}
-      {embedded_tiles && embedded_tiles.length > 0 && (
-        <VideoTileRow tiles={embedded_tiles} />
-      )}
-
-      {/* Embedded creator tiles */}
-      {embedded_creators && embedded_creators.length > 0 && (
-        <CreatorTileRow creators={embedded_creators} />
-      )}
     </div>
   );
 }
