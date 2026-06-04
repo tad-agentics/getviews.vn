@@ -135,6 +135,12 @@ function SectionVerdictBlock({ text }: { text: string }) {
           wrapperClassName="space-y-1.5"
           paragraphClassName="text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]"
         />
+      ) : !verdict && text.trim() ? (
+        <SectionProseBlocks
+          text={text}
+          wrapperClassName="space-y-1.5"
+          paragraphClassName="text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]"
+        />
       ) : null}
     </div>
   );

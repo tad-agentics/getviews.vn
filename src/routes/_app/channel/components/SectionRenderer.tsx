@@ -156,7 +156,7 @@ export function SectionRenderer({
             text={support}
             paragraphClassName="text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]"
           />
-        ) : !verdict ? (
+        ) : !verdict && text.trim() ? (
           <SectionProseBlocks text={text} />
         ) : null}
         {streaming && !text && (

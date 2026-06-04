@@ -44,8 +44,10 @@ export function splitVerdictProse(text: string): { verdict: string; support: str
     const support = humanized.replace(/\*\*[^*]+\*\*/, "").replace(/^\s+/, "").trim();
     return { verdict, support };
   }
-  const parts = humanized.split(/\n\n+/);
-  const verdict = (parts[0] ?? humanized).trim();
-  const support = parts.slice(1).join("\n\n").trim();
-  return { verdict, support };
+  const parts = humanized.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 1) {
+    // No explicit verdict marker — render as normal prose, not a fake bold headline.
+    return { verdict: "", support: humanized };
+  }
+  return { verdict: parts[0] ?? "", support: parts.slice(1).join("\n\n").trim() };
 }
