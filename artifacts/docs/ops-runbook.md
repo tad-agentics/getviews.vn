@@ -32,8 +32,12 @@ and weekly otherwise).
 
 ## pg_cron inventory (source of truth: `SELECT jobname, schedule FROM cron.job`)
 
-As of 2026-06-10, 25 jobs. The schedule lives in the DB, not in migrations —
-when adding/changing one, write the migration AND verify `cron.job` matches.
+As of 2026-06-10, 26 jobs. The expected inventory is git-tracked in the
+`expected_cron_jobs` table (migration `20260905000000`); the daily
+`cron-inventory-watch` (03:30 UTC) raises — and the `cron_inventory_drift`
+admin alert fires — when an expected job goes missing or inactive. When
+adding/removing a job, register it in `expected_cron_jobs` in the same
+migration. Live diff anytime: `SELECT * FROM admin_cron_inventory_drift();`
 Highlights (UTC):
 
 | Job | Schedule | Purpose |
