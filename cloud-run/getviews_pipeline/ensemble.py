@@ -1169,10 +1169,25 @@ async def download_video(url_list: list[str]) -> Path:
                             continue
                         r.raise_for_status()
                     r.raise_for_status()
+                    # Guard /tmp (RAM-backed tmpfs on Cloud Run): a livestream
+                    # VOD or mislabeled asset can run to hundreds of MB — cap
+                    # at the same 60MB ceiling r2.py enforces post-download.
+                    _max_dl = 60 * 1024 * 1024
+                    clen = r.headers.get("content-length")
+                    if clen and clen.isdigit() and int(clen) > _max_dl:
+                        raise ValueError(
+                            f"video too large: {int(clen) // (1024 * 1024)}MB > 60MB cap"
+                        )
                     path.parent.mkdir(parents=True, exist_ok=True)
                     try:
+                        written = 0
                         async with aiofiles.open(path, "wb") as f:
                             async for chunk in r.aiter_bytes():
+                                written += len(chunk)
+                                if written > _max_dl:
+                                    raise ValueError(
+                                        "video too large: exceeded 60MB cap mid-stream"
+                                    )
                                 await f.write(chunk)
                     except Exception:
                         if path.exists():

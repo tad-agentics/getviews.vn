@@ -34,6 +34,20 @@ telemetry.setup_telemetry(service_name="getviews-pipeline")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Size the default executor for the request concurrency (audit
+    # 2026-06-10). Every sync Supabase/Gemini call goes through
+    # ``run_in_executor(None, …)`` — on a 1-vCPU pod the asyncio default
+    # is min(32, cpu+4) = 5 threads, while Cloud Run admits
+    # ``--concurrency 20`` requests and a single paid turn can occupy a
+    # thread for minutes. Five threads meant at most 5 concurrent paid
+    # analyses; the 6th user's stream stalled silently behind them.
+    # Threads here are I/O-parked (network waits), so 40 is cheap.
+    from concurrent.futures import ThreadPoolExecutor
+
+    asyncio.get_running_loop().set_default_executor(
+        ThreadPoolExecutor(max_workers=40, thread_name_prefix="gv-sync")
+    )
+
     # TD-4: prune the SSE replay buffer on a 30s cadence so orphaned
     # stream_ids (client never reconnects) don't sit forever on
     # ``min-instances=1`` pods. Lazy eviction inside ``get_stream_chunks``

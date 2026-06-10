@@ -2546,10 +2546,17 @@ def run_corpus_extraction_batch_file_job(
     video Files until the job reaches a terminal state (avoids breaking an
     in-flight batch). JSONL input file is always deleted best-effort.
     """
-    from getviews_pipeline.gemini_cost import log_gemini_call
+    from getviews_pipeline.gemini_cost import check_gemini_daily_budget, log_gemini_call
 
     if not records:
         return {"ok": True, "state": "JOB_STATE_SUCCEEDED", "by_video_id": {}}
+
+    # Budget gate (audit 2026-06-10): every live call site checks the daily
+    # USD ceiling, but batch submission did not — a runaway ingest loop could
+    # queue unbounded batch spend that only shows up in gemini_calls hours
+    # later. Raises GeminiDailyBudgetExceeded when today's recorded spend has
+    # already hit the cap (the in-flight batch itself still lands after).
+    check_gemini_daily_budget(f"corpus_batch_submit:{display_name}")
 
     client = _get_client()
     stt_map = gcp_stt_cost_by_video_id or {}
