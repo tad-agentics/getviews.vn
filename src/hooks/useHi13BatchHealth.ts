@@ -24,6 +24,7 @@ export interface Hi13RunRow {
   };
   batch_line_hits: number;
   sync_fallback: number;
+  skipped_duplicate_run?: boolean;
 }
 
 export interface Hi13BatchHealthResponse {
@@ -37,6 +38,10 @@ export interface Hi13BatchHealthResponse {
   gemini_calls: {
     batch_7d: Hi13GeminiCallsWindow;
     batch_30d: Hi13GeminiCallsWindow;
+    sync_extraction_7d: Hi13GeminiCallsWindow;
+    sync_extraction_30d: Hi13GeminiCallsWindow;
+    batch_tier_share_7d: number | null;
+    batch_tier_share_30d: number | null;
   };
   ingest_30d: {
     runs: number;
@@ -46,6 +51,8 @@ export interface Hi13BatchHealthResponse {
     batch_jobs_ok: number;
     batch_jobs_failed: number;
     batch_line_success_rate: number;
+    batch_path_share: number | null;
+    batch_path_share_target: number;
   };
   recent_runs: Hi13RunRow[];
 }

@@ -4157,18 +4157,21 @@ async def run_batch_ingest(
                     "hi13_sync_fallback": res.hi13_sync_fallback,
                 })
 
-        if summary.aborted_early:
-            logger.warning(
-                "[corpus] Skipping post-processing (mv refresh, video_dang_hoc, "
-                "sound insights, weekly analytics) due to wall-clock budget."
-            )
-        elif not _is_final_ingest_shift(ingest_shift, ingest_shift_count):
-            logger.info(
-                "[corpus] Skipping post-processing — shift %s is not final (%d shifts); "
-                "cron-batch-post-processing heals MV overnight.",
-                ingest_shift,
-                ingest_shift_count,
-            )
+        if not should_run_inline_ingest_post_processing(
+            aborted_early=summary.aborted_early,
+            ingest_shift=ingest_shift,
+        ):
+            if summary.aborted_early:
+                logger.warning(
+                    "[corpus] Skipping inline post-processing (mv refresh, video_dang_hoc, "
+                    "sound insights, weekly analytics) due to wall-clock budget."
+                )
+            else:
+                logger.info(
+                    "[corpus] Skipping inline post-processing — scheduled shift %s; "
+                    "cron-batch-post-processing (23:30 UTC) heals MV overnight.",
+                    ingest_shift,
+                )
         else:
             pp = await run_ingest_post_processing(
                 client, run_weekly_analytics_if_sunday=True,
@@ -4265,13 +4268,28 @@ def _ingest_shift_index(shift: str) -> int | None:
 
 
 def _is_final_ingest_shift(shift: str | None, shift_count: int) -> bool:
-    """True when this run should run MV/post-processing (full run or last shift)."""
+    """True when this run is the last scheduled shift slice (``a``–``f``)."""
     if shift is None:
         return True
     if shift_count < 1:
         return True
     final = _INGEST_SHIFT_LETTERS[min(shift_count, len(_INGEST_SHIFT_LETTERS)) - 1]
     return shift.strip().lower() == final
+
+
+def should_run_inline_ingest_post_processing(
+    *,
+    aborted_early: bool,
+    ingest_shift: str | None,
+) -> bool:
+    """Whether ``/batch/ingest`` should run MV refresh inline before returning.
+
+    Scheduled shifts (``ingest_shift`` set) always defer to
+    ``cron-batch-post-processing`` so shift C does not blow the 3600s cap.
+    """
+    if aborted_early:
+        return False
+    return ingest_shift is None
 
 
 def split_ingest_targets_for_shift(

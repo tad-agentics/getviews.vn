@@ -16,12 +16,10 @@ from unittest.mock import MagicMock, patch
 
 
 def _mock_client_returning(rows: list[dict[str, Any]]) -> MagicMock:
-    """Build a Supabase mock that returns ``rows`` from the chain:
-    ``client.table(...).select(...).eq(...).gte(...).order(...).limit(...).execute()``.
-    """
+    """Build a Supabase mock for the paginated failed-run query."""
     client = MagicMock()
     chain = client.table.return_value.select.return_value
-    chain = chain.eq.return_value.gte.return_value.order.return_value.limit.return_value
+    chain = chain.eq.return_value.gte.return_value.order.return_value.range.return_value
     chain.execute.return_value = MagicMock(data=rows)
     return client
 
@@ -86,12 +84,31 @@ def test_multiple_failures_groups_by_job() -> None:
     assert "batch/refresh×1" in msg
 
 
+def test_swept_stale_runs_are_excluded() -> None:
+    """Timeout orphans closed by the stale sweeper must not page."""
+    rule = {"threshold_json": {"failures_max": 0, "window_days": 7}}
+    client = _mock_client_returning([
+        {
+            "job_name": "batch/ingest",
+            "error": "auto-swept: still running >65m (likely Cloud Run 3600s timeout orphan)",
+            "started_at": "2026-06-10T06:00:00Z",
+            "summary": {"swept_stale_running": True, "aborted_early": True},
+        },
+    ])
+
+    breached, msg, ctx = _run(rule, client)
+
+    assert breached is False
+    assert ctx["failures"] == 0
+    assert "0 failures" in msg
+
+
 def test_query_failure_is_non_breaching() -> None:
     """Supabase down shouldn't cascade into a false-positive alert fire."""
     rule = {"threshold_json": {"failures_max": 0, "window_days": 7}}
     client = MagicMock()
     chain = client.table.return_value.select.return_value
-    chain = chain.eq.return_value.gte.return_value.order.return_value.limit.return_value
+    chain = chain.eq.return_value.gte.return_value.order.return_value.range.return_value
     chain.execute.side_effect = RuntimeError("supabase down")
 
     breached, msg, ctx = _run(rule, client)

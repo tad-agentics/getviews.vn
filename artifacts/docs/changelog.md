@@ -1,5 +1,13 @@
 # Changelog — GetViews.vn
 
+## 2026-06-04 — Batch ingest ops (stale sweeper, shift post-processing, HI-13)
+
+- **SQL cron:** `cron-batch-job-runs-stale-sweeper` every 15m — closes `batch_job_runs` stuck `running` >65m (Cloud Run 3600s orphans).
+- **Python:** `sweep_stale_running_job_runs()` + `is_swept_stale_batch_job_run()`; alert evaluator excludes swept rows from `cron_batch_failures`.
+- **Ingest:** scheduled shifts skip inline MV/post-processing (`should_run_inline_ingest_post_processing`); `cron-batch-post-processing` only.
+- **Admin:** HI-13 `batch_tier_share`, `batch_path_share`, paginated `ingest_30d` totals; FE panel updated.
+- **Tests:** sweeper, inline post-processing guard, cron-failure exclusion.
+
 ## 2026-06-04 — Report redesign hygiene (dead diagnosis timing helpers)
 
 - **Removed:** `_build_niche_posting_context_bundle_sync` (`pipelines.py`), `compute_diagnosis_posting_bundle` / `build_diagnosis_posting_context_text` (`report_timing_compute.py`), `test_diagnosis_posting_context.py`.

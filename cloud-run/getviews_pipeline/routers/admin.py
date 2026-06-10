@@ -275,24 +275,42 @@ def _evaluate_cron_batch_failures(rule: dict[str, Any]) -> tuple[bool, str, dict
     this rule, nothing reads them. One failure in 7 days should page —
     silent pipeline breakage is exactly what this table exists to
     surface.
+
+    Rows auto-swept after Cloud Run timeout (``swept_stale_running``) are
+    excluded — they are observability hygiene, not pipeline breakage.
     """
+    from getviews_pipeline.batch_observability import is_swept_stale_batch_job_run
+    from getviews_pipeline.supabase_client import get_service_client
+
     window_days = int(rule.get("threshold_json", {}).get("window_days", 7))
     failures_max = int(rule.get("threshold_json", {}).get("failures_max", 0))
-    from getviews_pipeline.supabase_client import get_service_client
 
     since_iso = (datetime.now(UTC) - timedelta(days=window_days)).isoformat()
     try:
-        resp = (
-            get_service_client()
-            .table("batch_job_runs")
-            .select("job_name, error, started_at")
-            .eq("status", "failed")
-            .gte("started_at", since_iso)
-            .order("started_at", desc=True)
-            .limit(25)
-            .execute()
-        )
-        rows = resp.data or []
+        client = get_service_client()
+        rows: list[dict[str, Any]] = []
+        offset = 0
+        page_size = 500
+        while True:
+            resp = (
+                client.table("batch_job_runs")
+                .select("job_name, error, started_at, summary")
+                .eq("status", "failed")
+                .gte("started_at", since_iso)
+                .order("started_at", desc=True)
+                .range(offset, offset + page_size - 1)
+                .execute()
+            )
+            batch = resp.data or []
+            if not batch:
+                break
+            for row in batch:
+                if is_swept_stale_batch_job_run(row):
+                    continue
+                rows.append(row)
+            if len(batch) < page_size:
+                break
+            offset += page_size
     except Exception as exc:
         return (False, f"query failed: {exc}", {"reason": "query_error"})
 
@@ -1086,22 +1104,28 @@ async def admin_corpus_class_health(
     })
 
 
-def _gemini_batch_call_stats(client: Any, since_iso: str) -> dict[str, Any]:
-    """Aggregate ``video_extraction_batch`` rows since ``since_iso``."""
+def _gemini_calls_site_stats(
+    client: Any,
+    since_iso: str,
+    *,
+    call_site: str,
+    is_batch: bool | None = None,
+) -> dict[str, Any]:
+    """Paginated ``gemini_calls`` aggregate for one ingest call_site."""
     total_count = 0
     total_cost = 0.0
     offset = 0
     page_size = 1000
     while True:
-        resp = (
+        query = (
             client.table("gemini_calls")
             .select("cost_usd")
-            .eq("is_batch", True)
-            .eq("call_site", "video_extraction_batch")
+            .eq("call_site", call_site)
             .gte("created_at", since_iso)
-            .range(offset, offset + page_size - 1)
-            .execute()
         )
+        if is_batch is not None:
+            query = query.eq("is_batch", is_batch)
+        resp = query.range(offset, offset + page_size - 1).execute()
         rows = resp.data or []
         if not rows:
             break
@@ -1118,6 +1142,73 @@ def _gemini_batch_call_stats(client: Any, since_iso: str) -> dict[str, Any]:
         "count": total_count,
         "cost_usd": round(total_cost, 4),
     }
+
+
+def _gemini_batch_call_stats(client: Any, since_iso: str) -> dict[str, Any]:
+    """Aggregate ``video_extraction_batch`` rows since ``since_iso``."""
+    return _gemini_calls_site_stats(
+        client, since_iso, call_site="video_extraction_batch", is_batch=True,
+    )
+
+
+def _hi13_gemini_tier_share(batch_stats: dict[str, Any], sync_stats: dict[str, Any]) -> float | None:
+    batch_n = int(batch_stats.get("count") or 0)
+    sync_n = int(sync_stats.get("count") or 0)
+    total = batch_n + sync_n
+    if total == 0:
+        return None
+    return round(batch_n / total, 4)
+
+
+def _hi13_ingest_batch_path_share(totals: dict[str, int]) -> float | None:
+    """Share of corpus videos that exited via Batch API vs sync fallback."""
+    ok = int(totals.get("batch_line_ok") or 0)
+    fallback = int(totals.get("sync_fallback") or 0)
+    denom = ok + fallback
+    if denom == 0:
+        return None
+    return round(ok / denom, 4)
+
+
+def _aggregate_ingest_hi13_totals(client: Any, since_iso: str) -> dict[str, int]:
+    """Sum HI-13 counters from all ``batch/ingest`` rows in the window (paginated)."""
+    totals = {
+        "batch_line_ok": 0,
+        "batch_line_fail": 0,
+        "sync_fallback": 0,
+        "batch_jobs_ok": 0,
+        "batch_jobs_failed": 0,
+        "runs": 0,
+    }
+    offset = 0
+    page_size = 500
+    while True:
+        resp = (
+            client.table("batch_job_runs")
+            .select("summary")
+            .eq("job_name", "batch/ingest")
+            .gte("started_at", since_iso)
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            break
+        for row in rows:
+            hi13 = _hi13_from_job_summary(row.get("summary") or {})
+            totals["runs"] += 1
+            for key in (
+                "batch_line_ok",
+                "batch_line_fail",
+                "sync_fallback",
+                "batch_jobs_ok",
+                "batch_jobs_failed",
+            ):
+                totals[key] += hi13.get(key, 0)
+        if len(rows) < page_size:
+            break
+        offset += page_size
+    return totals
 
 
 def _hi13_from_job_summary(summary: Any) -> dict[str, int]:
@@ -1160,39 +1251,32 @@ async def admin_hi13_batch_health(
 
     batch_7d = _gemini_batch_call_stats(client, since_7d)
     batch_30d = _gemini_batch_call_stats(client, since_30d)
+    sync_7d = _gemini_calls_site_stats(
+        client, since_7d, call_site="video_extraction", is_batch=False,
+    )
+    sync_30d = _gemini_calls_site_stats(
+        client, since_30d, call_site="video_extraction", is_batch=False,
+    )
 
-    ingest_totals = {
-        "batch_line_ok": 0,
-        "batch_line_fail": 0,
-        "sync_fallback": 0,
-        "batch_jobs_ok": 0,
-        "batch_jobs_failed": 0,
-        "runs": 0,
-    }
+    from getviews_pipeline.batch_observability import is_swept_stale_batch_job_run
+
     recent_runs: list[dict[str, Any]] = []
     try:
+        ingest_totals = _aggregate_ingest_hi13_totals(client, since_30d)
         runs_res = (
             client.table("batch_job_runs")
             .select("job_name, started_at, finished_at, status, duration_ms, summary, error")
             .in_("job_name", ["batch/ingest", "batch/hi13-pilot"])
             .gte("started_at", since_30d)
             .order("started_at", desc=True)
-            .limit(25)
+            .limit(50)
             .execute()
         )
         for row in runs_res.data or []:
+            if is_swept_stale_batch_job_run(row):
+                continue
             summary = row.get("summary") or {}
             hi13 = _hi13_from_job_summary(summary)
-            if row.get("job_name") == "batch/ingest":
-                ingest_totals["runs"] += 1
-                for key in (
-                    "batch_line_ok",
-                    "batch_line_fail",
-                    "sync_fallback",
-                    "batch_jobs_ok",
-                    "batch_jobs_failed",
-                ):
-                    ingest_totals[key] += hi13.get(key, 0)
             recent_runs.append({
                 "job_name": row.get("job_name"),
                 "started_at": row.get("started_at"),
@@ -1203,7 +1287,9 @@ async def admin_hi13_batch_health(
                 "hi13": hi13,
                 "batch_line_hits": hi13.get("batch_line_ok", 0),
                 "sync_fallback": hi13.get("sync_fallback", 0),
+                "skipped_duplicate_run": bool(summary.get("skipped_duplicate_run")),
             })
+        recent_runs = recent_runs[:25]
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"batch_job_runs: {exc}") from exc
 
@@ -1214,6 +1300,9 @@ async def admin_hi13_batch_health(
             4,
         )
     )
+    batch_path_share_30d = _hi13_ingest_batch_path_share(ingest_totals)
+    gemini_tier_share_7d = _hi13_gemini_tier_share(batch_7d, sync_7d)
+    gemini_tier_share_30d = _hi13_gemini_tier_share(batch_30d, sync_30d)
 
     return JSONResponse({
         "ok": True,
@@ -1226,10 +1315,16 @@ async def admin_hi13_batch_health(
         "gemini_calls": {
             "batch_7d": batch_7d,
             "batch_30d": batch_30d,
+            "sync_extraction_7d": sync_7d,
+            "sync_extraction_30d": sync_30d,
+            "batch_tier_share_7d": gemini_tier_share_7d,
+            "batch_tier_share_30d": gemini_tier_share_30d,
         },
         "ingest_30d": {
             **ingest_totals,
             "batch_line_success_rate": success_rate_30d,
+            "batch_path_share": batch_path_share_30d,
+            "batch_path_share_target": 0.5,
         },
         "recent_runs": recent_runs,
     })
