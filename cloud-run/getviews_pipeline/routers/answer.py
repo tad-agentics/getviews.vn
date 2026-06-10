@@ -155,6 +155,21 @@ async def answer_append_turn(
         # (which carried this lock); /answer/turns is now the sole SSE paid
         # path and must hold it too. The 60s replay cache covers reconnects;
         # this lock covers concurrency.
+        #
+        # Emit the hello frame BEFORE the lock RPC (audit 2026-06-10 perf):
+        # it carries no state and only tells the client "connected, working",
+        # so sending it first shaves the begin_processing round-trip (~30-50ms)
+        # off perceived time-to-first-byte. A subsequent already_processing /
+        # stream_failed simply arrives as the next frame, which the client
+        # already handles. Reasons it matters: (a) the client's retry gate
+        # (Boolean(resumeStreamId)) gets a real stream_id within ms — any later
+        # drop is recoverable via the replay buffer instead of a hard
+        # stream_failed; (b) bytes flow before the long video-extraction phase
+        # so mobile carriers/proxies don't kill the TCP during a zero-byte
+        # window. Skipped on a successful replay (cached items are the early
+        # bytes) — this path is the fresh-run / resume-cache-miss fallthrough.
+        yield _sse_line({"stream_id": stream_id, "seq": 0, "hello": True, "done": False})
+
         sb_lock = user_supabase(user["access_token"])
         try:
             lock_resp = await run_sync(
@@ -182,19 +197,6 @@ async def answer_append_turn(
                 logger.warning("[answer/turns] end_processing failed user=%s: %s", user["user_id"], exc)
 
         try:
-            # Emit a hello frame before any heavy work starts. Two reasons:
-            #   (a) The client's retry gate (Boolean(resumeStreamId)) gets
-            #       a real stream_id within milliseconds — any later drop is
-            #       now recoverable via the replay buffer instead of a hard
-            #       stream_failed at the client.
-            #   (b) Bytes flow before the long video-extraction phase
-            #       (download + Files API upload + ACTIVE poll), so mobile
-            #       carriers / proxies don't kill the TCP during the
-            #       zero-byte window.
-            # Fires on fresh runs AND on resume-with-cache-miss fallthrough,
-            # but NOT on a successful replay (where the cached items
-            # themselves are the early bytes).
-            yield _sse_line({"stream_id": stream_id, "seq": 0, "hello": True, "done": False})
 
             # Run append_turn as a concurrent task so we can emit heartbeat
             # frames every 10 s while it blocks. Video Gemini analysis takes
