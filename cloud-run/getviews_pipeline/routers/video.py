@@ -815,10 +815,12 @@ async def channel_diagnose_endpoint(
 ) -> StreamingResponse | JSONResponse:
     """POST /channel/diagnose — Lightreel-style narrative diagnosis with SSE (TD-4)."""
     from getviews_pipeline.channel_diagnose import (
+        CHANNEL_DIAGNOSE_CREDIT_COST,
         InsufficientCreditsError,
         _decrement_credit_or_raise,
         normalize_handle,
     )
+    from getviews_pipeline.credits import refund_credits
 
     user_id = str(user["user_id"])
     access_token = str(user["access_token"])
@@ -1065,12 +1067,22 @@ async def channel_diagnose_endpoint(
                 out = diagnose_task.result()
             except Exception as exc:
                 logger.exception("[channel_diagnose] task failed user=%s: %s", user_id, exc)
+                # TD-1: deduction succeeded above but the diagnosis died —
+                # compensate so the user doesn't pay for a failed run.
+                await run_sync(
+                    refund_credits, user_id, CHANNEL_DIAGNOSE_CREDIT_COST,
+                    context="channel/diagnose task_failed",
+                )
                 seq += 1
                 yield _sse({"stream_id": stream_id, "seq": seq, "done": True, "error": "stream_failed"})
                 return
 
             error = out.get("error")
             if error:
+                await run_sync(
+                    refund_credits, user_id, CHANNEL_DIAGNOSE_CREDIT_COST,
+                    context=f"channel/diagnose error={error}",
+                )
                 seq += 1
                 yield _sse({"stream_id": stream_id, "seq": seq, "done": True, "error": error})
                 return
