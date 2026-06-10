@@ -2225,6 +2225,9 @@ def generate_niche_insight(
     # response_mime_type, response_json_schema, and preserves media_resolution from
     # _video_analysis_config() via model_copy. Do not replace it.
     cfg = _extraction_json_config(LAYER0_NICHE_RESPONSE_SCHEMA)
+    # Audit 2026-06-10: only call site without an explicit output cap —
+    # the insight JSON is small; bound it like every other site.
+    cfg.max_output_tokens = 2048
 
     response = _generate_content_models(
         [full_prompt],

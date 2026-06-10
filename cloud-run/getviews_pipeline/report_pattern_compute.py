@@ -656,7 +656,7 @@ def build_tldr_callouts(ni: dict[str, Any], window_days: int) -> list[SumStat]:
     er_display = f"{med_er * 100:.1f}%" if med_er <= 1 else f"{med_er:.1f}%"
     return [
         SumStat(label="Video trong cửa sổ", value=str(n), trend=f"{window_days} ngày", tone="neutral"),
-        SumStat(label="Median ER ngách", value=er_display, trend="baseline", tone="neutral"),
+        SumStat(label="ER trung vị ngách", value=er_display, trend="baseline", tone="neutral"),
         SumStat(label="Độ phủ hook", value="corpus", trend="live", tone="up"),
     ]
 
@@ -955,8 +955,24 @@ def load_pattern_inputs(sb: Any, niche_id: int, window_days: int) -> dict[str, A
         return None
 
 
+# Per-hook sample floor (audit 2026-06-10 M-4): a hook backed by 1–2 corpus
+# videos is an anecdote, not a pattern — without this floor a 2-video hook
+# could render rank-1 with a confident delta. Filtered HERE (not in
+# compute_findings) so the insight/why_won lists generated from the ranking
+# stay positionally aligned with the findings.
+_HOOK_MIN_SAMPLE = 3
+
+
 def rank_hooks_for_pattern(he_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Order hooks by avg_views * avg_completion_rate (proxy for plan's rank)."""
-    scored = [( _score_row(r), r) for r in he_rows]
+    """Order hooks by avg_views * avg_completion_rate (proxy for plan's rank).
+
+    Hooks with fewer than ``_HOOK_MIN_SAMPLE`` corpus uses are dropped —
+    unless that would empty the ranking entirely (ultra-thin niche), in
+    which case the unfiltered ranking is kept so the report still renders
+    (the corpus-level sample floor governs overall confidence).
+    """
+    eligible = [r for r in he_rows if int(r.get("sample_size") or 0) >= _HOOK_MIN_SAMPLE]
+    pool = eligible if eligible else he_rows
+    scored = [(_score_row(r), r) for r in pool]
     scored.sort(key=lambda x: x[0], reverse=True)
     return [r for _, r in scored]

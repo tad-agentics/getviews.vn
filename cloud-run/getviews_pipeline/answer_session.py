@@ -755,6 +755,10 @@ def append_turn(
     try:
         payload_dict = validate_and_store_report(builder_fmt, inner)
     except Exception:
+        # This runs AFTER the refund-wrapped builder block — a schema-invalid
+        # synthesis still cost the user their credits without this (TD-1).
+        if charged:
+            refund_credits(user_id, charged, context=f"answer/turns validate builder={builder_fmt}")
         logger.exception(
             "[answer/turns] validate FAILED builder_fmt=%s session=%s inner_keys=%s",
             builder_fmt, session_id, list(inner.keys()) if isinstance(inner, dict) else type(inner).__name__,

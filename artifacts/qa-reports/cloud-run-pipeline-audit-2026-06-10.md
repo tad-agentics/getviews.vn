@@ -140,6 +140,34 @@ TikHub USD cost not logged alongside its budget counter.
 | Batch ingest | **B-** | Works nightly, but most silent-failure surface area: no run marker, in-memory counters, swallow-and-continue error style |
 | Ops coupling (pg_cron→pg_net) | **C → B-** | P-1 proves the failure mode; inventory watch + 4xx watch now cover it, but `net._http_response`'s ~6h TTL means evidence evaporates — consider persisting batch call outcomes |
 
+## Completeness pass (same day, second commit)
+
+| Item | Status | How / rationale |
+|---|---|---|
+| H-3 ingest double-run | ✅ Fixed | `corpus_ingest_runs` claim table (migration `20260908000000`, applied to prod); `run_batch_ingest` claims `(utc_day, shift)` before any paid work, duplicate claimant exits with `skipped_duplicate_run=True`; completion stamped; fail-open on claim-infra errors; 4 tests. Manual runs (`shift=None`) deliberately unguarded. Force re-run = delete the row. |
+| H-4 disconnect cancellation | ✅ Accepted by design | Cancelling on disconnect would break TD-4: flaky-network users reconnect and resume, and the completed work IS persisted (answer turn row / `channel_diagnoses` cache) — the user retrieves it from history, so the spend isn't wasted. Cancelling would convert every mobile network blip into a lost paid analysis. Revisit only if abandonment telemetry shows real waste. |
+| M-1 dual-write orphan check | ⏳ **Open (only remaining code item)** | Spec: after the per-niche upsert, `SELECT count(*) FROM video_shots WHERE video_id IN (just-written ids)` and log ERROR on shortfall. Needs video_shots schema familiarity — half a day, don't rush it. |
+| M-2 silent post-processing failure | ✅ Substantially fixed | pg_net batch watch widened from 4xx-only to **all ≥400** (migration `20260907000000`, applied) — a 500 from `cron-batch-post-processing` (or any /batch/* call) now trips the hourly assert + admin alert. This also would have caught P-1 on night one. |
+| M-3 turn Idempotency-Key | ✅ Accepted by design | The TD-3 lock covers concurrent duplicates; the TD-4 replay buffer IS the idempotency mechanism for retries within its window (the FE retries with `resume_stream_id`, which replays rather than re-runs). A DB idempotency table is the wrong shape for an SSE stream — you can't replay a stream from a marker row. Residual: a deliberate fresh re-POST >60s later is a new turn, which is semantically correct. |
+| M-4 thin-cohort honesty | ✅ Fixed | Per-hook sample floor (≥3 uses) in `rank_hooks_for_pattern` — filtered at ranking so insight lists stay aligned, with an ultra-thin fail-open so reports still render; baseline fallback `1.0 → 0.0` so unseeded niches show an honest "+0%" instead of "+49,900%". |
+| M-5 validation observability | ✅ Fixed + bonus | Was already distinctly logged (agent claim partly wrong) — but the handler ran AFTER the refund-wrapped block, so schema-invalid synthesis still cost credits. Refund added to the validation-failure path (TD-1 gap nobody had listed). |
+| M-6 quality_tier parity | ✅ Fixed | Ideas corpus fetch now excludes `quality_tier='low'`, matching Pattern. |
+| M-7 ASR cost pass-through | 🟡 Product decision | STT cost is logged per call (`gcp_stt_cost_usd`); whether to fold it into turn pricing is a pricing call, not an engineering one. Data to decide: `SELECT sum(gcp_stt_cost_usd) FROM gemini_calls WHERE created_at > now() - interval '30 days'`. |
+| M-8 cross-user same-URL dedupe | ✅ Accepted for now | Only *concurrent* analyses of the same URL by *different* users double-run (sequential hits the cache; same-user is locked). At current traffic the collision probability doesn't justify a distributed in-flight registry. Revisit at scale. |
+| M-9 skip-reason logging | ✅ Fixed | Missing `aweme_id` skips now log the aweme's keys. |
+| M-10 TD-7 parity test | ✅ Fixed | Source-fingerprint tripwire (`test_td7_extraction_parity.py`) pins both call sites to the identical builder trio + args; a one-sided prompt/config edit fails CI. |
+| Low: niche-insight token cap | ✅ Fixed | `max_output_tokens=2048`. |
+| Low: "Median ER ngách" | ✅ Fixed | → "ER trung vị ngách" (no consumers of the old string). |
+| Low: `_ADMIN_LOGS_ENABLED` dead | ❌ Agent claim wrong | Used at `admin.py:1382`; left as-is. |
+| Low: HI-11 counter / TikHub USD | ✅ Accepted | Per-event WARN logs are the durable record for HI-11 rejects (in-memory total is cosmetic); TikHub USD can't be logged honestly without confirmed pricing. |
+| Earlier M-5 (schema): orphan `credit_transactions.session_id` | ✅ Dropped | Per destructive-migration checklist: greps clean across all runtimes + SQL function bodies; FK target gone since Phase C CASCADE; migration `20260909000000` applied. |
+
+Out of reach from this environment (owner actions): GitHub branch protection
+(no rulesets API in available tooling), `create-alert-policies.sh` run
+(needs gcloud auth), Cloudflare custom domain for R2, Supabase restore drill,
+Cloud Run deploy of all committed fixes, and the deliberate mega-module
+refactor sprint (`corpus_ingest.py` split — a refactor, not a hardening item).
+
 ## Recommended next two sprints
 
 1. **Deploy these fixes** (executor, blocking calls, budget gate, timeouts,

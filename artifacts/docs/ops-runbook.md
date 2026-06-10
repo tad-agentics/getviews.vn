@@ -53,7 +53,14 @@ Highlights (UTC):
 Failure triage: `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 20;`
 then `SELECT status_code, content::text FROM net._http_response ORDER BY id DESC LIMIT 20;`
 (pg_net responses are where 401/404s hide — `job_run_details` shows success
-for a scheduled POST even when the HTTP call failed).
+for a scheduled POST even when the HTTP call failed). The hourly batch watch
+covers **all HTTP ≥400** since 2026-06-10 (was 4xx-only — a missing-table 500
+ran for 7 weeks undetected; migration `20260907000000`). Note pg_net prunes
+`net._http_response` after ~6h, so triage promptly.
+
+Ingest shifts are double-run-guarded via `corpus_ingest_runs` (one row per
+`(utc_day, shift)`); to force a same-day re-run of a shift, delete its row:
+`DELETE FROM corpus_ingest_runs WHERE utc_day = CURRENT_DATE AND ingest_shift = 'a';`
 
 ## Thumbnails (root-caused 2026-06-10)
 
