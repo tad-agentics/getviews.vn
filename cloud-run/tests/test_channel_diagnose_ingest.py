@@ -198,7 +198,16 @@ def test_trajectory_decline_from_peak(_mock_now: MagicMock) -> None:
     assert shape == "decline_from_peak", f"Expected decline_from_peak, got {shape}"
 
 
-def test_trajectory_stagnant():
+# Fixtures carry absolute timestamps (newest ≈ 2026-05-09), so every
+# trajectory test must freeze ``_now`` — otherwise the 30-day "recent
+# window" empties as wall-clock time passes and breakout/decline flip to
+# stagnant (this bit us on 2026-06-08). Keep all six tests pinned to the
+# same date, just after the newest fixture video.
+_FIXTURE_NOW = datetime(2026, 5, 10, tzinfo=UTC)
+
+
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_stagnant(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -213,7 +222,8 @@ def test_trajectory_stagnant():
     assert shape == "stagnant", f"Expected stagnant, got {shape}"
 
 
-def test_trajectory_steady_growth():
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_steady_growth(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -228,7 +238,8 @@ def test_trajectory_steady_growth():
     assert shape == "steady_growth", f"Expected steady_growth, got {shape}"
 
 
-def test_trajectory_breakout():
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_breakout(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -243,7 +254,8 @@ def test_trajectory_breakout():
     assert shape == "breakout", f"Expected breakout, got {shape}"
 
 
-def test_trajectory_bursty():
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_bursty(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -258,7 +270,8 @@ def test_trajectory_bursty():
     assert shape == "bursty", f"Expected bursty, got {shape}"
 
 
-def test_trajectory_new_account():
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_new_account(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
