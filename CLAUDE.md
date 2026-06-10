@@ -101,14 +101,14 @@ Copy `.env.example` → `.env.local`. Key distinctions:
 
 - `VITE_*` → ships in client bundle. Only: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_CLOUD_RUN_API_URL` (user pod), `VITE_CLOUD_RUN_BATCH_URL` (batch pod — required for `/admin/*`; soft-falls-back to the user URL for dev / single-service "all" deployments), `VITE_R2_PUBLIC_URL`, `VITE_ZALOPAY_ENABLED`. All validated in `src/lib/env.ts` — add new client vars to the Zod schema there, never read `import.meta.env` directly.
 - Server-only (no `VITE_`): `GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `ENSEMBLEDATA_API_KEY`, `PROXY_URL`, `BATCH_SECRET`, `BATCH_SERVICE_BASE_URL` (set on the user pod so its `batch_proxy` can forward to batch), `PAYOS_*`, `RESEND_API_KEY`, `R2_*`.
-- Vercel Edge (`api/chat.ts`) reads `SUPABASE_URL` / `SUPABASE_ANON_KEY` with `VITE_*` fallback — set non-`VITE_` aliases in Vercel project settings too.
+- Vercel Edge (`api/landing-stats.ts`) reads `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` with `VITE_*`/anon fallback — set non-`VITE_` aliases in Vercel project settings too. (`api/chat.ts` was removed with the legacy chat model in Phase C.)
 - Supabase Vault holds `cloud_run_api_url` (must point to the **batch** service URL — pg_cron schedules call `/batch/*` paths) and `cloud_run_batch_secret` (must match `BATCH_SECRET` on the batch pod). Rotating either without updating the other breaks every cron silently — `cron.job_run_details.return_message` will succeed but `net._http_response.status_code` will be 401/404. **Verify** with `vault.decrypted_secrets` (preview the URL hostname) and `POST /batch/ping` on the batch service. Mitigations: admin rule `pg_net_batch_http_4xx` (RPC `admin_pg_net_batch_http_4xx_events`) and hourly pg_cron `cron-pg-net-batch-http-4xx-watch` — see migration `20260704000000_pg_net_batch_http_4xx_audit.sql`.
 
 ## Bundle splitting
 
 `vite.config.ts` defines `manualChunks` for `react-vendor`, `react-router`, `@tanstack`, `@supabase`, `@radix-ui`, `lucide-react`, `motion`. Don't remove these without replacing with an equivalent strategy — they keep first-load chunks bounded. Import icons individually (`import { Camera } from "lucide-react"`), never barrel-imports.
 
-There is a dev-only Vite plugin `vercelEdgeDev` that proxies POST `/api/chat` to `api/chat.ts` via `ssrLoadModule` so the Edge handler works in `npm run dev`. In production, Vercel routes `/api/*` to the Edge Function before the SPA rewrite in `vercel.json`.
+In production, Vercel routes `/api/*` to the Edge Functions in `api/` before the SPA rewrite in `vercel.json`. (The dev-only `vercelEdgeDev` proxy plugin was removed together with `api/chat.ts` in Phase C.)
 
 ## RAD multi-agent workflow
 

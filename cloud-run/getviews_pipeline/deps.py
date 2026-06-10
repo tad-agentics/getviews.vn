@@ -7,6 +7,7 @@ them directly from this module.
 
 from __future__ import annotations
 
+import hmac
 import logging
 import time
 from typing import Any
@@ -168,7 +169,9 @@ async def require_batch_caller(request: Request) -> dict[str, Any] | None:
     import os as _os
     batch_secret = _os.environ.get("BATCH_SECRET", "") or settings.batch_secret
     provided_secret = request.headers.get("X-Batch-Secret", "")
-    if batch_secret and provided_secret == batch_secret:
+    # compare_digest: a plain ``==`` short-circuits on the first differing
+    # byte, leaking secret prefixes through response timing.
+    if batch_secret and hmac.compare_digest(provided_secret, batch_secret):
         logger.warning(
             "[batch_auth] X-Batch-Secret used on %s — will be removed Q3-2026; "
             "migrate Cloud Scheduler job to OIDC admin JWT",

@@ -73,9 +73,12 @@ fi
 # additive — it merges with the existing env block.
 deploy_user() {
   # User-facing pod: needs 1 warm instance for snappy first-token SSE.
-  # 300s timeout is plenty for the longest video analysis (Gemini caps
-  # at ~120s end-to-end). Smaller memory than batch since one request
-  # streams one video, not a corpus wave.
+  # 900s timeout: Gemini video analysis caps at ~120s per call, but a
+  # compare turn (2 deep diagnoses) + synthesis + a slow client reading
+  # the SSE stream can stack well past the old 600s — the request
+  # timeout covers the whole stream lifetime, not just compute.
+  # Smaller memory than batch since one request streams one video,
+  # not a corpus wave.
   echo ""
   echo "Deploying getviews-pipeline-user..."
   gcloud run deploy getviews-pipeline-user \
@@ -86,7 +89,7 @@ deploy_user() {
     --allow-unauthenticated \
     --memory 2Gi \
     --cpu 1 \
-    --timeout 600 \
+    --timeout 900 \
     --concurrency 20 \
     --min-instances 1 \
     --max-instances 5
@@ -122,10 +125,52 @@ deploy_batch() {
     --update-env-vars "SERVICE_ROLE=batch"
 }
 
+# Post-deploy gate (audit 2026-06-10 H-3): a revision that boots broken
+# (missing env var, import error) used to deploy "green" and serve 500s
+# until someone noticed. Probe /health on the new revision; on failure,
+# route 100% traffic back to the previous revision and exit non-zero.
+verify_or_rollback() {
+  local service="$1"
+  local url
+  url=$(gcloud run services describe "$service" \
+    --project "$PROJECT_ID" --region "$REGION" \
+    --format="value(status.url)" 2>/dev/null || true)
+  if [[ -z "$url" ]]; then
+    echo "✗ Could not resolve URL for $service — skipping health gate" >&2
+    return 1
+  fi
+  echo "Health-checking $service at $url/health ..."
+  for _ in $(seq 1 30); do
+    if curl -sf --max-time 5 "$url/health" >/dev/null 2>&1; then
+      echo "✓ $service healthy"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "✗ $service failed /health after 60s — rolling back to previous revision" >&2
+  local prev
+  prev=$(gcloud run revisions list --service "$service" \
+    --project "$PROJECT_ID" --region "$REGION" \
+    --format="value(metadata.name)" --sort-by="~metadata.creationTimestamp" \
+    --limit 2 | tail -n 1)
+  if [[ -n "$prev" ]]; then
+    gcloud run services update-traffic "$service" \
+      --project "$PROJECT_ID" --region "$REGION" \
+      --to-revisions "$prev=100"
+    echo "Traffic routed back to $prev. Investigate the failed revision, then redeploy." >&2
+  else
+    echo "No previous revision found — manual intervention required." >&2
+  fi
+  return 1
+}
+
 case "$TARGET" in
-  user)  deploy_user ;;
-  batch) deploy_batch ;;
-  both)  deploy_user; deploy_batch ;;
+  user)  deploy_user;  verify_or_rollback getviews-pipeline-user ;;
+  batch) deploy_batch; verify_or_rollback getviews-pipeline-batch ;;
+  both)
+    deploy_user;  verify_or_rollback getviews-pipeline-user
+    deploy_batch; verify_or_rollback getviews-pipeline-batch
+    ;;
 esac
 
 USER_URL=""

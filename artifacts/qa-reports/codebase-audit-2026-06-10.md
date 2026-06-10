@@ -202,3 +202,46 @@ add real R2 lifecycle rules in Cloudflare (not only the janitor), document in
 **Pre-scale**
 10. M-3 SSE load test & Cloud Run tuning, M-4 corpus indexes, M-6 structured logging,
     M-8 error boundary, remaining hygiene items.
+
+---
+
+## Resolution log (2026-06-10, same day)
+
+| Finding | Status | How |
+|---|---|---|
+| C-1 credit refund | ✅ Fixed | `refund_credit` RPC (migration `20260902000000`, service-role-only, ledger row `reason='refund'`; applied to prod) + `credits.refund_credits()` wired into `append_turn` failure paths and `/channel/diagnose` task-failure/error paths. 7 new tests in `test_credit_refund_on_failure.py`. |
+| C-2 red tests | ✅ Fixed | Trajectory tests: fixtures carry absolute timestamps; froze `_now` at 2026-05-10 in all six tests (root cause: 30-day window emptied as wall-clock passed). Copy test updated to redesigned narratives + distinctness assertion. Also fixed 25 pre-existing ruff errors so the CI `cloud-run` job is green. Branch protection still needs enabling in GitHub settings (org-level action). |
+| H-1 alerting | ✅ Script shipped | `cloud-run/scripts/create-alert-policies.sh` (user-pod 5xx, `REFUND FAILED` log metric, Gemini budget blocks). Run once with `GCP_PROJECT_ID`/`NOTIFY_EMAIL`. |
+| H-2 payment tests | ✅ Fixed | Webhook refactored to injectable `handler.ts` (byte-identical behavior); 11 Deno tests incl. signature reject, duplicate 23505, RPC-before-marker ordering invariant; new CI `edge-functions` job runs them. |
+| H-3 deploy safety | ✅ Fixed | `deploy.sh` now probes `/health` 60s post-deploy and routes traffic back to the previous revision on failure. User-pod timeout 600→900s (M-3). |
+| H-4 headers/cache | ✅ Fixed | `vercel.json`: HSTS, nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy; `index.html` & non-asset paths `max-age=0, must-revalidate`; `/assets/*` immutable. CSP deferred — needs an origin inventory first (do as report-only). |
+| H-5 timing-safe compare | ✅ Fixed | `hmac.compare_digest` in `deps.py`. |
+| H-6/M-9 DR + cron runbook | ✅ Documented | `artifacts/docs/ops-runbook.md` (restore drill still to be performed). |
+| M-1 budget guard | ✅ Fixed (downgraded) | Real enforcement (`config.py`) was already `$15/day, enforce=True`; the `settings.py` duplicate (0/False) only drove a misleading startup warning. Aligned. |
+| M-2 dep pinning | ✅ Fixed | Upper bounds on all cloud-run deps; `python:3.12.8-slim` pinned. |
+| M-4 corpus indexes | ✅ Fixed | `20260904000000` composite `(content_class_id, indexed_at DESC)` + `(content_class_id, views DESC)`; applied to prod. |
+| M-5 orphan `session_id` | ⏸ Deferred | Column is data-bearing history; dropping or re-pointing needs a product decision. |
+| M-7 RPC retry | ❌ Rejected | Blind retry of `decrement_credit` on transport error can double-charge (the first call may have committed). The refund path now compensates the failure mode this targeted. |
+| M-8 error boundary | ✅ Fixed | RR7 `ErrorBoundary` export in `root.tsx` (Vietnamese copy, reload + về Sảnh CTA). |
+| Doc drift / dead code | ✅ Fixed | CLAUDE.md `api/chat.ts`/`vercelEdgeDev` refs corrected; deleted `shared/api/supabase.ts`, `supabase-context.ts`, `shared/hooks/useAuthState.ts`; dead `~/*` tsconfig alias removed; `npm audit fix` → 0 vulnerabilities. |
+| **NEW: landing-stats 400** | ✅ Fixed | `api/landing-stats.ts` still selected `video_corpus.niche_id` (dropped in Phase C) — the landing thumbnails query 400'd in production. Switched to `ingest_loop_niche_id`. |
+
+### Missing thumbnails — root cause & resolution
+
+Verified against production (9,290 corpus rows):
+1. **39% of corpus had NULL `thumbnail_url`** (3,649 rows, Apr 20–May 18 cohort):
+   ingest predated mirror-at-ingest; signed TikTok CDN URLs expired; the 2026-05-25
+   manual backfill nulled what it couldn't recover. New ingest is healthy (0% NULL
+   since May 25).
+2. **All 171 browser-reported failures (30d) were phantom R2 URLs** — DB points at
+   R2, object missing (same class as the documented `frames/` phantom issue).
+3. **Root cause of persistence: the self-healing endpoint
+   `/batch/backfill-thumbnails` was never scheduled** — it HEAD-verifies every R2
+   row and retries NULLs with fresh ED covers, but only ran when someone remembered.
+
+Fix shipped: weekly pg_cron `cron-batch-backfill-thumbnails` (Sun 19:00 UTC, right
+after the R2 janitor; migration `20260903000000`, applied to prod) + immediate
+manual run triggered 2026-06-10 (verified healing: NULLs 3,649→3,616 within
+minutes). Remaining infra action (documented in ops-runbook): move
+`R2_PUBLIC_URL`/`VITE_R2_PUBLIC_URL` off rate-limited `pub-*.r2.dev` onto a custom
+domain (`media.getviews.vn`) — env change only, no code.

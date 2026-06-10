@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from getviews_pipeline.signals.context_signals import extract_context_signals
 from getviews_pipeline.signals.engagement import extract_engagement_signals
 from getviews_pipeline.signals.registry import build_diagnosis_ctx
