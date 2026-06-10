@@ -315,8 +315,12 @@ export function useSessionStream<TPayload = unknown>(
 
             if (res.status === 402) {
               // Semantic error — no retry will help; clear pending so
-              // a reload doesn't loop.
+              // a reload doesn't loop. Refetch profile/credits: a 402
+              // means our cached balance was stale-high — show the
+              // user the real number immediately.
               clearPendingAnswerStream();
+              void qc.invalidateQueries({ queryKey: ["profile"] });
+              void qc.invalidateQueries({ queryKey: ["credits"] });
               setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
               return { ok: false, error: "insufficient_credits" };
             }
@@ -609,7 +613,13 @@ async function consumeAnswerSse<TPayload>(
       return { ok: false, error: "stream_timeout", streamId: lastStreamId, lastSeq, payload };
     }
     const { done, value } = chunk;
-    if (done) break;
+    if (done) {
+      // Flush any bytes held back by the streaming decoder (a multi-byte
+      // UTF-8 Vietnamese char split across the final chunk boundary would
+      // otherwise be dropped).
+      buffer += decoder.decode();
+      break;
+    }
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
@@ -710,7 +720,10 @@ async function consumeAnswerSse<TPayload>(
             status: "error",
             error: token.error ?? "stream_failed",
           }));
+          // Server refunds the charge on failed builds (2026-06-10) —
+          // refetch BOTH so the restored balance shows immediately.
           void qc.invalidateQueries({ queryKey: ["profile"] });
+          void qc.invalidateQueries({ queryKey: ["credits"] });
           return {
             ok: false,
             error: token.error ?? "stream_failed",

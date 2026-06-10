@@ -44,7 +44,16 @@ export async function fetchContentClassIdsForCreatorNiche(
     query = query.eq("is_primary", true);
   }
   const { data, error } = await query;
-  if (error || !data) return [];
+  if (error) {
+    // Fail-soft to an empty set so browse falls back to unscoped rather than
+    // erroring — but surface the cause: an empty result here is otherwise
+    // indistinguishable from "this niche genuinely has no classes".
+    if (import.meta.env.DEV) {
+      console.warn("[corpusNicheFilter] junction query failed:", error.message);
+    }
+    return [];
+  }
+  if (!data) return [];
   return (data as { content_class_id: number }[]).map((r) => r.content_class_id);
 }
 

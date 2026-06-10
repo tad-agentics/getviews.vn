@@ -344,7 +344,12 @@ async function consumeDiagnoseSse(
     }
 
     const { done, value } = chunk;
-    if (done) break;
+    if (done) {
+      // Flush bytes held by the streaming decoder (multi-byte UTF-8 split
+      // across the final chunk would otherwise be dropped).
+      buffer += decoder.decode();
+      break;
+    }
 
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");

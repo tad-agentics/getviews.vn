@@ -381,6 +381,7 @@ export type Database = {
       }
       channel_diagnoses: {
         Row: {
+          channel_findings: Json
           channel_pattern: Json
           channel_persona: Json
           computed_at: string
@@ -403,6 +404,7 @@ export type Database = {
           worst_performers: Json
         }
         Insert: {
+          channel_findings?: Json
           channel_pattern?: Json
           channel_persona?: Json
           computed_at?: string
@@ -425,6 +427,7 @@ export type Database = {
           worst_performers?: Json
         }
         Update: {
+          channel_findings?: Json
           channel_pattern?: Json
           channel_persona?: Json
           computed_at?: string
@@ -646,6 +649,86 @@ export type Database = {
         }
         Relationships: []
       }
+      corpus_ingest_queue: {
+        Row: {
+          aweme_id: string
+          aweme_url: string | null
+          desc_snippet: string | null
+          id: number
+          ingest_reason: string
+          niche_id: number | null
+          niche_label: string | null
+          processed_at: string | null
+          queued_at: string
+          thumbnail_r2_url: string | null
+          thumbnail_url: string | null
+          views: number | null
+        }
+        Insert: {
+          aweme_id: string
+          aweme_url?: string | null
+          desc_snippet?: string | null
+          id?: number
+          ingest_reason?: string
+          niche_id?: number | null
+          niche_label?: string | null
+          processed_at?: string | null
+          queued_at?: string
+          thumbnail_r2_url?: string | null
+          thumbnail_url?: string | null
+          views?: number | null
+        }
+        Update: {
+          aweme_id?: string
+          aweme_url?: string | null
+          desc_snippet?: string | null
+          id?: number
+          ingest_reason?: string
+          niche_id?: number | null
+          niche_label?: string | null
+          processed_at?: string | null
+          queued_at?: string
+          thumbnail_r2_url?: string | null
+          thumbnail_url?: string | null
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corpus_ingest_queue_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      corpus_ingest_runs: {
+        Row: {
+          aborted_early: boolean | null
+          completed_at: string | null
+          ingest_shift: string
+          inserted_count: number | null
+          started_at: string
+          utc_day: string
+        }
+        Insert: {
+          aborted_early?: boolean | null
+          completed_at?: string | null
+          ingest_shift?: string
+          inserted_count?: number | null
+          started_at?: string
+          utc_day: string
+        }
+        Update: {
+          aborted_early?: boolean | null
+          completed_at?: string | null
+          ingest_shift?: string
+          inserted_count?: number | null
+          started_at?: string
+          utc_day?: string
+        }
+        Relationships: []
+      }
       creator_niche_content_classes: {
         Row: {
           content_class_id: number
@@ -856,7 +939,6 @@ export type Database = {
           delta: number
           id: string
           reason: string
-          session_id: string | null
           subscription_id: string | null
           user_id: string
         }
@@ -866,7 +948,6 @@ export type Database = {
           delta: number
           id?: string
           reason: string
-          session_id?: string | null
           subscription_id?: string | null
           user_id: string
         }
@@ -876,7 +957,6 @@ export type Database = {
           delta?: number
           id?: string
           reason?: string
-          session_id?: string | null
           subscription_id?: string | null
           user_id?: string
         }
@@ -1347,6 +1427,21 @@ export type Database = {
         }
         Relationships: []
       }
+      expected_cron_jobs: {
+        Row: {
+          jobname: string
+          note: string
+        }
+        Insert: {
+          jobname: string
+          note?: string
+        }
+        Update: {
+          jobname?: string
+          note?: string
+        }
+        Relationships: []
+      }
       format_lifecycle: {
         Row: {
           computed_at: string | null
@@ -1588,6 +1683,48 @@ export type Database = {
           response?: Json
         }
         Relationships: []
+      }
+      marketing_video_picks: {
+        Row: {
+          analysis_depth: string
+          creator_niche_id: number
+          id: string
+          picked_at: string
+          priority_weight: number
+          video_id: string
+        }
+        Insert: {
+          analysis_depth?: string
+          creator_niche_id: number
+          id?: string
+          picked_at?: string
+          priority_weight: number
+          video_id: string
+        }
+        Update: {
+          analysis_depth?: string
+          creator_niche_id?: number
+          id?: string
+          picked_at?: string
+          priority_weight?: number
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_video_picks_creator_niche_id_fkey"
+            columns: ["creator_niche_id"]
+            isOneToOne: false
+            referencedRelation: "creator_niches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_video_picks_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: true
+            referencedRelation: "video_corpus"
+            referencedColumns: ["video_id"]
+          },
+        ]
       }
       niche_candidates: {
         Row: {
@@ -2979,6 +3116,14 @@ export type Database = {
     }
     Functions: {
       _prune_batch_http_log: { Args: never; Returns: undefined }
+      admin_cron_inventory_drift: {
+        Args: never
+        Returns: {
+          jobname: string
+          note: string
+          state: string
+        }[]
+      }
       admin_flush_video_diagnostics_cache: {
         Args: { p_tiktok_url: string }
         Returns: Json
@@ -3029,6 +3174,7 @@ export type Database = {
           niche_id: number
         }[]
       }
+      cron_assert_inventory_complete: { Args: never; Returns: undefined }
       cron_assert_no_recent_pg_net_batch_http_4xx: {
         Args: { p_hours?: number }
         Returns: undefined
@@ -3118,6 +3264,15 @@ export type Database = {
           rank_prior: number
         }[]
       }
+      record_marketing_video_pick: {
+        Args: {
+          p_analysis_depth?: string
+          p_creator_niche_id: number
+          p_priority_weight: number
+          p_video_id: string
+        }
+        Returns: string
+      }
       refresh_content_class_intelligence: { Args: never; Returns: undefined }
       refresh_content_class_tier_intelligence: {
         Args: never
@@ -3126,6 +3281,10 @@ export type Database = {
       refresh_creator_niche_content_class_stats: {
         Args: never
         Returns: undefined
+      }
+      refund_credit: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: number
       }
       search_history_union: {
         Args: { p_limit?: number; p_query: string }
@@ -3145,6 +3304,11 @@ export type Database = {
           out_niche_id: number
           out_seeded: number
         }[]
+      }
+      select_marketing_corpus_video: { Args: never; Returns: Json }
+      sweep_stale_batch_job_runs: {
+        Args: { stale_minutes?: number }
+        Returns: number
       }
       thumbnail_failures_count_7d: {
         Args: { cutoff_ts: string }
