@@ -30,6 +30,7 @@ function ReferenceVideoCard({ tile }: { tile: DiagnosisReferenceTile }) {
         <div className="relative pb-[177.78%]">
           <VideoThumbnail
             thumbnailUrl={tile.thumbnail_url}
+            videoId={tile.aweme_id}
             className="absolute inset-0 h-full w-full"
             alt={tile.caption_snippet || "Video tham chiếu"}
           />

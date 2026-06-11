@@ -20,6 +20,7 @@ function VideoTile({ tile }: VideoTileProps) {
       <div className="relative pb-[177.78%]">
         <VideoThumbnail
           thumbnailUrl={tile.thumbnail_url}
+          videoId={tile.video_id}
           className="absolute inset-0 w-full h-full"
           alt={tile.caption_snippet || "Video"}
         />

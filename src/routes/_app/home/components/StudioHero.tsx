@@ -313,6 +313,7 @@ const RitualEvidenceStrip = memo(function RitualEvidenceStrip({
                     >
                       <VideoThumbnail
                         thumbnailUrl={v.thumbnail_url}
+                        videoId={v.video_id}
                         className="aspect-[9/12] w-full rounded-[3px] object-cover"
                       />
                       <span className="gv-mono mt-1 block truncate text-[11px] text-[color:var(--gv-ink-4)]">

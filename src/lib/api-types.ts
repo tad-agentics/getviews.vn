@@ -1546,6 +1546,8 @@ export type TrajectoryShape =
 
 export interface ChannelPerformerTile {
   video_url: string;
+  /** From Cloud Run `_make_tile` — enables the R2 thumbnail fallback cascade. */
+  video_id?: string;
   thumbnail_url: string;
   views: number;
   /** One of the 6 classify_format buckets (Cloud Run may send `format_label` instead). */

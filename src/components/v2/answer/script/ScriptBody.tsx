@@ -241,6 +241,7 @@ export function ScriptBody({
                     <>
                       <VideoThumbnail
                         thumbnailUrl={ref.thumbnail_url}
+                        videoId={ref.video_id}
                         className="aspect-[9/12] w-full rounded-[3px] object-cover"
                       />
                       {bx ? (

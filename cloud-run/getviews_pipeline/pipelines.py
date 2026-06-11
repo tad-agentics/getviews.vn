@@ -865,6 +865,26 @@ def _ref_rank_er(ref: dict[str, Any]) -> float:
     return _engagement_rate(ref)
 
 
+def _ref_has_visible_thumbnail(v: dict[str, Any]) -> bool:
+    """True when the candidate can render a reference tile the creator can SEE.
+
+    Reference-first product rule (2026-06-11): within the same proximity
+    tier, a reference with a working thumbnail beats a marginally
+    higher-ER one with none — a gray tile teaches nothing. Corpus rows
+    carry ``thumbnail_url`` (NULL for the unhealed legacy cohort); live
+    ED awemes always have a fresh cover under ``video.cover``/
+    ``video.origin_cover``.
+    """
+    if v.get("thumbnail_url"):
+        return True
+    video = v.get("video") if isinstance(v.get("video"), dict) else {}
+    for key in ("origin_cover", "cover"):
+        cov = video.get(key)
+        if isinstance(cov, dict) and (cov.get("url_list") or []):
+            return True
+    return False
+
+
 def _select_by_proximity_then_er(
     search_results: list[dict[str, Any]],
     *,
@@ -897,6 +917,8 @@ def _select_by_proximity_then_er(
                 video_hashtags,
                 user_subject_matter=user_subject_matter,
             ),
+            # Visible tile beats invisible at equal proximity (2026-06-11).
+            1 if _ref_has_visible_thumbnail(v) else 0,
             _ref_rank_er(v),
         ),
         reverse=True,
@@ -1037,16 +1059,20 @@ async def _reference_ingest_enqueue_and_mirror(
         mirror_pairs.append((aid, ref))
     if not rows:
         return
+    client = get_service_client()
     try:
-        client = get_service_client()
         client.table("corpus_ingest_queue").upsert(
             rows,
             on_conflict="aweme_id",
         ).execute()
         logger.info("[corpus_queue] enqueued %d reference videos", len(rows))
     except Exception as exc:
-        logger.warning("[corpus_queue] enqueue failed: %s", exc)
-        return
+        # Mirror anyway — the early ``return`` here coupled R2 thumbnail
+        # mirroring to queue health, so the 7-week missing-table outage
+        # (P-1, fixed 2026-06-10) ALSO silently stopped every live-search
+        # reference thumbnail from being mirrored. The two concerns are
+        # independent: a broken queue must not produce gray reference tiles.
+        logger.warning("[corpus_queue] enqueue failed (mirroring continues): %s", exc)
     await _mirror_queue_thumbnails_for_rows(client=client, rows_payload=mirror_pairs)
 
 

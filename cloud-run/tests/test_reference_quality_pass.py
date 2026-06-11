@@ -293,3 +293,38 @@ def test_script_narrative_summary_carries_shot_references() -> None:
     # Shots without references stay one-line (no dangling ref label).
     plain = _shots_summary_for_narrative([{"t0": 0, "t1": 3, "cam": "x", "voice": "y", "overlay": "z"}])
     assert "ref:" not in plain
+
+
+# ── 6. Visible-thumbnail reference preference (2026-06-11) ───────────
+
+
+def test_visible_thumbnail_wins_at_equal_proximity() -> None:
+    from getviews_pipeline.pipelines import _ref_has_visible_thumbnail
+
+    assert _ref_has_visible_thumbnail({"thumbnail_url": "https://r2/x.webp"}) is True
+    assert _ref_has_visible_thumbnail({"thumbnail_url": None}) is False
+    # Live ED aweme with a fresh cover counts as visible.
+    assert _ref_has_visible_thumbnail(
+        {"video": {"cover": {"url_list": ["https://cdn/c.jpg"]}}}
+    ) is True
+    assert _ref_has_visible_thumbnail({"video": {"cover": {"url_list": []}}}) is False
+
+
+def test_mirror_runs_even_when_queue_enqueue_fails() -> None:
+    """The 7-week queue outage must never again take thumbnail mirroring
+    down with it — the two concerns are independent."""
+    import asyncio
+    import inspect
+
+    from getviews_pipeline import pipelines
+
+    src = inspect.getsource(pipelines)
+    # Source-level tripwire: the enqueue except-branch must not return
+    # before _mirror_queue_thumbnails_for_rows.
+    idx = src.find("[corpus_queue] enqueue failed")
+    tail = src[idx : idx + 400]
+    assert "return" not in tail.split("_mirror_queue_thumbnails_for_rows")[0], (
+        "enqueue failure path returns before mirroring — regression of the "
+        "2026-06-11 decoupling fix"
+    )
+    del asyncio

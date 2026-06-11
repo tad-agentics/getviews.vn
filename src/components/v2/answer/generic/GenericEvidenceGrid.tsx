@@ -61,6 +61,7 @@ export function GenericEvidenceGrid({
           >
             <VideoThumbnail
               thumbnailUrl={v.thumbnail_url}
+              videoId={v.video_id}
               className="h-full w-full"
               placeholderClassName=""
             />

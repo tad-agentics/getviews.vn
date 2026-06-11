@@ -28,6 +28,7 @@ function CreatorTile({ creator }: CreatorTileProps) {
         <div className="relative pb-[100%]">
           <VideoThumbnail
             thumbnailUrl={creator.thumbnail_url || null}
+            videoId={(creator.sample_video_url || "").match(/(\d{15,})/)?.[1]}
             className="absolute inset-0 w-full h-full"
             alt={`@${creator.handle}`}
           />

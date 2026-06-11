@@ -33,6 +33,7 @@ export function NextVideoCard({ concept, streaming = false }: NextVideoCardProps
             <div className="relative pb-[100%]">
               <VideoThumbnail
                 thumbnailUrl={concept.sample_thumbnail_url ?? null}
+                videoId={(concept.sample_video_url ?? "").match(/(\d{15,})/)?.[1]}
                 className="absolute inset-0 w-full h-full"
                 alt=""
               />
