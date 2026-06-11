@@ -64,7 +64,9 @@ def _mock_client(rows: list[dict[str, Any]]) -> MagicMock:
 
 # ── _score_shot — additive, NULL-tolerant ────────────────────────────
 
-def test_score_zero_when_descriptor_fully_mismatches() -> None:
+def test_score_negative_when_descriptor_fully_mismatches() -> None:
+    """Full mismatch incl. a DIFFERENT hook intent → −25 (2026-06-11:
+    hook mismatch is actively penalised, not just unrewarded)."""
     shot = _shot(
         framing="wide", pace="fast", overlay_style="none",
         subject="product", motion="handheld", hook_type="bold_claim",
@@ -74,7 +76,7 @@ def test_score_zero_when_descriptor_fully_mismatches() -> None:
         "overlay_style": "bold_center", "subject": "face", "motion": "static",
     }
     score, matched = _score_shot(shot, desc, hook_type="question")
-    assert score == 0
+    assert score == -25
     assert matched == []
 
 
@@ -111,15 +113,16 @@ def test_score_null_shot_field_does_not_match() -> None:
     assert matched == []
 
 
-def test_score_hook_type_requires_both_non_null_and_equal() -> None:
+def test_score_hook_type_match_bonus_mismatch_penalty() -> None:
     shot = _shot(hook_type="question")
-    # descriptor hook_type matches
+    # descriptor hook_type matches → +40
     s1, _ = _score_shot(shot, {}, hook_type="question")
     assert s1 == 40
-    # descriptor hook_type mismatches
+    # descriptor hook_type MISMATCHES → −25 (2026-06-11: a different hook
+    # intent must not anchor the script even when mechanics line up)
     s2, _ = _score_shot(shot, {}, hook_type="bold_claim")
-    assert s2 == 0
-    # shot hook_type NULL — no score even if descriptor has it
+    assert s2 == -25
+    # shot hook_type NULL — neutral (no bonus, no penalty)
     shot_no_hook = _shot(hook_type=None)
     s3, _ = _score_shot(shot_no_hook, {}, hook_type="question")
     assert s3 == 0
@@ -180,9 +183,17 @@ def test_tiebreaker_prefers_frame_url_then_thumbnail() -> None:
 
 # ── Match label VN ──────────────────────────────────────────────────
 
-def test_match_label_vn_joins_signals() -> None:
+def test_match_label_vn_omits_niche_without_topic() -> None:
+    """Label honesty (2026-06-11): 'ngách' is only claimed when the topic
+    matched too — a mechanics-only match within a coarse niche bucket must
+    not advertise subject affinity."""
     label = _match_label_vn(["niche", "hook", "framing", "pace"])
-    assert label == "Cùng ngách, hook, khung hình, nhịp"
+    assert label == "Cùng hook, khung hình, nhịp"
+
+
+def test_match_label_vn_includes_niche_with_topic() -> None:
+    label = _match_label_vn(["niche", "topic", "hook"])
+    assert label == "Cùng ngách, chủ đề, hook"
 
 
 def test_match_label_vn_empty_returns_empty() -> None:
@@ -324,7 +335,10 @@ def test_match_label_includes_all_matched_dimensions() -> None:
     )
     assert len(refs) == 1
     r = refs[0]
-    assert r.match_label.startswith("Cùng ngách")
+    # No topic_text supplied → mechanics-only match must NOT claim "ngách"
+    # (label honesty 2026-06-11); the signals list still carries it for FE.
+    assert "ngách" not in r.match_label
+    assert r.match_signals[0] == "niche"
     assert "hook" in r.match_label
     assert "khung hình" in r.match_label
     assert "nhịp" in r.match_label

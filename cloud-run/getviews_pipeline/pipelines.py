@@ -1071,7 +1071,25 @@ def _reference_evidence_project(ref: dict[str, Any]) -> dict[str, str | int]:
         or ""
     )
     niche = str(ref.get("niche_label") or ref.get("niche") or meta.get("niche_label") or "")
-    return {"aid": aid, "vc": vc, "dsc": dsc, "fmt": str(fmt), "niche": niche}
+    # Craft evidence (quality audit 2026-06-11): the synthesis prompt used
+    # to see only desc+views per reference, so the diagnosis could never
+    # say HOW a winner opens. hook_phrase + the spoken opening line are
+    # what make "làm như @handle" advice concrete.
+    handle = str(
+        ref.get("creator_handle")
+        or meta.get("creator_handle")
+        or (ref.get("author") or {}).get("unique_id", "")
+        or ""
+    ).lstrip("@")
+    hook_block = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else {}
+    hook_phrase = str(hook_block.get("hook_phrase") or "")[:110]
+    hook_type = str(hook_block.get("hook_type") or "")
+    opening_line = str(analysis.get("audio_transcript") or "").strip()[:90]
+    return {
+        "aid": aid, "vc": vc, "dsc": dsc, "fmt": str(fmt), "niche": niche,
+        "handle": handle, "hook_phrase": hook_phrase, "hook_type": hook_type,
+        "opening_line": opening_line,
+    }
 
 
 def _reference_evidence_lines(
@@ -1089,10 +1107,15 @@ def _reference_evidence_lines(
             if (ref.get("_from_corpus") or ref.get("_from_corpus_cache"))
             else "live_search"
         )
-        lines.append(
-            f"- aweme_id: {p['aid']} | desc: {p['dsc']} | views: {p['vc']} | "
-            f"format: {p['fmt']} | niche: {p['niche']} | source: {src}"
+        line = (
+            f"- aweme_id: {p['aid']} | @{p['handle'] or '?'} | views: {p['vc']} | "
+            f"format: {p['fmt']} | desc: {p['dsc']} | source: {src}"
         )
+        if p["hook_phrase"]:
+            line += f"\n  hook ({p['hook_type'] or '?'}): \"{p['hook_phrase']}\""
+        if p["opening_line"] and p["opening_line"][:40] != str(p["hook_phrase"])[:40]:
+            line += f"\n  lời mở (transcript): \"{p['opening_line']}…\""
+        lines.append(line)
     return "\n".join(lines)
 
 # audio_transcript character limit before synthesis — full transcripts can be
