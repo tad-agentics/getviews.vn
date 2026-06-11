@@ -297,9 +297,19 @@ export default function HomeScreen() {
                 {newHookCount > 0 ? (
                   <>
                     có{" "}
-                    <span style={{ color: "var(--gv-accent-2-deep, var(--gv-accent-2))" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        logUsage("home_greeting_scroll_hooks", {
+                          hook_count: newHookCount,
+                        });
+                        scrollToSuggestionsTier("02");
+                      }}
+                      className="inline border-0 bg-transparent p-0 font-inherit text-[length:inherit] leading-[inherit] text-[color:var(--gv-accent-2-deep,var(--gv-accent-2))] underline-offset-[3px] decoration-[color:var(--gv-accent-2-deep,var(--gv-accent-2))] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
+                      aria-label={`Xem ${newHookCount} công thức hook — cuộn xuống phần Công thức Hook`}
+                    >
                       {newHookCount} hook
-                    </span>{" "}
+                    </button>{" "}
                     mới đang lên xu hướng.
                   </>
                 ) : (

@@ -209,6 +209,38 @@ describe("HomeScreen", () => {
     expect(headline.textContent).not.toContain("đang có gì mới");
   });
 
+  it("scrolls to Công thức Hook when greeting hook link is clicked", () => {
+    mockUseTopPatterns.mockReturnValue({
+      data: [
+        {
+          id: "p1",
+          display_name: "Hook mới 1",
+          weekly_instance_count: 12,
+          weekly_instance_count_prev: 0,
+          niche_video_count: 0,
+          instance_count: 12,
+          niche_spread: [4],
+          avg_views: 0,
+          sample_hook: null,
+          videos: [],
+          structure: null,
+          why: null,
+          careful: null,
+          angles: null,
+        },
+      ],
+      isPending: false,
+    });
+    renderHome();
+    const tier02 = document.querySelector('[data-tier="02"]') as HTMLElement;
+    const scrollIntoView = vi.fn();
+    tier02.scrollIntoView = scrollIntoView;
+    fireEvent.click(
+      screen.getByRole("button", { name: /Xem 1 công thức hook/ }),
+    );
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
   it("falls back to 'Bạn' when display_name is empty", () => {
     mockUseProfile.mockReturnValue({
       data: { id: "u", display_name: "", creator_niche_id: null },
