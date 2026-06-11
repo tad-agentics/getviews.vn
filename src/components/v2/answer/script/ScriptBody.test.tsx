@@ -81,8 +81,41 @@ describe("ScriptBody narrative-first", () => {
   it("renders narrative headline before shot rail", () => {
     renderScriptBody();
     expect(screen.getByText(/Serum C — hook cảnh báo/)).toBeTruthy();
+    expect(screen.getByText(/Phân tích kịch bản/)).toBeTruthy();
     expect(screen.getByText(/Hook 0–3 giây/)).toBeTruthy();
     expect(screen.getByText(/Cảnh 1 \/ 1/)).toBeTruthy();
+  });
+
+  it("renders ShotReferenceStrip when references exist and scene intel is off", () => {
+    vi.mocked(useSceneIntelligence).mockReturnValue({ data: undefined } as unknown as ReturnType<
+      typeof useSceneIntelligence
+    >);
+
+    renderScriptBody({
+      ...sampleReport,
+      shots: [
+        {
+          ...sampleReport.shots![0]!,
+          references: [
+            {
+              video_id: "v-ref-1",
+              scene_index: 0,
+              thumbnail_url: "https://media.getviews.vn/thumbnails/v-ref-1.webp",
+              tiktok_url: "https://www.tiktok.com/@creator/video/v-ref-1",
+              creator_handle: "creator",
+              description: "Cận mặt cảnh báo, text đỏ góc trên.",
+              views: 256_000,
+              match_label: "Cùng ngách, hook, khung hình",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(screen.getByText(/SHOT THAM KHẢO TỪ VIDEO VIEW CAO/)).toBeTruthy();
+    expect(screen.getAllByText(/@creator/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/256\.0K view/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Thư viện tham khảo/)).toBeNull();
   });
 
   it("renders scene intelligence panel when scene_type matches active shot", () => {

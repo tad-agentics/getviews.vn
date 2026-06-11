@@ -6,17 +6,13 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Video } from "lucide-react";
 
-import { DiagnosisSectionRenderer } from "@/components/diagnosis/DiagnosisSectionRenderer";
-import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { Btn } from "@/components/v2/Btn";
 import { SceneIntelligencePanel } from "@/components/v2/SceneIntelligencePanel";
+import { ShotReferenceStrip } from "@/components/v2/ShotReferenceStrip";
 import { useSceneIntelligence } from "@/hooks/useSceneIntelligence";
 import type {
-  DiagnosisSectionVi,
   ScriptFormatProof,
   ScriptReportPayload,
-  ScriptShotCardData,
-  ScriptShotReferenceData,
   ScriptVoLineData,
 } from "@/lib/api-types";
 import { formatViews } from "@/lib/formatters";
@@ -28,6 +24,7 @@ import {
   sceneRowForShot,
 } from "@/lib/scriptEditorMerge";
 import { ScriptActionsBar } from "./ScriptActionsBar";
+import { ScriptNarrativeSections } from "./ScriptNarrativeSections";
 
 function formatVoStamp(t: ScriptVoLineData["t"], fallback: number): string {
   if (typeof t === "number" && Number.isFinite(t)) {
@@ -42,14 +39,6 @@ function formatVoStamp(t: ScriptVoLineData["t"], fallback: number): string {
   return `${fallback.toFixed(1)}s`;
 }
 
-function tiktokHref(ref: ScriptShotReferenceData): string | null {
-  const id = ref.video_id;
-  if (!id) return null;
-  const h = (ref.creator_handle ?? "").replace(/^@/, "").trim();
-  if (h) return `https://www.tiktok.com/@${h}/video/${id}`;
-  return `https://www.tiktok.com/video/${id}`;
-}
-
 function formatProofLine(proof: ScriptFormatProof): string | null {
   if (proof.kind === "hook_line" && proof.phrase) {
     const handle = proof.handle ? ` — @${proof.handle}` : "";
@@ -62,24 +51,6 @@ function formatProofLine(proof: ScriptFormatProof): string | null {
       typeof proof.avg_views === "number" ? ` — TB ${formatViews(proof.avg_views)} view` : "";
     const n = typeof proof.sample_size === "number" ? ` (${proof.sample_size} video)` : "";
     return `${label}${views}${n}`;
-  }
-  return null;
-}
-
-function breakoutLabel(ref: ScriptShotReferenceData, shot: ScriptShotCardData): string | null {
-  if (typeof ref.breakout_multiplier === "number" && Number.isFinite(ref.breakout_multiplier)) {
-    return `${ref.breakout_multiplier.toFixed(1)}×`;
-  }
-  const w = ref.winner_avg ?? shot.winner_avg;
-  const c = ref.corpus_avg ?? shot.corpus_avg;
-  if (
-    typeof w === "number" &&
-    typeof c === "number" &&
-    Number.isFinite(w) &&
-    Number.isFinite(c) &&
-    c > 0
-  ) {
-    return `${(w / c).toFixed(1)}×`;
   }
   return null;
 }
@@ -119,7 +90,7 @@ export function ScriptBody({
   const narrative = report.narrative_vi;
   const headline = narrative?.headline_vi?.trim() || report.hook;
   const sections = useMemo(
-    () => (narrative?.diagnosis_vi?.sections ?? []) as DiagnosisSectionVi[],
+    () => narrative?.diagnosis_vi?.sections ?? [],
     [narrative?.diagnosis_vi?.sections],
   );
 
@@ -165,15 +136,7 @@ export function ScriptBody({
       </header>
 
       {sections.length > 0 ? (
-        <section className="space-y-2 border-t border-[color:var(--gv-rule)] pt-5">
-          {sections.map((section) => (
-            <DiagnosisSectionRenderer
-              key={String(section.section_id)}
-              section={section}
-              referenceVideos={[]}
-            />
-          ))}
-        </section>
+        <ScriptNarrativeSections sections={sections} shots={shots} />
       ) : null}
 
       {report.format_rationale?.text_vi ? (
@@ -283,47 +246,9 @@ export function ScriptBody({
             </div>
           ) : null}
 
-          {shot.references && shot.references.length > 0 && !showScenePanel ? (
-            <div className="mt-5 border-t border-[color:var(--gv-rule)] pt-4">
-              <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
-                Thư viện tham khảo
-              </p>
-              <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
-                {shot.references.map((ref, ri) => {
-                  const href = tiktokHref(ref);
-                  const bx = breakoutLabel(ref, shot);
-                  const inner = (
-                    <>
-                      <VideoThumbnail
-                        thumbnailUrl={ref.thumbnail_url}
-                        videoId={ref.video_id}
-                        className="aspect-[9/12] w-full rounded-[3px] object-cover"
-                      />
-                      {bx ? (
-                        <span className="gv-mono absolute left-1 top-1 rounded bg-[color:var(--gv-ink)] px-1 py-0.5 text-[11px] text-[color:var(--gv-canvas)]">
-                          {bx}
-                        </span>
-                      ) : null}
-                    </>
-                  );
-                  return (
-                    <li key={`${ref.video_id ?? ri}`} className="w-[68px] shrink-0">
-                      {href ? (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="relative block w-full"
-                        >
-                          {inner}
-                        </a>
-                      ) : (
-                        <div className="relative">{inner}</div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+          {activeEditorShot && activeEditorShot.references.length > 0 && !showScenePanel ? (
+            <div className="-mx-4 mt-5">
+              <ShotReferenceStrip refs={activeEditorShot.references} density="block" />
             </div>
           ) : null}
 

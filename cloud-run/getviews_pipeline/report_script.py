@@ -16,6 +16,7 @@ from getviews_pipeline.script_generate import (
     InsufficientCreditsError,
     ScriptGenerateBody,
     ScriptTone,
+    _format_views_compact,
     run_script_generate_sync,
 )
 from getviews_pipeline.step_events import emit, step_done, step_start
@@ -175,7 +176,11 @@ def _shots_summary_for_narrative(shots: list[dict[str, Any]]) -> str:
             r = refs[0]
             handle = str(r.get("creator_handle") or "").lstrip("@")
             views = r.get("views")
-            views_s = f"{int(views):,}".replace(",", ".") if views else "?"
+            views_s = (
+                _format_views_compact(int(views))
+                if views is not None and int(views) > 0
+                else "?"
+            )
             desc = str(r.get("description") or "")[:60]
             line += f"\n  ref: @{handle or '?'} ({views_s} view) — {desc}"
         lines.append(line)
