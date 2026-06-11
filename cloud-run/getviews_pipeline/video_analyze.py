@@ -1054,6 +1054,29 @@ async def _live_search_references_for_finalize(
     return synthesis_refs, slim_refs
 
 
+def _video_age_days_from_meta(meta: dict[str, Any]) -> float | None:
+    """Days since the video was posted — feeds the tier age guard.
+
+    ``meta`` timestamps arrive as epoch ints (EnsembleData ``create_time``)
+    or ISO strings (corpus rows). None on anything unparseable so the tier
+    falls back to age-blind classification.
+    """
+    raw = meta.get("created_at") or meta.get("posted_at") or meta.get("create_time")
+    if raw is None:
+        return None
+    try:
+        if isinstance(raw, (int, float)) or (isinstance(raw, str) and raw.strip().isdigit()):
+            dt = datetime.fromtimestamp(float(raw), tz=UTC)
+        else:
+            dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+    except (TypeError, ValueError, OSError):
+        return None
+    age = (datetime.now(tz=UTC) - dt).total_seconds() / 86400.0
+    return age if age >= 0 else None
+
+
 def _build_narrative_cache_update(
     *,
     narrative_vi: dict[str, Any],
@@ -1483,7 +1506,11 @@ def finalize_video_narrative_layer(
 
     views = int(meta.get("views") or 0)
     corpus_avg_views = float(niche_meta.get("avg_views") or 0.0)
-    performance_tier: str = classify_performance_tier_corpus(views, corpus_avg_views or None)
+    performance_tier: str = classify_performance_tier_corpus(
+        views,
+        corpus_avg_views or None,
+        video_age_days=_video_age_days_from_meta(meta),
+    )
 
     channel_context_payload: dict[str, Any] | None = None
     creator_handle = str(meta.get("creator") or "").strip()
@@ -1562,11 +1589,17 @@ def finalize_video_narrative_layer(
         )
 
     if step_queue is not None:
+        # views_vs_avg_ratio / corpus_size are computed further down — derive
+        # the same numbers from what's in scope here for the streamed chip.
+        pre_ratio = round(float(views) / corpus_avg_views, 2) if corpus_avg_views else None
+        pre_bench_n = int(niche_meta.get("sample_size") or niche_meta.get("corpus_size") or 0)
         emit(
             step_queue,
             {
                 "type": "pre_synthesis",
                 "performance_tier": performance_tier,
+                **({"tier_ratio": pre_ratio} if pre_ratio is not None else {}),
+                **({"tier_benchmark_n": pre_bench_n} if pre_bench_n else {}),
                 "reference_videos": out.get("reference_videos") or [],
             },
         )
@@ -1640,6 +1673,9 @@ def finalize_video_narrative_layer(
     ts_posted = meta.get("created_at") or meta.get("posted_at")
     if ts_posted:
         user_stats["posted_at"] = str(ts_posted)
+    _age_days = _video_age_days_from_meta(meta)
+    if _age_days is not None:
+        user_stats["video_age_days"] = round(_age_days, 1)
     cc_raw = meta.get("commerce_conversion")
     if isinstance(cc_raw, dict) and cc_raw:
         user_stats["commerce_conversion"] = cc_raw
@@ -1808,6 +1844,13 @@ def finalize_video_narrative_layer(
     if view_scenarios_computed is not None:
         out["view_scenarios"] = view_scenarios_computed
     out["performance_tier"] = performance_tier
+    # Benchmark transparency — the FE chip shows the ratio that *generates*
+    # the tier (and gates the verdict on benchmark sample size) instead of
+    # a bare HIT/FLOP badge.
+    if views_vs_avg_ratio is not None:
+        out["tier_ratio"] = round(float(views_vs_avg_ratio), 2)
+    if corpus_size:
+        out["tier_benchmark_n"] = int(corpus_size)
     if channel_context_payload:
         out["channel_context"] = channel_context_payload
     if narrative_vi_out is not None:
@@ -2127,7 +2170,9 @@ def run_video_analyze_pipeline(
 
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
-    extraction_mode: Literal["win", "flop"] = "win" if mode_resolved == "win" else "flop"
+    from getviews_pipeline.video_report_coherence import resolve_extraction_mode
+
+    extraction_mode = resolve_extraction_mode(mode_resolved, video, niche_intel)
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 
@@ -2658,7 +2703,9 @@ def run_video_analyze_on_demand(
 
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
-    extraction_mode_od: Literal["win", "flop"] = "win" if mode_resolved == "win" else "flop"
+    from getviews_pipeline.video_report_coherence import resolve_extraction_mode
+
+    extraction_mode_od = resolve_extraction_mode(mode_resolved, video, niche_intel)
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 

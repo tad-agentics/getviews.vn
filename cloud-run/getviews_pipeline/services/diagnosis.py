@@ -95,9 +95,11 @@ def run_video_diagnosis_core(inp: DiagnosisInput) -> DiagnosisResult:  # noqa: F
         video_id=inp.extraction.video_id,
         mode=mode,
     ):
+        from getviews_pipeline.video_report_coherence import resolve_extraction_mode
+
         retention_user = inp.retention_user or []
         raw_errors = extract_video_errors(
-            extraction_mode=mode,
+            extraction_mode=resolve_extraction_mode(mode, video_row, inp.niche_row),
             video=video_row,
             analysis=analysis,
             niche_label=inp.niche_label or "unknown",

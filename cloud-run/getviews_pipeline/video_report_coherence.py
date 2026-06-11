@@ -9,6 +9,11 @@ logger = logging.getLogger(__name__)
 
 VideoMode = Literal["win", "flop"]
 
+# Extraction prompt modes — wider than VideoMode (the user-intent axis stays
+# binary; the *prompt* gains a balanced middle so average/unknown/early videos
+# stop getting the forced-error flop treatment).
+ExtractionMode = Literal["win", "flop", "average"]
+
 # Channel-relative breakout — align with refine_performance_tier account_ratio >= 2.0
 _CHANNEL_BREAKOUT_RATIO = 2.0
 
@@ -92,6 +97,32 @@ def infer_early_performance_tier(
     ):
         return "hit"
     return tier
+
+
+def resolve_extraction_mode(
+    mode_resolved: VideoMode,
+    video: dict[str, Any],
+    niche_intel: dict[str, Any] | None,
+) -> ExtractionMode:
+    """Tier-aware error-extraction mode.
+
+    The legacy mapping was ``"win" if mode == "win" else "flop"`` — every
+    measured-average video got the flop prompt (forced 1-3 errors, fabricated
+    fallback). Soften to the balanced "average" prompt only when the benchmark
+    actively contradicts flop (tier average/early); with no benchmark at all
+    (tier unknown) the caller's flop intent stands — we have no evidence
+    against it either.
+    """
+    if mode_resolved == "win":
+        return "win"
+    views = int(video.get("views") or 0)
+    corpus_avg = float((niche_intel or {}).get("avg_views") or 0) or None
+    tier = infer_early_performance_tier(
+        views,
+        corpus_avg,
+        creator_median_views=video.get("creator_median_views"),
+    )
+    return "average" if tier in ("average", "early", "hit") else "flop"
 
 
 def pipeline_reconcile_mode(

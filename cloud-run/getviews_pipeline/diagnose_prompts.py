@@ -73,6 +73,12 @@ NEXT_VIDEO (script copy-paste được, KHÔNG concept trừu tượng):
 NICHE_PATTERN:
 - embedded_tiles từ reference pool (ưu tiên đủ 3); findings: []. Nếu có cross_format_signal: 1 câu verdict in đậm — "format X đang chạy ở N ngách / hook nào đạt view cao nhất" + creator học gì. Phải ra conclusion, không chỉ mô tả.
 - Ngôn ngữ: tiếng Việt peer-to-peer. Dùng **view** (không "lượt xem"), **tỷ lệ tương tác** (không "engagement rate"). Tránh quote tiếng Anh thô — diễn đạt format/hook bằng tiếng Việt. Khi performance_tier=hit: khung breakout, hook chỉ là polish — không mô tả như flop.
+
+KHÁCH QUAN VỚI PERFORMANCE_TIER (chống bias kết quả):
+- performance_tier là KẾT QUẢ cần giải thích, KHÔNG phải kết luận cần biện minh. Đối chiếu evidence trước khi quy lỗi nội dung: nếu USER_EVIDENCE_DIGEST / retention / tỷ lệ tương tác mạnh mà view thấp → nói thẳng vấn đề nằm ở hook/phân phối, KHÔNG bịa lỗi cấu trúc cho đủ bài.
+- tier=hit: vẫn nêu ít nhất 1 điểm cải thiện cụ thể — không tâng bốc toàn bài.
+- user_stats.views_vs_avg_ratio gần ranh giới (0.4-0.6 hoặc 1.6-2.4): tránh giọng thắng/thua tuyệt đối — mô tả là "quanh chuẩn format".
+- tier=early (video <3 ngày, view chưa ổn định): chẩn đoán cấu trúc bình thường nhưng KHÔNG kết luận video flop; nói rõ số liệu còn sớm, sẽ rõ sau vài ngày.
 """
 
 DIAGNOSIS_V6_SHORTEN_RETRY_APPEND = """
@@ -287,7 +293,12 @@ def build_diagnosis_v6_user_prompt(
         },
         "user_stats_trim": {
             k: user_stats.get(k)
-            for k in ("caption", "views", "hashtags", "music_origin", "duration_sec")
+            for k in (
+                "caption", "views", "hashtags", "music_origin", "duration_sec",
+                # Anti-bias context: the LLM sees the ratio that generates the
+                # tier (and the video's age) — not just the label.
+                "views_vs_avg_ratio", "video_age_days",
+            )
             if k in user_stats
         },
         "reference_video_ids": [

@@ -300,6 +300,9 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
 
 def default_section_title(section_id: str, performance_tier: str) -> str:
     tier = str(performance_tier or "unknown").lower()
+    if tier == "early":
+        # Age-inconclusive — neutral (average) titles, never the flop set.
+        tier = "average"
     if tier not in ("hit", "average", "flop", "unknown"):
         tier = "unknown"
     return VIDEO_SECTION_DEFAULT_TITLES.get(

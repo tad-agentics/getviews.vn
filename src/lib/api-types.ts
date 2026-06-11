@@ -1139,6 +1139,8 @@ export interface ReferenceVideoCard {
 export interface VideoAnswerPreSynthesisPayload {
   bright_spot_signal?: BrightSpotSignal;
   performance_tier?: string;
+  tier_ratio?: number | null;
+  tier_benchmark_n?: number | null;
   reference_videos?: ReferenceVideoCard[];
 }
 
@@ -1231,8 +1233,16 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   format_cards?: FormatCard[];
   channel_context?: ChannelContext;
   reference_videos?: ReferenceVideoCard[];
-  /** Account-refined tier when available: `hit` | `average` | `flop` | `unknown` */
+  /** Account-refined tier when available: `hit` | `average` | `flop` | `early` | `unknown` */
   performance_tier?: string;
+  /**
+   * 2026-06-11 — views ÷ format corpus average, the number that *generates*
+   * the tier. The chip renders this instead of a bare HIT/FLOP badge.
+   * Missing on pre-rollout cached reports (chip falls back to word labels).
+   */
+  tier_ratio?: number | null;
+  /** Corpus sample size behind the benchmark — gates the verdict chip when thin. */
+  tier_benchmark_n?: number | null;
   /** §4.11.3 — echo billing tier on persisted video report. */
   analysis_depth?: "basic" | "deep";
   /** §4.6 — turn-1 handoff attribution (trends / composer / evidence / …). */

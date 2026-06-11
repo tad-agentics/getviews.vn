@@ -1,25 +1,72 @@
-/** Performance tier chip rendered alongside the kicker so the user
- * sees the verdict — hit / average / flop — before reading the report.
- * BE values come from classify_performance_tier_corpus + refine_performance_tier
- * (combines corpus benchmarks with channel context). Returns null when the BE
- * couldn't benchmark (tier="unknown"), so we don't render a placeholder chip. */
-export function PerformanceTierChip({ tier }: { tier: string | undefined }) {
+/** Performance benchmark chip rendered alongside the kicker.
+ *
+ * 2026-06-11 redesign: the chip shows the *number that generates* the tier
+ * (views ÷ format corpus average, e.g. "0.3× TB FORMAT") instead of an
+ * evaluative HIT/FLOP badge — per copy rules the data states the finding.
+ * Tier still drives the color tone. Behavior matrix:
+ *   - tier "early"            → neutral "MỚI ĐĂNG" chip (age-inconclusive, not a verdict)
+ *   - benchmark sample < 10   → no verdict chip at all (thin corpus — no confident claim)
+ *   - ratio present           → "N.N× TB FORMAT" toned by tier
+ *   - ratio missing (legacy cached reports) → old word labels as fallback
+ * BE values come from classify_performance_tier_corpus + refine_performance_tier.
+ */
+
+const MIN_BENCHMARK_N = 10;
+
+function formatRatio(ratio: number): string {
+  if (ratio >= 10) return `${Math.round(ratio)}×`;
+  return `${ratio.toFixed(1)}×`;
+}
+
+export function PerformanceTierChip({
+  tier,
+  ratio,
+  benchmarkN,
+}: {
+  tier: string | undefined;
+  /** views ÷ format corpus avg — the number behind the tier. */
+  ratio?: number | null;
+  /** Corpus sample size behind the benchmark; gates the verdict when thin. */
+  benchmarkN?: number | null;
+}) {
   if (!tier) return null;
   const lc = tier.toLowerCase();
-  let label: string;
+
+  if (lc === "early") {
+    return (
+      <span
+        className="gv-mono rounded-[3px] bg-[color:var(--gv-ink-4)]/15 px-[7px] py-[3px] text-[11px] font-bold uppercase tracking-[0.05em] text-[color:var(--gv-ink-3)]"
+        aria-label="Video mới đăng — số liệu chưa ổn định"
+      >
+        MỚI ĐĂNG
+      </span>
+    );
+  }
+
   let tone: "hit" | "average" | "flop";
+  let wordLabel: string;
   if (lc === "hit") {
-    label = "HIT";
     tone = "hit";
+    wordLabel = "HIT";
   } else if (lc === "flop") {
-    label = "FLOP";
     tone = "flop";
+    wordLabel = "FLOP";
   } else if (lc === "average") {
-    label = "TRUNG BÌNH";
     tone = "average";
+    wordLabel = "TRUNG BÌNH";
   } else {
     return null;
   }
+
+  // Thin benchmark — a confident verdict chip on an unreliable sample is
+  // worse than none. (Legacy reports without benchmarkN keep the chip.)
+  if (typeof benchmarkN === "number" && benchmarkN < MIN_BENCHMARK_N) {
+    return null;
+  }
+
+  const numericRatio =
+    typeof ratio === "number" && Number.isFinite(ratio) && ratio > 0 ? ratio : null;
+  const label = numericRatio !== null ? `${formatRatio(numericRatio)} TB FORMAT` : wordLabel;
   const toneClass =
     tone === "hit"
       ? "bg-[color:var(--gv-pos)]/15 text-[color:var(--gv-pos)]"
@@ -29,7 +76,11 @@ export function PerformanceTierChip({ tier }: { tier: string | undefined }) {
   return (
     <span
       className={`gv-mono rounded-[3px] px-[7px] py-[3px] text-[11px] font-bold uppercase tracking-[0.05em] ${toneClass}`}
-      aria-label={`Phân loại hiệu suất: ${label}`}
+      aria-label={
+        numericRatio !== null
+          ? `So với trung bình format: ${formatRatio(numericRatio)}`
+          : `Phân loại hiệu suất: ${wordLabel}`
+      }
     >
       {label}
     </span>

@@ -173,6 +173,9 @@ export function VideoBody({
   const preSynth = preSynthesisData ?? null;
   const performanceTier: string | undefined =
     preSynth?.performance_tier ?? report.performance_tier;
+  const tierRatio: number | null | undefined = preSynth?.tier_ratio ?? report.tier_ratio;
+  const tierBenchmarkN: number | null | undefined =
+    preSynth?.tier_benchmark_n ?? report.tier_benchmark_n;
   const viewMode: VideoAnalyzeMode = effectiveVideoReportMode(
     report.mode,
     performanceTier,
@@ -481,7 +484,7 @@ export function VideoBody({
                     ? `CHẨN ĐOÁN VIDEO CỦA BẠN · ${flopIssueCount} ĐIỂM LỖI CẤU TRÚC`
                     : "CHẨN ĐOÁN VIDEO CỦA BẠN"}
               </span>
-              <PerformanceTierChip tier={performanceTier} />
+              <PerformanceTierChip tier={performanceTier} ratio={tierRatio} benchmarkN={tierBenchmarkN} />
               {meta.content_format ? (
                 <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-ink-3)]">
                   {contentFormatLabelVi(meta.content_format)}
@@ -501,7 +504,7 @@ export function VideoBody({
                   {meta.niche_label ?? "—"}
                 </span>
               </span>
-              <PerformanceTierChip tier={performanceTier} />
+              <PerformanceTierChip tier={performanceTier} ratio={tierRatio} benchmarkN={tierBenchmarkN} />
               {meta.content_format ? (
                 <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-ink-3)]">
                   {contentFormatLabelVi(meta.content_format)}
@@ -516,7 +519,7 @@ export function VideoBody({
                   {meta.niche_label ?? "—"}
                 </span>
               </span>
-              <PerformanceTierChip tier={performanceTier} />
+              <PerformanceTierChip tier={performanceTier} ratio={tierRatio} benchmarkN={tierBenchmarkN} />
               {meta.content_format ? (
                 <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-ink-3)]">
                   {contentFormatLabelVi(meta.content_format)}

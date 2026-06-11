@@ -497,6 +497,8 @@ function mergePreSynthesis(
     next.bright_spot_signal = token.bright_spot_signal as BrightSpotSignal;
   }
   if (typeof token.performance_tier === "string") next.performance_tier = token.performance_tier;
+  if (typeof token.tier_ratio === "number") next.tier_ratio = token.tier_ratio;
+  if (typeof token.tier_benchmark_n === "number") next.tier_benchmark_n = token.tier_benchmark_n;
   if (Array.isArray(token.reference_videos)) {
     next.reference_videos = token.reference_videos as ReferenceVideoCard[];
   }

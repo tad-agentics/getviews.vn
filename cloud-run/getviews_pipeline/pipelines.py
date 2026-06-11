@@ -328,12 +328,25 @@ def compute_view_scenarios(
     ]
 
 
-def classify_performance_tier_corpus(views: int, format_avg: float | None) -> str:
+# Below this age, a low view count is not yet a verdict — views only
+# accumulate, so "flop"/"average" on a fresh video would judge an
+# unfinished outcome (a high ratio IS conclusive early, views never drop).
+_TIER_MIN_AGE_DAYS = 3.0
+
+
+def classify_performance_tier_corpus(
+    views: int,
+    format_avg: float | None,
+    *,
+    video_age_days: float | None = None,
+) -> str:
     if not format_avg or format_avg == 0:
         return "unknown"
     ratio = views / format_avg
     if ratio >= 2.0:
         return "hit"
+    if video_age_days is not None and video_age_days < _TIER_MIN_AGE_DAYS:
+        return "early"
     if ratio < 0.5:
         return "flop"
     return "average"
@@ -346,6 +359,10 @@ def refine_performance_tier(corpus_tier: str, views: int, channel_context: dict[
     if not median_views or median_views == 0:
         return corpus_tier
     account_ratio = views / float(median_views)
+    if corpus_tier == "early":
+        # Inconclusive by age — only a conclusive channel-relative breakout
+        # upgrades it; a low account ratio is just as unfinished.
+        return "hit" if account_ratio >= 2.0 else "early"
     account_tier = (
         "hit" if account_ratio >= 2.0 else "flop" if account_ratio < 0.5 else "average"
     )
@@ -1943,7 +1960,14 @@ async def run_video_diagnosis(
             )
             corpus_tier = classify_performance_tier_corpus(curr_views, format_avg)
 
-            extraction_mode_stream = "win" if corpus_tier == "hit" else "flop"
+            # Soften to the balanced mode only when the benchmark actively
+            # contradicts flop (tier average); unknown (no benchmark) keeps
+            # the legacy flop prompt — no evidence either way.
+            extraction_mode_stream = (
+                "win" if corpus_tier == "hit"
+                else "average" if corpus_tier in ("average", "early")
+                else "flop"
+            )
             video_stub = {
                 "creator_handle": handle,
                 "views": curr_views,

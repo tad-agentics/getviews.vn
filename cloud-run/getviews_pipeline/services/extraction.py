@@ -62,7 +62,7 @@ class VideoErrorsExtractionInput(BaseModel):
     CI test.
     """
 
-    extraction_mode: Literal["win", "flop"]
+    extraction_mode: Literal["win", "flop", "average"]
     niche_label: str = Field(max_length=80)
     niche_avg_views: float | None = None
     niche_avg_retention: float | None = None
@@ -371,7 +371,7 @@ def apply_rule_based_video_errors(
 
 def extract_video_errors(
     *,
-    extraction_mode: Literal["win", "flop"],
+    extraction_mode: Literal["win", "flop", "average"],
     video: dict[str, Any],
     analysis: dict[str, Any],
     niche_label: str,
@@ -447,6 +447,14 @@ def extract_video_errors(
 - Nếu không có vấn đề đáng kể, trả `"errors": []`.
 - **Không** dùng sev **high** trừ khi có lỗi cấu trúc rõ ràng trong phân tích.
 - title: tên ngắn gọn (≤5 từ), không dùng emoji, không dùng mã lỗi."""
+    elif extraction_mode == "average":
+        mode_block = """## Chế độ TRUNG BÌNH (video quanh chuẩn ngách — KHÔNG phải flop)
+
+- Đừng viết như đang mổ xẻ một video hỏng. Đây là video quanh mức chuẩn của format.
+- Trích xuất **0-3** vấn đề CÓ BẰNG CHỨNG từ phân tích khung hình / retention — sev theo đúng bằng chứng (kể cả high nếu rõ ràng).
+- Không có vấn đề rõ → trả `"errors": []`. TUYỆT ĐỐI không bịa lỗi cho đủ danh sách.
+- Mỗi mục PHẢI có ``error_id`` ổn định dạng ERR_* (vd ERR_hook_late_face).
+- title: tiếng Việt, ≤10 từ, không emoji, không mã lỗi."""
     else:
         mode_block = """## Chế độ FLOP (video yếu so với ngách)
 
