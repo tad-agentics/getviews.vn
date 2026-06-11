@@ -64,18 +64,24 @@ first — the client sees "connected" ~30-50 ms sooner, and gets a real
 
 ## Real findings, documented as backlog (honest severity)
 
-### FE-P1 · `motion` (40 KB gz) preloaded on the landing critical path — real, needs a focused bundler session
-Verified: `motion` is genuinely in the landing `modulepreload` graph, and the
-landing never renders it (LandingPage correctly stubs it). BUT the importer is
-**not a single deletable line** — `root`, `auth`, and `entry.client` chunks all
-carry a reference because `motion` is a shared chunk imported by many lazy app
-routes (`AppLayout`, login, pricing, settings, explore, learn-more) and
-rolldown hoists the preload hint. Fixing it right means either (a) a
-`manualChunks` change to keep motion out of the eagerly-preloaded set, or (b)
-lazy-importing motion at each use site. Both need careful before/after build
-diffing — exactly the kind of change that destabilises chunking if rushed.
-**Highest-value FE perf item; deserves its own focused pass, not a guess.**
-Estimated upside: ~40 KB gz off every cold landing visit (meaningful on VN 3G).
+### FE-P1 · `motion` (40 KB gz) preloaded on the landing critical path — ✅ FIXED (follow-up pass, same day)
+Root cause turned out deeper than a chunk-graph hint: **Rolldown's merge pass
+ignored `manualChunks` return values and folded `react/jsx-runtime` INTO the
+`motion` chunk** (and React core into `icons`) — so *every component chunk*
+statically imported `motion`, including `Btn`, `tanstack`, and the landing
+route. Verified by reading the built chunk (jsx-runtime's
+`Symbol.for("react.transitional.element")` implementation sat at the top of
+`motion-*.js`).
+
+Fix: migrated chunking to Rolldown-native `output.advancedChunks` with
+priority-enforced groups — the exact migration the old config comment had
+deferred. Measured result:
+- **Landing first-load: 236 KB → 196 KB gzip (−40 KB, −17%)**; `motion` has
+  0 references in the landing preload graph.
+- Bonus: `react-vendor` (59 KB gz) and `react-router` (40 KB gz) now emit as
+  real chunks → long-term-cacheable independently of app code (the caching win
+  the old comment deferred "until we migrate to advancedChunks").
+- Full vitest suite + typecheck + build green; per-route chunks intact.
 
 ### FE-P2 · `AnswerScreen` bundles all six report formats together (57 KB gz)
 A user viewing a pattern report still downloads the video-diagnosis renderer
@@ -90,10 +96,14 @@ token. Adding `memo` is the single biggest *perceived* streaming-smoothness win
 medium effort, medium risk (need to confirm prop stability).
 
 ### FE-P4 · No list virtualization (ExploreScreen / HistoryScreen)
-Corpus browse can render 50-100+ `VideoThumbnail` tiles; HistoryScreen
-re-groups by date on every render with no `useMemo`. Mobile-scroll jank on
-low-end Android (common in VN). Backlog: `useMemo` the grouping (trivial),
-`@tanstack/react-virtual` on the grid (medium).
+Corpus browse can render 50-100+ `VideoThumbnail` tiles — mobile-scroll jank on
+low-end Android (common in VN). Backlog: `@tanstack/react-virtual` on the grid
+(medium). CORRECTION to the agent claim: HistoryScreen's `groupByDate` is
+**already memoized** (`HistoryScreen.tsx:116`) — no fix needed there. Also
+fixed in the follow-up pass: `Btn` size `md` now has `min-h-[44px]` (FE-L1)
+and the stale "90s" replay-TTL comment in AnswerScreen (FE-L3; the sseResume.ts
+comment flagged by the agent was already correct — it documents the historical
+bug, not a live one).
 
 ### BE-P2 · Pattern-report corpus + hook-effectiveness fetches are serial
 `load_pattern_inputs` fetches the corpus window (limit 2500) then hook

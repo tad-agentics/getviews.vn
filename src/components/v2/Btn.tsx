@@ -29,7 +29,9 @@ const VARIANTS: Record<BtnVariant, string> = {
 
 const SIZES: Record<BtnSize, string> = {
   sm: "h-8 min-h-[44px] px-3 text-xs",
-  md: "h-10 px-4 text-sm leading-tight",
+  // min-h keeps the touch target ≥44px on mobile (h-10 alone is 40px);
+  // md is used on the mobile composer submit (audit 2026-06-10 FE-L1).
+  md: "h-10 min-h-[44px] px-4 text-sm leading-tight",
   lg: "h-12 px-6 text-sm leading-tight",
 };
 

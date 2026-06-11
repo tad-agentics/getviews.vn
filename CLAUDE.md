@@ -106,7 +106,7 @@ Copy `.env.example` → `.env.local`. Key distinctions:
 
 ## Bundle splitting
 
-`vite.config.ts` defines `manualChunks` for `react-vendor`, `react-router`, `@tanstack`, `@supabase`, `@radix-ui`, `lucide-react`, `motion`. Don't remove these without replacing with an equivalent strategy — they keep first-load chunks bounded. Import icons individually (`import { Camera } from "lucide-react"`), never barrel-imports.
+`vite.config.ts` defines Rolldown `advancedChunks` groups for `react-vendor`, `react-router`, `@tanstack`, `@supabase`, `@radix-ui`, `lucide-react` (`icons`), `motion`, and a catch-all `vendor` (migrated from `manualChunks` 2026-06-10 — Rolldown's merge pass ignored `manualChunks` return values and folded `react/jsx-runtime` into the `motion` chunk, putting 40 KB gz of animation code on the landing critical path; `advancedChunks` priorities are enforced). Don't remove these without replacing with an equivalent strategy — they keep first-load chunks bounded; landing first-load is ~196 KB gz, verify against `build/client/index.html` modulepreloads after chunking changes. Import icons individually (`import { Camera } from "lucide-react"`), never barrel-imports.
 
 In production, Vercel routes `/api/*` to the Edge Functions in `api/` before the SPA rewrite in `vercel.json`. (The dev-only `vercelEdgeDev` proxy plugin was removed together with `api/chat.ts` in Phase C.)
 
