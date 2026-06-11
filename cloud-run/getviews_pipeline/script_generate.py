@@ -438,10 +438,75 @@ def _format_hook_evidence_block(hooks: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _fetch_winning_hook_lines(
+    client: Any,
+    niche_id: int,
+    *,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    """Verbatim opening lines from the niche's top corpus videos.
+
+    Quality audit 2026-06-11: the script prompt only saw hook-type *labels*
+    (hook_effectiveness stats) — never how a winning hook actually SOUNDS in
+    spoken Vietnamese. 8.9K corpus rows carry ``hook_analysis.hook_phrase``
+    from Gemini video extraction; the top few by views are the best style
+    exemplars available. Returns [] on any failure — never raises.
+    """
+    if client is None or not niche_id or niche_id < 1:
+        return []
+    try:
+        res = (
+            client.table("video_corpus")
+            .select("creator_handle,views,analysis_json")
+            .eq("ingest_loop_niche_id", niche_id)
+            .or_("quality_tier.is.null,quality_tier.in.(high,medium)")
+            .order("views", desc=True)
+            .limit(limit * 4)  # over-fetch; rows without a hook_phrase are skipped
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning("[script/generate] hook lines fetch failed niche=%s: %s", niche_id, exc)
+        return []
+    out: list[dict[str, Any]] = []
+    seen_phrases: set[str] = set()
+    for row in res.data or []:
+        analysis = row.get("analysis_json") if isinstance(row.get("analysis_json"), dict) else {}
+        ha = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else {}
+        phrase = str(ha.get("hook_phrase") or "").strip()
+        if len(phrase) < 8 or phrase.lower() in seen_phrases:
+            continue
+        seen_phrases.add(phrase.lower())
+        out.append({
+            "phrase": phrase[:120],
+            "handle": str(row.get("creator_handle") or "").lstrip("@"),
+            "views": int(row.get("views") or 0),
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _format_hook_lines_block(lines: list[dict[str, Any]]) -> str:
+    if not lines:
+        return ""
+    rendered = "\n".join(
+        f'- "{ln["phrase"]}" — @{ln["handle"] or "?"} ({ln["views"]:,} view)'.replace(",", ".")
+        for ln in lines
+    )
+    return (
+        "\nHOOK THẬT ĐANG THẮNG TRONG NGÁCH (trích nguyên văn từ video — học "
+        "CÁCH DIỄN ĐẠT văn nói, độ dài câu, nhịp; KHÔNG copy y nguyên):\n"
+        f"{rendered}\n"
+        "Voice của shot 1 phải nghe tự nhiên như các câu trên — tiếng Việt văn "
+        "nói, không văn viết.\n"
+    )
+
+
 def _call_script_gemini(
     body: ScriptGenerateBody,
     *,
     top_hooks: list[dict[str, Any]] | None = None,
+    hook_lines: list[dict[str, Any]] | None = None,
 ) -> ScriptGenerateLLM:
     """Pydantic-bound Gemini synthesis for 6 shots. Raises on any failure."""
     from google.genai import types
@@ -459,6 +524,7 @@ def _call_script_gemini(
     # L2.2 — evidence block from hook_effectiveness. Empty string when no
     # data; the prompt then matches the pre-L2.2 shape exactly.
     hook_evidence = _format_hook_evidence_block(top_hooks or [])
+    hook_evidence += _format_hook_lines_block(hook_lines or [])
 
     prompt = f"""Bạn là biên kịch TikTok tiếng Việt ngắn (dưới {body.duration}s). Viết kịch bản 6 shot cho video.
 
@@ -545,10 +611,11 @@ def build_script_shots(
     topic = _sanitize_snippet(body.topic, 500)
     hook = _sanitize_snippet(body.hook, 200)
     top_hooks = _fetch_top_niche_hooks(client, body.niche_id) if client is not None else []
+    hook_lines = _fetch_winning_hook_lines(client, body.niche_id) if client is not None else []
 
     creative: list[_CreativeRow] | None = None
     try:
-        llm = _call_script_gemini(body, top_hooks=top_hooks)
+        llm = _call_script_gemini(body, top_hooks=top_hooks, hook_lines=hook_lines)
         creative = [
             (
                 s.cam, s.overlay, s.intel_scene_type,
@@ -598,12 +665,19 @@ def _attach_shot_references(
     *,
     niche_id: int,
     service_sb: Any,
+    topic_text: str | None = None,
+    hook_type: str | None = None,
 ) -> None:
     """Mutate ``shots`` in place, adding a ``references`` list to each.
 
     Uses the service-role client (not the user client) because
     ``video_shots`` is writer-only under RLS — readers need the
     service client, same as other corpus-backed surfaces.
+
+    ``topic_text`` (the script's topic + hook sentence) gates references
+    on subject affinity, and ``hook_type`` penalises mismatched hook
+    intents — quality audit 2026-06-11: without these, a skincare-warning
+    script surfaced makeup/gossip scenes as "Cùng ngách".
 
     Threads ``exclude_video_ids`` across shots so one creator doesn't
     monopolize the whole reference panel. Never raises — a matcher
@@ -625,6 +699,8 @@ def _attach_shot_references(
         refs = pick_shot_references(
             shot_descriptor=descriptor,
             niche_id=niche_id,
+            hook_type=hook_type,
+            topic_text=topic_text,
             limit=_REFERENCES_PER_SHOT,
             exclude_video_ids=used,
             client=service_sb,
@@ -659,7 +735,12 @@ def run_script_generate_sync(
     if service_sb is not None:
         try:
             _attach_shot_references(
-                shots, niche_id=body.niche_id, service_sb=service_sb,
+                shots,
+                niche_id=body.niche_id,
+                service_sb=service_sb,
+                # Topic affinity gate: script topic + hook sentence carry
+                # the subject tokens the matcher scores captions against.
+                topic_text=f"{body.topic} {body.hook}",
             )
         except Exception as exc:
             logger.warning("[script/generate] reference attach failed: %s", exc)

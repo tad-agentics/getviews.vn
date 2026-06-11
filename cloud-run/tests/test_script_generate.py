@@ -672,7 +672,7 @@ def test_build_script_shots_passes_top_hooks_to_gemini(monkeypatch) -> None:
 
     seen: dict[str, object] = {}
 
-    def fake_call_gemini(body, *, top_hooks=None):
+    def fake_call_gemini(body, *, top_hooks=None, hook_lines=None):
         seen["top_hooks"] = top_hooks
         # Force the deterministic fallback path so we don't need to mock
         # the full Gemini response shape — the assertion is on what got
@@ -704,7 +704,7 @@ def test_build_script_shots_omits_top_hooks_when_no_client(monkeypatch) -> None:
 
     seen: dict[str, object] = {}
 
-    def fake_call_gemini(body, *, top_hooks=None):
+    def fake_call_gemini(body, *, top_hooks=None, hook_lines=None):
         seen["top_hooks"] = top_hooks
         raise RuntimeError("forced fallback")
 

@@ -150,6 +150,87 @@ def _trim_channel_context(cc: dict[str, Any] | None) -> dict[str, Any]:
     return out
 
 
+_DIGEST_TRANSCRIPT_CHARS = 420
+_DIGEST_MAX_SCENES = 8
+# Heavy raw keys the digest replaces — everything else in user_analysis is
+# scalar/small and passes through whole (the old ``[:24]`` key cliff silently
+# dropped scene grammar, audio fields and the hook timeline; quality audit
+# 2026-06-11).
+_DIGEST_RAW_KEYS = frozenset({"scenes", "audio_transcript", "key_timestamps", "hook_timeline"})
+
+
+def build_user_evidence_digest(user_analysis: dict[str, Any]) -> dict[str, Any]:
+    """Synthesize the heavy extraction arrays into a compact evidence digest.
+
+    Design constraint (CEO direction 2026-06-11): this data must DEEPEN the
+    existing findings, not spawn new report topics — so it's compressed into
+    a few dense lines the synthesis can cite (timestamps, spoken lines,
+    scene grammar) inside the sections it already writes.
+    """
+    digest: dict[str, Any] = {}
+
+    # Hook timeline → one ordered line: "face_enter 0.2s → first_word 0.5s → text 0.9s"
+    # Schema home is hook_analysis.hook_timeline (models.py HookAnalysis);
+    # the top-level fallback covers normalised payloads that hoist it.
+    hook_block = user_analysis.get("hook_analysis")
+    timeline = (
+        hook_block.get("hook_timeline") if isinstance(hook_block, dict) else None
+    ) or user_analysis.get("hook_timeline")
+    if isinstance(timeline, list) and timeline:
+        steps = []
+        for ev in timeline[:6]:
+            if not isinstance(ev, dict):
+                continue
+            label = str(ev.get("event") or ev.get("type") or "?")
+            t = ev.get("t") if ev.get("t") is not None else ev.get("at_s")
+            try:
+                steps.append(f"{label} {float(t):.1f}s")
+            except (TypeError, ValueError):
+                steps.append(label)
+        if steps:
+            digest["hook_timeline"] = " → ".join(steps)
+
+    # Scene grammar → one line per scene: "0.0–2.5s close_up/fast/bold_center: desc"
+    scenes = user_analysis.get("scenes")
+    if isinstance(scenes, list) and scenes:
+        scene_lines: list[str] = []
+        for sc in scenes[:_DIGEST_MAX_SCENES]:
+            if not isinstance(sc, dict):
+                continue
+            t0, t1 = sc.get("start_s"), sc.get("end_s")
+            try:
+                span = f"{float(t0):.1f}–{float(t1):.1f}s"
+            except (TypeError, ValueError):
+                span = "?"
+            dims = "/".join(
+                str(sc.get(k)) for k in ("framing", "pace", "overlay_style") if sc.get(k)
+            )
+            desc = str(sc.get("description") or "")[:60]
+            scene_lines.append(f"{span} {dims}: {desc}".strip())
+        if scene_lines:
+            digest["scene_pattern"] = scene_lines
+        if len(scenes) > _DIGEST_MAX_SCENES:
+            digest["scene_pattern_note"] = f"({len(scenes)} cảnh, hiển thị {_DIGEST_MAX_SCENES} đầu)"
+
+    # What the creator actually SAID — the opening matters most.
+    transcript = str(user_analysis.get("audio_transcript") or "").strip()
+    if transcript:
+        digest["transcript_opening"] = transcript[:_DIGEST_TRANSCRIPT_CHARS] + (
+            "…" if len(transcript) > _DIGEST_TRANSCRIPT_CHARS else ""
+        )
+
+    # Audio character — one compact line, not a new section.
+    audio_bits = [
+        str(user_analysis.get(k))
+        for k in ("audio_track_role", "sound_layering")
+        if user_analysis.get(k)
+    ]
+    if audio_bits:
+        digest["audio_character"] = " · ".join(audio_bits)
+
+    return digest
+
+
 def build_diagnosis_v6_user_prompt(
     *,
     sections_to_emit: list[str],
@@ -216,7 +297,15 @@ def build_diagnosis_v6_user_prompt(
         "channel_context": _trim_channel_context(channel_context),
         "cross_format_signal": cross_format_trim,
         "errors_head": (errors or [])[:3],
+        "USER_EVIDENCE_DIGEST": build_user_evidence_digest(user_analysis),
     }
+    # Honesty gate: the retention curve is heuristic until real telemetry
+    # exists — the synthesis must never present it as a measurement.
+    if str(user_stats.get("retention_source") or "").lower() == "modeled":
+        payload["retention_note"] = (
+            "Retention/giữ chân là ƯỚC TÍNH theo mô hình, KHÔNG phải số đo thực. "
+            "Khi nhắc retention phải kèm 'ước tính' và không dùng làm bằng chứng chính."
+        )
     from getviews_pipeline.analysis_addressing import (
         AddressingMode,
         build_addressing_prompt_block,
@@ -235,9 +324,13 @@ def build_diagnosis_v6_user_prompt(
         f"\n\n{addressing_block}\n",
         "\nDIAGNOSTIC_CONTEXT_JSON:\n",
         json.dumps(payload, ensure_ascii=False, indent=2),
-        "\n\nUSER_ANALYSIS_JSON (truncated keys):\n",
+        # Full scalar surface of the extraction. The heavy arrays
+        # (scenes, transcript, hook_timeline) ride compressed inside
+        # USER_EVIDENCE_DIGEST above — the old ``[:24]`` key cliff here
+        # silently dropped them whole (quality audit 2026-06-11).
+        "\n\nUSER_ANALYSIS_JSON:\n",
         json.dumps(
-            {k: user_analysis.get(k) for k in list(user_analysis.keys())[:24]},
+            {k: v for k, v in user_analysis.items() if k not in _DIGEST_RAW_KEYS},
             ensure_ascii=False,
         ),
     ]
@@ -287,6 +380,21 @@ def build_diagnosis_v6_user_prompt(
         "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 2 câu "
         "chứng minh (≤50 từ). Tổng báo cáo ~350-450 từ. Ưu tiên fix + reference video hơn giải "
         "thích dài. KHÔNG tạo section timing/giờ đăng. Mỗi câu phải advance argument."
+        "\n\nQUY TẮC ĐỘ SÂU (bắt buộc):"
+        "\n- GIỮ NGUYÊN danh sách section trong SECTIONS_TO_EMIT — USER_EVIDENCE_DIGEST "
+        "dùng để LÀM SÂU các nhận định sẵn có, KHÔNG mở chủ đề/section mới."
+        "\n- Mỗi finding phải neo vào bằng chứng cụ thể từ digest: mốc thời gian / cảnh "
+        "(scene_pattern), hoặc trích nguyên văn lời thoại (transcript_opening) khi liên quan."
+        "\n- Khi REFERENCE_EVIDENCE có hook/lời mở: so sánh trực tiếp — 'bạn mở bằng X, "
+        "@handle mở bằng \"Y\" (views)' — và viết fix theo dạng 'làm như @handle: <hành động>'. "
+        "Người xem cần THẤY cách người thật làm, không chỉ đọc lời khuyên."
+        "\n\nKỶ LUẬT CÂU (bắt buộc):"
+        "\n- Câu ngắn, tuyên bố thẳng, mỗi câu đúng một ý. Mỗi câu phải mang số liệu, "
+        "mốc thời gian, hoặc tên video/creator cụ thể — câu không có bằng chứng thì cắt."
+        "\n- CẤM câu đệm: 'có thể thấy rằng', 'nhìn chung', 'điều này cho thấy', "
+        "'một điều đáng chú ý là'. Verdict trước, bằng chứng ngay sau."
+        "\n- Nhịp đúng: 'Video dừng ở 64K — bằng 35% median kênh. 3 giây đầu là cảnh tĩnh. "
+        "@handle cùng ngách mở bằng chuyển động + 1 câu hỏi và đạt 1.9M.'"
         + tier_note
     )
     return "".join(blocks)

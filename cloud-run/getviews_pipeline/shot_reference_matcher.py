@@ -26,6 +26,14 @@ Scoring — additive, niche_id is a hard filter:
 
     niche_id match   (filter — no score; mismatches return [] early)
     hook_type match  +40 (when both sides non-null)
+    hook_type MISMATCH −25 (both non-null and different — a gossip-reveal
+                     scene must not anchor a warning script)
+    topic overlap    +20 (≥1 strong shared token between the script topic
+                     and the candidate video's caption/subject_matter),
+                     +28 when ≥2 tokens overlap. Quality audit 2026-06-11:
+                     without this, a skincare-warning script matched a
+                     makeup-transformation and a gossip channel on pure
+                     camera mechanics, labeled "Cùng ngách".
     framing match    +15
     pace match       +15
     overlay_style    +10
@@ -34,21 +42,27 @@ Scoring — additive, niche_id is a hard filter:
     scene_type       +10 only when framing is NULL on BOTH sides (pre-PR #2
                      legacy rows fall through to the coarse dimension)
 
-``min_score`` defaults to 15 — at least one strong dimension match beyond
-niche, otherwise we'd serve noise. ``limit`` defaults to 3 — creators want
-the best few, not a list.
+``min_score`` defaults to 25 — at least two real dimensions beyond niche
+(raised from 15 in the 2026-06-11 quality pass: a bad reference costs more
+trust than no reference). ``limit`` defaults to 3 — creators want the best
+few, not a list.
+
+Label honesty: the "Cùng ngách" chip is only emitted when the TOPIC also
+matched — a same-niche-id row matched purely on camera mechanics now reads
+"Cùng nhịp, khung hình" instead of claiming subject affinity it doesn't have.
 
 Tiebreaker when scores equal:
     has frame_url > has thumbnail_url > lexical video_id (stable)
 
-No embeddings, no Gemini calls — pure Python scoring over a SQL result.
-Fast enough at the 10K+ corpus target: ~1K rows per niche × 6 shots per
-script ≈ <20ms per generate call.
+No embeddings, no Gemini calls — pure Python scoring over a SQL result plus
+one batched video_corpus lookup for topic text. Fast enough at the 10K+
+corpus target: ~1K rows per niche × 6 shots per script ≈ <40ms per call.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -57,6 +71,9 @@ logger = logging.getLogger(__name__)
 # ── Scoring weights ─────────────────────────────────────────────────
 
 _WEIGHT_HOOK_TYPE = 40
+_PENALTY_HOOK_MISMATCH = -25
+_WEIGHT_TOPIC = 20
+_WEIGHT_TOPIC_STRONG = 28
 _WEIGHT_FRAMING = 15
 _WEIGHT_PACE = 15
 _WEIGHT_OVERLAY = 10
@@ -64,14 +81,18 @@ _WEIGHT_SUBJECT = 10
 _WEIGHT_MOTION = 5
 _WEIGHT_SCENE_TYPE_FALLBACK = 10
 
-_DEFAULT_MIN_SCORE = 15
+_DEFAULT_MIN_SCORE = 25
 _DEFAULT_LIMIT = 3
 _MAX_CANDIDATES_PER_NICHE = 1000
+# Cap the video_corpus topic-text lookup to the strongest mechanics
+# candidates so the extra query stays one IN(...) of bounded size.
+_MAX_TOPIC_LOOKUP_VIDEOS = 40
 
 # Vietnamese labels for the match_signal chip. Shown to the creator as
 # the "why this reference" caption under each reference card.
 _VN_LABELS: dict[str, str] = {
     "niche": "ngách",
+    "topic": "chủ đề",
     "hook": "hook",
     "framing": "khung hình",
     "pace": "nhịp",
@@ -80,6 +101,27 @@ _VN_LABELS: dict[str, str] = {
     "motion": "chuyển động",
     "scene_type": "loại cảnh",
 }
+
+# Minimal Vietnamese stopword set for topic-token overlap. Deliberately
+# small: false negatives (missing a stopword) only cost a slightly
+# generous +20; false positives (treating a content word as stopword)
+# would silently kill real topic matches.
+_TOPIC_STOPWORDS = frozenset({
+    "anh", "bạn", "bị", "cách", "cái", "cho", "chưa", "có", "của", "cũng",
+    "đã", "đang", "đây", "để", "điều", "đó", "được", "em", "gì", "hay",
+    "hơn", "khi", "không", "là", "làm", "lại", "lên", "mà", "mình", "muốn",
+    "này", "ngay", "người", "nhé", "như", "nhưng", "những", "nếu", "phải",
+    "ra", "rất", "rồi", "sao", "sau", "sẽ", "thì", "trong", "và", "vẫn",
+    "việc", "với", "vì", "xem", "the", "and", "for", "you", "với",
+})
+
+
+def _topic_tokens(text: str | None) -> set[str]:
+    """Lowercased content tokens (len ≥ 2, stopwords removed) for overlap."""
+    if not text:
+        return set()
+    raw = re.split(r"[^0-9a-zA-ZÀ-ỹ]+", str(text).lower())
+    return {t for t in raw if len(t) >= 2 and t not in _TOPIC_STOPWORDS}
 
 
 @dataclass
@@ -122,10 +164,15 @@ def _score_shot(
     score = 0
     matched: list[str] = []
 
-    # hook_type (strongest signal)
-    if hook_type and shot.get("hook_type") and hook_type == shot["hook_type"]:
-        score += _WEIGHT_HOOK_TYPE
-        matched.append("hook")
+    # hook_type (strongest signal). A MISMATCH when both sides are set is
+    # actively penalised — the scene grammar of a different hook intent
+    # misleads the creator even when the camera mechanics line up.
+    if hook_type and shot.get("hook_type"):
+        if hook_type == shot["hook_type"]:
+            score += _WEIGHT_HOOK_TYPE
+            matched.append("hook")
+        else:
+            score += _PENALTY_HOOK_MISMATCH
 
     # Per-dimension exact-match scoring. Only counts when BOTH sides
     # are non-null — a NULL on either side is "unknown", not "no match".
@@ -176,11 +223,46 @@ def _tiebreaker_key(ref: ShotReference) -> tuple[int, int, str]:
 
 
 def _match_label_vn(signals: list[str]) -> str:
-    """Build a human-readable VN chip: "Cùng ngách, hook, khung hình"."""
+    """Build a human-readable VN chip: "Cùng chủ đề, hook, khung hình".
+
+    Label honesty (quality audit 2026-06-11): "ngách" is only shown when
+    the topic ALSO matched — a coarse legacy niche_id bucket spans makeup,
+    skincare and gossip, so claiming "Cùng ngách" on a mechanics-only match
+    overstated subject affinity. Mechanics-only matches now read as what
+    they are ("Cùng nhịp, khung hình").
+    """
     if not signals:
         return ""
-    parts = [_VN_LABELS.get(s, s) for s in signals]
+    shown = signals if "topic" in signals else [s for s in signals if s != "niche"]
+    if not shown:
+        return ""
+    parts = [_VN_LABELS.get(s, s) for s in shown]
     return "Cùng " + ", ".join(parts)
+
+
+def _fetch_topic_texts_sync(
+    client: Any, video_ids: list[str],
+) -> dict[str, str]:
+    """caption + subject_matter per video_id for topic-overlap scoring."""
+    if not video_ids:
+        return {}
+    res = (
+        client.table("video_corpus")
+        .select("video_id,caption,analysis_json")
+        .in_("video_id", video_ids)
+        .execute()
+    )
+    out: dict[str, str] = {}
+    for row in res.data or []:
+        vid = str(row.get("video_id") or "")
+        if not vid:
+            continue
+        analysis = row.get("analysis_json") if isinstance(row.get("analysis_json"), dict) else {}
+        cc = analysis.get("content_context") if isinstance(analysis.get("content_context"), dict) else {}
+        subject = str(cc.get("subject_matter") or "")
+        caption = str(row.get("caption") or "")
+        out[vid] = f"{caption} {subject}".strip()
+    return out
 
 
 def _fetch_niche_shots_sync(
@@ -221,6 +303,7 @@ def pick_shot_references(
     *,
     niche_id: int,
     hook_type: str | None = None,
+    topic_text: str | None = None,
     limit: int = _DEFAULT_LIMIT,
     min_score: int = _DEFAULT_MIN_SCORE,
     exclude_video_ids: set[str] | None = None,
@@ -231,15 +314,21 @@ def pick_shot_references(
     ``niche_id`` is a HARD FILTER — cross-niche references would confuse
     the creator ("this is a cooking reference on my fitness script").
 
-    ``hook_type`` is optional: when both the script's hook_type and the
-    shot's hook_type are set and match, it's +40 toward score. NULL on
-    either side skips the bonus (no penalty).
+    ``hook_type`` is optional: match is +40, an explicit MISMATCH (both
+    sides set, different) is −25. NULL on either side is neutral.
+
+    ``topic_text`` (script topic + hook sentence) drives subject-affinity
+    scoring against each candidate video's caption + subject_matter:
+    +20 for ≥1 shared content token, +28 for ≥2. Without it, references
+    can only match on camera mechanics.
 
     ``exclude_video_ids`` lets the caller de-dupe across shots within
     one script — if shot 1 surfaces ``v_abc``, shot 2 should show a
     different creator.
 
-    Returns ``[]`` on DB error or empty niche — never raises.
+    Returns ``[]`` on DB error or empty niche — never raises. An empty
+    result is intentional when nothing clears ``min_score``: a
+    topic-mismatched reference costs more trust than no reference.
     """
     if not isinstance(niche_id, int):
         return []
@@ -255,12 +344,45 @@ def pick_shot_references(
         )
         return []
 
-    scored: list[ShotReference] = []
+    # Phase 1 — mechanics score per shot (cheap, in-memory).
+    mech: list[tuple[int, list[str], dict[str, Any]]] = []
     for shot in candidates:
         vid = shot.get("video_id")
         if not vid or vid in excluded:
             continue
-        score, matched = _score_shot(shot, shot_descriptor, hook_type)
+        m_score, m_matched = _score_shot(shot, shot_descriptor, hook_type)
+        mech.append((m_score, m_matched, shot))
+
+    # Phase 2 — topic-overlap bonus for the strongest mechanics candidates.
+    # One batched IN(...) lookup; failure degrades to mechanics-only.
+    topic_by_vid: dict[str, set[str]] = {}
+    want_tokens = _topic_tokens(topic_text)
+    if want_tokens and mech:
+        mech.sort(key=lambda t: -t[0])
+        lookup_ids: list[str] = []
+        seen_ids: set[str] = set()
+        for _, _, shot in mech:
+            vid = str(shot.get("video_id"))
+            if vid not in seen_ids:
+                seen_ids.add(vid)
+                lookup_ids.append(vid)
+            if len(lookup_ids) >= _MAX_TOPIC_LOOKUP_VIDEOS:
+                break
+        try:
+            texts = _fetch_topic_texts_sync(client, lookup_ids)
+            topic_by_vid = {vid: _topic_tokens(txt) for vid, txt in texts.items()}
+        except Exception as exc:
+            logger.warning("[shot_ref] topic lookup failed: %s", exc)
+
+    scored: list[ShotReference] = []
+    for m_score, m_matched, shot in mech:
+        vid = str(shot.get("video_id"))
+        score = m_score
+        matched = list(m_matched)
+        overlap = want_tokens & topic_by_vid.get(vid, set())
+        if overlap:
+            score += _WEIGHT_TOPIC_STRONG if len(overlap) >= 2 else _WEIGHT_TOPIC
+            matched.insert(0, "topic")
         if score < min_score:
             continue
         signals = ["niche", *matched]
