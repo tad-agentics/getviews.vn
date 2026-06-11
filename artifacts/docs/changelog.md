@@ -1,5 +1,14 @@
 # Changelog — GetViews.vn
 
+## 2026-06-11 — Lightreel analysis upgrades (prompts, de-bias, P3, salience)
+
+- **Channel memo:** archetype labels + pattern-lock rule + causal verdict + next_video anti-repeat; `<<<RECENT CONTENT AUDIT>>>` (deterministic feature counts, zero new Gemini calls); `ugc_vs_channel` brand-UGC section (ED keyword search, `BRAND_UGC_SEARCH_ENABLED` default off).
+- **Tier de-bias:** new `early` tier (age <3d guard); 3-mode error extraction (`average` mode — no fabricated errors for measured-average videos); V6 anti-bias rules; FE chip shows benchmark ratio instead of HIT/FLOP badge, gated on benchmark n≥10.
+- **Script generate:** reference-rhythm block from top `video_shots` video; per-shot `reason_vi`; deterministic `format_rationale` payload + FE rendering; over-long `reason_vi` clamps instead of nuking the Gemini response.
+- **V6 video prompt:** mechanism-with-timestamp headline, archetype + keep-rule, niche_pattern pattern-lock, next_video GIỮ/ĐỔI + reference-rhythm mirror, second-level evidence citations.
+- **Salience structure:** manifest semantics taught to the LLM (findings track top-salience signals via signal_id anchors); salience-aware 7-section cap; commerce/boost_attribution classified; depth-tier fossils removed.
+- Commits `108e106..71551fd` (branch `claude/tender-meitner-9vk2h2`, merged to main). Reference: `artifacts/docs/lightreel-prompt-reverse-engineering.md`.
+
 ## 2026-06-11 — Remove basic/deep analysis tiers (single quality)
 
 - **Product:** No user-facing Cơ bản/Chuyên sâu or channel nhanh/sâu. Video primary always **2 credits** (full report). Channel diagnosis always **3 credits**. Legacy `?depth=` ignored in handoff parse.

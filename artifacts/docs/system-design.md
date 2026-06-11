@@ -758,6 +758,15 @@ Admin panel tile (`/app/admin`) shows 7-day failure count + top-10 video_ids. Sp
 
 **Video diagnosis (Wave 4 — separate from channel memo):** live **`boost_attribution`** section (F1 `analysis_depth=deep` only) via `signals/distribution.py` + `classify_boost_suspect`; Win W0 remainder + P0 flop signals in `signals/win.py`, `hook.py`, `reference.py`.
 
+### 2026-06-11 Lightreel upgrades (channel memo + video diagnosis)
+
+- **Channel memo prompt contract:** coined archetype labels (reused in recommendations), bold pattern-lock threshold rule (≥3 cited tiles, round number below min cited views), causal verdict tied to `<<<INFLECTION POINT>>>` (rules out the algorithm excuse), anti-repeat clause in `next_video`.
+- **`<<<RECENT CONTENT AUDIT>>>` (P3.9):** deterministic face/hook/overlay/audio-role counts + with/without-face view averages over the handle's analysed `video_corpus` rows (rides `fetch_handle_corpus_for_findings`, ≥3 analysed rows required, zero new Gemini calls). Also threaded into video diagnosis via `channel_context.recent_content_audit` (`fetch_channel_context_sync`).
+- **`ugc_vs_channel` section (P3.10):** brand-mention UGC via one ED keyword search (`fetch_brand_ugc_videos`; caption must mention brand term, ≥1.5× channel recent avg). Gated by **`BRAND_UGC_SEARCH_ENABLED` (default off)**. Creator tiles persist on the section row itself — cache replay re-emits `section.embedded_creators`.
+- **Performance tier de-bias:** tier values now `hit | average | flop | early | unknown` — `early` = age <3 days with sub-2× ratio (views still accumulating; ≥2× concludes hit even early). Error extraction is three-mode (`win | flop | average`): measured-average videos get a balanced prompt with empty error list allowed; the fabricated `ERR_fallback_extraction` is flop-only. Synthesis receives `views_vs_avg_ratio` + `video_age_days`; V6 anti-bias rules (tier = outcome to explain; hits must name an improvement; near-boundary soft framing). FE chip shows the ratio (`0.3× TB FORMAT`) via payload `tier_ratio` / `tier_benchmark_n` (verdict suppressed when benchmark n<10; `MỚI ĐĂNG` for early).
+- **V6 generative contract:** mechanism-with-timestamp headline, coined archetype + keep-one-element rule in diagnosis, pattern-lock verdict over cited reference tiles in `niche_pattern`, GIỮ/ĐỔI + reference-rhythm mirror in `next_video`.
+- **Salience structure:** prompt explains salience and requires findings to track each section's top-salience signals (`signal_id` anchors); the 7-section cap fills non-priority slots by max signal salience (display order = render order only); `commerce` issue-based / `boost_attribution` non-issue in the findings taxonomy. Gate semantics are intentionally split: tile-driven sections gate on evidence presence, signal-driven sections on salience threshold.
+
 ### Trajectory classification
 
 Backend classifies the channel into one of 6 `TrajectoryShape` values before LLM synthesis:
