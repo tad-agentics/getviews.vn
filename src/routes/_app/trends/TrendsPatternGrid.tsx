@@ -30,7 +30,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
   return (
     <section aria-label="Công thức từ video view cao trong ngách" className="mb-14">
       {/* Header */}
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+      <div className="mb-4">
         <div className="min-w-0">
           <p className="gv-mono mb-1 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
             Phần I — Công thức Hook
@@ -38,10 +38,10 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
           <h2 className="gv-tight m-0 text-[clamp(22px,2.5vw,28px)] font-semibold tracking-[-0.02em] text-[color:var(--gv-ink)]">
             Công thức từ video thịnh hành trong ngách
           </h2>
+          <p className="gv-mono mt-1.5 text-[11px] leading-snug tracking-[0.06em] text-[color:var(--gv-ink-3)]">
+            Bấm vào thẻ để xem kịch bản chi tiết.
+          </p>
         </div>
-        <p className="gv-mono shrink-0 whitespace-nowrap text-right text-[11px] leading-snug tracking-[0.06em] text-[color:var(--gv-ink-3)]">
-          Bấm vào thẻ để xem kịch bản chi tiết.
-        </p>
       </div>
 
       {/* Grid */}
