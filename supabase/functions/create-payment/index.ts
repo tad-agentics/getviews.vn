@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { z } from "https://esm.sh/zod@3.24.2";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { payosOrderDescription, signPaymentLinkRequest } from "../_shared/payos-signature.ts";
 
 const PlanSchema = z.enum([
   "starter_monthly",
@@ -98,6 +99,7 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const payosClientId = Deno.env.get("PAYOS_CLIENT_ID");
   const payosApiKey = Deno.env.get("PAYOS_API_KEY");
+  const payosChecksumKey = Deno.env.get("PAYOS_CHECKSUM_KEY");
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
@@ -132,7 +134,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { plan, payment_method } = parsed.data;
+    const { plan } = parsed.data;
     const cfg = PLAN_CONFIG[plan];
     const orderCode = Date.now();
     const starts = new Date();
@@ -142,7 +144,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SITE_URL") ?? Deno.env.get("PUBLIC_APP_URL") ?? "https://getviews.vn";
     const siteUrl = siteBase.replace(/\/$/, "");
 
-    if (!payosClientId || !payosApiKey) {
+    if (!payosClientId || !payosApiKey || !payosChecksumKey) {
       return new Response(
         JSON.stringify({
           error: { code: "SERVER_ERROR", message: "PayOS not configured" },
@@ -165,9 +167,21 @@ Deno.serve(async (req) => {
       status: "pending",
     });
 
-    if (subErr) throw subErr;
+    if (subErr) {
+      console.error("subscriptions insert failed", subErr);
+      throw subErr;
+    }
 
-    const description = `GetViews ${plan} · ${payment_method}`;
+    const cancelUrl = `${siteUrl}/app/settings?section=billing&pricing=1`;
+    const returnUrl = `${siteUrl}/app/payment-success`;
+    const description = payosOrderDescription(plan);
+    const signature = await signPaymentLinkRequest(payosChecksumKey, {
+      orderCode,
+      amount: cfg.amount_vnd,
+      description,
+      cancelUrl,
+      returnUrl,
+    });
 
     const payosRes = await fetch("https://api-merchant.payos.vn/v2/payment-requests", {
       method: "POST",
@@ -180,15 +194,22 @@ Deno.serve(async (req) => {
         orderCode,
         amount: cfg.amount_vnd,
         description,
-        cancelUrl: `${siteUrl}/app/pricing`,
-        returnUrl: `${siteUrl}/app/payment-success`,
+        cancelUrl,
+        returnUrl,
+        signature,
       }),
     });
 
     const payosJson = (await payosRes.json()) as Record<string, unknown>;
     if (!payosRes.ok) {
       console.error("PayOS error", payosJson);
-      throw new Error("payos_create_failed");
+      const payosMsg =
+        typeof payosJson.desc === "string"
+          ? payosJson.desc
+          : typeof payosJson.message === "string"
+            ? payosJson.message
+            : "payos_create_failed";
+      throw new Error(payosMsg);
     }
 
     const data = payosJson.data as Record<string, unknown> | undefined;
