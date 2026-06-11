@@ -152,7 +152,7 @@ def _sample_contexts() -> list[dict]:
 def _mean_signals_per_emitted_section(ctx: dict, *, depth: str) -> float:
     manifest = build_signal_manifest(ctx)
     sections = select_sections_to_emit(manifest, ctx, depth=depth)
-    trimmed = manifest_for_prompt(manifest, depth=depth)
+    trimmed = manifest_for_prompt(manifest)
     if not sections:
         return 0.0
     counts = [len(trimmed.get(sid, [])) for sid in sections]

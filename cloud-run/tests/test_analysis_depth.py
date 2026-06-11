@@ -76,7 +76,7 @@ def test_manifest_for_prompt_deep_cap() -> None:
             for i in range(6)
         ]
     }
-    deep_trim = manifest_for_prompt(manifest, depth="deep")
+    deep_trim = manifest_for_prompt(manifest)
     assert len(deep_trim["diagnosis"]) == 5
 
 

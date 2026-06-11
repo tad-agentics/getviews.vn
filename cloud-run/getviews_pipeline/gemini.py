@@ -1557,7 +1557,7 @@ def _synthesize_diagnosis_v6_section_pool(
         depth=depth,
         video_id=str(user_stats.get("video_id") or "") or None,
     )
-    manifest_trim = manifest_for_prompt(manifest, depth=depth)
+    manifest_trim = manifest_for_prompt(manifest)
 
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
     sys_inst = build_voice_domain_system_instruction(include_diagnosis_examples=True)

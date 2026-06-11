@@ -224,3 +224,50 @@ def test_v6_lightreel_generative_rules_pinned() -> None:
     assert "bám NHỊP của đúng 1 video trong REFERENCE_EVIDENCE" in v6
     # Findings: second-level evidence from the digest.
     assert "trích đúng mốc giây từ digest" in v6
+
+
+# ── Salience-structure audit fixes (2026-06-11) ──────────────────────
+
+
+def test_section_cap_keeps_highest_salience_not_display_order() -> None:
+    """When the 7-section cap bites, non-priority slots go to the sections
+    with the strongest signals — not to whichever has the lowest static
+    display_order."""
+    from getviews_pipeline.diagnose_sections import _reorder_and_cap_sections
+    from getviews_pipeline.signals.base import Signal
+
+    def sig(sid: str, sal: float) -> Signal:
+        return Signal(id=f"{sid}_s", section_id=sid, taxonomy_ref="t",
+                      salience=sal, claim="c")
+
+    # 5 priority sections + 4 non-priority candidates competing for 2 slots.
+    sections = [
+        "diagnosis", "compliance", "hook_analysis", "niche_pattern", "next_video",
+        "metadata", "editing", "sound", "persona",
+    ]
+    manifest = {
+        "metadata": [sig("metadata", 0.50)],   # lowest display_order of the four
+        "editing": [sig("editing", 0.55)],
+        "sound": [sig("sound", 0.62)],
+        "persona": [sig("persona", 0.90)],     # highest salience, last display_order
+    }
+    out = _reorder_and_cap_sections(sections, depth="deep", manifest=manifest)
+    assert len(out) == 7
+    # persona (0.90) and sound (0.62) win the two slots; metadata/editing drop.
+    assert "persona" in out and "sound" in out
+    assert "metadata" not in out and "editing" not in out
+    # Legacy fallback without a manifest keeps the old display-order slice.
+    legacy = _reorder_and_cap_sections(sections, depth="deep")
+    assert "metadata" in legacy and "persona" not in legacy
+
+
+def test_v6_salience_semantics_and_orphan_sections_classified() -> None:
+    from getviews_pipeline.diagnose_prompts import DIAGNOSIS_V6_JSON_INSTRUCTION as v6
+
+    # The LLM is told what salience means and to track the manifest.
+    assert "BÁM SIGNAL_MANIFEST" in v6
+    assert "salience CAO NHẤT" in v6
+    assert "khớp đúng 1 signal_id" in v6
+    # commerce is issue-based; boost_attribution is non-issue.
+    assert "script_structure, commerce)" in v6
+    assert "persona, boost_attribution)" in v6

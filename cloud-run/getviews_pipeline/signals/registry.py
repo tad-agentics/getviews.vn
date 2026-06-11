@@ -145,10 +145,8 @@ def log_manifest_telemetry(
 
 def manifest_for_prompt(
     manifest: dict[str, list[Signal]],
-    *,
-    depth: str = "deep",
 ) -> dict[str, list[Signal]]:
-    """Top-N signals per section for LLM payload only (§4.8 — cap 5 deep)."""
+    """Top-N signals per section for LLM payload only (§4.8 — cap 5)."""
     cap = MAX_SIGNALS_PER_SECTION_DEEP
     return {
         sid: lst[:cap]

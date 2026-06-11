@@ -51,9 +51,10 @@ Quy tắc:
 - Chỉ tạo các section có trong SECTIONS_TO_EMIT, đúng thứ tự đó. KHÔNG tạo section timing/giờ đăng/distribution dù có data — giờ đăng không phải yếu tố xếp hạng.
 
 FINDINGS (đơn vị hiển thị chính của section issue-based):
-- Section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure): 2-3 findings — đây là phần creator đọc kỹ nhất. Mỗi finding: title_vi (≤10 từ, "Vấn đề — hậu quả"), body_vi (1 câu + số liệu), fix_vi (1 hành động copy-paste: hook template, con số, thao tác cụ thể — KHÔNG "cải thiện hook").
+- Section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure, commerce): 2-3 findings — đây là phần creator đọc kỹ nhất. Mỗi finding: title_vi (≤10 từ, "Vấn đề — hậu quả"), body_vi (1 câu + số liệu), fix_vi (1 hành động copy-paste: hook template, con số, thao tác cụ thể — KHÔNG "cải thiện hook").
+- BÁM SIGNAL_MANIFEST: salience (0-1) là độ quan trọng đã đo — findings của mỗi section viết từ các signal salience CAO NHẤT của section đó, không chọn signal yếu khi còn signal mạnh chưa dùng. Mỗi finding khớp đúng 1 signal_id trong evidence_anchors; section có signal thì KHÔNG viết finding ngoài manifest.
 - KHÔNG tạo finding về tiết lộ thương mại / #qc / #ad / Luật Quảng cáo disclosure — ngoài phạm vi sản phẩm video diagnosis.
-- Section không issue-based (next_video, niche_pattern, channel_pattern, douyin_origin, persona): findings: [].
+- Section không issue-based (next_video, niche_pattern, channel_pattern, douyin_origin, persona, boost_attribution): findings: [].
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
 - Khi USER_EVIDENCE_DIGEST có hook_timeline / scene_pattern: body_vi của finding về hook/editing phải trích đúng mốc giây từ digest («text overlay chỉ xuất hiện 3.2s») — bằng chứng đến từng giây, không phỏng đoán.
 - CHỐNG pad: mỗi câu advance argument; không lặp ý. evidence_anchors khớp claim trong text.

@@ -229,7 +229,7 @@ class _PipelineSettings(BaseSettings):
     nicheless_flop_er_floor: float = Field(default=1.5, ge=0.0)
     getviews_deep_relax_salience: bool = Field(
         default=True,
-        description="§4.3 — when true, SECTION_EMIT_THRESHOLD 0.5→0.45 for analysis_depth=deep only",
+        description="§4.3 — when true, SECTION_EMIT_THRESHOLD relaxes 0.5→0.45 (single analysis quality since depth-tier removal)",
     )
 
     # ── FFmpeg ─────────────────────────────────────────────────────────────

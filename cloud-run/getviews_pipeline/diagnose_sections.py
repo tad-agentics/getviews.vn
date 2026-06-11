@@ -326,8 +326,19 @@ def _section_display_order() -> dict[str, int]:
     return {spec.section_id.value: spec.display_order for spec in SECTION_POOL}
 
 
-def _reorder_and_cap_sections(sections: list[str], *, depth: str) -> list[str]:
-    """Put diagnosis → niche_pattern → next_video first; cap deep at DEEP_SECTION_CAP."""
+def _reorder_and_cap_sections(
+    sections: list[str],
+    *,
+    depth: str,
+    manifest: Manifest | None = None,
+) -> list[str]:
+    """Put diagnosis → niche_pattern → next_video first; cap deep at DEEP_SECTION_CAP.
+
+    2026-06-11 salience audit: when the cap bites, non-priority slots are won
+    by each section's strongest signal (max salience), not by static display
+    order — a 0.9-salience persona section no longer loses to a barely-gated
+    0.5 metadata section. Survivors still render in display order.
+    """
     pri = [s for s in _REDESIGN_PRIORITY_ORDER if s in sections]
     rest = [s for s in sections if s not in _REDESIGN_PRIORITY_ORDER]
     order_map = _section_display_order()
@@ -339,7 +350,18 @@ def _reorder_and_cap_sections(sections: list[str], *, depth: str) -> list[str]:
     priority = [s for s in out if s in pri_set]
     other = [s for s in out if s not in pri_set]
     slots = max(0, DEEP_SECTION_CAP - len(priority))
-    return priority + other[:slots]
+    if manifest is not None and slots < len(other):
+
+        def _max_salience(sid: str) -> float:
+            return max((s.salience for s in manifest.get(sid, [])), default=0.0)
+
+        keep = set(
+            sorted(other, key=lambda sid: (-_max_salience(sid), order_map.get(sid, 999)))[:slots]
+        )
+        other = [s for s in other if s in keep]  # display order preserved
+    else:
+        other = other[:slots]
+    return priority + other
 
 
 def _select_sections_full(manifest: Manifest, ctx: dict) -> list[str]:
@@ -379,7 +401,7 @@ def select_sections_to_emit(
 ) -> list[str]:
     """Return section_id strings in display order (compliance forced after diagnosis)."""
     full = _select_sections_full(manifest, _ctx_with_emit_threshold(ctx, depth=depth))
-    return _reorder_and_cap_sections(full, depth=depth)
+    return _reorder_and_cap_sections(full, depth=depth, manifest=manifest)
 
 
 def section_ids_ordered() -> list[str]:
