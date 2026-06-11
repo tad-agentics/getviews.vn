@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowRight, Play, X } from "lucide-react";
 
@@ -15,6 +15,7 @@ import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
+import { applyPatternThumbFailure } from "@/lib/patternDisplayVideos";
 import { scriptPrefillFromPattern } from "@/lib/scriptPrefill";
 import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
 
@@ -76,25 +77,19 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
     () => pattern.videos,
   );
   const [activeIdx, setActiveIdx] = useState(0);
+  const failedThumbIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
+    failedThumbIdsRef.current = new Set();
     setSwitcherVideos(pattern.videos);
     setActiveIdx(0);
   }, [pattern.id, pattern.videos]);
 
   const promoteOnThumbFail = useCallback(
     (videoId: string) => {
-      setSwitcherVideos((prev) => {
-        const shown = new Set(prev.map((row) => row.video_id));
-        const replacement = pool.find(
-          (row) => row.video_id !== videoId && !shown.has(row.video_id),
-        );
-        if (!replacement) {
-          const next = prev.filter((row) => row.video_id !== videoId);
-          return next.length > 0 ? next : prev;
-        }
-        return prev.map((row) => (row.video_id === videoId ? replacement : row));
-      });
+      setSwitcherVideos((prev) =>
+        applyPatternThumbFailure(prev, videoId, pool, failedThumbIdsRef.current),
+      );
     },
     [pool],
   );

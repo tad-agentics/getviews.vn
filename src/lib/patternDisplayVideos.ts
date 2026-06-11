@@ -30,3 +30,28 @@ export function pickPatternDisplayVideos<T extends PatternThumbRow>(
     pool,
   };
 }
+
+/**
+ * Swap a tile whose thumb failed to load. Tracks ``failedIds`` so we never
+ * ping-pong back to a video that already failed in this strip/modal session.
+ */
+export function applyPatternThumbFailure<T extends PatternThumbRow>(
+  prev: readonly T[],
+  failedVideoId: string,
+  pool: readonly T[],
+  failedIds: Set<string>,
+): T[] {
+  failedIds.add(failedVideoId);
+  const shown = new Set(prev.map((row) => row.video_id));
+  const replacement = pool.find(
+    (row) =>
+      row.video_id !== failedVideoId &&
+      !shown.has(row.video_id) &&
+      !failedIds.has(row.video_id),
+  );
+  if (!replacement) {
+    const next = prev.filter((row) => row.video_id !== failedVideoId);
+    return next.length > 0 ? [...next] : [...prev];
+  }
+  return prev.map((row) => (row.video_id === failedVideoId ? replacement : row));
+}

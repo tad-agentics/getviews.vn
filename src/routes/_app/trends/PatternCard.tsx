@@ -1,10 +1,11 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 
 import { CarouselBadge } from "@/components/CarouselBadge";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
+import { applyPatternThumbFailure } from "@/lib/patternDisplayVideos";
 import { logUsage } from "@/lib/logUsage";
 import { ChannelQuickPeekTeaser } from "./components/ChannelQuickPeekTeaser";
 
@@ -169,24 +170,18 @@ function CollageStrip({
   pool: ReadonlyArray<PatternVideo>;
 }) {
   const [cells, setCells] = useState(() => videos.slice(0, 4));
+  const failedThumbIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
+    failedThumbIdsRef.current = new Set();
     setCells(videos.slice(0, 4));
   }, [videos]);
 
   const handleTileFailed = useCallback(
     (videoId: string) => {
-      setCells((prev) => {
-        const shown = new Set(prev.map((cell) => cell.video_id));
-        const replacement = pool.find(
-          (row) => row.video_id !== videoId && !shown.has(row.video_id),
-        );
-        if (!replacement) {
-          const next = prev.filter((cell) => cell.video_id !== videoId);
-          return next.length > 0 ? next : prev;
-        }
-        return prev.map((cell) => (cell.video_id === videoId ? replacement : cell));
-      });
+      setCells((prev) =>
+        applyPatternThumbFailure(prev, videoId, pool, failedThumbIdsRef.current),
+      );
     },
     [pool],
   );
@@ -226,6 +221,12 @@ function CollageTile({
   cell: PatternVideo;
   onThumbFailed: () => void;
 }) {
+  const thumbFailedReportedRef = useRef(false);
+
+  useEffect(() => {
+    thumbFailedReportedRef.current = false;
+  }, [cell.video_id]);
+
   const handleLabel = (cell.creator_handle ?? "").startsWith("@")
     ? cell.creator_handle
     : cell.creator_handle
@@ -238,7 +239,11 @@ function CollageTile({
         videoId={cell.video_id}
         className="absolute inset-0 h-full w-full"
         placeholderClassName="bg-[color:var(--gv-canvas-2)]"
-        onAllCandidatesFailed={onThumbFailed}
+        onAllCandidatesFailed={() => {
+          if (thumbFailedReportedRef.current) return;
+          thumbFailedReportedRef.current = true;
+          onThumbFailed();
+        }}
       />
       <div
         className="absolute inset-0"

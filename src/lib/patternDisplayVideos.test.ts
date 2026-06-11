@@ -4,7 +4,7 @@ vi.mock("@/lib/env", () => ({
   env: { VITE_R2_PUBLIC_URL: "https://media.getviews.vn" },
 }));
 
-import { pickPatternDisplayVideos } from "./patternDisplayVideos";
+import { applyPatternThumbFailure, pickPatternDisplayVideos } from "./patternDisplayVideos";
 
 const r2 = (id: string) => `https://media.getviews.vn/thumbnails/${id}.webp`;
 
@@ -18,6 +18,23 @@ describe("pickPatternDisplayVideos", () => {
     ]);
     expect(pool.map((v) => v.video_id)).toEqual(["d", "c"]);
     expect(display.map((v) => v.video_id)).toEqual(["d", "c"]);
+  });
+
+  it("does not ping-pong between two failed thumbs in the same strip", () => {
+    const row = (id: string, views: number) => ({
+      video_id: id,
+      thumbnail_url: r2(id),
+      views,
+    });
+    const pool = [row("a", 400), row("b", 300), row("c", 200), row("d", 100)];
+    const failedIds = new Set<string>();
+    let cells = pool.slice(0, 4);
+
+    cells = applyPatternThumbFailure(cells, "b", pool, failedIds);
+    expect(cells.map((v) => v.video_id)).not.toContain("b");
+
+    const afterSecond = applyPatternThumbFailure(cells, cells[0]!.video_id, pool, failedIds);
+    expect(afterSecond.map((v) => v.video_id)).not.toContain("b");
   });
 
   it("caps display at four while pool keeps all stable rows", () => {
