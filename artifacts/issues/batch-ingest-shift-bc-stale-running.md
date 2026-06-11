@@ -2,7 +2,7 @@
 
 **Opened:** 2026-05-27  
 **Severity:** Medium (observability + partial nightly coverage)  
-**Status:** Mitigated (rows closed manually); fix deferred
+**Status:** Fix shipped 2026-06-10 — stale sweeper cron + shift C inline post-processing removed
 
 ## Symptom
 
@@ -50,6 +50,7 @@ Production batch pod has `CORPUS_INGEST_USE_GEMINI_BATCH=true`. Gemini Batch API
 
 ## Acceptance criteria for code fix
 
-- [ ] No `batch/ingest` row remains `running` > 65 minutes after `started_at` without alert
-- [ ] On Cloud Run timeout, row is `failed` with `aborted_early` / `ingest_shift` in summary
-- [ ] Shift B/C nightly: either `ok` with `niche_results` or `failed` with partial summary — never null summary after 60m
+- [x] No `batch/ingest` row remains `running` > 65 minutes — `cron-batch-job-runs-stale-sweeper` every 15m
+- [x] Swept rows are `failed` with `aborted_early` + `swept_stale_running` in summary
+- [x] Shift C no longer runs inline post-processing — `cron-batch-post-processing` only
+- [x] `corpus_ingest_runs` claim wired in `run_batch_ingest` (H-3)

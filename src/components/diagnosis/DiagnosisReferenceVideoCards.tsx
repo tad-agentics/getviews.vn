@@ -20,7 +20,10 @@ function ReferenceVideoCard({ tile }: { tile: DiagnosisReferenceTile }) {
 
   const inner = (
     <article className="flex h-full flex-col rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-      <p className="m-0 flex-1 text-[13px] leading-[1.45] text-[color:var(--gv-ink)]">
+      <p className="gv-kicker m-0 text-[10px] font-semibold tracking-wide text-[color:var(--gv-accent)]">
+        Sao chép cách này
+      </p>
+      <p className="m-0 mt-1.5 flex-1 text-[13px] leading-[1.45] text-[color:var(--gv-ink)]">
         {narrative}
       </p>
       <div className="relative mx-auto mt-3 w-full max-w-[140px] overflow-hidden rounded-lg bg-[color:var(--gv-canvas-2)]">

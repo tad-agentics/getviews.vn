@@ -34,7 +34,6 @@ import {
   DiagnosisSectionRenderer,
   type VideoDiagnosisSectionEmbeds,
 } from "@/components/diagnosis/DiagnosisSectionRenderer";
-import { DiagnosisPostingContextBlock } from "@/components/diagnosis/DiagnosisPostingContextBlock";
 import { CreatorComparisonCard } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopDiagnosisStrip } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
 import { StatsHistoryStrip } from "@/components/v2/answer/video/blocks/StatsHistoryStrip";
@@ -67,7 +66,6 @@ import {
   buildMetadataFallbackProse,
   buildScriptStructureFallbackProse,
   diagnosisSectionText,
-  shouldShowHookAnalysisBlock,
   shouldShowMetadataBlock,
   shouldShowScriptStructureBlock,
 } from "@/lib/videoAdjunctSections";
@@ -146,7 +144,7 @@ function buildVideoScriptHandoffPrompt(
   const issues = d.errors ?? [];
   const winFraming = tierImpliesWinFraming(performanceTier, d.meta);
   const lines = [
-    `Corpus video_id: ${d.video_id}`,
+    `Mã video: ${d.video_id}`,
     ...(watchUrl?.trim() ? [`Link TikTok đã soi: ${watchUrl.trim()}`] : []),
     "",
     winFraming
@@ -211,8 +209,6 @@ export function VideoBody({
     report.bright_spot_signal;
   const viewScenariosEffective: ViewScenario[] | undefined =
     narrativeReady?.view_scenarios ?? report.view_scenarios;
-  const nichePostingContextEffective =
-    narrativeReady?.niche_posting_context ?? report.niche_posting_context ?? null;
   const channelEffective: ChannelContext | undefined =
     channelContext ?? report.channel_context;
   const streamedErrs = narrativeReady?.errors;
@@ -267,7 +263,6 @@ export function VideoBody({
   const renderDeepUpsell = showDeepUpsell && isBasicDepth;
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const hasChannelPattern = sectionIds.has("channel_pattern");
-  const hasDistribution = sectionIds.has("distribution");
   const hasBoostAttribution = sectionIds.has("boost_attribution");
   const adjunctTier = (
     ["hit", "average", "flop", "unknown"] as const
@@ -286,15 +281,6 @@ export function VideoBody({
       embeds.scriptStructure = {
         segments: report.segments!,
         durationSec: duration,
-      };
-    }
-    if (shouldShowHookAnalysisBlock(report)) {
-      embeds.hookAnalysis = {
-        phases: report.hook_phases,
-        timeline: report.hook_timeline,
-        chartCaption: report.hook_phases?.length
-          ? "Ba thẻ theo cửa sổ 0–3s: hình mở, kiểu hook, chỗ lời/kết nối sớm — tóm tắt từ cùng luồng phân tích hình."
-          : undefined,
       };
     }
     if (shouldShowMetadataBlock(meta, report.enrichment)) {
@@ -395,7 +381,7 @@ export function VideoBody({
     navigate("/app/answer", {
       state: {
         initialPrompt: [
-          `Corpus video_id: ${report.video_id}`,
+          `Mã video: ${report.video_id}`,
           "",
           "Áp lesson từ video đang nổ trên Getviews:",
           `**${lesson.title}**`,
@@ -612,9 +598,6 @@ export function VideoBody({
                     section={sec}
                     referenceVideos={refVideos}
                     evidenceAnchors={narrativeVi?.diagnosis_vi?.evidence_anchors}
-                    postingContext={
-                      sid === "distribution" ? nichePostingContextEffective : undefined
-                    }
                     creatorComparison={
                       sid === "channel_pattern" ? report.creator_comparison ?? null : undefined
                     }
@@ -648,12 +631,6 @@ export function VideoBody({
                               : undefined
                     }
                   />
-                  {sid === "distribution" && showStatsHistoryStrip ? (
-                    <StatsHistoryStrip
-                      history={meta.stats_history}
-                      distributionShape={meta.distribution_shape}
-                    />
-                  ) : null}
                   {sid === "boost_attribution" ? (
                     <BoostAttributionBlock
                       attribution={meta.boost_attribution}
@@ -667,13 +644,7 @@ export function VideoBody({
           </div>
         ) : null}
 
-        {diagnosisSections.length > 0 &&
-        nichePostingContextEffective &&
-        !hasDistribution ? (
-          <DiagnosisPostingContextBlock payload={nichePostingContextEffective} />
-        ) : null}
-
-        {!hasDistribution && showStatsHistoryStrip ? (
+        {diagnosisSections.length > 0 && showStatsHistoryStrip ? (
           <StatsHistoryStrip
             history={meta.stats_history}
             distributionShape={meta.distribution_shape}
@@ -752,26 +723,6 @@ export function VideoBody({
             referenceVideos={refVideos}
             videoEmbeds={videoSectionEmbeds}
             fallbackProse={buildScriptStructureFallbackProse(duration)}
-          />
-        ) : null}
-
-        {!sectionIds.has("hook_analysis") && shouldShowHookAnalysisBlock(report) ? (
-          <DiagnosisSectionRenderer
-            section={{
-              section_id: "hook_analysis",
-              title: adjunctSectionTitle("hook_analysis", undefined, adjunctTier),
-              title_vi: adjunctSectionTitle("hook_analysis", undefined, adjunctTier),
-              text: "",
-              findings: [],
-            }}
-            referenceVideos={refVideos}
-            videoEmbeds={videoSectionEmbeds}
-            fallbackProse={buildHookAnalysisFallbackProse(
-              report.hook_phases,
-              isFlop,
-              narrativeVi,
-              flopIssuesForNarrative,
-            )}
           />
         ) : null}
 

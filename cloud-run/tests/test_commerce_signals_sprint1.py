@@ -35,7 +35,7 @@ def test_organic_no_commerce_intent_emits_no_signals() -> None:
     assert extract_commerce_signals(ctx) == []
 
 
-def test_commerce_intent_commercial_emits_conversion_verbal_and_disclosure() -> None:
+def test_commerce_intent_commercial_emits_conversion_and_verbal_cta() -> None:
     ua = _base_ua()
     ua["commerce_intent"] = {
         "conversion_objective": "affiliate_shopee",
@@ -48,7 +48,7 @@ def test_commerce_intent_commercial_emits_conversion_verbal_and_disclosure() -> 
     ids = [s.id for s in extract_commerce_signals({"user_analysis": ua})]
     assert "commerce_conversion_objective" in ids
     assert "commerce_verbal_cta_missing" in ids
-    assert "commerce_disclosure_missing" in ids
+    assert "commerce_disclosure_missing" not in ids
     assert "commerce_creator_type_inconsistent" not in ids
 
 
@@ -92,11 +92,11 @@ def test_legacy_affiliate_no_commerce_intent_promotion_and_cta_missing() -> None
     assert "commerce_conversion_objective" not in ids
 
 
-def test_legacy_brand_deal_disclosure_branch() -> None:
+def test_legacy_brand_deal_no_disclosure_signal() -> None:
     ua = _base_ua()
     ua["promotion_type"] = "brand_deal"
     ua["cta"] = "Mua ngay"
     ids = [s.id for s in extract_commerce_signals({"user_analysis": ua})]
     assert "commerce_promotion_detected" in ids
-    assert "commerce_disclosure_missing" in ids
+    assert "commerce_disclosure_missing" not in ids
     assert "commerce_cta_missing" not in ids

@@ -561,6 +561,82 @@ def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
         return ""
 
 
+def _apply_studio_session_niche_cohort(
+    out: dict[str, Any],
+    session_niche_id: int | None,
+    *,
+    user_sb: Any | None,
+) -> None:
+    """Pin benchmarks + meta labels to the Studio session niche (legacy taxonomy id)."""
+    pin = int(session_niche_id or 0)
+    if pin <= 0 or user_sb is None:
+        return
+    meta = out.get("meta")
+    if not isinstance(meta, dict):
+        meta = {}
+        out["meta"] = meta
+    prior = int(meta.get("niche_id") or 0)
+    label = _resolve_niche_label(user_sb, pin)
+    meta["niche_id"] = pin
+    if label:
+        meta["niche_label"] = label
+
+    content_format = str(meta.get("content_format") or "").strip()
+    content_class_id: int | None = None
+    if content_format:
+        try:
+            from getviews_pipeline.corpus_ingest import _content_class_for
+
+            content_class_id = _content_class_for(pin, content_format)
+            if content_class_id is not None:
+                meta["content_class_id"] = content_class_id
+        except Exception:
+            content_class_id = meta.get("content_class_id")
+            if content_class_id is not None:
+                try:
+                    content_class_id = int(content_class_id)
+                except (TypeError, ValueError):
+                    content_class_id = None
+    elif meta.get("content_class_id") is not None:
+        try:
+            content_class_id = int(meta["content_class_id"])
+        except (TypeError, ValueError):
+            content_class_id = None
+
+    dur = float(meta.get("duration_sec") or 30.0)
+    try:
+        niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
+            user_sb,
+            niche_id=pin,
+            content_class_id=content_class_id,
+            creator_tier=None,
+        )
+        bench = build_niche_benchmark_payload(
+            niche_intel,
+            niche_id=pin,
+            duration_sec=max(dur, 5.0),
+            user_sb=user_sb,
+            benchmark_axis=benchmark_axis,
+            content_class_id=content_class_id,
+        )
+        if bench.get("niche_meta"):
+            nm = bench["niche_meta"]
+            nm["benchmark_axis"] = benchmark_axis
+            out["niche_meta"] = nm
+        if bench.get("niche_benchmark_curve"):
+            out["niche_benchmark_curve"] = bench["niche_benchmark_curve"]
+    except Exception as exc:
+        logger.warning("[video_analyze] session niche cohort refresh failed: %s", exc)
+
+    if prior != pin:
+        logger.info(
+            "[video_analyze] studio session niche pin %s -> %s video_id=%s",
+            prior or "none",
+            pin,
+            out.get("video_id"),
+        )
+
+
 def _normalise_hook_timeline(raw: Any) -> list[dict[str, Any]]:
     """Expose Gemini hook_timeline for FE ``HookTimelineStrip`` (0–3s window)."""
     if not isinstance(raw, list):
@@ -883,7 +959,7 @@ def resolve_video_id(sb: Any, *, video_id: str | None, tiktok_url: str | None) -
             )
             rows = res.data or []
             if not rows:
-                raise ValueError("Không tìm thấy video trong corpus cho id này")
+                raise ValueError("Không tìm thấy video này trong kho dữ liệu")
             return str(rows[0]["video_id"])
         return vid
     if not tiktok_url or not str(tiktok_url).strip():
@@ -898,7 +974,7 @@ def resolve_video_id(sb: Any, *, video_id: str | None, tiktok_url: str | None) -
     )
     rows = res.data or []
     if not rows:
-        raise ValueError("Không tìm thấy video trong corpus cho URL này")
+        raise ValueError("Không tìm thấy video này trong kho dữ liệu")
     return str(rows[0]["video_id"])
 
 
@@ -1152,7 +1228,8 @@ def _apply_embed_tile_repair_to_out(
         return False
 
     before = int(out.get("embed_contract_version") or 0)
-    tile_n = repair_diagnosis_vi_embedded_tiles(diag, refs)
+    addr = str(out.get("addressing_mode") or "third_party")
+    tile_n = repair_diagnosis_vi_embedded_tiles(diag, refs, addressing_mode=addr)
     out["embed_contract_version"] = EMBED_CONTRACT_VERSION
     out["response_schema_version"] = ON_DEMAND_RESPONSE_SCHEMA_VERSION
     logger.info(
@@ -1397,8 +1474,18 @@ def finalize_video_narrative_layer(
         or out.pop("__fallback_niche_id", 0)
         or 0
     )
-    niche_id_meta = int(meta.get("niche_id") or 0)
-    if (not str(meta.get("niche_label") or "").strip() or niche_id_meta <= 0) and service_sb:
+    if session_fallback > 0 and user_sb is not None:
+        _apply_studio_session_niche_cohort(
+            out, session_fallback, user_sb=user_sb,
+        )
+        meta = out.get("meta") if isinstance(out.get("meta"), dict) else meta
+        niche_meta = (
+            out.get("niche_meta") if isinstance(out.get("niche_meta"), dict) else niche_meta
+        )
+    elif (
+        (not str(meta.get("niche_label") or "").strip() or int(meta.get("niche_id") or 0) <= 0)
+        and service_sb
+    ):
         try:
             from getviews_pipeline.live_niche import resolve_live_niche_id
 
@@ -1419,7 +1506,6 @@ def finalize_video_narrative_layer(
                 )
             )
             if resolved_nid > 0:
-                niche_id_meta = resolved_nid
                 meta["niche_id"] = resolved_nid
                 label_sb = user_sb if user_sb is not None else service_sb
                 niche_label_fixed = _resolve_niche_label(label_sb, resolved_nid)
@@ -1427,10 +1513,6 @@ def finalize_video_narrative_layer(
                     meta["niche_label"] = niche_label_fixed
                     out["meta"] = meta
                 if user_sb is not None:
-                    from getviews_pipeline.video_niche_benchmark import (
-                        fetch_video_benchmark_with_axis,
-                    )
-
                     niche_intel_fix, bench_axis = fetch_video_benchmark_with_axis(
                         user_sb,
                         niche_id=resolved_nid,
@@ -1666,6 +1748,18 @@ def finalize_video_narrative_layer(
     )
     errors_prompt = list(errors)
 
+    from getviews_pipeline.analysis_addressing import (
+        fetch_viewer_tiktok_handle,
+        resolve_video_addressing_mode,
+    )
+
+    viewer_handle = fetch_viewer_tiktok_handle(user_sb, user_id)
+    addressing_mode = resolve_video_addressing_mode(
+        video_creator_handle=creator_handle,
+        viewer_tiktok_handle=viewer_handle,
+    )
+    out["addressing_mode"] = addressing_mode
+
     creator_format_history_block = ""
     if creator_handle:
         _hist = get_creator_format_history_sync(creator_handle, 10)
@@ -1681,40 +1775,6 @@ def finalize_video_narrative_layer(
         enrich_analysis_with_douyin_match(analysis, user_stats, get_service_client())
     except Exception:
         logger.debug("[video_narrative] douyin_match enrich skipped", exc_info=True)
-
-    niche_posting_context_block = ""
-    niche_posting_context_ui: dict[str, Any] | None = None
-    try:
-        _nid_syn = int(meta.get("niche_id") or 0)
-        if _nid_syn > 0:
-            from getviews_pipeline.report_timing_compute import (
-                compute_diagnosis_posting_bundle,
-            )
-            from getviews_pipeline.supabase_client import get_service_client as _gv_svc
-
-            _sb_pc = _gv_svc()
-            _ct_u: int | None = None
-            _ctr = meta.get("create_time")
-            if isinstance(_ctr, (int, float)) and _ctr > 0:
-                _ct_u = int(_ctr)
-            else:
-                for key in ("created_at", "posted_at"):
-                    ts_posted = meta.get(key)
-                    if ts_posted:
-                        try:
-                            dt = datetime.fromisoformat(str(ts_posted).replace("Z", "+00:00"))
-                            _ct_u = int(dt.astimezone(UTC).timestamp())
-                            break
-                        except (TypeError, ValueError, OSError):
-                            pass
-            niche_posting_context_block, niche_posting_context_ui = compute_diagnosis_posting_bundle(
-                _sb_pc,
-                _nid_syn,
-                window_days=14,
-                user_create_time_unix=_ct_u,
-            )
-    except Exception as exc:
-        logger.warning("[video_narrative] niche posting context failed: %s", exc)
 
     diagnosis_md = ""
     narrative_vi_out: dict[str, Any] | None = None
@@ -1738,11 +1798,13 @@ def finalize_video_narrative_layer(
                 if isinstance(out.get("cross_format_signal"), dict)
                 else None
             ),
-            niche_posting_context_block=niche_posting_context_block,
+            niche_posting_context_block="",
             analysis_depth=depth,
             comment_radar=(
                 out.get("comment_radar") if isinstance(out.get("comment_radar"), dict) else None
             ),
+            addressing_mode=addressing_mode,
+            video_creator_handle=creator_handle or None,
         )
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")
@@ -1759,7 +1821,11 @@ def finalize_video_narrative_layer(
         if isinstance(diag_pre, dict):
             from getviews_pipeline.gemini import repair_diagnosis_vi_embedded_tiles
 
-            repair_diagnosis_vi_embedded_tiles(diag_pre, slim_refs)
+            repair_diagnosis_vi_embedded_tiles(
+                diag_pre,
+                slim_refs,
+                addressing_mode=str(out.get("addressing_mode") or "third_party"),
+            )
 
     if narrative_vi_out is not None:
         dur_note = float(meta.get("duration_sec") or user_stats.get("duration_sec") or 0.0)
@@ -1808,11 +1874,6 @@ def finalize_video_narrative_layer(
                     if view_scenarios_computed is not None
                     else {}
                 ),
-                **(
-                    {"niche_posting_context": niche_posting_context_ui}
-                    if niche_posting_context_ui is not None
-                    else {}
-                ),
             },
         )
 
@@ -1829,8 +1890,6 @@ def finalize_video_narrative_layer(
         out["narrative_vi"] = narrative_vi_out
     if format_cards_out is not None:
         out["format_cards"] = format_cards_out
-    if niche_posting_context_ui is not None:
-        out["niche_posting_context"] = niche_posting_context_ui
     if diagnosis_md:
         out["diagnosis"] = diagnosis_md
     # Phase 4.4.6 — stable BE marker so the FE can detect v5 responses
@@ -1867,7 +1926,7 @@ def finalize_video_narrative_layer(
             view_scenarios=view_scenarios_computed,
             channel_context=channel_context_payload,
             reference_videos=out.get("reference_videos"),
-            niche_posting_context=niche_posting_context_ui,
+            niche_posting_context=None,
         )
         try:
             from getviews_pipeline.supabase_client import get_service_client
@@ -1957,6 +2016,7 @@ def run_video_analyze_pipeline(
     mode: Literal["win", "flop"] | None = None,
     step_queue: Any | None = None,
     analysis_depth: str | None = None,
+    session_niche_id: int | None = None,
 ) -> dict[str, Any]:
     """Sync pipeline: read cache, else compute + Gemini + upsert. Returns API dict.
 
@@ -1985,18 +2045,25 @@ def run_video_analyze_pipeline(
 
     video = _fetch_corpus_row(user_sb, vid)
 
-    niche_id = int(video.get("niche_id") or 0)
+    corpus_niche_id = int(video.get("niche_id") or 0)
+    niche_id = (
+        int(session_niche_id)
+        if session_niche_id and int(session_niche_id) > 0
+        else corpus_niche_id
+    )
     # A.2.3 — prefer content_class_intelligence when the corpus row carries
     # content_class_id (PR2-backfilled or freshly classified at ingest) AND
     # the bucket has enough samples. Falls back to niche_intelligence
     # transparently. ``benchmark_axis`` flows into VideoNicheMeta so the
     # FE can label "based on N similar-format videos" vs niche-wide.
     content_class_id = video.get("content_class_id")
-    if content_class_id is None and video.get("content_format") and niche_id:
-        # Defensive: corpus row may pre-date PR2 backfill but we know the
-        # niche × format → derive on the fly so the new path can fire.
+    if video.get("content_format") and niche_id:
         from getviews_pipeline.corpus_ingest import _content_class_for
-        content_class_id = _content_class_for(niche_id, video.get("content_format"))
+
+        if content_class_id is None or (
+            session_niche_id and int(session_niche_id) > 0 and niche_id != corpus_niche_id
+        ):
+            content_class_id = _content_class_for(niche_id, video.get("content_format"))
     if content_class_id is not None:
         video["content_class_id"] = content_class_id
     creator_tier = str(video.get("creator_tier") or "").strip() or None
@@ -2116,6 +2183,8 @@ def run_video_analyze_pipeline(
         # Cache key for finalize_video_narrative_layer's persist step.
         base["__cache_video_id"] = vid
         base["__cache_analysis_depth"] = depth
+        if session_niche_id and int(session_niche_id) > 0:
+            _apply_studio_session_niche_cohort(base, session_niche_id, user_sb=user_sb)
         return _merge_sidecars_into_response(
             base,
             video_id=vid,
@@ -2204,6 +2273,8 @@ def run_video_analyze_pipeline(
     out["__analysis_depth"] = depth
     out["__cache_video_id"] = vid
     out["__cache_analysis_depth"] = depth
+    if session_niche_id and int(session_niche_id) > 0:
+        _apply_studio_session_niche_cohort(out, session_niche_id, user_sb=user_sb)
     return _merge_sidecars_into_response(
         out,
         video_id=vid,

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AppLayout } from "@/components/AppLayout";
@@ -21,6 +22,31 @@ export default function PaymentSuccessScreen() {
   const { data: profile, isPending } = useProfile();
   const remaining = profile?.credits_remaining ?? 0;
   const delta = st?.creditsDelta;
+  const qc = useQueryClient();
+
+  // The PayOS webhook grants credits asynchronously — the user usually lands
+  // here BEFORE the grant commits, and useProfile caches with
+  // staleTime=Infinity, so without this the screen animates the OLD balance.
+  // Poll the profile every 2.5s (max 20s) until the balance moves past the
+  // value we arrived with, then stop.
+  const arrivalRemaining = useRef<number | null>(null);
+  useEffect(() => {
+    if (isPending || !profile) return;
+    if (arrivalRemaining.current === null) {
+      arrivalRemaining.current = remaining;
+    }
+    if (remaining > (arrivalRemaining.current ?? 0)) return; // grant landed
+    let ticks = 0;
+    const id = setInterval(() => {
+      ticks += 1;
+      if (ticks > 8) {
+        clearInterval(id);
+        return;
+      }
+      void qc.invalidateQueries({ queryKey: ["profile"] });
+    }, 2_500);
+    return () => clearInterval(id);
+  }, [isPending, profile, remaining, qc]);
 
   const headingCount = delta ?? remaining;
 

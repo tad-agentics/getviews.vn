@@ -35,8 +35,6 @@ _PERSONA_CONSISTENCY_AXES = (
     "speech_register",
 )
 _CADENCE_PEER_LAG_PCT = 20
-_BEST_HOUR_RATIO_MIN = 1.5
-_BEST_HOUR_POST_SHARE_MAX = 0.35
 _RESTRICTED_MIN_VIDEOS = 2
 _DISCLOSURE_GAP_MIN_VIDEOS = 2
 _CML_RISK_MIN_VIDEOS = 2
@@ -618,59 +616,6 @@ def _finding_channel_posting_cadence_vs_peer(
     )
 
 
-def _finding_channel_best_hour_underused(
-    videos: list[dict[str, Any]],
-) -> ChannelFinding | None:
-    if len(videos) < 4:
-        return None
-    cadence = compute_posting_cadence(videos)
-    ratio = float(cadence.get("best_hour_ratio") or 1.0)
-    if ratio < _BEST_HOUR_RATIO_MIN:
-        return None
-
-    now = _now()
-    cutoff = now - timedelta(days=30)
-    recent = [
-        v for v in videos
-        if (v.get("posted_at") or datetime.min.replace(tzinfo=UTC)) >= cutoff
-    ]
-    if len(recent) < 3:
-        return None
-
-    best_range = str(cadence.get("best_hour_range") or "")
-    try:
-        best_h = int(best_range.split("h")[0])
-    except (ValueError, IndexError):
-        return None
-    end_h = min(best_h + 2, 23)
-    in_best = sum(
-        1 for v in recent
-        if isinstance(v.get("posted_at"), datetime)
-        and best_h <= v["posted_at"].hour <= end_h
-    )
-    share = in_best / len(recent)
-    if share > _BEST_HOUR_POST_SHARE_MAX:
-        return None
-
-    share_pct = round(100 * share)
-    return ChannelFinding(
-        id="channel_best_hour_underused",
-        taxonomy_ref="§1.5",
-        strength="medium",
-        claim=(
-            f"Khung mạnh ~{best_range} cho view ~{ratio:.1f}x giờ yếu, "
-            f"nhưng chỉ {share_pct}% video 30d đăng trong khung — đang bỏ lỡ cold-start."
-        ),
-        evidence=[
-            f"best_hour_ratio={ratio:.2f}",
-            f"best_hour_range={best_range}",
-            f"posts_in_best_hour_share={share_pct}%",
-        ],
-        section_hint="recommendations",
-        salience=0.70,
-    )
-
-
 def _finding_channel_mega_sale_dip(
     videos: list[dict[str, Any]],
 ) -> ChannelFinding | None:
@@ -1004,7 +949,6 @@ def build_channel_findings(
         lambda: _finding_channel_posting_cadence_vs_peer(
             videos, niche_benchmarks=niche_benchmarks,
         ),
-        lambda: _finding_channel_best_hour_underused(videos),
         lambda: _finding_channel_boost_outlier_share(handle_corpus_rows),
         lambda: _finding_channel_mega_sale_dip(videos),
         lambda: _finding_channel_persona_drift(handle_corpus_rows),

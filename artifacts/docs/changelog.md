@@ -1,5 +1,32 @@
 # Changelog — GetViews.vn
 
+## 2026-06-04 — Batch ingest ops (stale sweeper, shift post-processing, HI-13)
+
+- **SQL cron:** `cron-batch-job-runs-stale-sweeper` every 15m — closes `batch_job_runs` stuck `running` >65m (Cloud Run 3600s orphans).
+- **Python:** `sweep_stale_running_job_runs()` + `is_swept_stale_batch_job_run()`; alert evaluator excludes swept rows from `cron_batch_failures`.
+- **Ingest:** scheduled shifts skip inline MV/post-processing (`should_run_inline_ingest_post_processing`); `cron-batch-post-processing` only.
+- **Admin:** HI-13 `batch_tier_share`, `batch_path_share`, paginated `ingest_30d` totals; FE panel updated.
+- **Tests:** sweeper, inline post-processing guard, cron-failure exclusion.
+
+## 2026-06-04 — Report redesign hygiene (dead diagnosis timing helpers)
+
+- **Removed:** `_build_niche_posting_context_bundle_sync` (`pipelines.py`), `compute_diagnosis_posting_bundle` / `build_diagnosis_posting_context_text` (`report_timing_compute.py`), `test_diagnosis_posting_context.py`.
+- **Standalone timing** unchanged — `report_timing.py` still uses `load_timing_inputs` + heatmap builders directly.
+
+## 2026-06-04 — Report redesign follow-up (QA concerns 1–3)
+
+- **Word budget:** `diagnosis_quality.py` brevity metrics + one Gemini shorten retry when total >480 từ or section prose too long (`DIAGNOSIS_V6_SHORTEN_RETRY_APPEND`).
+- **FE cleanup:** removed `postingContextNarrative`, `DiagnosisPostingContextPayload`, stream merge for `niche_posting_context`.
+- **Channel scorecard:** `compute_posting_cadence` cadence-only; dropped `best_hour_*` fields and captions from `channel_diagnose.py` + `ChannelScoreCardData`.
+
+## 2026-06-04 — Report redesign 2026-05 (verdict-first, no clock-time in diagnosis)
+
+- **Video diagnosis (Cloud Run + FE):** Verdict-first prompts (~350–450 từ); findings-first `DiagnosisSectionRenderer` (chip Sửa, reference tiles "Sao chép cách này"); `next_video` shot script; section order `diagnosis → niche_pattern → next_video → deep` with deep cap ≤7; removed `distribution` section + `NICHE_POSTING_CONTEXT` inject; hard-deleted posting-hour / golden-hour signals.
+- **Channel:** Verdict-first `channel_diagnose_prompts`; removed `best_hour` finding + ScoreCard row (cadence finding kept); findings-first `SectionRenderer`.
+- **Pattern:** Deck fields `slide_script` + `cta_placement`; evidence grid hero in `PatternBody`; `PatternSubreport` no longer embeds timing subreport.
+- **FE deleted:** `PostingHeatmapEmbed`, `DiagnosisPostingContextBlock` (standalone `TimingBody` / `TimingHeatmap` / `VarianceNote` unchanged).
+- **Tests:** Updated section-emit tests for `depth=deep`; fixed diagnostics cache mocks; trajectory fixture frozen `_now`.
+
 ## 2026-05-28 — Marketing Corpus Pick API
 
 - **DB:** `marketing_video_picks` + RPCs `select_marketing_corpus_video`, `record_marketing_video_pick` (service_role only).

@@ -96,7 +96,7 @@ export function buildHookAnalysisFallbackProse(
 
   const detail = phaseHint
     ? ` Tóm tắt từ phân tích hình: ${phaseHint.slice(0, 160)}${phaseHint.length > 160 ? "…" : ""}.`
-    : " Ba thẻ dưới tóm tắt hình mở, kiểu hook và chỗ lời/kết nối sớm — không phải transcript đầy đủ.";
+    : "";
 
   const flopHook = flopIssues?.find((e) => /hook/i.test(e.title ?? e.error_id ?? ""));
   if (flopHook?.fix?.trim()) {
@@ -153,8 +153,9 @@ export function shouldShowScriptStructureBlock(report: VideoReportPayload): bool
   return (report.segments?.length ?? 0) > 0;
 }
 
-export function shouldShowHookAnalysisBlock(report: VideoReportPayload): boolean {
-  return (report.hook_phases?.length ?? 0) > 0 || (report.hook_timeline?.length ?? 0) > 0;
+/** Hook phase cards + 0–3s timeline removed from UI — hook value lives in v6 findings/prose. */
+export function shouldShowHookAnalysisBlock(_report: VideoReportPayload): boolean {
+  return false;
 }
 
 export function shouldShowMetadataBlock(

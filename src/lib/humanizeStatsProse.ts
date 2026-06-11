@@ -33,3 +33,21 @@ export function humanizeStatsProse(text: string): string {
   }
   return out;
 }
+
+/** Split v6 section text into bold verdict + optional support sentences (redesign 2026-05). */
+export function splitVerdictProse(text: string): { verdict: string; support: string } {
+  const humanized = humanizeStatsProse(text.trim());
+  if (!humanized) return { verdict: "", support: "" };
+  const boldMatch = humanized.match(/\*\*([^*]+)\*\*/);
+  if (boldMatch) {
+    const verdict = boldMatch[1].trim();
+    const support = humanized.replace(/\*\*[^*]+\*\*/, "").replace(/^\s+/, "").trim();
+    return { verdict, support };
+  }
+  const parts = humanized.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 1) {
+    // No explicit verdict marker — render as normal prose, not a fake bold headline.
+    return { verdict: "", support: humanized };
+  }
+  return { verdict: parts[0] ?? "", support: parts.slice(1).join("\n\n").trim() };
+}

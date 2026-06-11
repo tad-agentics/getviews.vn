@@ -9,10 +9,10 @@ import {
 } from "./channelFindingGroups";
 
 describe("channelFindingGroups audit rings", () => {
-  it("covers all 14 channel finding ids across five rings without overlap", () => {
+  it("covers all 13 channel finding ids across five rings without overlap", () => {
     const allIds = AUDIT_RINGS.flatMap((ring) => [...ring.findingIds]);
     expect(new Set(allIds).size).toBe(allIds.length);
-    expect(allIds.length).toBe(14);
+    expect(allIds.length).toBe(13);
   });
 
   it("places compliance under Vòng 0 and saturation under Vòng 3", () => {

@@ -182,7 +182,7 @@ def test_asdict_shape_matches_spec() -> None:
     d = r.asdict()
     assert set(d.keys()) == {
         "sampled", "total_available", "sentiment", "purchase_intent",
-        "questions_asked", "language",
+        "questions_asked", "language", "spam_skipped_ratio",
     }
     assert set(d["sentiment"].keys()) == {"positive_pct", "negative_pct", "neutral_pct"}
     assert set(d["purchase_intent"].keys()) == {"count", "top_phrases"}

@@ -1,3 +1,10 @@
+-- REPAIR NOTE (2026-06-10): originally written as 20260721000000_corpus_ingest_queue.sql,
+-- which COLLIDED with the version recorded for gemini_calls_cached_content_tokens —
+-- Supabase schema_migrations stored that name under 20260721000000 and this file was
+-- silently never applied. Production therefore ran ~7 weeks without the table:
+-- cron-batch-process-ingest-queue 500d nightly (PGRST205) and the live-reference
+-- enqueue in pipelines.py failed silently. Re-issued + applied 2026-06-10.
+
 -- Queue for high-views TikTok references discovered during live diagnosis (EnsembleData).
 -- Batch pod drains via POST /batch/process-ingest-queue → run_reingest_video_items.
 

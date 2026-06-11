@@ -403,7 +403,7 @@ _PREDICTION_RE = re.compile(
 # Corpus anchor — a sentence that contains one of these clauses is trusted
 # because the data source is explicit.
 _ANCHOR_RE = re.compile(
-    r"(dựa\s*trên|theo\s*(corpus|dữ\s*liệu)|từ\s*\d+\s*video|corpus\s*có)",
+    r"(dựa\s*trên|theo\s*(?:corpus|dữ\s*liệu|kho\s*(?:video|dữ\s*liệu))|từ\s*\d+\s*video|(?:corpus|kho\s*video)\s*có)",
     re.IGNORECASE,
 )
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?\n])\s+")

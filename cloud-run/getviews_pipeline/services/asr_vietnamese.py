@@ -77,6 +77,9 @@ def _extract_wav_16k_mono(video_path: Path) -> Path:
         check=True,
         capture_output=True,
         text=True,
+        # A corrupted stream can wedge ffmpeg indefinitely — without this,
+        # the hang holds a worker slot for the full 900s request timeout.
+        timeout=60,
     )
     return out_path
 
@@ -227,7 +230,7 @@ def sync_prepare_vietnamese_asr_supplement(
     try:
         try:
             wav_path = _extract_wav_16k_mono(path)
-        except subprocess.CalledProcessError as exc:
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
             logger.warning("[hi14] ffmpeg audio extract failed video_id=%s: %s", vid, exc)
             return "", None
 

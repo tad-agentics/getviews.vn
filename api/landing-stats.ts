@@ -19,11 +19,15 @@ export default async function handler(req: Request): Promise<Response> {
       .order("avg_views", { ascending: false })
       .limit(6),
 
-    // One video per niche — just need video_id for R2 frame URL
-    // Pick highest-view video per niche, fixed 12 niches max
+    // One video per niche — just need video_id for R2 frame URL.
+    // Pick highest-view video per niche, fixed 12 niches max.
+    // Phase C dropped video_corpus.niche_id (20260822000001) — the legacy
+    // bridge column is ingest_loop_niche_id; selecting the dropped column
+    // made PostgREST 400 and silently emptied the landing thumbnails.
     supabase
       .from("video_corpus")
-      .select("video_id, niche_id, views")
+      .select("video_id, ingest_loop_niche_id, views")
+      .not("ingest_loop_niche_id", "is", null)
       .order("views", { ascending: false })
       .limit(60),
 
@@ -38,9 +42,10 @@ export default async function handler(req: Request): Promise<Response> {
   const seen = new Set<number>();
   const thumbs: { video_id: string; niche_id: number }[] = [];
   for (const row of thumbsRes.data ?? []) {
-    if (!seen.has(row.niche_id) && thumbs.length < 12) {
-      seen.add(row.niche_id);
-      thumbs.push({ video_id: row.video_id, niche_id: row.niche_id });
+    const nicheId = row.ingest_loop_niche_id as number;
+    if (!seen.has(nicheId) && thumbs.length < 12) {
+      seen.add(nicheId);
+      thumbs.push({ video_id: row.video_id, niche_id: nicheId });
     }
   }
 

@@ -9,38 +9,37 @@ import { VitePWA } from "vite-plugin-pwa";
 /** App directory (e.g. getviews.vn-1); dependencies may be hoisted to the parent folder. */
 const viteConfigDir = path.dirname(fileURLToPath(import.meta.url));
 
-/** Split heavy vendors so chunks cache independently and initial parse stays smaller on mobile. */
-function manualChunks(id: string) {
-  if (!id.includes("node_modules")) return;
-  const n = id.replace(/\\/g, "/");
-  if (n.includes("@radix-ui")) return "radix-ui";
-  if (n.includes("@tanstack")) return "tanstack";
-  if (n.includes("@supabase")) return "supabase";
-  if (n.includes("lucide-react")) return "icons";
-  // Match the actual motion package directories. The broader
-  // ``includes("motion")`` predicate also matched any node_modules
-  // path with "motion" anywhere (e.g. nested transitive deps with
-  // ``motion`` in their filename) and risked accidentally hoisting
-  // unrelated modules into the motion chunk.
-  if (n.includes("/motion/") || n.includes("/framer-motion/")) return "motion";
-  if (n.includes("react-router") || n.includes("@remix-run")) return "react-router";
-  // KNOWN: ``react-vendor`` does not currently emit as a separate chunk
-  // under Rolldown — the matcher fires (verified via debug logging) and
-  // returns "react-vendor", but Rolldown's chunk-merging pass folds it
-  // into the generic ``vendor`` bundle anyway. Bundle audit 2026-04-25
-  // confirmed the React/react-dom/scheduler bytes (~117 KB raw) ride
-  // ``vendor-*.js``. Long-tail caching wins from a separate React chunk
-  // are deferred until we either bisect a Rolldown option that respects
-  // the return value here or migrate the chunking strategy to
-  // ``output.advancedChunks``.
-  if (
-    n.includes("/react-dom/") ||
-    n.includes("/scheduler/") ||
-    /\/react\/[^/]/.test(n)
-  )
-    return "react-vendor";
-  return "vendor";
-}
+/**
+ * Vendor chunking via Rolldown ``advancedChunks`` (migrated from
+ * ``manualChunks`` 2026-06-10 — the migration the old comment block planned).
+ *
+ * Why: under Rolldown, ``manualChunks`` return values are advisory — its
+ * chunk-merging pass redistributed small modules into whichever named chunk
+ * it liked. Verified consequence (perf audit 2026-06-10): ``react/jsx-runtime``
+ * was folded INTO the ``motion`` chunk and React core into ``icons``, so every
+ * component chunk imported ``motion`` and the prerendered landing preloaded
+ * 40 KB gz of animation code it never renders. ``advancedChunks`` groups are
+ * enforced: React internals now live in ``react-vendor`` and ``motion`` is
+ * pure animation code again, off the landing critical path.
+ *
+ * Priorities: higher wins when multiple tests match. ``react-vendor`` must
+ * outrank everything so jsx-runtime/scheduler never migrate again; the
+ * catch-all ``vendor`` sits at the bottom.
+ */
+const advancedChunks = {
+  groups: [
+    { name: "react-vendor", test: /node_modules\/(react|react-dom|scheduler)\//, priority: 100 },
+    { name: "react-router", test: /node_modules\/(react-router|@remix-run)/, priority: 90 },
+    { name: "radix-ui", test: /node_modules\/@radix-ui\//, priority: 80 },
+    { name: "tanstack", test: /node_modules\/@tanstack\//, priority: 80 },
+    { name: "supabase", test: /node_modules\/@supabase\//, priority: 80 },
+    { name: "icons", test: /node_modules\/lucide-react\//, priority: 80 },
+    // Match the actual motion package directories only — a broader
+    // ``motion`` substring also matched unrelated transitive deps.
+    { name: "motion", test: /node_modules\/(motion|framer-motion)\//, priority: 80 },
+    { name: "vendor", test: /node_modules\//, priority: 10 },
+  ],
+};
 
 export default defineConfig({
   server: {
@@ -53,7 +52,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks,
+        advancedChunks,
       },
     },
   },

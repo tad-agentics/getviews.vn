@@ -1,5 +1,5 @@
 /**
- * One `diagnosis_vi.sections[]` block — shared prose primitive + channel `VideoTileRow` / `NextVideoCard`.
+ * One `diagnosis_vi.sections[]` block — verdict-first, findings as hero (redesign 2026-05).
  */
 import { SectionProseBlocks } from "@/components/SectionProseBlocks";
 import { formatDiagnosisSectionTitle } from "@/lib/formatters";
@@ -9,7 +9,6 @@ import type {
   CreatorComparison,
   DiagnosisEvidenceAnchorVi,
   DiagnosisFinding,
-  DiagnosisPostingContextPayload,
   DiagnosisSectionVi,
   ReferenceVideoCard,
 } from "@/lib/api-types";
@@ -17,25 +16,17 @@ import {
   buildDiagnosisReferenceTiles,
   stripSectionProseForEmbeddedRefs,
 } from "@/lib/diagnosisReferenceTiles";
+import { splitVerdictProse } from "@/lib/humanizeStatsProse";
 import { CreatorComparisonEmbed } from "@/components/diagnosis/CreatorComparisonEmbed";
-import { PostingHeatmapEmbed } from "@/components/diagnosis/PostingHeatmapEmbed";
 import {
   ChannelContextLegacy,
   ChannelProofBlock,
 } from "@/components/v2/answer/video/blocks/ChannelProofBlock";
 import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
 import { Timeline } from "@/components/v2/Timeline";
-import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
-import { HookTimelineStrip } from "@/routes/_app/components/HookTimelineStrip";
 import { DiagnosisReferenceVideoCards } from "@/components/diagnosis/DiagnosisReferenceVideoCards";
 import { NextVideoCard, NextVideoCardEmpty } from "@/routes/_app/channel/components/NextVideoCard";
-import type {
-  HookTimelineEvent,
-  VideoAnalyzeMeta,
-  VideoEnrichment,
-  VideoHookPhase,
-  VideoSegment,
-} from "@/lib/api-types";
+import type { VideoAnalyzeMeta, VideoEnrichment, VideoSegment } from "@/lib/api-types";
 
 function sectionTitle(s: DiagnosisSectionVi): string {
   const raw = (s.title_vi || s.title || "").trim();
@@ -81,7 +72,7 @@ function looseNextVideoConcept(
   };
 }
 
-/** Numbered finding card — summary + "Sửa:" at the close of each issue-type section. */
+/** Findings-first card with copy-paste fix chip. */
 function SectionFindingCard({
   rank,
   finding,
@@ -108,14 +99,41 @@ function SectionFindingCard({
           </p>
         ) : null}
         {fix_vi ? (
-          <p className="mt-1.5 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-2)]">
-            <span className="gv-mono mr-1.5 font-semibold text-[color:var(--gv-accent)]">
-              Sửa:
+          <span className="mt-2 inline-flex max-w-full rounded-full border border-[color:var(--gv-accent)]/30 bg-[color:var(--gv-accent)]/8 px-3 py-1.5 text-[13px] leading-snug text-[color:var(--gv-ink)]">
+            <span className="gv-mono mr-1.5 shrink-0 font-semibold text-[color:var(--gv-accent)]">
+              Sửa
             </span>
-            {fix_vi}
-          </p>
+            <span>{fix_vi}</span>
+          </span>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function SectionVerdictBlock({ text }: { text: string }) {
+  const { verdict, support } = splitVerdictProse(text);
+  if (!verdict && !support) return null;
+  return (
+    <div className="mt-2 space-y-1.5">
+      {verdict ? (
+        <p className="m-0 text-[17px] font-bold leading-snug text-[color:var(--foreground)]">
+          {verdict}
+        </p>
+      ) : null}
+      {support ? (
+        <SectionProseBlocks
+          text={support}
+          wrapperClassName="space-y-1.5"
+          paragraphClassName="text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]"
+        />
+      ) : !verdict && text.trim() ? (
+        <SectionProseBlocks
+          text={text}
+          wrapperClassName="space-y-1.5"
+          paragraphClassName="text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]"
+        />
+      ) : null}
     </div>
   );
 }
@@ -131,28 +149,16 @@ export interface ChannelPatternEmbedProps {
 
 export interface VideoDiagnosisSectionEmbeds {
   scriptStructure?: { segments: VideoSegment[]; durationSec: number };
-  hookAnalysis?: {
-    phases?: VideoHookPhase[];
-    timeline?: HookTimelineEvent[];
-    chartCaption?: string;
-  };
   metadata?: { meta: VideoAnalyzeMeta; enrichment?: VideoEnrichment | null };
 }
 
 interface DiagnosisSectionRendererProps {
   section: DiagnosisSectionVi;
   referenceVideos: ReferenceVideoCard[];
-  /** v6 peer citations when ``embedded_tiles`` is empty (aweme_id anchors only). */
   evidenceAnchors?: DiagnosisEvidenceAnchorVi[];
-  /** Corpus 7×8 grid — embedded under `distribution` prose when present. */
-  postingContext?: DiagnosisPostingContextPayload | null;
-  /** Hit/flop peer videos — embedded under `channel_pattern` prose. */
   creatorComparison?: CreatorComparison | null;
-  /** Format-range channel stats — embedded under `channel_pattern` when available. */
   channelPatternEmbed?: ChannelPatternEmbedProps | null;
-  /** Charts belong inside their v6 section block (timeline / hook / context). */
   videoEmbeds?: VideoDiagnosisSectionEmbeds;
-  /** Narrative-first copy when synthesis omitted ``text`` for this section. */
   fallbackProse?: string;
 }
 
@@ -160,7 +166,6 @@ export function DiagnosisSectionRenderer({
   section,
   referenceVideos,
   evidenceAnchors,
-  postingContext,
   creatorComparison,
   channelPatternEmbed,
   videoEmbeds,
@@ -183,24 +188,27 @@ export function DiagnosisSectionRenderer({
         ? (section.next_video as Record<string, unknown>)
         : null;
     const concept = looseNextVideoConcept(nvRaw);
+    const hasShotScript = text.includes("•") || /Hook\s*\(/i.test(text);
     return (
       <div className="mb-6">
-        <h3 className="text-base font-bold text-[color:var(--foreground)] leading-snug">{title}</h3>
-        {/* Prose + bullets always first — narrative-first principle */}
+        <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">{title}</h3>
         {text ? (
           <SectionProseBlocks
             text={text}
-            wrapperClassName="space-y-2 mt-2"
-            paragraphClassName="text-[17px] leading-relaxed text-[color:var(--foreground)]"
+            wrapperClassName="mt-3 space-y-1 font-mono text-[15px]"
+            paragraphClassName="whitespace-pre-wrap leading-relaxed text-[color:var(--foreground)]"
           />
-        ) : null}
-        {/* Structured concept card is secondary — summary of the prose above */}
-        {concept ? (
+        ) : concept ? (
           <div className="mt-4">
             <NextVideoCard concept={concept} />
           </div>
-        ) : !text ? (
+        ) : (
           <NextVideoCardEmpty />
+        )}
+        {text && concept && !hasShotScript ? (
+          <div className="mt-4 opacity-90">
+            <NextVideoCard concept={concept} />
+          </div>
         ) : null}
       </div>
     );
@@ -212,17 +220,15 @@ export function DiagnosisSectionRenderer({
 
   return (
     <div className="mb-6">
-      <h3 className="text-base font-bold text-[color:var(--foreground)] leading-snug">{title}</h3>
-      <div className="relative mt-1">
-        <SectionProseBlocks
-          text={text}
-          wrapperClassName="space-y-2 mt-2"
-          paragraphClassName="text-[17px] leading-relaxed text-[color:var(--foreground)]"
-        />
-      </div>
-      {sid === "distribution" && postingContext ? (
-        <PostingHeatmapEmbed payload={postingContext} />
+      <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">{title}</h3>
+      {findings.length > 0 ? (
+        <div className="mt-3 flex flex-col gap-3">
+          {findings.map((f, i) => (
+            <SectionFindingCard key={i} rank={i + 1} finding={f} />
+          ))}
+        </div>
       ) : null}
+      {text ? <SectionVerdictBlock text={text} /> : null}
       {sid === "channel_pattern" && creatorComparison ? (
         <CreatorComparisonEmbed data={creatorComparison} />
       ) : null}
@@ -244,14 +250,10 @@ export function DiagnosisSectionRenderer({
         )
       ) : null}
       {referenceTiles.length > 0 ? (
-        <DiagnosisReferenceVideoCards tiles={referenceTiles} />
-      ) : null}
-      {findings.length > 0 ? (
-        <div className="mt-4 flex flex-col gap-3">
-          {findings.map((f, i) => (
-            <SectionFindingCard key={i} rank={i + 1} finding={f} />
-          ))}
-        </div>
+        <DiagnosisReferenceVideoCards
+          tiles={referenceTiles}
+          label={sid === "niche_pattern" ? "Top ngách — sao chép cách này" : "Video tham chiếu"}
+        />
       ) : null}
       {sid === "script_structure" && videoEmbeds?.scriptStructure ? (
         <div className="mt-4">
@@ -259,21 +261,6 @@ export function DiagnosisSectionRenderer({
             segments={videoEmbeds.scriptStructure.segments}
             durationSec={videoEmbeds.scriptStructure.durationSec}
           />
-        </div>
-      ) : null}
-      {sid === "hook_analysis" && videoEmbeds?.hookAnalysis ? (
-        <div className="mt-4">
-          {videoEmbeds.hookAnalysis.chartCaption ? (
-            <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
-              {videoEmbeds.hookAnalysis.chartCaption}
-            </p>
-          ) : null}
-          {videoEmbeds.hookAnalysis.phases?.length ? (
-            <HookPhaseGrid phases={videoEmbeds.hookAnalysis.phases} />
-          ) : null}
-          {videoEmbeds.hookAnalysis.timeline?.length ? (
-            <HookTimelineStrip events={videoEmbeds.hookAnalysis.timeline} />
-          ) : null}
         </div>
       ) : null}
       {sid === "metadata" && videoEmbeds?.metadata ? (

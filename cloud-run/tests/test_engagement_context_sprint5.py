@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from getviews_pipeline.signals.context_signals import extract_context_signals
 from getviews_pipeline.signals.engagement import extract_engagement_signals
 from getviews_pipeline.signals.registry import build_diagnosis_ctx
@@ -58,24 +56,6 @@ def test_loop_architecture_positive() -> None:
     )
     ids = [s.id for s in extract_engagement_signals(ctx)]
     assert "engagement_loop_architecture_positive" in ids
-
-
-def test_golden_hour_miss_when_posted_off_peak() -> None:
-    st = {
-        "caption": "",
-        "views": 1000,
-        "posted_at": datetime(2026, 5, 13, 8, 0, 0, tzinfo=UTC).isoformat(),
-    }
-    ctx = build_diagnosis_ctx(
-        user_analysis={"promotion_type": "organic", "audio_transcript": "", "text_overlays": []},
-        user_stats=st,
-        reference_videos=[],
-        channel_context=None,
-        performance_tier="average",
-        compliance_flags=[],
-    )
-    ids = [s.id for s in extract_context_signals(ctx)]
-    assert "context_golden_hour_miss" in ids
 
 
 def test_golden_hour_no_signal_date_only() -> None:

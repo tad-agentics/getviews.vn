@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from getviews_pipeline.analysis_addressing import AddressingMode
+
 _VIDEO_SECTION_MARKERS = re.compile(
     r"^=== (diagnosis|compliance|distribution|niche_pattern|channel_pattern|commerce|next_video) ===\s*$",
     re.MULTILINE,
@@ -98,6 +100,43 @@ _SECTION_TILE_NARRATIVE_ANGLE: dict[str, list[str]] = {
     ],
 }
 
+_SECTION_TILE_NARRATIVE_ANGLE_THIRD: dict[str, list[str]] = {
+    "hook_analysis": [
+        "So 3 giây đầu (cắt, chữ, hình mở) với clip đang phân tích.",
+        "Chú ý hook mở màn — âm + hình giữ người lướt.",
+        "Tham khảo nhịp mở: chữ nổi + đổi góc nhanh tạo tò mò.",
+    ],
+    "diagnosis": [
+        "So format và giữ chân suốt clip với video đang phân tích.",
+        "Quan sát cấu trúc kịch bản và nhịp cuốn.",
+        "Chú ý tương tác giữa clip và CTA chốt.",
+    ],
+    "niche_pattern": [
+        "Công thức đang thắng — creator có thể lặp yếu tố cốt lõi.",
+        "Mô-típ đang lên — khai thác chủ đề quen bằng cách kể mới.",
+        "Khung được ưa chuộng — lồng cá tính riêng của creator.",
+    ],
+    "distribution": [
+        "Tham khảo giờ đăng và nhịp cắt của video này.",
+        "Quan sát bình luận để rút bài học tương tác.",
+        "Xem nhịp đăng của kênh tham chiếu.",
+    ],
+    "script_structure": [
+        "So nhịp phân đoạn và chuyển cảnh với clip đang phân tích.",
+        "Tham khảo mạch kịch bản và phân bổ thời lượng.",
+        "Học nhịp dựng và nhạc nền cho lần quay tiếp theo.",
+    ],
+}
+
+
+def _tile_narrative_angles(
+    section_id: str,
+    addressing_mode: AddressingMode = "third_party",
+) -> list[str] | None:
+    if addressing_mode == "viewer_own":
+        return _SECTION_TILE_NARRATIVE_ANGLE.get(section_id.strip())
+    return _SECTION_TILE_NARRATIVE_ANGLE_THIRD.get(section_id.strip())
+
 CONTENT_FORMAT_VI: dict[str, str] = {
     "tutorial": "hướng dẫn (tutorial)",
     "review": "đánh giá (review)",
@@ -164,7 +203,11 @@ def tile_narrative_needs_regen(narrative: str) -> bool:
     return False
 
 
-def _reference_strength_sentence(tile: dict[str, Any], idx: int) -> str:
+def _reference_strength_sentence(
+    tile: dict[str, Any],
+    idx: int,
+    addressing_mode: AddressingMode = "third_party",
+) -> str:
     """Why this peer was picked — no @handle or view count (shown on card footer)."""
     hook_phrase, fmt_phrase = _tile_hook_fmt_phrases(tile)
     if hook_phrase and fmt_phrase:
@@ -174,17 +217,31 @@ def _reference_strength_sentence(tile: dict[str, Any], idx: int) -> str:
             f"Lý do tham chiếu: {hook_phrase} và {fmt_phrase} làm tốt hơn median ngách ở cùng góc so sánh.",
         ]
     elif hook_phrase:
-        templates = [
-            f"Được chọn vì {hook_phrase} tạo lý do dừng lướt ngay 3 giây đầu.",
-            f"Tham chiếu vì {hook_phrase} mạnh hơn cách mở clip của bạn ở cùng chủ đề.",
-            f"Lý do tham chiếu: {hook_phrase} giữ nhịp tò mò ngay khung mở.",
-        ]
+        if addressing_mode == "viewer_own":
+            templates = [
+                f"Được chọn vì {hook_phrase} tạo lý do dừng lướt ngay 3 giây đầu.",
+                f"Tham chiếu vì {hook_phrase} mạnh hơn cách mở clip của bạn ở cùng chủ đề.",
+                f"Lý do tham chiếu: {hook_phrase} giữ nhịp tò mò ngay khung mở.",
+            ]
+        else:
+            templates = [
+                f"Được chọn vì {hook_phrase} tạo lý do dừng lướt ngay 3 giây đầu.",
+                f"Tham chiếu vì {hook_phrase} mạnh hơn cách mở clip đang phân tích ở cùng chủ đề.",
+                f"Lý do tham chiếu: {hook_phrase} giữ nhịp tò mò ngay khung mở.",
+            ]
     elif fmt_phrase:
-        templates = [
-            f"Được chọn vì {fmt_phrase} giữ nhịp và cấu trúc ổn định suốt clip.",
-            f"Tham chiếu vì {fmt_phrase} duy trì momentum giữa clip tốt hơn median.",
-            f"Lý do tham chiếu: {fmt_phrase} là điểm mạnh cần đối chiếu với video của bạn.",
-        ]
+        if addressing_mode == "viewer_own":
+            templates = [
+                f"Được chọn vì {fmt_phrase} giữ nhịp và cấu trúc ổn định suốt clip.",
+                f"Tham chiếu vì {fmt_phrase} duy trì momentum giữa clip tốt hơn median.",
+                f"Lý do tham chiếu: {fmt_phrase} là điểm mạnh cần đối chiếu với video của bạn.",
+            ]
+        else:
+            templates = [
+                f"Được chọn vì {fmt_phrase} giữ nhịp và cấu trúc ổn định suốt clip.",
+                f"Tham chiếu vì {fmt_phrase} duy trì momentum giữa clip tốt hơn median.",
+                f"Lý do tham chiếu: {fmt_phrase} là điểm mạnh cần đối chiếu với video này.",
+            ]
     else:
         templates = [
             "Được chọn vì cấu trúc format và nhịp dẫn nhất quán suốt clip.",
@@ -198,20 +255,28 @@ def fallback_tile_narrative_vi(
     tile: dict[str, Any],
     section_id: str = "",
     idx: int = 0,
+    addressing_mode: AddressingMode = "third_party",
 ) -> str:
     """Deterministic comparison blurb when Gemini omits ``narrative_vi`` on a tile."""
-    strength = _reference_strength_sentence(tile, idx)
+    strength = _reference_strength_sentence(tile, idx, addressing_mode)
 
-    angles = _SECTION_TILE_NARRATIVE_ANGLE.get(section_id.strip())
+    angles = _tile_narrative_angles(section_id, addressing_mode)
     if angles:
         angle = angles[idx % len(angles)]
-    else:
+    elif addressing_mode == "viewer_own":
         if idx % 3 == 0:
             angle = "Đối chiếu cách mở đầu và giữ chân với clip của bạn."
         elif idx % 3 == 1:
             angle = "Quan sát nhịp truyền tải và cách chốt ý để áp dụng cho video tiếp theo."
         else:
             angle = "Học cách họ duy trì momentum giữa clip mà không bị rời nhịp."
+    else:
+        if idx % 3 == 0:
+            angle = "Đối chiếu cách mở đầu và giữ chân với clip đang phân tích."
+        elif idx % 3 == 1:
+            angle = "Quan sát nhịp truyền tải và cách chốt ý cho lần quay tiếp theo của creator."
+        else:
+            angle = "Học cách duy trì momentum giữa clip mà không bị rời nhịp."
 
     return f"{strength} {angle}"
 
@@ -219,6 +284,7 @@ def fallback_tile_narrative_vi(
 def ensure_distinct_tile_narratives(
     tiles: list[dict[str, Any]],
     section_id: str = "",
+    addressing_mode: AddressingMode = "third_party",
 ) -> None:
     """Regenerate fallback copy when Gemini repeats the same ``narrative_vi`` on multiple tiles."""
     seen: set[str] = set()
@@ -227,7 +293,9 @@ def ensure_distinct_tile_narratives(
             continue
         narrative = str(tile.get("narrative_vi") or "").strip()
         if not narrative or narrative in seen or tile_narrative_needs_regen(narrative):
-            tile["narrative_vi"] = fallback_tile_narrative_vi(tile, section_id, idx)
+            tile["narrative_vi"] = fallback_tile_narrative_vi(
+                tile, section_id, idx, addressing_mode
+            )
         seen.add(str(tile.get("narrative_vi") or "").strip())
 
 

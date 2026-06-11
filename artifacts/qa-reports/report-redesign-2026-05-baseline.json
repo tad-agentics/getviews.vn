@@ -1,0 +1,82 @@
+{
+  "feature": "report-redesign-2026-05",
+  "task_id": "report-redesign-2026-05",
+  "date": "2026-06-04",
+  "healthScore": 98,
+  "verdict": "PASS_WITH_CONCERNS",
+  "passResults": {
+    "pass1": "PASS",
+    "pass2": "PASS",
+    "pass3": "PASS",
+    "pass4": "PASS",
+    "pass5": "PASS"
+  },
+  "categoryScores": {
+    "visual": 100,
+    "data": 95,
+    "security": 100,
+    "interaction": 95,
+    "build": 100,
+    "copy": 95
+  },
+  "acceptanceCriteria": {
+    "video_prose_350_450_verdict_first": {
+      "status": "pass",
+      "evidence": "diagnose_prompts.py + diagnosis_quality.py word budget + gemini shorten retry"
+    },
+    "video_findings_fix_chip_3_tiles": {
+      "status": "pass",
+      "evidence": "DiagnosisSectionRenderer + DiagnosisReferenceVideoCards"
+    },
+    "video_no_distribution_posting_niche_context": {
+      "status": "pass",
+      "evidence": "No distribution section; posting bundle helpers removed; FE orphan types removed"
+    },
+    "channel_verdict_no_best_hour_cadence_kept": {
+      "status": "pass",
+      "evidence": "channel_diagnose cadence-only scorecard; channel_posting_cadence_vs_peer finding"
+    },
+    "pattern_deck_evidence_no_timing_embed": {
+      "status": "pass",
+      "evidence": "PatternSubreport null; PatternBody evidence-first"
+    },
+    "standalone_timing_intact": {
+      "status": "pass",
+      "evidence": "report_timing.py uses load_timing_inputs + heatmap; TimingBody unchanged"
+    },
+    "hard_delete_signals": {
+      "status": "pass",
+      "evidence": "golden_hour + posting-hour signals removed from diagnosis path"
+    }
+  },
+  "evidence": {
+    "pytest": "2395+ passed after follow-up + dead-code cleanup",
+    "vitest": "1083 passed; typecheck pass",
+    "word_budget_retry": "diagnosis_v6_word_budget_exceeded + one shorten retry in gemini.py"
+  },
+  "findings": [
+    {
+      "pass": 4,
+      "severity": "low",
+      "title": "Cached answer_turns unchanged — redesign visible on new runs only",
+      "status": "accepted"
+    },
+    {
+      "pass": 1,
+      "severity": "low",
+      "title": "Pattern deck slide_script/cta_placement not in Trends PatternModal",
+      "status": "deferred"
+    }
+  ],
+  "fixesApplied": {
+    "word_budget_retry": "diagnosis_quality + gemini retry",
+    "fe_orphan_cleanup": "postingContextNarrative removed",
+    "channel_best_hour_server": "compute_posting_cadence cadence-only",
+    "dead_code": "_build_niche_posting_context_bundle_sync + compute_diagnosis_posting_bundle removed"
+  },
+  "concerns": [
+    "Cached answer_turns payloads unchanged; redesign visible on new runs only (expected).",
+    "Pattern deck slide_script/cta_placement not surfaced in Trends PatternModal UI (deferred)."
+  ],
+  "recommendation": "Deploy Cloud Run + Vercel. Post-deploy: one new video/channel/pattern/timing session each."
+}

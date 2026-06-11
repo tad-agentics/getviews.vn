@@ -73,8 +73,13 @@ class _PipelineSettings(BaseSettings):
     gemini_concurrency: int = Field(default=4, ge=1, le=32)
 
     # Global Gemini cost ceiling
-    gemini_daily_usd_max: float = Field(default=0.0, ge=0.0, description="USD ceiling per UTC day; 0 = unlimited")
-    gemini_daily_usd_enforce: bool = Field(default=False, description="Block calls when ceiling hit (else log-only)")
+    # Defaults must mirror config.py GEMINI_DAILY_USD_MAX / _ENFORCE — the
+    # enforcement path (gemini_cost.check_gemini_daily_budget) reads config.py,
+    # this copy only drives startup warnings. They had drifted (0.0/False
+    # here vs 15/True there), making the warning claim "unlimited" while the
+    # cap was actually live — audit 2026-06-10 M-1.
+    gemini_daily_usd_max: float = Field(default=15.0, ge=0.0, description="USD ceiling per UTC day; 0 = unlimited")
+    gemini_daily_usd_enforce: bool = Field(default=True, description="Block calls when ceiling hit (else log-only)")
     gemini_daily_usd_cache_sec: int = Field(default=60, ge=1)
 
     # ── EnsembleData ───────────────────────────────────────────────────────

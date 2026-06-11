@@ -472,8 +472,9 @@ export default function AnswerScreen() {
 
   /**
    * Resume-on-reload guard. ``loadPendingAnswerStream`` validates the
-   * entry is for the current session and younger than the replay TTL
-   * (90s). The ref below prevents double-firing under React Strict
+   * entry is for the current session and younger than the client resume
+   * window (45s — 15s under the 60s server replay TTL; see sseResume.ts).
+   * The ref below prevents double-firing under React Strict
    * Mode, and the detailQuery check prevents a resume when the server
    * already persisted the turn before we reloaded.
    */

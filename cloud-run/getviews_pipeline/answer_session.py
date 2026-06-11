@@ -15,6 +15,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from getviews_pipeline.credits import refund_credits
 from getviews_pipeline.report_diagnostic import build_diagnostic_report
 from getviews_pipeline.report_generic import build_generic_report
 from getviews_pipeline.report_ideas import build_ideas_report
@@ -516,13 +517,19 @@ def append_turn(
 
     # Script turns cost 3 credits (B.4 parity); compare runs two deep
     # diagnoses → 2 credits; generic follow-ups stay free.
+    # ``charged`` records the successful deduction so every failure path
+    # below can compensate (TD-1) — a failed build must not cost credits.
+    charged = 0
     if builder_fmt == "script":
         _deduct_credits(_user_client(), 3)
+        charged = 3
     elif builder_fmt == "compare":
         _deduct_credits(_user_client(), 2)
+        charged = 2
     elif kind == "primary":
         charge = 2 if builder_fmt == "video" and resolved_video_depth == "deep" else 1
         _deduct_credits(_user_client(), charge)
+        charged = charge
     from getviews_pipeline.adaptive_window import ReportKind, choose_adaptive_window_days
 
     niche_pk = int(session.get("niche_id") or 0)
@@ -672,6 +679,8 @@ def append_turn(
                 turn_context=session.get("turn_context") if kind != "primary" else None,
             )
     except RuntimeError as exc:
+        if charged:
+            refund_credits(user_id, charged, context=f"answer/turns builder={builder_fmt}")
         _code = str(exc)
         # Carousel-specific errors need a Vietnamese step_error before the sentinel
         # so the frontend shows a meaningful message instead of a generic stream drop.
@@ -702,6 +711,8 @@ def append_turn(
             )
         raise
     except Exception as exc:
+        if charged:
+            refund_credits(user_id, charged, context=f"answer/turns builder={builder_fmt}")
         # Surface Gemini 429 (quota exhausted / rate limit) as a user-readable message
         # instead of a generic stream drop. Check by string because google-genai's
         # ClientError is not always importable at the top level without version pinning.
@@ -744,6 +755,10 @@ def append_turn(
     try:
         payload_dict = validate_and_store_report(builder_fmt, inner)
     except Exception:
+        # This runs AFTER the refund-wrapped builder block — a schema-invalid
+        # synthesis still cost the user their credits without this (TD-1).
+        if charged:
+            refund_credits(user_id, charged, context=f"answer/turns validate builder={builder_fmt}")
         logger.exception(
             "[answer/turns] validate FAILED builder_fmt=%s session=%s inner_keys=%s",
             builder_fmt, session_id, list(inner.keys()) if isinstance(inner, dict) else type(inner).__name__,

@@ -47,6 +47,20 @@ _ERROR_MAX_LEN = 5000
 # are treated as "probably crashed" and don't block.
 _CONCURRENT_RUN_WINDOW_MIN = 30
 
+# Cloud Run batch pod timeout is 3600s; rows orphaned by a hard kill stay
+# ``running`` forever unless swept. cron-batch-job-runs-stale-sweeper
+# closes anything older than this threshold.
+STALE_RUNNING_SWEEP_MIN = 65
+
+
+def is_swept_stale_batch_job_run(row: dict[str, Any]) -> bool:
+    """True for timeout orphans closed by ``sweep_stale_*`` — not real pipeline failures."""
+    summary = row.get("summary")
+    if isinstance(summary, dict) and summary.get("swept_stale_running"):
+        return True
+    err = row.get("error") or ""
+    return str(err).startswith("auto-swept:")
+
 
 class BatchAlreadyRunning(Exception):
     """A previous ``/batch/{job_name}`` run is still marked ``running``.
@@ -192,3 +206,77 @@ def _finalize(
 def _format_error(exc: BaseException) -> str:
     """Format an exception for storage — type + message, no traceback."""
     return f"{type(exc).__name__}: {exc}"
+
+
+def sweep_stale_running_job_runs(
+    client: Any,
+    *,
+    stale_after_min: int = STALE_RUNNING_SWEEP_MIN,
+    job_names: list[str] | None = None,
+) -> int:
+    """Close ``batch_job_runs`` rows stuck in ``running`` after Cloud Run timeout.
+
+    Typical orphan: batch pod killed at 3600s before ``record_job_run`` finalizes
+    (shift B/C ingest). Marks ``status='failed'`` with ``aborted_early`` in summary.
+
+    Returns the number of rows updated. Best-effort — never raises.
+    """
+    cutoff = (datetime.now(UTC) - timedelta(minutes=stale_after_min)).isoformat()
+    try:
+        query = (
+            client.table("batch_job_runs")
+            .select("id, job_name, started_at, summary")
+            .eq("status", "running")
+            .lt("started_at", cutoff)
+        )
+        if job_names:
+            query = query.in_("job_name", job_names)
+        resp = query.execute()
+    except Exception as exc:
+        logger.warning("[batch_observability] stale-run select failed: %s", exc)
+        return 0
+
+    rows = resp.data or []
+    swept = 0
+    for row in rows:
+        run_id = row.get("id")
+        if not run_id:
+            continue
+        started_at = row.get("started_at")
+        summary = dict(row.get("summary") or {})
+        summary.update({
+            "aborted_early": True,
+            "swept_stale_running": True,
+        })
+        if started_at:
+            try:
+                started_dt = datetime.fromisoformat(str(started_at).replace("Z", "+00:00"))
+                duration_ms = int(
+                    max(0, (datetime.now(UTC) - started_dt).total_seconds() * 1000),
+                )
+            except (TypeError, ValueError):
+                duration_ms = stale_after_min * 60 * 1000
+        else:
+            duration_ms = stale_after_min * 60 * 1000
+        payload: dict[str, Any] = {
+            "finished_at": datetime.now(UTC).isoformat(),
+            "status": "failed",
+            "duration_ms": duration_ms,
+            "summary": summary,
+            "error": (
+                f"auto-swept: still running >{stale_after_min}m "
+                f"(likely Cloud Run 3600s timeout orphan)"
+            )[:_ERROR_MAX_LEN],
+        }
+        try:
+            client.table("batch_job_runs").update(payload).eq("id", run_id).execute()
+            swept += 1
+            logger.warning(
+                "[batch_observability] swept stale run id=%s job=%s started_at=%s",
+                run_id, row.get("job_name"), started_at,
+            )
+        except Exception as exc:
+            logger.warning(
+                "[batch_observability] stale-run update failed for %s: %s", run_id, exc,
+            )
+    return swept

@@ -1,4 +1,7 @@
-FROM python:3.12-slim
+# Minor-version pin (audit 2026-06-10): `python:3.12-slim` floats across
+# point releases, so two builds of the same commit could differ. Bump
+# deliberately alongside a test run.
+FROM python:3.12.8-slim
 
 # ffmpeg: frame extraction for R2 upload (corpus ingest pipeline)
 RUN apt-get update && apt-get install -y --no-install-recommends \

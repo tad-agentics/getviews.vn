@@ -261,7 +261,7 @@ def build_empty_pattern_report(
             ActionCardPayload(
                 icon="calendar",
                 title="Theo dõi trend",
-                sub="Xem khi corpus cập nhật",
+                sub="Xem khi kho dữ liệu cập nhật",
                 cta="Xem",
                 route="/app/trends",
                 forecast={"expected_range": "—", "baseline": "—"},
@@ -372,10 +372,10 @@ def build_pattern_report(
             step_tool_start,
         )
 
-        emit(step_queue, step_status(1, "Đang quét corpus TikTok Việt Nam..."))
+        emit(step_queue, step_status(1, "Đang quét kho video TikTok Việt Nam..."))
         emit(
             step_queue,
-            step_tool_start("Tải corpus ngách...", 1, 0, tool="corpus"),
+            step_tool_start("Tải kho video ngách...", 1, 0, tool="corpus"),
         )
 
     ctx = load_pattern_inputs(sb, niche_id, window_days)
@@ -450,7 +450,11 @@ def build_pattern_report(
 
     org = float(ni.get("organic_avg_views") or 0)
     com = float(ni.get("commerce_avg_views") or 0)
-    baseline_views = org if org > 0 else (com if com > 0 else 1.0)
+    # 0.0 (not 1.0) when the niche has no view baseline at all:
+    # _fmt_delta_pct renders baseline<=0 as an honest "+0%", whereas the old
+    # 1.0 fallback produced absurd "+49,900%" deltas on unseeded niches
+    # (audit 2026-06-10 M-4).
+    baseline_views = org if org > 0 else (com if com > 0 else 0.0)
 
     _creator_sets: dict[str, set[str]] = defaultdict(set)
     for row in corpus:
@@ -607,7 +611,7 @@ def build_pattern_report(
     sources = [
         SourceRow(
             kind="video",
-            label="Corpus quét",
+            label="Kho video đã quét",
             count=len(corpus),
             sub=f"{len(creators)} creator · {eff_win}d",
         )

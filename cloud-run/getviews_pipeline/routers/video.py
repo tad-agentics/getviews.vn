@@ -183,9 +183,11 @@ async def channel_refresh_mine_endpoint(
     sb_user = user_supabase(user["access_token"])
 
     try:
-        pres = sb_user.table("profiles").select(
-            "tiktok_handle, creator_niche_id"
-        ).single().execute()
+        pres = await run_sync(
+            lambda: sb_user.table("profiles").select(
+                "tiktok_handle, creator_niche_id"
+            ).single().execute()
+        )
     except Exception as exc:
         logger.warning("[channel/refresh-mine] profile read failed: %s", exc)
         raise HTTPException(status_code=500, detail="profile_read_failed") from exc
@@ -207,8 +209,8 @@ async def channel_refresh_mine_endpoint(
     # Fetch niche_name for IngestResult tagging + log lines.
     niche_name = ""
     try:
-        nres = (
-            sb_user.table("niche_taxonomy")
+        nres = await run_sync(
+            lambda: sb_user.table("niche_taxonomy")
             .select("name_vn, name_en")
             .eq("id", niche_id)
             .single()
@@ -448,7 +450,9 @@ async def _run_channel_diagnose(
     sb_svc = get_service_client()
     niche_slug = ""
     try:
-        nr = sb_user.table("creator_niches").select("slug").eq("id", niche_id).maybe_single().execute()
+        nr = await run_sync(
+            lambda: sb_user.table("creator_niches").select("slug").eq("id", niche_id).maybe_single().execute()
+        )
         niche_slug = str((nr.data or {}).get("slug") or "")
     except Exception:
         pass
@@ -514,8 +518,8 @@ async def _run_channel_diagnose(
     creator_match: dict[str, Any] | None = None
     if video_url:
         try:
-            vid_res = (
-                sb_user.table("video_corpus")
+            vid_res = await run_sync(
+                lambda: sb_user.table("video_corpus")
                 .select("views,content_format")
                 .eq("video_url", video_url)
                 .maybe_single()
@@ -815,10 +819,12 @@ async def channel_diagnose_endpoint(
 ) -> StreamingResponse | JSONResponse:
     """POST /channel/diagnose — Lightreel-style narrative diagnosis with SSE (TD-4)."""
     from getviews_pipeline.channel_diagnose import (
+        CHANNEL_DIAGNOSE_CREDIT_COST,
         InsufficientCreditsError,
         _decrement_credit_or_raise,
         normalize_handle,
     )
+    from getviews_pipeline.credits import refund_credits
 
     user_id = str(user["user_id"])
     access_token = str(user["access_token"])
@@ -860,7 +866,9 @@ async def channel_diagnose_endpoint(
         cached_row = (
             None
             if force_refresh
-            else _fetch_channel_diagnoses_cache(sb_svc, handle_norm, video_url, niche_id)
+            else await run_sync(
+                _fetch_channel_diagnoses_cache, sb_svc, handle_norm, video_url, niche_id
+            )
         )
         if cached_row:
             # Replay cached narrative via the same section-tagged event sequence
@@ -1065,12 +1073,22 @@ async def channel_diagnose_endpoint(
                 out = diagnose_task.result()
             except Exception as exc:
                 logger.exception("[channel_diagnose] task failed user=%s: %s", user_id, exc)
+                # TD-1: deduction succeeded above but the diagnosis died —
+                # compensate so the user doesn't pay for a failed run.
+                await run_sync(
+                    refund_credits, user_id, CHANNEL_DIAGNOSE_CREDIT_COST,
+                    context="channel/diagnose task_failed",
+                )
                 seq += 1
                 yield _sse({"stream_id": stream_id, "seq": seq, "done": True, "error": "stream_failed"})
                 return
 
             error = out.get("error")
             if error:
+                await run_sync(
+                    refund_credits, user_id, CHANNEL_DIAGNOSE_CREDIT_COST,
+                    context=f"channel/diagnose error={error}",
+                )
                 seq += 1
                 yield _sse({"stream_id": stream_id, "seq": seq, "done": True, "error": error})
                 return

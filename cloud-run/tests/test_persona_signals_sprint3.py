@@ -154,7 +154,7 @@ def test_persona_section_emits_when_salient() -> None:
         performance_tier="hit",
     )
     manifest = build_signal_manifest(ctx)
-    out = select_sections_to_emit(manifest, ctx)
+    out = select_sections_to_emit(manifest, ctx, depth="deep")
     sig = next(s for s in manifest["persona"] if s.id == "persona_channel_baseline_mismatch")
     assert sig.salience >= PERSONA_SECTION_MIN_SALIENCE
     assert "persona" in out

@@ -1050,37 +1050,6 @@ async def _reference_ingest_enqueue_and_mirror(
     await _mirror_queue_thumbnails_for_rows(client=client, rows_payload=mirror_pairs)
 
 
-def _build_niche_posting_context_bundle_sync(
-    user_aweme: dict[str, Any],
-    niche_id: int | None,
-    *,
-    log_tag: str = "video_diagnosis",
-) -> tuple[str, dict[str, Any] | None]:
-    """Corpus heatmap summary for diagnosis prompts + UI (video + carousel). Fail-open."""
-    try:
-        nid = int(niche_id) if niche_id is not None else 0
-        if nid <= 0:
-            return "", None
-        from getviews_pipeline.report_timing_compute import compute_diagnosis_posting_bundle
-        from getviews_pipeline.supabase_client import get_service_client as _gv_svc
-
-        _ct_raw = user_aweme.get("create_time") or user_aweme.get("createTime")
-        _ct_u: int | None = None
-        if isinstance(_ct_raw, (int, float)) and _ct_raw > 0:
-            _ct_u = int(_ct_raw)
-        elif isinstance(_ct_raw, str) and _ct_raw.isdigit():
-            _ct_u = int(_ct_raw)
-        return compute_diagnosis_posting_bundle(
-            _gv_svc(),
-            nid,
-            window_days=14,
-            user_create_time_unix=_ct_u,
-        )
-    except Exception as exc:
-        logger.warning("[%s] niche posting context failed: %s", log_tag, exc)
-        return "", None
-
-
 def _reference_evidence_project(ref: dict[str, Any]) -> dict[str, str | int]:
     meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
     analysis = ref.get("analysis") if isinstance(ref.get("analysis"), dict) else {}
@@ -1834,7 +1803,6 @@ async def run_video_diagnosis(
     refined_performance_tier_out: str | None = None
     diagnosis_errors_out: list[dict[str, Any]] | None = None
     diagnosis_kpi_out: dict[str, Any] | None = None
-    niche_posting_context_ui: dict[str, Any] | None = None
     if include_diagnosis:
         if user_content_type == "carousel":
             # ch_task is not used by the carousel path — cancel immediately to avoid leak.
@@ -1876,11 +1844,6 @@ async def run_video_diagnosis(
                 include_carousel_directions,
                 bool(creator_format_history_block),
             )
-            carousel_posting_ctx, niche_posting_context_ui = _build_niche_posting_context_bundle_sync(
-                user_aweme,
-                niche_id,
-                log_tag="carousel_diagnosis",
-            )
             diagnosis = await run_sync(
                 synthesize_diagnosis_carousel_v2,
                 carousel_format=carousel_format,
@@ -1896,7 +1859,7 @@ async def run_video_diagnosis(
                 corpus_citation=citation,
                 persona_block=persona_block,
                 creator_format_history_block=creator_format_history_block,
-                niche_posting_context_block=carousel_posting_ctx,
+                niche_posting_context_block="",
             )
         else:
             loop_fmt = asyncio.get_event_loop()
@@ -2040,12 +2003,6 @@ async def run_video_diagnosis(
                 int(niche_id) if niche_id is not None else 0,
             )
 
-            niche_posting_context_block, niche_posting_context_ui = _build_niche_posting_context_bundle_sync(
-                user_aweme,
-                niche_id,
-                log_tag="video_diagnosis",
-            )
-
             diagnosis_md, narrative_vi_out, format_cards_out = await run_sync(
                 synthesize_diagnosis_v2,
                 content_format=content_format,
@@ -2065,7 +2022,7 @@ async def run_video_diagnosis(
                 errors=errors_prompt,
                 reference_evidence_block=evidence_block,
                 creator_format_history_block=creator_format_history_block_v,
-                niche_posting_context_block=niche_posting_context_block,
+                niche_posting_context_block="",
                 analysis_depth="deep",
             )
             if format_cards_out and niche_id:
@@ -2084,8 +2041,6 @@ async def run_video_diagnosis(
                 _nr_ev["bright_spot_signal"] = bright_spot_out
             if view_scenarios_out is not None:
                 _nr_ev["view_scenarios"] = view_scenarios_out
-            if niche_posting_context_ui is not None:
-                _nr_ev["niche_posting_context"] = niche_posting_context_ui
             emit(step_queue, _nr_ev)
             diagnosis = diagnosis_md
         # Server-side guarantee: ensure all reference videos appear as video_ref
@@ -2211,8 +2166,6 @@ async def run_video_diagnosis(
         _slide_count = (user_res.get("metadata") or {}).get("slide_count")
         if _slide_count:
             out["carousel_slide_count"] = int(_slide_count)
-    if niche_posting_context_ui is not None:
-        out["niche_posting_context"] = niche_posting_context_ui
     if include_diagnosis and user_content_type == "video":
         if diagnosis_errors_out is not None:
             out["errors"] = diagnosis_errors_out

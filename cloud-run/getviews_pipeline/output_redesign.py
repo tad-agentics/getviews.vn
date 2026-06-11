@@ -42,7 +42,7 @@ def _niche_norms_adequacy_block(corpus_size: int) -> str:
     threshold = CLAIM_TIERS["niche_norms"]
     return (
         f"**CẢNH BÁO DỮ LIỆU THƯA — niche_norms chỉ mang tính ĐỊNH HƯỚNG:**\n"
-        f"Corpus chỉ có {corpus_size} video < {threshold} — các phần trăm "
+        f"Kho dữ liệu chỉ có {corpus_size} video < {threshold} — các phần trăm "
         f"trong niche_norms dưới đây KHÔNG đủ mẫu để trích chính xác.\n"
         f'Dùng ngôn ngữ định hướng: "có xu hướng", "phần lớn", "thường là". '
         f'TUYỆT ĐỐI không nói "42% top video dùng X" — thay bằng "phần lớn '
@@ -642,12 +642,12 @@ Không lặp lại định dạng đã được chẩn đoán ở phần trên �
   "narrative_vi": {
     "headline_vi": "Một câu duy nhất (≤ 20 từ): flop → lỗi cụ thể nhất; hit → cơ chế hoạt động mạnh nhất. Tiếng Việt. Không số dự báo view. Không tuyệt đối hoá (từ như 'chắc chắn viral').",
     "ket_luan_nhanh": "2-3 câu. [điểm sáng từ metrics] → [vấn đề gốc cụ thể] → [fix duy nhất cần làm ngay]. Dùng số thực. Không dự báo view.",
-    "van_de_chinh": "ĐÚNG 3 CÂU — channel-first, đọc như bạn bè nói thật: câu 1 MỞ BẰNG DỮ LIỆU KÊNH (khi channel_context.available=true) — nêu điều gì đang hoạt động tốt nhất trên kênh với số thực từ top_videos hoặc per_format_views (ví dụ: '2 video gần nhất của kênh đạt 20K+ views đều dùng close-up mặt sản phẩm trên nền trơn'); câu 2 nêu CHÍNH XÁC video này làm khác như thế nào với chi tiết hình ảnh cụ thể (tên đồ vật, cảnh quay, giây, bố cục — KHÔNG viết chung như 'hook yếu' hay 'thiếu hook'); câu 3 một câu kết ngắn liên kết hai vế hoặc nêu hệ quả trực tiếp. Nếu channel_context.available=false: câu 1 dùng corpus benchmark thay thế nhưng rõ ràng đây là so sánh ngách. Không dự báo view. Không tuyệt đối hoá.",
+    "van_de_chinh": "ĐÚNG 3 CÂU — channel-first, đọc như bạn bè nói thật: câu 1 MỞ BẰNG DỮ LIỆU KÊNH (khi channel_context.available=true) — nêu điều gì đang hoạt động tốt nhất trên kênh với số thực từ top_videos hoặc per_format_views (ví dụ: '2 video gần nhất của kênh đạt 20K+ views đều dùng close-up mặt sản phẩm trên nền trơn'); câu 2 nêu CHÍNH XÁC video này làm khác như thế nào với chi tiết hình ảnh cụ thể (tên đồ vật, cảnh quay, giây, bố cục — KHÔNG viết chung như 'hook yếu' hay 'thiếu hook'); câu 3 một câu kết ngắn liên kết hai vế hoặc nêu hệ quả trực tiếp. Nếu channel_context.available=false: câu 1 dùng mức chuẩn ngách thay thế nhưng rõ ràng đây là so sánh ngách. Không dự báo view. Không tuyệt đối hoá.",
     "loi_chinh_narrative": [
-      {"error_id": "MUST_MATCH_errors_array_exactly — CHỈ 3 LỖI ĐẦU, không hơn", "narrative": "2-3 câu — đọc như bạn bè giải thích điều họ vừa xem: câu 1 mô tả CHÍNH XÁC cái gì đang xảy ra trong video (dùng từ ngữ hình ảnh cụ thể: tên đồ vật, hành động, thời điểm giây — KHÔNG viết chung chung như 'hook yếu'); câu 2 BẮT BUỘC so sánh với dữ liệu kênh nếu channel_context.available=true (ví dụ: 'Video nào của kênh đạt X views đều dùng... — video này không có điều đó') hoặc dùng corpus benchmark nếu không có channel data; câu 3 nếu cần: 1 câu ngắn về hệ quả cụ thể (views, tỷ lệ xem hết, lưu) — KHÔNG thêm lời khuyên ở đây, phần fix đã ở trường fix.", "evidence_aweme_id": "from_list_above_or_null"}
+      {"error_id": "MUST_MATCH_errors_array_exactly — CHỈ 3 LỖI ĐẦU, không hơn", "narrative": "2-3 câu — đọc như bạn bè giải thích điều họ vừa xem: câu 1 mô tả CHÍNH XÁC cái gì đang xảy ra trong video (dùng từ ngữ hình ảnh cụ thể: tên đồ vật, hành động, thời điểm giây — KHÔNG viết chung chung như 'hook yếu'); câu 2 BẮT BUỘC so sánh với dữ liệu kênh nếu channel_context.available=true (ví dụ: 'Video nào của kênh đạt X views đều dùng... — video này không có điều đó') hoặc dùng mức chuẩn ngách nếu không có channel data; câu 3 nếu cần: 1 câu ngắn về hệ quả cụ thể (views, tỷ lệ xem hết, lưu) — KHÔNG thêm lời khuyên ở đây, phần fix đã ở trường fix.", "evidence_aweme_id": "from_list_above_or_null"}
     ],
     "lessons": [{"title": "string ≤120 ký tự", "body": "string ≤800 ký tự — 1-2 câu, có thể trích cơ chế (curiosity_gap, social_proof, …)"}],
-    "dinh_huong_chien_luoc": "ĐÚNG 4 BULLET ĐIỂM — mỗi bullet trên 1 dòng, bắt đầu bằng ký tự newline + dấu chấm đen (\\n• ). Cấu trúc mỗi bullet: [câu imperative rõ — Dừng/Lean vào/Tìm/Thay] + [câu dữ liệu kênh hoặc corpus cụ thể — trích số thực]. Ví dụ: '\\n• Dừng format lifestyle vignette. Dữ liệu kênh của bạn chứng minh nó không hoạt động — không một lần nào video café vượt quá 1K views.' Không dự báo view. Không dùng prose liên tục."
+    "dinh_huong_chien_luoc": "ĐÚNG 4 BULLET ĐIỂM — mỗi bullet trên 1 dòng, bắt đầu bằng ký tự newline + dấu chấm đen (\\n• ). Cấu trúc mỗi bullet: [câu imperative rõ — Dừng/Lean vào/Tìm/Thay] + [câu dữ liệu kênh hoặc số liệu ngách cụ thể — trích số thực]. Ví dụ: '\\n• Dừng format lifestyle vignette. Dữ liệu kênh của bạn chứng minh nó không hoạt động — không một lần nào video café vượt quá 1K views.' Không dự báo view. Không dùng prose liên tục."
   },
   "format_cards": [
     {
@@ -728,7 +728,7 @@ Format được phát hiện: **{content_format}**
 ## DỮ LIỆU ĐẦU VÀO
 
 **Niche:** {niche_name}
-**Corpus size (30 ngày):** {corpus_size} video
+**Quy mô kho video (30 ngày):** {corpus_size} video
 
 {niche_meta_adequacy}
 **Niche norms (từ niche_intelligence):**
@@ -1004,7 +1004,7 @@ Format được phát hiện: **{carousel_format}**
 ## DỮ LIỆU ĐẦU VÀO
 
 **Ngách:** {niche_name}
-**Corpus size (30 ngày):** {corpus_size} carousel
+**Quy mô kho video (30 ngày):** {corpus_size} carousel
 
 {niche_meta_adequacy}
 **Niche norms (carousel):**

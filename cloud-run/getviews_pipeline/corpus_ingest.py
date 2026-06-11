@@ -306,6 +306,9 @@ class BatchSummary:
     # of niches that were not processed before the budget expired.
     aborted_early: bool = False
     niches_remaining: int = 0
+    # H-3 run-marker guard: True when this (utc_day, shift) was already
+    # claimed by an earlier run today — the duplicate exits without spending.
+    skipped_duplicate_run: bool = False
     ingest_shift: str | None = None
     ingest_shift_count: int = 1
     content_class_ids_planned: list[int] = field(default_factory=list)
@@ -1699,6 +1702,12 @@ def _build_corpus_row(
 
     video_id = str(aweme.get("aweme_id", "") or "")
     if not video_id:
+        # An aweme without aweme_id means EnsembleData broke contract — if
+        # this ever spikes, the keys are the debugging entry point
+        # (audit 2026-06-10 M-9: silent skips were untraceable).
+        logger.warning(
+            "[corpus] aweme missing aweme_id — skipped. keys=%s", sorted(aweme.keys())
+        )
         return None
 
     handle = _normalize_handle(
@@ -3821,6 +3830,24 @@ async def run_batch_ingest(
     summary.score_cohort = corpus_score_cohort()
     client = _service_client()
 
+    # H-3 run marker: claim the (utc_day, shift) slot before any paid work.
+    # A cron double-fire / overlapping manual trigger of the SAME shift
+    # otherwise re-runs the full Gemini extraction (doubled spend).
+    if ingest_shift is not None:
+        claimed = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _claim_ingest_shift_sync(client, ingest_shift),
+        )
+        if not claimed:
+            logger.error(
+                "[corpus] shift %s already claimed today (corpus_ingest_runs) — "
+                "skipping duplicate run. Delete the row to force a re-run.",
+                ingest_shift,
+            )
+            summary.skipped_duplicate_run = True
+            summary.ingest_shift = ingest_shift
+            summary.ingest_shift_count = ingest_shift_count
+            return summary
+
     loop_mode = _corpus_ingest_loop_mode()
     summary.ingest_loop = loop_mode
     if loop_mode == "class":
@@ -4130,18 +4157,21 @@ async def run_batch_ingest(
                     "hi13_sync_fallback": res.hi13_sync_fallback,
                 })
 
-        if summary.aborted_early:
-            logger.warning(
-                "[corpus] Skipping post-processing (mv refresh, video_dang_hoc, "
-                "sound insights, weekly analytics) due to wall-clock budget."
-            )
-        elif not _is_final_ingest_shift(ingest_shift, ingest_shift_count):
-            logger.info(
-                "[corpus] Skipping post-processing — shift %s is not final (%d shifts); "
-                "cron-batch-post-processing heals MV overnight.",
-                ingest_shift,
-                ingest_shift_count,
-            )
+        if not should_run_inline_ingest_post_processing(
+            aborted_early=summary.aborted_early,
+            ingest_shift=ingest_shift,
+        ):
+            if summary.aborted_early:
+                logger.warning(
+                    "[corpus] Skipping inline post-processing (mv refresh, video_dang_hoc, "
+                    "sound insights, weekly analytics) due to wall-clock budget."
+                )
+            else:
+                logger.info(
+                    "[corpus] Skipping inline post-processing — scheduled shift %s; "
+                    "cron-batch-post-processing (23:30 UTC) heals MV overnight.",
+                    ingest_shift,
+                )
         else:
             pp = await run_ingest_post_processing(
                 client, run_weekly_analytics_if_sunday=True,
@@ -4175,12 +4205,56 @@ async def run_batch_ingest(
             )
         )
     summary.shadow_metrics["hi11_junction_reject"] = get_hi11_junction_reject_count()
+    if ingest_shift is not None:
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _complete_ingest_shift_sync(client, ingest_shift, summary),
+        )
     return summary
 
 
 def _corpus_ingest_loop_mode() -> str:
     mode = (_ingest_settings.corpus_ingest_loop or "niche").strip().lower()
     return mode if mode in ("niche", "class") else "niche"
+
+
+def _claim_ingest_shift_sync(client: Any, shift: str) -> bool:
+    """Claim (utc_day, shift) in corpus_ingest_runs; False = already claimed.
+
+    A double-fired shift doesn't duplicate rows (video_corpus upserts on
+    video_id) but re-runs the full Gemini extraction — doubled spend and
+    last-writer clobber. Only scheduled shifts are guarded; manual runs
+    (``ingest_shift=None``) stay unguarded so ops can always re-run.
+    Fail-open: a claim-infra error must never block the nightly ingest.
+    To force a same-day re-run of a shift, delete its corpus_ingest_runs row.
+    """
+    day = datetime.now(UTC).date().isoformat()
+    try:
+        res = (
+            client.table("corpus_ingest_runs")
+            .upsert(
+                {"utc_day": day, "ingest_shift": shift},
+                on_conflict="utc_day,ingest_shift",
+                ignore_duplicates=True,
+            )
+            .execute()
+        )
+        return bool(res.data)
+    except Exception as exc:
+        logger.warning("[corpus] ingest-run claim failed (%s) — proceeding unguarded", exc)
+        return True
+
+
+def _complete_ingest_shift_sync(client: Any, shift: str, summary: BatchSummary) -> None:
+    """Best-effort completion stamp on the run marker (audit trail)."""
+    day = datetime.now(UTC).date().isoformat()
+    try:
+        client.table("corpus_ingest_runs").update({
+            "completed_at": datetime.now(UTC).isoformat(),
+            "aborted_early": summary.aborted_early,
+            "inserted_count": summary.total_inserted,
+        }).eq("utc_day", day).eq("ingest_shift", shift).execute()
+    except Exception as exc:
+        logger.warning("[corpus] ingest-run completion stamp failed: %s", exc)
 
 
 _INGEST_SHIFT_LETTERS = "abcdef"
@@ -4194,13 +4268,28 @@ def _ingest_shift_index(shift: str) -> int | None:
 
 
 def _is_final_ingest_shift(shift: str | None, shift_count: int) -> bool:
-    """True when this run should run MV/post-processing (full run or last shift)."""
+    """True when this run is the last scheduled shift slice (``a``–``f``)."""
     if shift is None:
         return True
     if shift_count < 1:
         return True
     final = _INGEST_SHIFT_LETTERS[min(shift_count, len(_INGEST_SHIFT_LETTERS)) - 1]
     return shift.strip().lower() == final
+
+
+def should_run_inline_ingest_post_processing(
+    *,
+    aborted_early: bool,
+    ingest_shift: str | None,
+) -> bool:
+    """Whether ``/batch/ingest`` should run MV refresh inline before returning.
+
+    Scheduled shifts (``ingest_shift`` set) always defer to
+    ``cron-batch-post-processing`` so shift C does not blow the 3600s cap.
+    """
+    if aborted_early:
+        return False
+    return ingest_shift is None
 
 
 def split_ingest_targets_for_shift(

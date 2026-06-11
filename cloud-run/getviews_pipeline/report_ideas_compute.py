@@ -188,7 +188,7 @@ def compute_ideas_blocks(
                 f"cụ thể trong 12s đầu."
             )[:240],
             why_works=(
-                f"Trong corpus 7–14 ngày, {label} đạt retention {_fmt_pct(ret)} "
+                f"Trong kho video 7–14 ngày qua, {label} đạt retention {_fmt_pct(ret)} "
                 f"trên {uses} video từ {creators} creator."
             ),
             evidence_video_ids=ev_ids,
@@ -330,6 +330,10 @@ def fetch_corpus_window(sb: Any, niche_id: int, days: int, *, limit: int = 2500)
             )
             .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", cutoff)
+            # Phase 5.4 parity with report_pattern_compute — exclude
+            # low-quality user-diagnosed rows so a single pasted video
+            # can't skew the Ideas hook samples (audit 2026-06-10 M-6).
+            .or_("quality_tier.is.null,quality_tier.in.(high,medium)")
             .order("views", desc=True)
             .limit(limit)
             .execute()

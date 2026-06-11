@@ -59,7 +59,7 @@ def build_fixture_generic_report(query: str = "câu hỏi chung") -> dict[str, A
         [
             (
                 f"Câu hỏi «{query[:120]}» ngoài taxonomy — Studio không đủ tín hiệu "
-                f"để xếp hạng. Dựa trên corpus rộng 18 video 14 ngày qua, đây là "
+                f"để xếp hạng. Dựa trên kho video đa ngách 18 video 14 ngày qua, đây là "
                 f"hướng gần đúng; nên thử công cụ chuyên biệt bên dưới."
             ),
             (
@@ -87,7 +87,7 @@ def build_fixture_generic_report(query: str = "câu hỏi chung") -> dict[str, A
         off_taxonomy=build_off_taxonomy_payload(),
         narrative={"paragraphs": narrative},
         evidence_videos=ev,
-        sources=[SourceRow(kind="datapoint", label="Corpus (broad)", count=18, sub="14d")],
+        sources=[SourceRow(kind="datapoint", label="Kho video (đa ngách)", count=18, sub="14d")],
         related_questions=[
             "Hỏi theo niche cụ thể?",
             "Dán link video để Soi Video?",
@@ -176,7 +176,7 @@ def build_generic_report(
         sources=[
             SourceRow(
                 kind="datapoint",
-                label="Corpus (broad)",
+                label="Kho video (đa ngách)",
                 count=sample_n,
                 sub=(niche_label or "đa ngách") + f" · {window_days}d",
             )
@@ -225,7 +225,7 @@ def _generate_narrative(
     except Exception as exc:
         logger.info("[generic] Gemini narrative skipped: %s", exc)
 
-    scope = niche_label or "corpus rộng"
+    scope = niche_label or "kho video đa ngách"
     return [
         (
             f"Câu hỏi «{query[:140]}» ngoài taxonomy — Studio không đủ tín hiệu "

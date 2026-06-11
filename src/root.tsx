@@ -1,10 +1,12 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
+  isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteError,
 } from "react-router";
 import { AuthProvider } from "@/lib/auth";
 import { queryClient } from "@/lib/query-client";
@@ -61,6 +63,47 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
+  );
+}
+
+/**
+ * Root catch-all for uncaught render/loader errors (audit 2026-06-10 M-8).
+ * Without this, a render crash anywhere in the tree left users on a blank
+ * white screen with no way forward. React Router renders the nearest
+ * exported ``ErrorBoundary`` instead of unmounting the app.
+ */
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const is404 = isRouteErrorResponse(error) && error.status === 404;
+  if (import.meta.env.DEV) {
+    console.error("[root ErrorBoundary]", error);
+  }
+  return (
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground">
+      <h1 className="text-2xl font-semibold">
+        {is404 ? "Không tìm thấy trang này" : "Đã xảy ra lỗi"}
+      </h1>
+      <p className="max-w-md text-muted-foreground">
+        {is404
+          ? "Đường dẫn không tồn tại hoặc đã bị di chuyển."
+          : "Ứng dụng gặp lỗi không mong muốn. Tải lại trang để tiếp tục — phiên phân tích của bạn vẫn được lưu trong Lịch sử."}
+      </p>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="min-h-11 rounded-md bg-primary px-5 text-primary-foreground"
+        >
+          Tải lại trang
+        </button>
+        <a
+          href="/app"
+          className="flex min-h-11 items-center rounded-md border border-default px-5"
+        >
+          Về Sảnh Sáng Tạo
+        </a>
+      </div>
+    </main>
   );
 }
 

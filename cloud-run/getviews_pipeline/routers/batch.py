@@ -184,6 +184,7 @@ async def batch_ingest(
             "niches_processed": summary.niches_processed,
             "materialized_view_refreshed": summary.materialized_view_refreshed,
             "aborted_early": summary.aborted_early,
+            "skipped_duplicate_run": summary.skipped_duplicate_run,
             "niches_remaining": summary.niches_remaining,
             "content_class_ids_planned": summary.content_class_ids_planned,
             "remaining_content_class_ids": summary.remaining_content_class_ids,

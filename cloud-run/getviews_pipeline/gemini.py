@@ -975,7 +975,7 @@ def _split_diagnosis_leading_json(full_text: str) -> tuple[dict[str, Any] | None
 
 _EMBEDDED_TILE_MIN_PROXIMITY = 1
 _EMBED_TILE_SECTION_IDS: frozenset[str] = frozenset(
-    {"hook_analysis", "diagnosis", "niche_pattern", "distribution", "script_structure"},
+    {"hook_analysis", "diagnosis", "niche_pattern", "script_structure"},
 )
 
 # Bump when embedded-tile sanitize/inject contract changes (finalize-lite repair gate).
@@ -1010,12 +1010,19 @@ def count_valid_embedded_tiles(diagnosis_vi: dict[str, Any] | None) -> int:
 def repair_diagnosis_vi_embedded_tiles(
     diagnosis_vi: dict[str, Any],
     reference_videos: list[dict[str, Any]],
+    *,
+    addressing_mode: str = "third_party",
 ) -> int:
     """Re-run sanitize + fallback inject; return valid tile count after."""
     allowed = _allowed_aweme_ids(reference_videos)
     if not allowed or not reference_videos:
         return count_valid_embedded_tiles(diagnosis_vi)
-    _sanitize_diagnosis_embedded_tiles(diagnosis_vi, reference_videos, allowed)
+    _sanitize_diagnosis_embedded_tiles(
+        diagnosis_vi,
+        reference_videos,
+        allowed,
+        addressing_mode=addressing_mode,
+    )
     return count_valid_embedded_tiles(diagnosis_vi)
 
 
@@ -1116,6 +1123,8 @@ def _inject_fallback_embedded_tiles(
     diagnosis_vi: dict[str, Any],
     reference_videos: list[dict[str, Any]],
     embed_allowed: set[str],
+    *,
+    addressing_mode: str = "third_party",
 ) -> None:
     """When the pool is non-empty but Gemini left ``embedded_tiles`` blank, attach unused peers per section."""
     from getviews_pipeline.diagnose_parse import (
@@ -1157,7 +1166,6 @@ def _inject_fallback_embedded_tiles(
         "diagnosis",
         "hook_analysis",
         "niche_pattern",
-        "distribution",
         "script_structure",
     ):
         if sid not in _EMBED_TILE_SECTION_IDS:
@@ -1188,9 +1196,11 @@ def _inject_fallback_embedded_tiles(
             if aid:
                 used_aweme.add(aid)
             if not str(t.get("narrative_vi") or "").strip():
-                t["narrative_vi"] = fallback_tile_narrative_vi(t, sid, idx)
+                t["narrative_vi"] = fallback_tile_narrative_vi(
+                    t, sid, idx, addressing_mode  # type: ignore[arg-type]
+                )
         if resolved:
-            ensure_distinct_tile_narratives(resolved, sid)
+            ensure_distinct_tile_narratives(resolved, sid, addressing_mode)  # type: ignore[arg-type]
             sec["embedded_tiles"] = resolved[:_MAX_EMBEDDED_TILES_PER_SECTION]
 
 
@@ -1221,6 +1231,8 @@ def _sanitize_diagnosis_embedded_tiles(
     diagnosis_vi: dict[str, Any],
     reference_videos: list[dict[str, Any]],
     allowed_aweme: set[str],
+    *,
+    addressing_mode: str = "third_party",
 ) -> None:
     """Resolve ``embedded_tiles`` from the reference pool only — drop hallucinated or off-topic ids."""
     from getviews_pipeline.diagnose_parse import (
@@ -1282,10 +1294,15 @@ def _sanitize_diagnosis_embedded_tiles(
             if t.get("aweme_id")
             and (t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"))
         ]
-        ensure_distinct_tile_narratives(tiles_out, section_id)
+        ensure_distinct_tile_narratives(tiles_out, section_id, addressing_mode)  # type: ignore[arg-type]
         sec["embedded_tiles"] = tiles_out
 
-    _inject_fallback_embedded_tiles(diagnosis_vi, reference_videos, embed_allowed)
+    _inject_fallback_embedded_tiles(
+        diagnosis_vi,
+        reference_videos,
+        embed_allowed,
+        addressing_mode=addressing_mode,
+    )
     _dedupe_embedded_tiles_across_sections(diagnosis_vi)
 
 
@@ -1430,6 +1447,47 @@ def _v6_section_body_and_narrative(
     return body_md, narrative_vi
 
 
+def _parse_diagnosis_v6_pool_response(
+    text: str,
+    *,
+    allowed: set[str],
+    reference_videos: list[dict[str, Any]],
+) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None, dict[str, Any] | None]:
+    """Parse v6 section-pool Gemini text → body, narrative, format_cards, raw diagnosis_vi."""
+    raw_obj, remainder = _split_diagnosis_leading_json(text)
+    narrative_vi: dict[str, Any] | None = None
+    format_cards: list[dict[str, Any]] | None = None
+    body = ""
+    diag_vi: dict[str, Any] | None = None
+
+    if raw_obj:
+        diag_vi = raw_obj.get("diagnosis_vi")
+        if isinstance(diag_vi, dict):
+            body, narrative_vi = _v6_section_body_and_narrative(diag_vi)
+            fc = raw_obj.get("format_cards")
+            format_cards = fc if isinstance(fc, list) else None
+            narrative_vi, format_cards = _validate_narrative_citations(
+                narrative_vi, format_cards, allowed, reference_videos
+            )
+            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
+            if not body.strip():
+                body = remainder.strip()
+        else:
+            nv = raw_obj.get("narrative_vi")
+            fc = raw_obj.get("format_cards")
+            narrative_vi = nv if isinstance(nv, dict) else None
+            format_cards = fc if isinstance(fc, list) else None
+            narrative_vi, format_cards = _validate_narrative_citations(
+                narrative_vi, format_cards, allowed, reference_videos
+            )
+            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
+            body = remainder.strip()
+    else:
+        body = text.strip()
+
+    return body, narrative_vi, format_cards, diag_vi if isinstance(diag_vi, dict) else None
+
+
 def _synthesize_diagnosis_v6_section_pool(
     content_format: str,
     niche_name: str,
@@ -1453,12 +1511,21 @@ def _synthesize_diagnosis_v6_section_pool(
     niche_posting_context_block: str = "",
     analysis_depth: str = "basic",
     comment_radar: dict[str, Any] | None = None,
+    addressing_mode: str = "third_party",
+    video_creator_handle: str | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """Section-pool diagnosis: signals → section pick list → JSON-first v6 prompt."""
     from getviews_pipeline.compliance import collect_compliance_flags
-    from getviews_pipeline.diagnose_prompts import build_diagnosis_v6_user_prompt
+    from getviews_pipeline.diagnose_prompts import (
+        DIAGNOSIS_V6_SHORTEN_RETRY_APPEND,
+        build_diagnosis_v6_user_prompt,
+    )
     from getviews_pipeline.diagnose_sections import select_sections_to_emit
-    from getviews_pipeline.diagnosis_quality import score_diagnosis_output_v6
+    from getviews_pipeline.diagnosis_quality import (
+        diagnosis_v6_word_budget_exceeded,
+        diagnosis_v6_word_counts,
+        score_diagnosis_output_v6,
+    )
     from getviews_pipeline.signals.registry import (
         build_diagnosis_ctx,
         build_signal_manifest,
@@ -1513,7 +1580,9 @@ def _synthesize_diagnosis_v6_section_pool(
         reference_evidence_block=reference_evidence_block,
         collapsed_questions=collapsed_questions,
         cross_format_signal=cross_format_signal,
-        niche_posting_context_block=niche_posting_context_block,
+        niche_posting_context_block="",
+        addressing_mode=addressing_mode,
+        video_creator_handle=video_creator_handle,
     )
     prompt = _prefix_user_sections(
         [layer0_context or "", creator_format_history_block or ""],
@@ -1525,58 +1594,57 @@ def _synthesize_diagnosis_v6_section_pool(
         temperature=GEMINI_TEMPERATURE,
         max_output_tokens=max_tokens,
     )
-    response = _generate_content_models(
-        [prompt],
-        primary_model=model,
-        fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
-        config=cfg,
-        call_site="diagnosis_synthesis_v6_section_pool",
-        synthesis_cache_kind="diag_v6",
-        synthesis_cache_system_text=sys_inst,
-    )
-    text = _response_text(response)
-    if not text.strip():
-        raise ValueError("synthesize_diagnosis_v6_section_pool returned empty response")
-
-    raw_obj, remainder = _split_diagnosis_leading_json(text)
+    body = ""
     narrative_vi: dict[str, Any] | None = None
     format_cards: list[dict[str, Any]] | None = None
-    body = ""
+    diag_vi: dict[str, Any] | None = None
 
-    if raw_obj:
-        diag_vi = raw_obj.get("diagnosis_vi")
-        if isinstance(diag_vi, dict):
-            body, narrative_vi = _v6_section_body_and_narrative(diag_vi)
-            fc = raw_obj.get("format_cards")
-            format_cards = fc if isinstance(fc, list) else None
-            narrative_vi, format_cards = _validate_narrative_citations(
-                narrative_vi, format_cards, allowed, reference_videos
-            )
-            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
-            q = score_diagnosis_output_v6(
-                diag_vi, section_ids_expected=sections_ordered
-            )
-            logger.debug(
-                "[diagnosis_v6] quality footprint sections=%s scores=%s",
-                sections_ordered,
-                q,
-            )
-            if not body.strip():
-                body = remainder.strip()
-        else:
-            nv = raw_obj.get("narrative_vi")
-            fc = raw_obj.get("format_cards")
-            narrative_vi = nv if isinstance(nv, dict) else None
-            format_cards = fc if isinstance(fc, list) else None
-            narrative_vi, format_cards = _validate_narrative_citations(
-                narrative_vi, format_cards, allowed, reference_videos
-            )
-            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
-            body = remainder.strip()
-    else:
-        body = text.strip()
+    for attempt in range(2):
+        attempt_prompt = (
+            prompt if attempt == 0 else prompt + DIAGNOSIS_V6_SHORTEN_RETRY_APPEND
+        )
+        response = _generate_content_models(
+            [attempt_prompt],
+            primary_model=model,
+            fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
+            config=cfg,
+            call_site="diagnosis_synthesis_v6_section_pool",
+            synthesis_cache_kind="diag_v6",
+            synthesis_cache_system_text=sys_inst,
+        )
+        text = _response_text(response)
+        if not text.strip():
+            raise ValueError("synthesize_diagnosis_v6_section_pool returned empty response")
 
-    scan_target = body if raw_obj else text.strip()
+        body, narrative_vi, format_cards, diag_vi = _parse_diagnosis_v6_pool_response(
+            text,
+            allowed=allowed,
+            reference_videos=reference_videos,
+        )
+        if attempt == 0 and diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi):
+            wc = diagnosis_v6_word_counts(diag_vi)
+            logger.info(
+                "[diagnosis_v6] word budget exceeded total=%s — shorten retry",
+                wc.get("total"),
+            )
+            continue
+        if attempt == 1 and diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi):
+            wc = diagnosis_v6_word_counts(diag_vi)
+            logger.warning(
+                "[diagnosis_v6] word budget still exceeded after shorten retry total=%s",
+                wc.get("total"),
+            )
+        break
+
+    if diag_vi:
+        q = score_diagnosis_output_v6(diag_vi, section_ids_expected=sections_ordered)
+        logger.debug(
+            "[diagnosis_v6] quality footprint sections=%s scores=%s",
+            sections_ordered,
+            q,
+        )
+
+    scan_target = body.strip() if body.strip() else text.strip()
     try:
         from getviews_pipeline.analysis_guards import (
             scan_synthesis_for_fabricated_metrics,
@@ -1616,6 +1684,8 @@ def synthesize_diagnosis_v2(
     niche_posting_context_block: str = "",
     analysis_depth: str = "basic",
     comment_radar: dict[str, Any] | None = None,
+    addressing_mode: str = "third_party",
+    video_creator_handle: str | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """V2 narrative diagnosis — Markdown body plus optional structured narrative/format cards."""
 
@@ -1642,6 +1712,8 @@ def synthesize_diagnosis_v2(
             niche_posting_context_block=niche_posting_context_block,
             analysis_depth=analysis_depth,
             comment_radar=comment_radar,
+            addressing_mode=addressing_mode,
+            video_creator_handle=video_creator_handle,
         )
 
     allowed = _allowed_aweme_ids(reference_videos)
@@ -1663,8 +1735,24 @@ def synthesize_diagnosis_v2(
         errors=errors,
         reference_evidence_block=reference_evidence_block,
     )
+    from getviews_pipeline.analysis_addressing import (
+        AddressingMode,
+        build_addressing_prompt_block,
+    )
+
+    legacy_addr: AddressingMode = (
+        "viewer_own" if addressing_mode == "viewer_own" else "third_party"
+    )
     prompt = _prefix_user_sections(
-        [layer0_context or "", creator_format_history_block or "", niche_posting_context_block or ""],
+        [
+            build_addressing_prompt_block(
+                legacy_addr,
+                creator_handle=video_creator_handle,
+            ),
+            layer0_context or "",
+            creator_format_history_block or "",
+            niche_posting_context_block or "",
+        ],
         prompt,
     )
     if collapsed_questions:
@@ -1764,17 +1852,9 @@ def synthesize_diagnosis_carousel_v2(
         [
             layer0_context or "",
             creator_format_history_block or "",
-            niche_posting_context_block or "",
         ],
         prompt,
     )
-    if (niche_posting_context_block or "").strip():
-        prompt = (
-            prompt.rstrip()
-            + "\n\nNếu có khối bắt đầu bằng NICHE_POSTING_CONTEXT phía trên: nhúng vào "
-            "**TẦNG 1 — PHÂN PHỐI** (ưu tiên PHẦN 1B — phân phối carousel này); "
-            "không mở mục “khung giờ đăng” hay timing riêng.\n"
-        )
     if collapsed_questions:
         question_block = (
             "\n\nNgười dùng hỏi nhiều câu; thêm mục có tiêu đề rõ cho từng câu:\n"
@@ -2145,6 +2225,9 @@ def generate_niche_insight(
     # response_mime_type, response_json_schema, and preserves media_resolution from
     # _video_analysis_config() via model_copy. Do not replace it.
     cfg = _extraction_json_config(LAYER0_NICHE_RESPONSE_SCHEMA)
+    # Audit 2026-06-10: only call site without an explicit output cap —
+    # the insight JSON is small; bound it like every other site.
+    cfg.max_output_tokens = 2048
 
     response = _generate_content_models(
         [full_prompt],
@@ -2466,10 +2549,17 @@ def run_corpus_extraction_batch_file_job(
     video Files until the job reaches a terminal state (avoids breaking an
     in-flight batch). JSONL input file is always deleted best-effort.
     """
-    from getviews_pipeline.gemini_cost import log_gemini_call
+    from getviews_pipeline.gemini_cost import check_gemini_daily_budget, log_gemini_call
 
     if not records:
         return {"ok": True, "state": "JOB_STATE_SUCCEEDED", "by_video_id": {}}
+
+    # Budget gate (audit 2026-06-10): every live call site checks the daily
+    # USD ceiling, but batch submission did not — a runaway ingest loop could
+    # queue unbounded batch spend that only shows up in gemini_calls hours
+    # later. Raises GeminiDailyBudgetExceeded when today's recorded spend has
+    # already hit the cap (the in-flight batch itself still lands after).
+    check_gemini_daily_budget(f"corpus_batch_submit:{display_name}")
 
     client = _get_client()
     stt_map = gcp_stt_cost_by_video_id or {}

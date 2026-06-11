@@ -11,7 +11,10 @@ export function sanitizePostLoginPath(raw: string | null | undefined): string {
   } catch {
     return "/app";
   }
+  // Reject protocol-relative ("//evil") and backslash variants ("/\evil",
+  // which some browsers normalise to "//evil") before the /app allowlist.
   if (!path.startsWith("/") || path.startsWith("//")) return "/app";
+  if (/^\/[\\/]/.test(path)) return "/app";
   if (!path.startsWith("/app")) return "/app";
   return path;
 }

@@ -130,6 +130,18 @@ class PatternDeckLLM(BaseModel):
             "angle nobody has covered yet."
         ),
     )
+    slide_script: list[str] = Field(
+        default_factory=list,
+        max_length=8,
+        description=(
+            "4-6 bullet lines: Hook (0-1s) → beats → CTA. Copy-paste ready for creator."
+        ),
+    )
+    cta_placement: str = Field(
+        default="",
+        max_length=120,
+        description="Where to place CTA (end frame / overlay / comment) and why, ≤120 chars.",
+    )
 
 
 # ── Result shape for the orchestrator + tests ────────────────────────────
@@ -360,7 +372,14 @@ Trả về JSON theo schema:
   • gap: true nếu filled = 0 (cơ hội còn trống); false ngược lại.
   PHẢI có ít nhất 1 góc với gap=true (cơ hội chưa khai thác).
 
+- slide_script: đúng 4-6 dòng bullet • — script hook theo slide/cảnh copy-paste:
+  "• Hook (0-1s): [câu]" → "• Beat 2: ..." → "• Beat 3: ..." → "• CTA: [câu copy-paste]". Creator quay được ngay.
+
+- cta_placement: 1 câu ≤120 ký tự — vị trí CTA (cuối video / overlay / comment) và lý do ngắn.
+
 NGUYÊN TẮC:
+- Verdict-first: why = 1 câu in đậm mở đầu + tối đa 2 câu chứng minh. Toàn deck ~350-450 từ.
+- KHÔNG đánh giá giờ đăng / khung giờ vàng.
 - Văn phong tự nhiên tiếng Việt. KHÔNG dùng "bí mật", "công thức vàng", "triệu view", "đột phá".
 - Số liệu cụ thể, không hứa hẹn "sẽ viral".
 - Nếu grounding mỏng, chấp nhận angle đơn giản — đừng bịa thông tin.
@@ -553,6 +572,8 @@ def synthesize_pattern_deck(
         "why":       llm.why.strip(),
         "careful":   llm.careful.strip(),
         "angles":    [a.model_dump() for a in llm.angles],
+        "slide_script": list(llm.slide_script),
+        "cta_placement": llm.cta_placement.strip(),
     }
     return PatternDeckResult(pattern_id=pattern_id, deck=deck, error=None)
 

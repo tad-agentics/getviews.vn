@@ -405,7 +405,7 @@ def build_lifecycle_report(
         from getviews_pipeline.step_events import emit, step_status, step_tool_start
 
         emit(step_queue, step_status(1, "Đang phân tích vòng đời format trong ngách..."))
-        emit(step_queue, step_tool_start("Tải corpus lifecycle", 1, 0, tool="corpus"))
+        emit(step_queue, step_tool_start("Tải kho video lifecycle", 1, 0, tool="corpus"))
 
     ctx = load_lifecycle_inputs(sb, niche_id, window_days)
     if ctx is None:

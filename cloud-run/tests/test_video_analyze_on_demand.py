@@ -452,10 +452,17 @@ def test_on_demand_cache_hit_returns_cached_response_without_running_gemini() ->
     service_sb = MagicMock()
     select_chain = MagicMock()
     select_chain.data = [{"cached_response": cached, "computed_at": fresh_iso}]
-    (
-        service_sb.table.return_value.select.return_value.eq.return_value.eq.return_value
-        .limit.return_value.execute.return_value
-    ) = select_chain
+    diag_execute = MagicMock()
+    diag_execute.data = [{"cached_response": cached, "computed_at": fresh_iso}]
+    diag_limit = MagicMock()
+    diag_limit.execute.return_value = diag_execute
+    depth_eq = MagicMock()
+    depth_eq.limit.return_value = diag_limit
+    source_eq = MagicMock()
+    source_eq.eq.return_value = depth_eq
+    url_eq = MagicMock()
+    url_eq.eq.return_value = source_eq
+    service_sb.table.return_value.select.return_value.eq.return_value = url_eq
     user_sb = MagicMock()
 
     with patch(
@@ -480,12 +487,17 @@ def test_on_demand_cache_miss_falls_through_to_full_pipeline() -> None:
         niche_taxonomy_row={"name_vn": "Làm đẹp", "name_en": "Beauty"},
     )
     service_sb = MagicMock()
-    select_chain = MagicMock()
-    select_chain.data = []  # cache miss
-    (
-        service_sb.table.return_value.select.return_value.eq.return_value.eq.return_value
-        .limit.return_value.execute.return_value
-    ) = select_chain
+    diag_execute = MagicMock()
+    diag_execute.data = []  # cache miss
+    diag_limit = MagicMock()
+    diag_limit.execute.return_value = diag_execute
+    depth_eq = MagicMock()
+    depth_eq.limit.return_value = diag_limit
+    source_eq = MagicMock()
+    source_eq.eq.return_value = depth_eq
+    url_eq = MagicMock()
+    url_eq.eq.return_value = source_eq
+    service_sb.table.return_value.select.return_value.eq.return_value = url_eq
 
     with patch(
         "getviews_pipeline.video_analyze._fetch_and_analyze_async",

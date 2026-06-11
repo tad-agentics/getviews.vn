@@ -1,39 +1,12 @@
 /**
  * Phase C.5.3 — PatternSubreport wrapper.
  *
- * Plan §A.4 "Report + timing" merge: when Pattern's `subreports.timing`
- * is populated, render a boxed TimingBody between `PatternCells` and
- * `ActionCards`. Kicker signals the merge: `KÈM THEO · TIMING`.
- *
- * Subreport keys we know about today:
- *   - `timing` → full `TimingBody` (heatmap + headline + variance + fatigue)
- *
- * Unknown keys are ignored — Pattern is the primary payload, subreports
- * are additive.
+ * Redesign 2026-05: clock-time / posting-hour subreports are no longer merged
+ * into pattern diagnosis. Standalone `format=timing` sessions still use TimingBody.
  */
 
-import type { PatternReportPayload, TimingReportPayload } from "@/lib/api-types";
+import type { PatternReportPayload } from "@/lib/api-types";
 
-import { TimingBody } from "../timing/TimingBody";
-
-type SubreportsDict = Record<string, unknown>;
-
-export function PatternSubreports({ report }: { report: PatternReportPayload }) {
-  const subs = report.subreports as SubreportsDict | null | undefined;
-  if (!subs || typeof subs !== "object") return null;
-
-  const timing = subs.timing as TimingReportPayload | undefined;
-  if (!timing) return null;
-
-  return (
-    <section
-      className="rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
-      aria-label="Phân tích thời điểm đăng"
-    >
-      <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-accent)] font-semibold">
-        Kèm theo · khung giờ đăng
-      </p>
-      <TimingBody report={timing} />
-    </section>
-  );
+export function PatternSubreports(_props: { report: PatternReportPayload }) {
+  return null;
 }

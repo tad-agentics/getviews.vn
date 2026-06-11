@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [tsconfigPaths({ projects: ["./tsconfig.app.json"] }), react()],
   test: {
     environment: "jsdom",
-    // Playwright lives under /tests and uses its own runner.
-    exclude: ["**/node_modules/**", "**/dist/**", "**/.{idea,git,cache,output,temp}/**", "tests/**"],
+    // Playwright lives under /tests and uses its own runner; Supabase Edge
+    // Function tests are Deno (run via `deno test` in CI's edge-functions job).
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.{idea,git,cache,output,temp}/**", "tests/**", "supabase/**"],
   },
 });

@@ -1,4 +1,4 @@
-"""§9 Engagement architecture signals (distribution section)."""
+"""§9 Engagement architecture signals (metadata / diagnosis sections)."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def extract_pinned_comment_signal(ctx: dict) -> list[Signal]:
     return [
         Signal(
             id="engagement_pinned_comment_not_in_vo",
-            section_id="distribution",
+            section_id="metadata",
             taxonomy_ref="§9",
             salience=0.55,
             claim="Có bình luận ghim nhưng giọng nói không nhắc — bỏ lỡ luồng CTA/ưu đãi thường thấy trên TikTok Shop.",
@@ -84,7 +84,7 @@ def extract_loop_architecture_signal(ctx: dict) -> list[Signal]:
     return [
         Signal(
             id="engagement_loop_architecture_positive",
-            section_id="distribution",
+            section_id="metadata",
             taxonomy_ref="§9",
             salience=0.4,
             claim=(
@@ -113,7 +113,7 @@ def extract_comment_hook_missing_signal(ctx: dict) -> list[Signal]:
     return [
         Signal(
             id="engagement_comment_hook_missing",
-            section_id="distribution",
+            section_id="metadata",
             taxonomy_ref="§9",
             salience=0.56,
             claim="Thoại không có câu hỏi/CTA kích comment — bỏ lỡ tín hiệu tương tác sớm.",

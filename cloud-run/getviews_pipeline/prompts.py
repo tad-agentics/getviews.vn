@@ -423,7 +423,7 @@ TỪ VỰNG CHUYÊN NGÀNH (giữ tiếng Anh vì creator VN dùng hàng ngày):
 {hook_formula_instruction}
 
 QUY TẮC TRÍCH DẪN VIDEO (P0-2):
-Khi nhắc đến video cụ thể từ corpus, LUÔN kèm theo một JSON block trên một dòng riêng ngay sau câu đó:
+Khi nhắc đến video cụ thể từ kho video mẫu, LUÔN kèm theo một JSON block trên một dòng riêng ngay sau câu đó:
 {{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>, "breakout": <số hoặc bỏ qua nếu ≤1>}}
 
 - Chỉ xuất block khi có video_id thật từ dữ liệu JSON bên dưới — KHÔNG tự tạo ID

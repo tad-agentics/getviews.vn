@@ -264,10 +264,10 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
           acc.topCreatorViews = views;
           acc.topCreatorHandle = cleanHandle;
         }
-        if (videoId && thumbnail?.trim()) {
+        if (videoId) {
           acc.rows.push({
             video_id: videoId,
-            thumbnail_url: thumbnail,
+            thumbnail_url: thumbnail?.trim() || null,
             creator_handle: handle,
             views,
             tiktok_url: tiktokUrl,
@@ -325,7 +325,7 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
       const deduped: TopPattern[] = [];
       const seenFormulas = new Set<string>();
       for (const p of enriched) {
-        // Card/modal need at least one corpus row with a displayable thumbnail.
+        // Card/modal need at least one sample video (R2 thumb fallback via video_id).
         if (p.videos.length === 0) continue;
         const key = (p.display_name?.trim() || p.id).toLowerCase();
         if (seenFormulas.has(key)) continue;

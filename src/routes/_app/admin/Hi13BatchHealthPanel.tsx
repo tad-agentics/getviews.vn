@@ -26,7 +26,20 @@ function StatusChip({ enabled }: { enabled: boolean }) {
   );
 }
 
-function RunStatusChip({ status }: { status: string | null }) {
+function RunStatusChip({
+  status,
+  skippedDuplicate,
+}: {
+  status: string | null;
+  skippedDuplicate?: boolean;
+}) {
+  if (skippedDuplicate) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-[color:var(--gv-canvas-2)] px-2.5 py-0.5 gv-kicker text-[color:var(--gv-ink-3)]">
+        bỏ qua trùng
+      </span>
+    );
+  }
   const s = status ?? "unknown";
   const tone =
     s === "ok"
@@ -39,6 +52,11 @@ function RunStatusChip({ status }: { status: string | null }) {
       {s}
     </span>
   );
+}
+
+function formatShare(rate: number | null | undefined) {
+  if (rate == null) return "—";
+  return formatPct(rate);
 }
 
 function formatPct(rate: number) {
@@ -62,7 +80,10 @@ function RunRow({ row }: { row: Hi13RunRow }) {
       <td className="py-2.5 pr-4 text-sm text-[color:var(--gv-ink)]">{label}</td>
       <td className="py-2.5 pr-4 gv-mono text-[12px] text-[color:var(--gv-ink-3)]">{started}</td>
       <td className="py-2.5 pr-4">
-        <RunStatusChip status={row.status} />
+        <RunStatusChip
+          status={row.status}
+          skippedDuplicate={row.skipped_duplicate_run}
+        />
       </td>
       <td className="py-2.5 pr-4 gv-mono text-[12px] tabular-nums text-[color:var(--gv-accent-deep)]">
         {ok}
@@ -120,20 +141,26 @@ export function Hi13BatchHealthPanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-4">
-        <Bignum label="Batch line OK · 30 ngày" value={ingest_30d.batch_line_ok} />
-        <Bignum label="Batch line lỗi · 30 ngày" value={ingest_30d.batch_line_fail} />
         <Bignum
-          label="Tỷ lệ thành công line"
-          value={formatPct(ingest_30d.batch_line_success_rate)}
+          label="Tỷ lệ đường batch (mục tiêu 50%)"
+          value={formatShare(ingest_30d.batch_path_share)}
         />
+        <Bignum
+          label="Tỷ lệ call qua batch tier · 7 ngày"
+          value={formatShare(gemini_calls.batch_tier_share_7d)}
+        />
+        <Bignum label="Batch line OK · 30 ngày" value={ingest_30d.batch_line_ok} />
         <Bignum label="Sync fallback · 30 ngày" value={ingest_30d.sync_fallback} />
       </div>
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-4">
         <Bignum label="Gemini batch calls · 7 ngày" value={gemini_calls.batch_7d.count} />
+        <Bignum label="Sync extraction · 7 ngày" value={gemini_calls.sync_extraction_7d?.count ?? 0} />
         <Bignum label="Chi phí batch · 7 ngày" value={formatUsd(gemini_calls.batch_7d.cost_usd)} />
-        <Bignum label="Gemini batch calls · 30 ngày" value={gemini_calls.batch_30d.count} />
-        <Bignum label="Chi phí batch · 30 ngày" value={formatUsd(gemini_calls.batch_30d.cost_usd)} />
+        <Bignum
+          label="Chi phí sync · 7 ngày"
+          value={formatUsd(gemini_calls.sync_extraction_7d?.cost_usd ?? 0)}
+        />
       </div>
 
       {recent_runs.length > 0 ? (

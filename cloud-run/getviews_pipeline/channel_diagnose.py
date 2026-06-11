@@ -1005,7 +1005,7 @@ async def fetch_handle_corpus_for_findings(
 
 
 def compute_posting_cadence(videos: list[dict[str, Any]]) -> dict[str, Any]:
-    """Posts/week (30d), best posting hour from recent videos, worst hour contrast."""
+    """Posts/week over the last 30 days (no clock-time / golden-hour metrics)."""
     now = _now()
     cutoff = now - timedelta(days=30)
     recent = [
@@ -1014,41 +1014,7 @@ def compute_posting_cadence(videos: list[dict[str, Any]]) -> dict[str, Any]:
     ]
     weeks = 30 / 7.0
     posts_per_week = len(recent) / weeks if weeks > 0 else 0.0
-
-    hour_views: dict[int, list[int]] = {}
-    for v in recent:
-        dt = v.get("posted_at")
-        if not isinstance(dt, datetime):
-            continue
-        hour_views.setdefault(dt.hour, []).append(int(v.get("views") or 0))
-
-    if not hour_views:
-        return {
-            "posts_per_week": round(posts_per_week, 2),
-            "best_hour_range": "—",
-            "best_hour_avg_views": 0,
-            "worst_hour": 0,
-            "worst_hour_avg_views": 0,
-            "best_hour_ratio": 1.0,
-        }
-
-    hour_avgs = {h: sum(vals) / len(vals) for h, vals in hour_views.items()}
-    best_h = max(hour_avgs, key=lambda k: hour_avgs[k])
-    worst_h = min(hour_avgs, key=lambda k: hour_avgs[k])
-    best_avg = int(hour_avgs[best_h])
-    worst_avg = max(int(hour_avgs[worst_h]), 1)
-    ratio = best_avg / worst_avg
-    end_h = min(best_h + 2, 23)
-    best_hour_range = f"{best_h}h–{end_h}h"
-
-    return {
-        "posts_per_week": round(posts_per_week, 2),
-        "best_hour_range": best_hour_range,
-        "best_hour_avg_views": best_avg,
-        "worst_hour": worst_h,
-        "worst_hour_avg_views": int(hour_avgs[worst_h]),
-        "best_hour_ratio": round(ratio, 2),
-    }
+    return {"posts_per_week": round(posts_per_week, 2)}
 
 
 def compute_score_card(
@@ -1108,11 +1074,6 @@ def compute_score_card(
         "recent_avg_views": recent_avg,
         "posts_per_week": cadence["posts_per_week"],
         "peer_median_posts_per_week": peer_median_posts,
-        "best_hour_range": cadence["best_hour_range"],
-        "best_hour_avg_views": cadence["best_hour_avg_views"],
-        "worst_hour": cadence["worst_hour"],
-        "worst_hour_avg_views": cadence["worst_hour_avg_views"],
-        "best_hour_ratio": cadence["best_hour_ratio"],
         "sample_size_videos": len(videos),
     }
 
@@ -1219,15 +1180,6 @@ def render_score_card_captions(card: dict[str, Any]) -> dict[str, str]:
             f"{ppw:.1f} video/tuần (30 ngày gần nhất). "
             "Chưa có benchmark đăng tải ngách — soi tay đối thủ cùng category trong bảng dưới."
         )
-
-    ratio = float(card.get("best_hour_ratio") or 1.0)
-    worst_h = int(card.get("worst_hour") or 0)
-    wh_avg = int(card.get("worst_hour_avg_views") or 0)
-    bhr = str(card.get("best_hour_range") or "—")
-    captions["best_hour"] = (
-        f"Khung mạnh ~{bhr}: hiệu suất ~{ratio:.1f}x so với giờ yếu ({worst_h}h, {_fmt_views_short(wh_avg)}). "
-        "Đăng khi audience của bạn hay online giúp cold-start tốt hơn trong 60–120 phút đầu."
-    )
 
     max_v = int(card.get("peak_views") or 0)
     ravg = int(card.get("recent_avg_views") or 0)

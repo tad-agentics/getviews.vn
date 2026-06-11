@@ -10,7 +10,6 @@ export const VONG2_FINDING_IDS = new Set([
   "channel_format_entropy_high",
   "channel_persona_drift",
   "channel_posting_cadence_vs_peer",
-  "channel_best_hour_underused",
 ]);
 
 /** Vòng 0 — pre-publish / compliance gates (V5 §2 Vòng 0). */

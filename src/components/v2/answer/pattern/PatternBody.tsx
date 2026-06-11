@@ -205,6 +205,18 @@ export function PatternBody({
         ) : null}
       </section>
 
+      {evidence.length > 0 ? (
+        <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
+          <p className="gv-mono mb-1 text-[11px] tracking-wide text-[color:var(--gv-accent)]">
+            {labels.evidenceKicker}
+          </p>
+          <h3 className="gv-serif mb-4 text-[17px] text-[color:var(--gv-ink)]">
+            {labels.evidenceTitleForCount(evidence.length)}
+          </h3>
+          <EvidenceGrid items={evidence} />
+        </section>
+      ) : null}
+
       {findings.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "180ms" }}>
           <p className="gv-mono mb-1 text-[11px] tracking-wide text-[color:var(--gv-danger)]">
@@ -238,18 +250,6 @@ export function PatternBody({
               ))}
             </div>
           )}
-        </section>
-      ) : null}
-
-      {evidence.length > 0 ? (
-        <section className="gv-fade-up" style={{ animationDelay: "300ms" }}>
-          <p className="gv-mono mb-1 text-[11px] tracking-wide text-[color:var(--gv-ink-3)]">
-            {labels.evidenceKicker}
-          </p>
-          <h3 className="gv-serif mb-4 text-[17px] text-[color:var(--gv-ink)]">
-            {labels.evidenceTitleForCount(evidence.length)}
-          </h3>
-          <EvidenceGrid items={evidence} />
         </section>
       ) : null}
 

@@ -235,7 +235,7 @@ Quy tắc: cite số cụ thể khi có; không dùng từ cấm (bí mật, cô
                     {
                         "section_id": "hook_analysis",
                         "title_vi": "Hook 0–3 giây",
-                        "text_vi": f"Mở bằng: «{hook}». Hook cần lộ trong ~1 giây đầu — trùng corpus top video trong {niche_line}.",
+                        "text_vi": f"Mở bằng: «{hook}». Hook cần lộ trong ~1 giây đầu — trùng video top trong kho ngách {niche_line}.",
                     },
                     {
                         "section_id": "script_structure",

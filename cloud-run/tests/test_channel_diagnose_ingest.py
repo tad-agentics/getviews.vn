@@ -7,6 +7,7 @@ they normalise fixture JSON via _normalise_aweme and exercise every public funct
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -178,7 +179,11 @@ def test_compute_inflection_point_returns_none_for_new_account():
 # ---------------------------------------------------------------------------
 
 
-def test_trajectory_decline_from_peak():
+@patch(
+    "getviews_pipeline.channel_diagnose._now",
+    return_value=datetime(2026, 5, 1, tzinfo=UTC),
+)
+def test_trajectory_decline_from_peak(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -193,7 +198,16 @@ def test_trajectory_decline_from_peak():
     assert shape == "decline_from_peak", f"Expected decline_from_peak, got {shape}"
 
 
-def test_trajectory_stagnant():
+# Fixtures carry absolute timestamps (newest ≈ 2026-05-09), so every
+# trajectory test must freeze ``_now`` — otherwise the 30-day "recent
+# window" empties as wall-clock time passes and breakout/decline flip to
+# stagnant (this bit us on 2026-06-08). Keep all six tests pinned to the
+# same date, just after the newest fixture video.
+_FIXTURE_NOW = datetime(2026, 5, 10, tzinfo=UTC)
+
+
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_stagnant(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -208,7 +222,8 @@ def test_trajectory_stagnant():
     assert shape == "stagnant", f"Expected stagnant, got {shape}"
 
 
-def test_trajectory_steady_growth():
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_steady_growth(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -223,7 +238,8 @@ def test_trajectory_steady_growth():
     assert shape == "steady_growth", f"Expected steady_growth, got {shape}"
 
 
-def test_trajectory_breakout():
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_breakout(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -238,7 +254,8 @@ def test_trajectory_breakout():
     assert shape == "breakout", f"Expected breakout, got {shape}"
 
 
-def test_trajectory_bursty():
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_bursty(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -253,7 +270,8 @@ def test_trajectory_bursty():
     assert shape == "bursty", f"Expected bursty, got {shape}"
 
 
-def test_trajectory_new_account():
+@patch("getviews_pipeline.channel_diagnose._now", return_value=_FIXTURE_NOW)
+def test_trajectory_new_account(_mock_now: MagicMock) -> None:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
@@ -701,16 +719,12 @@ def test_render_score_card_captions_has_five_keys():
         "niche_p75": 12000,
         "peer_median_posts_per_week": 3.0,
         "posts_per_week": 2.0,
-        "best_hour_range": "18–21h",
-        "best_hour_ratio": 1.8,
-        "worst_hour": 9,
-        "worst_hour_avg_views": 1000,
         "peak_views": 50000,
         "recent_avg_views": 30000,
         "peak_age_months": 4,
     }
     caps = render_score_card_captions(card)
-    for k in ("trajectory", "percentile", "cadence", "best_hour", "peak_recent"):
+    for k in ("trajectory", "percentile", "cadence", "peak_recent"):
         assert k in caps and len(caps[k]) > 10
 
 

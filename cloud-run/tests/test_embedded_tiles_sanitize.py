@@ -236,8 +236,8 @@ def test_tile_narrative_needs_regen_legacy_handle_views() -> None:
 
 def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
     from getviews_pipeline.diagnose_parse import (
-        fallback_tile_narrative_vi,
         ensure_distinct_tile_narratives,
+        fallback_tile_narrative_vi,
     )
 
     t1 = {"author_handle": "user1", "views": 100000}
@@ -249,9 +249,12 @@ def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
     narrative_2 = fallback_tile_narrative_vi(t2, "hook_analysis", 1)
     narrative_3 = fallback_tile_narrative_vi(t3, "hook_analysis", 2)
 
-    assert "tối ưu 3 giây đầu" in narrative_1
+    # Copy redesigned in 1292db6/28b351b — each index lands on its own
+    # opening-seconds angle and the three rotations stay distinct.
+    assert "3 giây đầu" in narrative_1
     assert "hook mở màn" in narrative_2
-    assert "nhịp điệu mở đầu" in narrative_3
+    assert "nhịp mở" in narrative_3
+    assert len({narrative_1, narrative_2, narrative_3}) == 3
 
     assert "Được chọn" in narrative_1 or "Tham chiếu" in narrative_1 or "Lý do tham chiếu" in narrative_1
     assert "đang vận hành cực kỳ hiệu quả" not in narrative_1
@@ -265,6 +268,7 @@ def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
     ]
     ensure_distinct_tile_narratives(tiles, "hook_analysis")
 
-    assert "tối ưu 3 giây đầu" in tiles[0]["narrative_vi"]
+    assert "3 giây đầu" in tiles[0]["narrative_vi"]
     assert "hook mở màn" in tiles[1]["narrative_vi"]
-    assert "nhịp điệu mở đầu" in tiles[2]["narrative_vi"]
+    assert "nhịp mở" in tiles[2]["narrative_vi"]
+    assert len({t["narrative_vi"] for t in tiles}) == 3

@@ -213,7 +213,7 @@ def build_corpus_citation_block(
 
     if 0 < count < SPARSE_THRESHOLD:
         example = (
-            f'Chỉ có {count} video {niche_name} trong corpus {timeframe_vi(days)} '
+            f'Chỉ có {count} video {niche_name} trong kho dữ liệu {timeframe_vi(days)} '
             "— đây là insight sơ bộ, cần kiểm chứng thêm."
         )
         return (
@@ -225,20 +225,20 @@ def build_corpus_citation_block(
 
     if source == "live_search":
         return (
-            "NGỮ CẢNH DỮ LIỆU: Corpus không đủ video cho ngách này. "
+            "NGỮ CẢNH DỮ LIỆU: Kho video mẫu chưa đủ video cho ngách này. "
             "Video tham chiếu lấy từ live search theo từ khóa, không đảm bảo cùng ngách.\n"
             'BẮT BUỘC: Câu đầu tiên phản hồi phải nói: "Chưa có đủ dữ liệu về '
-            f'{niche_name} trong corpus — đây là insight từ các video tương tự theo '
+            f'{niche_name} trong kho video mẫu — đây là insight từ các video tương tự theo '
             'từ khóa, nên kiểm chứng bằng dữ liệu chuyên ngành."\n'
             "Ghi rõ khi một nhận định suy đoán từ các ngách lân cận."
         )
 
     # count == 0 and not live_search
     return (
-        f"NGỮ CẢNH DỮ LIỆU: Chưa có video nào về {niche_name} trong corpus "
+        f"NGỮ CẢNH DỮ LIỆU: Chưa có video nào về {niche_name} trong kho dữ liệu "
         f"{timeframe_vi(days)}.\n"
         f'BẮT BUỘC: Câu đầu tiên phản hồi phải nói: "Chưa có đủ dữ liệu về '
-        f'{niche_name} trong corpus — đây là insight từ các ngách tương tự, cần '
+        f'{niche_name} trong kho video mẫu — đây là insight từ các ngách tương tự, cần '
         'kiểm chứng bằng dữ liệu gần đây."\n'
         "Không trích dẫn số lượng cụ thể khi không có dữ liệu."
     )

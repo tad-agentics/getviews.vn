@@ -312,8 +312,11 @@ def _cleanup_frames(frame_paths: list[Path]) -> None:
     for p in frame_paths:
         try:
             p.unlink(missing_ok=True)
-        except Exception:
-            pass
+        except Exception as exc:
+            # /tmp is RAM-backed tmpfs on Cloud Run — leaked frames are
+            # leaked memory. Never fail the request over cleanup, but a
+            # silent pass here hid OOM pressure; log so it's countable.
+            logger.warning("[r2] frame cleanup failed %s: %s", p, exc)
 
 
 def _delete_stale_thumbnail_exts(video_id: str, *, keep_ext: str) -> None:
