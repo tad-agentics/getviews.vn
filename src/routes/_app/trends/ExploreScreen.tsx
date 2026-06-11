@@ -880,10 +880,10 @@ export default function ExploreScreen() {
             </>
           }
         />
-        <div className="flex min-h-0 flex-1 flex-col min-[1100px]:grid min-[1100px]:grid-cols-[minmax(0,1fr)_320px] min-[1100px]:overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col min-[1100px]:overflow-hidden">
           <div
             ref={scrollContainerRef}
-            className="border-[var(--border)] px-4 pb-[60px] pt-4 sm:px-7 min-[1100px]:min-h-0 min-[1100px]:min-w-0 min-[1100px]:overflow-y-auto min-[1100px]:border-r min-[1100px]:pt-5"
+            className="border-[var(--border)] px-4 pb-[60px] pt-4 sm:px-7 min-[1100px]:min-h-0 min-[1100px]:min-w-0 min-[1100px]:overflow-y-auto min-[1100px]:pt-5"
             style={{ scrollbarWidth: "thin" }}
           >
           {/* PR5 (two-axis, 2026-05-10) — niche pill row sourced from
@@ -1130,22 +1130,6 @@ export default function ExploreScreen() {
             ) : null}
           </section>
           </div>
-
-          {/* PR-T6 — desktop sidebar: recent organic breakouts (class-first rail). */}
-          {selectedNicheId != null ? (
-          <aside
-            className="hidden w-full shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-4 pb-[60px] pt-6 sm:px-7 min-[1100px]:block min-[1100px]:w-[320px] min-[1100px]:overflow-y-auto min-[1100px]:border-l min-[1100px]:border-t-0 min-[1100px]:px-[22px] min-[1100px]:py-6 min-[1100px]:pb-6"
-            style={{ scrollbarWidth: "thin" }}
-          >
-            <TrendsRail
-              contentClassIds={contentClassIds}
-              legacyNicheId={selectedNicheId}
-              creatorNicheId={selectedCreatorNicheId}
-              nicheScopeLabel={selectedNicheName}
-              layout="sidebar"
-            />
-          </aside>
-          ) : null}
         </div>
       </div>
     </AppLayout>
