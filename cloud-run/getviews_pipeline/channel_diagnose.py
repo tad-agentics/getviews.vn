@@ -1092,6 +1092,54 @@ def compute_recent_content_audit(
     return out
 
 
+_PATTERN_LOCK_RE = re.compile(
+    r"[^.!?\n]*\btr[êe]n\s+([\d][\d.,]*)\s*([KkMm]|ngh[ìi]n|tri[ệe]u)?\s*view[^.!?\n]*[.!?]?",
+    re.IGNORECASE,
+)
+
+
+def _parse_views_token(raw: str, unit: str) -> float:
+    u = (unit or "").lower()
+    if u in ("k", "nghìn", "nghin"):
+        return float(raw.replace(",", ".")) * 1_000
+    if u in ("m", "triệu", "trieu"):
+        return float(raw.replace(",", ".")) * 1_000_000
+    return float(raw.replace(".", "").replace(",", ""))
+
+
+def enforce_pattern_lock_guard(
+    sections: list[dict[str, Any]],
+    top_performers: list[dict[str, Any]],
+) -> None:
+    """Deterministic check on the what_worked pattern-lock sentence.
+
+    The prompt demands the induced threshold sit BELOW the lowest cited
+    top-performer's views; this guard makes that a guarantee — a violating
+    sentence is stripped (the rest of the section stands) and logged.
+    """
+    floors = [int(t.get("views") or 0) for t in top_performers if int(t.get("views") or 0) > 0]
+    if not floors:
+        return
+    floor = min(floors)
+    for sec in sections:
+        if sec.get("section_id") != "what_worked":
+            continue
+        text = str(sec.get("text") or "")
+        m = _PATTERN_LOCK_RE.search(text)
+        if not m:
+            return
+        try:
+            threshold = _parse_views_token(m.group(1), m.group(2) or "")
+        except (TypeError, ValueError):
+            return
+        if threshold >= floor:
+            sec["text"] = (text[: m.start()] + text[m.end():]).strip()
+            logger.warning(
+                "[channel_diagnose] pattern-lock threshold %s >= min cited views %s — sentence stripped",
+                threshold, floor,
+            )
+        return
+
 _BRAND_HANDLE_NOISE = frozenset(
     {"official", "vn", "store", "shop", "real", "studio", "team", "brand"}
 )

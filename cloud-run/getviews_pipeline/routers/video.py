@@ -704,6 +704,9 @@ async def _run_channel_diagnose(
                 "text": str(next_video_seed.get("rationale_struct") or ""),
             })
 
+    from getviews_pipeline.channel_diagnose import enforce_pattern_lock_guard
+
+    enforce_pattern_lock_guard(sections_raw, top_performers)
     parsed_map = {s["section_id"]: s for s in sections_raw}
 
     for sid in optional_memo_sections:

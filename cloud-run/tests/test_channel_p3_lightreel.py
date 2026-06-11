@@ -308,3 +308,45 @@ def test_v6_rules_allow_audit_citation_in_channel_pattern() -> None:
 
     assert "recent_content_audit" in DIAGNOSIS_V6_JSON_INSTRUCTION
     assert "KHÔNG suy đoán ngoài số đếm" in DIAGNOSIS_V6_JSON_INSTRUCTION
+
+
+# ── Deterministic guards (prompt-trust → system guarantee) ────────────
+
+
+def test_pattern_lock_guard_strips_violating_sentence() -> None:
+    from getviews_pipeline.channel_diagnose import enforce_pattern_lock_guard
+
+    tiles = [{"views": 100_000}, {"views": 250_000}, {"views": 1_200_000}]
+    sections = [{
+        "section_id": "what_worked",
+        "text": "**Mặt người kể chuyện** đang gánh kênh. "
+                "**Mọi video trên 150K view của kênh đều có mặt người.** Câu sau giữ nguyên.",
+    }]
+    enforce_pattern_lock_guard(sections, tiles)
+    # 150K >= min cited (100K) → sentence stripped, rest intact.
+    assert "150K view" not in sections[0]["text"]
+    assert "Câu sau giữ nguyên." in sections[0]["text"]
+
+    ok = [{"section_id": "what_worked",
+           "text": "**Mọi video trên 80K view của kênh đều có mặt người.**"}]
+    enforce_pattern_lock_guard(ok, tiles)
+    assert "80K view" in ok[0]["text"]  # 80K < 100K floor → kept
+
+
+def test_anchor_signal_ids_nulled_when_not_in_manifest() -> None:
+    from getviews_pipeline.gemini import _validate_anchor_signal_ids
+    from getviews_pipeline.signals.base import Signal
+
+    manifest = {"hook_analysis": [
+        Signal(id="hook_late_face", section_id="hook_analysis",
+               taxonomy_ref="t", salience=0.8, claim="c"),
+    ]}
+    diag = {"evidence_anchors": [
+        {"signal_id": "hook_late_face", "section_id": "hook_analysis"},
+        {"signal_id": "made_up_signal", "section_id": "hook_analysis"},
+        {"signal_id": None, "section_id": "diagnosis"},
+    ]}
+    _validate_anchor_signal_ids(diag, manifest)
+    assert diag["evidence_anchors"][0]["signal_id"] == "hook_late_face"
+    assert diag["evidence_anchors"][1]["signal_id"] is None
+    assert diag["evidence_anchors"][2]["signal_id"] is None

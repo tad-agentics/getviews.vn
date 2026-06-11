@@ -1351,6 +1351,35 @@ def _validate_diagnosis_vi_citations(
         _sanitize_diagnosis_embedded_tiles(diagnosis_vi, reference_videos, allowed_aweme)
 
 
+def _validate_anchor_signal_ids(
+    diagnosis_vi: dict[str, Any] | None,
+    manifest: dict[str, list[Any]],
+) -> None:
+    """Mutate v6 ``diagnosis_vi`` in place: null out ``signal_id`` values that
+    don't exist in the signal manifest (2026-06-11 salience audit — the
+    "findings track real signals" rule is a guarantee, not prompt-trust).
+    The anchor itself is kept: its quote may still be valid evidence."""
+    if not isinstance(diagnosis_vi, dict):
+        return
+    anchors = diagnosis_vi.get("evidence_anchors")
+    if not isinstance(anchors, list):
+        return
+    valid_ids = {s.id for sigs in manifest.values() for s in sigs}
+    fabricated = 0
+    for a in anchors:
+        if not isinstance(a, dict):
+            continue
+        sid = str(a.get("signal_id") or "").strip()
+        if sid and sid not in valid_ids:
+            a["signal_id"] = None
+            fabricated += 1
+    if fabricated:
+        logger.warning(
+            "[diagnosis_v6] %d evidence_anchor signal_id(s) not in manifest — nulled",
+            fabricated,
+        )
+
+
 def _validate_narrative_citations(
     narrative_vi: dict[str, Any] | None,
     format_cards: list[dict[str, Any]] | None,
@@ -1621,6 +1650,8 @@ def _synthesize_diagnosis_v6_section_pool(
             allowed=allowed,
             reference_videos=reference_videos,
         )
+        if diag_vi:
+            _validate_anchor_signal_ids(diag_vi, manifest)
         if attempt == 0 and diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi):
             wc = diagnosis_v6_word_counts(diag_vi)
             logger.info(

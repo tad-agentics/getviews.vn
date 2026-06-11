@@ -288,7 +288,7 @@ def test_script_narrative_summary_carries_shot_references() -> None:
         }],
     }]
     block = _shots_summary_for_narrative(shots)
-    assert "ref: @beautyvn (250.000 view)" in block
+    assert "ref: @beautyvn (250k view)" in block
     assert "Cận mặt creator" in block
     # Shots without references stay one-line (no dangling ref label).
     plain = _shots_summary_for_narrative([{"t0": 0, "t1": 3, "cam": "x", "voice": "y", "overlay": "z"}])
