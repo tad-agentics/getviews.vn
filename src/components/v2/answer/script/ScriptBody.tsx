@@ -13,11 +13,13 @@ import { SceneIntelligencePanel } from "@/components/v2/SceneIntelligencePanel";
 import { useSceneIntelligence } from "@/hooks/useSceneIntelligence";
 import type {
   DiagnosisSectionVi,
+  ScriptFormatProof,
   ScriptReportPayload,
   ScriptShotCardData,
   ScriptShotReferenceData,
   ScriptVoLineData,
 } from "@/lib/api-types";
+import { formatViews } from "@/lib/formatters";
 import { scriptEditorFallbacks } from "@/lib/scriptEditorFallbacks";
 import {
   mergeSceneIntelIntoShots,
@@ -46,6 +48,22 @@ function tiktokHref(ref: ScriptShotReferenceData): string | null {
   const h = (ref.creator_handle ?? "").replace(/^@/, "").trim();
   if (h) return `https://www.tiktok.com/@${h}/video/${id}`;
   return `https://www.tiktok.com/video/${id}`;
+}
+
+function formatProofLine(proof: ScriptFormatProof): string | null {
+  if (proof.kind === "hook_line" && proof.phrase) {
+    const handle = proof.handle ? ` — @${proof.handle}` : "";
+    const views = typeof proof.views === "number" ? ` (${formatViews(proof.views)} view)` : "";
+    return `“${proof.phrase}”${handle}${views}`;
+  }
+  if (proof.kind === "hook_stat" && (proof.label_vi || proof.hook_type)) {
+    const label = proof.label_vi || proof.hook_type;
+    const views =
+      typeof proof.avg_views === "number" ? ` — TB ${formatViews(proof.avg_views)} view` : "";
+    const n = typeof proof.sample_size === "number" ? ` (${proof.sample_size} video)` : "";
+    return `${label}${views}${n}`;
+  }
+  return null;
 }
 
 function breakoutLabel(ref: ScriptShotReferenceData, shot: ScriptShotCardData): string | null {
@@ -158,6 +176,33 @@ export function ScriptBody({
         </section>
       ) : null}
 
+      {report.format_rationale?.text_vi ? (
+        <section className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
+          <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]">
+            Vì sao cấu trúc này
+          </p>
+          <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink)]">
+            {report.format_rationale.text_vi}
+          </p>
+          {report.format_rationale.proofs?.length ? (
+            <ul className="m-0 mt-2 list-none space-y-1 p-0">
+              {report.format_rationale.proofs.map((proof, i) => {
+                const line = formatProofLine(proof);
+                if (!line) return null;
+                return (
+                  <li
+                    key={`${proof.kind}-${proof.hook_type ?? proof.phrase ?? i}`}
+                    className="text-[12px] leading-snug text-[color:var(--gv-ink-3)]"
+                  >
+                    {line}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
       {shot ? (
         <section className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
           <p className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]">
@@ -200,6 +245,16 @@ export function ScriptBody({
                 {shot.overlay}
               </dd>
             </div>
+            {shot.reason_vi ? (
+              <div>
+                <dt className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-4)]">
+                  Vì sao cảnh này
+                </dt>
+                <dd className="m-0 text-[12px] leading-snug text-[color:var(--gv-ink-3)]">
+                  {shot.reason_vi}
+                </dd>
+              </div>
+            ) : null}
           </dl>
 
           {shot.vo && shot.vo.length > 0 ? (

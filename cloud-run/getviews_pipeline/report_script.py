@@ -323,6 +323,7 @@ def build_script_report(
         "niche_label": niche_label,
         "narrative_vi": narrative_vi,
         "shots": shots,
+        "format_rationale": out.get("format_rationale"),
         "sources": [],
         "related_questions": [],
     }

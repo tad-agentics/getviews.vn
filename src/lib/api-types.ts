@@ -478,6 +478,12 @@ export interface ScriptShot {
    * missing) on old drafts / matcher failure.
    */
   references?: ShotReference[];
+  /**
+   * 2026-06-11 — one-line data-grounded rationale for the shot, citing
+   * the evidence Gemini saw (winning hooks / reference rhythm). Null
+   * when there was nothing to cite; missing on old drafts.
+   */
+  reason_vi?: string | null;
 }
 
 /**
@@ -509,8 +515,36 @@ export interface ShotReference {
   match_label: string;
 }
 
+/**
+ * 2026-06-11 — one proof behind the script's structure. ``hook_stat``
+ * rows come from ``hook_effectiveness``; ``hook_line`` rows are verbatim
+ * winning hooks from ``video_corpus``. Mirrors
+ * ``_build_format_rationale`` in ``script_generate.py``.
+ */
+export interface ScriptFormatProof {
+  kind: "hook_stat" | "hook_line";
+  /** hook_stat fields */
+  label_vi?: string;
+  hook_type?: string;
+  avg_views?: number;
+  completion_pct?: number;
+  sample_size?: number;
+  /** hook_line fields */
+  phrase?: string;
+  handle?: string;
+  views?: number;
+}
+
+/** Deterministic "why this structure" block rendered above the shot list. */
+export interface ScriptFormatRationale {
+  text_vi: string;
+  proofs: ScriptFormatProof[];
+}
+
 export interface ScriptGenerateResponse {
   shots: ScriptShot[];
+  /** Null/missing when the niche had no hook evidence. */
+  format_rationale?: ScriptFormatRationale | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1241,6 +1275,7 @@ export interface ScriptShotCardData {
   references?: ScriptShotReferenceData[];
   corpus_avg?: number;
   winner_avg?: number;
+  reason_vi?: string | null;
   [key: string]: unknown;
 }
 
@@ -1257,6 +1292,8 @@ export interface ScriptReportPayload {
     "headline_vi" | "ket_luan_nhanh" | "_schema_version" | "diagnosis_vi"
   >;
   shots: ScriptShotCardData[];
+  /** 2026-06-11 — deterministic "why this structure" proofs; null/missing on old reports. */
+  format_rationale?: ScriptFormatRationale | null;
   sources: SourceRowData[];
   related_questions: string[];
 }

@@ -496,13 +496,13 @@ def test_assembled_shots_preserve_gemini_vo_when_emitted() -> None:
         "Tay cầm 2 sản phẩm",
         "white sans 28pt",
         "close_up", "static", "bold_center", "face", "static",
-        gemini_vo,
+        gemini_vo, None,
     )] + [
         # Five filler rows so the assembler returns the canonical 6 shots.
         (
             "Cắt nhanh b-roll", "SUB-CAPTION", "product_shot",
             "voice", "viz", "—",
-            None, None, None, None, None, None,
+            None, None, None, None, None, None, None,
         ),
     ] * 5
     out = _assemble_shots(duration=30, creative=creative)
@@ -510,6 +510,38 @@ def test_assembled_shots_preserve_gemini_vo_when_emitted() -> None:
     # Filler rows fall back to single-line vo.
     assert len(out[1]["vo"]) == 1
     assert out[1]["vo"][0]["cue"] is None
+
+
+def test_gemini_reason_vi_threads_through_to_shot_payload() -> None:
+    """``reason_vi`` emitted by Gemini lands on the shot dict; shots
+    without it carry an explicit None (FE branches on null)."""
+    llm = _fake_llm_shots()
+    llm.shots[0].reason_vi = "Hook câu hỏi đạt trung bình 320k view trong ngách."
+    body = ScriptGenerateBody(
+        topic="x", hook="y", hook_delay_ms=1200,
+        duration=32, tone="Chuyên gia", niche_id=1,
+    )
+    with patch(
+        "getviews_pipeline.script_generate._call_script_gemini",
+        return_value=llm,
+    ):
+        shots = build_script_shots(body)
+    assert shots[0]["reason_vi"] == "Hook câu hỏi đạt trung bình 320k view trong ngách."
+    assert shots[1]["reason_vi"] is None
+
+
+def test_fallback_shots_carry_null_reason_vi() -> None:
+    body = ScriptGenerateBody(
+        topic="x", hook="y", hook_delay_ms=1200,
+        duration=30, tone="Hài", niche_id=1,
+    )
+    with patch(
+        "getviews_pipeline.script_generate._call_script_gemini",
+        side_effect=RuntimeError("no api key"),
+    ):
+        shots = build_script_shots(body)
+    for s in shots:
+        assert s["reason_vi"] is None
 
 
 def test_voline_pydantic_validates_required_fields() -> None:
@@ -672,7 +704,7 @@ def test_build_script_shots_passes_top_hooks_to_gemini(monkeypatch) -> None:
 
     seen: dict[str, object] = {}
 
-    def fake_call_gemini(body, *, top_hooks=None, hook_lines=None):
+    def fake_call_gemini(body, *, top_hooks=None, hook_lines=None, reference_block=""):
         seen["top_hooks"] = top_hooks
         # Force the deterministic fallback path so we don't need to mock
         # the full Gemini response shape — the assertion is on what got
@@ -698,13 +730,97 @@ def test_build_script_shots_passes_top_hooks_to_gemini(monkeypatch) -> None:
     assert seen["top_hooks"][0]["hook_type"] == "question"
 
 
+def test_build_format_rationale_none_without_evidence() -> None:
+    from getviews_pipeline.script_generate import _build_format_rationale
+
+    assert _build_format_rationale([], []) is None
+
+
+def test_build_format_rationale_shapes_proofs_and_text() -> None:
+    from getviews_pipeline.script_generate import _build_format_rationale
+
+    top_hooks = [
+        {"hook_type": "question", "avg_views": 320_000, "completion_pct": 62.0, "sample_size": 47},
+    ]
+    hook_lines = [
+        {"phrase": "Biết không, mua hàng online giờ ngon hơn đi chợ", "handle": "fashionista", "views": 1_200_000},
+    ]
+    out = _build_format_rationale(top_hooks, hook_lines)
+    assert out is not None
+    kinds = [p["kind"] for p in out["proofs"]]
+    assert kinds == ["hook_stat", "hook_line"]
+    assert out["proofs"][0]["label_vi"]  # Vietnamese label resolved
+    assert out["proofs"][1]["views"] == 1_200_000
+    # Sample size from hook_stat rows feeds the verifiable claim.
+    assert "47 video" in out["text_vi"]
+    # Copy rules — no hype words.
+    for banned in ("bí mật", "công thức vàng", "triệu view", "bùng nổ"):
+        assert banned not in out["text_vi"]
+
+
+def test_run_script_generate_sync_returns_format_rationale_key() -> None:
+    """Response always carries the key — None without evidence so old
+    and new FE clients both behave."""
+    user_sb = MagicMock()
+    user_sb.rpc.return_value.execute.return_value = SimpleNamespace(data=1)
+    body = ScriptGenerateBody(
+        topic="x", hook="y", hook_delay_ms=1200,
+        duration=30, tone="Hài", niche_id=7,
+    )
+    with patch(
+        "getviews_pipeline.script_generate._call_script_gemini",
+        side_effect=RuntimeError("skip gemini"),
+    ):
+        out = run_script_generate_sync(user_sb, user_id="u1", body=body)
+    assert "format_rationale" in out
+    assert out["format_rationale"] is None  # no service_sb → no evidence
+
+
+def test_format_reference_structure_block_empty_and_rendered() -> None:
+    from getviews_pipeline.script_generate import _format_reference_structure_block
+
+    assert _format_reference_structure_block(None) == ""
+    assert _format_reference_structure_block({"scenes": []}) == ""
+
+    block = _format_reference_structure_block({
+        "video_id": "v1",
+        "handle": "topcreator",
+        "views": 485_200,
+        "scenes": [
+            {"scene_index": 0, "start_s": 0.0, "end_s": 2.1,
+             "description": "Mở hộp đồng hồ", "framing": "close_up",
+             "pace": "fast", "overlay_style": "bold_center"},
+            {"scene_index": 1, "start_s": 2.1, "end_s": 4.0,
+             "description": None, "framing": None, "pace": None, "overlay_style": None},
+        ],
+    })
+    assert "NHỊP CẢNH CỦA VIDEO TOP NGÁCH" in block
+    assert "@topcreator" in block
+    assert "485k view" in block
+    assert "Cảnh 1 (0.0–2.1s): Mở hộp đồng hồ | close_up/fast/bold_center" in block
+    # Null description/dims degrade gracefully.
+    assert "Cảnh 2 (2.1–4.0s): —" in block
+    # Closing instruction keeps the 6-shot contract.
+    assert "Giữ NGUYÊN template 6 shot" in block
+
+
+def test_fetch_reference_structure_graceful_on_error_or_no_client() -> None:
+    from getviews_pipeline.script_generate import _fetch_reference_structure
+
+    assert _fetch_reference_structure(None, 3) is None
+    assert _fetch_reference_structure(MagicMock(), 0) is None
+    sb = MagicMock()
+    sb.table.side_effect = RuntimeError("supabase down")
+    assert _fetch_reference_structure(sb, 3) is None
+
+
 def test_build_script_shots_omits_top_hooks_when_no_client(monkeypatch) -> None:
     """Without a client, build_script_shots passes empty top_hooks (legacy path)."""
     from getviews_pipeline import script_generate as sg
 
     seen: dict[str, object] = {}
 
-    def fake_call_gemini(body, *, top_hooks=None, hook_lines=None):
+    def fake_call_gemini(body, *, top_hooks=None, hook_lines=None, reference_block=""):
         seen["top_hooks"] = top_hooks
         raise RuntimeError("forced fallback")
 

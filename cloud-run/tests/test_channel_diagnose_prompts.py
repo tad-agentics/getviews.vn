@@ -88,6 +88,25 @@ def test_system_prompt_has_stable_section_ids():
         assert sid in CHANNEL_DIAGNOSIS_SYSTEM_PROMPT, f"Missing section ID: {sid}"
 
 
+def test_system_prompt_lightreel_evidence_contract():
+    """2026-06-11 Lightreel audit — pin the four structural instructions:
+    pattern-lock threshold rule, causal verdict (no algorithm excuse),
+    coined archetype labels, and the next_video anti-repeat clause."""
+    from getviews_pipeline.channel_diagnose_prompts import CHANNEL_DIAGNOSIS_SYSTEM_PROMPT
+
+    # §what_worked — induced threshold rule with the fabrication guard.
+    assert "KHÓA PATTERN" in CHANNEL_DIAGNOSIS_SYSTEM_PROMPT
+    assert "THẤP HƠN view của video thấp nhất" in CHANNEL_DIAGNOSIS_SYSTEM_PROMPT
+    # §verdict — causal attribution tied to the inflection format-mix shift.
+    assert "đen đủi thuật toán" in CHANNEL_DIAGNOSIS_SYSTEM_PROMPT
+    assert "KHÔNG đổ cho thuật toán khi format mix đã đổi" in CHANNEL_DIAGNOSIS_SYSTEM_PROMPT
+    # §what_worked / §what_falling — coined archetype labels, reused in §7.
+    assert CHANNEL_DIAGNOSIS_SYSTEM_PROMPT.count("tên pattern 2-4 từ tự đặt") == 2
+    assert "gọi lại đúng **tên pattern**" in CHANNEL_DIAGNOSIS_SYSTEM_PROMPT
+    # §next_video — anti-repeat differentiation clause.
+    assert "KHÁC GÌ LẦN TRƯỚC" in CHANNEL_DIAGNOSIS_SYSTEM_PROMPT
+
+
 def test_system_prompt_no_time_bucket_markers():
     from getviews_pipeline.channel_diagnose_prompts import CHANNEL_DIAGNOSIS_SYSTEM_PROMPT
     # The prompt must explicitly ban pill tokens (they appear in the KHÔNG dùng rules)

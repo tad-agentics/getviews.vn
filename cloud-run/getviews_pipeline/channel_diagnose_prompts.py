@@ -85,17 +85,24 @@ Cấu trúc 3 phần trong 2–4 đoạn ngắn:
 (1) Dữ liệu + diễn giải: trích 1 video cụ thể từ <<<TOP PERFORMERS>>> (view + format + thời điểm) \
 và giải thích ý nghĩa số đó.
 (2) Nếu có <<<INFLECTION POINT>>> với before/after format mix: nêu thời điểm, tỉ lệ format trước/sau, \
-và hệ quả lên before_avg vs after_avg.
+và hệ quả lên before_avg vs after_avg. Quy kết nguyên nhân thẳng: gọi tên thay đổi nội dung và loại trừ \
+lý do thuật toán («Đây không phải đen đủi thuật toán — từ <thời điểm>, kênh chuyển từ <format A> sang \
+<format B>»). KHÔNG đổ cho thuật toán khi format mix đã đổi.
 (3) Một câu chốt trajectory + hàm ý 30 ngày tới.
 
 === what_worked ===
 TITLE: <trajectory-specific title — xem bảng bên dưới>
-ĐIỂM MẠNH: đúng 3 gạch đầu dòng. Mỗi gạch = <format>: <số liệu> — <vì sao work> — <hàm ý hành động>.
-Kết: 1 câu chốt lợi thế cấu trúc.
+ĐIỂM MẠNH: đúng 3 gạch đầu dòng. Mỗi gạch mở bằng **tên pattern 2-4 từ tự đặt** (nhãn tiếng Việt dễ nhớ \
+cho archetype nội dung — «Quy trình đóng hộp», «List 5 món», «Mặt người kể chuyện»; KHÔNG dùng nhãn \
+taxonomy khô), rồi: <format>: <số liệu> — <vì sao work> — <hàm ý hành động>.
+Kết: 1 câu KHÓA PATTERN in đậm — tổng quát hoá ngưỡng từ CHÍNH các video đã trích: «Mọi video trên <X> \
+view của kênh đều có <A> hoặc <B> — thường cả hai». <X> là số tròn, THẤP HƠN view của video thấp nhất \
+được trích; chỉ viết khi đã trích ≥3 video — nếu ít hơn, thay bằng 1 câu chốt lợi thế cấu trúc.
 
 === what_falling ===    [BỎ QUA khi trajectory là breakout hoặc new_account]
 TITLE: <trajectory-specific title>
-ĐIỂM YẾU: đúng 3 gạch đầu dòng. Mỗi gạch = <điểm yếu>: <số liệu so sánh> — <nguyên nhân> — <cách sửa>.
+ĐIỂM YẾU: đúng 3 gạch đầu dòng. Mỗi gạch mở bằng **tên pattern 2-4 từ tự đặt** (như what_worked — \
+«Ảnh catalog tĩnh», «Caption mô tả sản phẩm»), rồi: <điểm yếu>: <số liệu so sánh> — <nguyên nhân> — <cách sửa>.
 Kết: 1 câu chốt nguyên nhân lớn nhất + 1 hành động tuần này.
 
 === video_vs_channel ===    [CHỈ emit khi context có THIS VIDEO]
@@ -116,6 +123,8 @@ Dựa <<<NEXT VIDEO CONCEPT>>>:
 - PREMISE (1 dòng kịch bản ~18–25s)
 - FORMAT + thời lượng từ concept
 - LÝ DO: 2 phần — bằng chứng peer + gap kênh (dùng số từ concept)
+- KHÁC GÌ LẦN TRƯỚC (1 dòng): concept này khác gì video gần nhất cùng format của kênh (đối chiếu \
+<<<TOP PERFORMERS>>> / <<<FORMAT PERFORMANCE>>>) — nói rõ nâng cấp gì, không lặp y nguyên cái kênh vừa làm
 - KỲ VỌNG (1 dòng optional): dải view dự kiến nếu execute tốt
 
 === recommendations ===
@@ -132,6 +141,9 @@ KỲ VỌNG: <impact 30 ngày, conservative>
 <1 câu + bằng chứng số liệu>
 
 3–4. tương tự (mỗi mục có 1 dòng bằng chứng số liệu).
+
+Mỗi hành động phải gọi lại đúng **tên pattern** đã đặt ở what_worked / what_falling (khi áp dụng) + 1 \
+bằng chứng video/creator đã trích trong memo — không khuyến nghị chung chung không bám bằng chứng.
 
 --- NGỪNG LÀM ---
 - <Việc cần ngừng> — <bằng chứng số>

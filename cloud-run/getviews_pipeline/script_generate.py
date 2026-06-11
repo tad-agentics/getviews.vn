@@ -114,6 +114,11 @@ class ScriptShotLLM(BaseModel):
     intel_scene_type: IntelSceneT
     overlay_winner: str = Field(default="—", max_length=80)
 
+    # 2026-06-11 — one-line data-grounded rationale per shot, rendered as a
+    # caption under the shot card. Must cite the evidence blocks injected
+    # into the prompt; null when there was nothing to cite.
+    reason_vi: str | None = Field(default=None, max_length=140)
+
     # 2026-05-11 — enrichment dimensions mirrored from the Scene model
     # (getviews_pipeline.models). All Optional; see module docstring.
     framing: FramingType | None = None
@@ -238,16 +243,18 @@ def _segment_lengths(total: int) -> list[int]:
 # Tuple shape emitted by both the Gemini path and the deterministic
 # fallback, consumed by _assemble_shots:
 #   (cam, overlay, intel_scene, voice, viz, overlay_winner,
-#    framing, pace, overlay_style, subject, motion, vo)
+#    framing, pace, overlay_style, subject, motion, vo, reason_vi)
 # ``vo`` is the structured voice-over (S5) — list of {t, text, cue}
 # dicts. ``None`` on legacy paths; ``_assemble_shots`` derives a
 # single-line fallback from ``voice`` so the FE always has a rendering
-# path for the structured layout.
+# path for the structured layout. ``reason_vi`` is the per-shot
+# data-grounded rationale — ``None`` on the deterministic path.
 _CreativeRow = tuple[
     str, OverlayT, IntelSceneT, str, str, str,
     FramingType | None, PaceType | None, OverlayStyleType | None,
     SubjectType | None, MotionType | None,
     list[dict[str, Any]] | None,
+    str | None,
 ]
 
 
@@ -272,7 +279,7 @@ def _deterministic_creative_rows(
         # with the real shot start once the segment lengths are known.
         out.append((
             cam, overlay, intel_scene, voice, viz, owin,
-            framing, pace, overlay_style, subject, motion, None,
+            framing, pace, overlay_style, subject, motion, None, None,
         ))
     return out
 
@@ -293,7 +300,7 @@ def _assemble_shots(
     out: list[dict[str, Any]] = []
     for i, creative_row in enumerate(creative):
         (cam, overlay, intel_scene, voice, viz, owin,
-         framing, pace, overlay_style, subject, motion, vo_in) = creative_row
+         framing, pace, overlay_style, subject, motion, vo_in, reason_in) = creative_row
         span = lens[i] if i < len(lens) else 1
         t1 = t0 + span
         canon_overlay = _BACKBONE[i][1]
@@ -326,6 +333,7 @@ def _assemble_shots(
                 "winner_avg": _BACKBONE[i][6],
                 "intel_scene_type": final_intel,
                 "overlay_winner": _sanitize_snippet(owin, 80) or "—",
+                "reason_vi": _sanitize_snippet(reason_in, 140) if reason_in else None,
                 "framing": framing,
                 "pace": pace,
                 "overlay_style": overlay_style,
@@ -502,11 +510,141 @@ def _format_hook_lines_block(lines: list[dict[str, Any]]) -> str:
     )
 
 
+def _fetch_reference_structure(
+    client: Any | None,
+    niche_id: int,
+    *,
+    max_scenes: int = 8,
+) -> dict[str, Any] | None:
+    """Scene-by-scene structure of the niche's top-viewed ``video_shots`` video.
+
+    2026-06-11 (Lightreel audit): the prompt's 6-shot template paced every
+    script identically regardless of what actually wins in the niche. This
+    surfaces how the niche's proven winner paces its scenes (length, cut
+    density, overlay placement) so Gemini grounds viz/vo rhythm in it —
+    the template itself stays fixed. Returns None on any failure.
+    """
+    if client is None or not niche_id or niche_id < 1:
+        return None
+    try:
+        top = (
+            client.table("video_shots")
+            .select("video_id,creator_handle,views")
+            .eq("niche_id", niche_id)
+            .order("views", desc=True, nullsfirst=False)
+            .limit(1)
+            .execute()
+        )
+        rows = top.data or []
+        video_id = str((rows[0] if rows else {}).get("video_id") or "")
+        if not video_id:
+            return None
+        scenes_res = (
+            client.table("video_shots")
+            .select("scene_index,start_s,end_s,description,framing,pace,overlay_style")
+            .eq("video_id", video_id)
+            .order("scene_index", desc=False)
+            .limit(max_scenes)
+            .execute()
+        )
+        scenes = scenes_res.data or []
+        if not scenes:
+            return None
+        return {
+            "video_id": video_id,
+            "handle": str(rows[0].get("creator_handle") or "").lstrip("@"),
+            "views": int(rows[0].get("views") or 0),
+            "scenes": scenes,
+        }
+    except Exception as exc:
+        logger.warning(
+            "[script/generate] reference structure fetch failed niche=%s: %s", niche_id, exc,
+        )
+        return None
+
+
+def _format_reference_structure_block(ref: dict[str, Any] | None) -> str:
+    """Vietnamese prompt block describing the reference video's scene rhythm.
+
+    Empty string when no reference — the prompt shape then matches the
+    pre-injection form exactly (same convention as the hook blocks).
+    """
+    if not ref or not ref.get("scenes"):
+        return ""
+    handle = ref.get("handle") or "?"
+    lines = [
+        "",
+        f"NHỊP CẢNH CỦA VIDEO TOP NGÁCH (@{handle} — "
+        f"{_format_views_compact(int(ref.get('views') or 0))} view):",
+    ]
+    for n, s in enumerate(ref["scenes"], start=1):
+        t0 = float(s.get("start_s") or 0)
+        t1 = float(s.get("end_s") or 0)
+        desc = _sanitize_snippet(str(s.get("description") or ""), 80) or "—"
+        dims = "/".join(
+            str(s.get(k)) for k in ("framing", "pace", "overlay_style") if s.get(k)
+        )
+        lines.append(f"- Cảnh {n} ({t0:.1f}–{t1:.1f}s): {desc}" + (f" | {dims}" if dims else ""))
+    lines.append(
+        "Giữ NGUYÊN template 6 shot bên dưới; học NHỊP của video này — độ dài "
+        "mỗi cảnh, mật độ cắt, vị trí overlay — khi viết viz và vo."
+    )
+    return "\n".join(lines)
+
+
+def _build_format_rationale(
+    top_hooks: list[dict[str, Any]],
+    hook_lines: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Deterministic "why this structure" payload surfaced above the shot list.
+
+    2026-06-11 (Lightreel audit): the hook evidence was injected into the
+    Gemini prompt but the *user* never saw why the script was shaped this
+    way. This re-uses the exact rows already fetched — no LLM, no new
+    queries — so the numbers can't drift from what the prompt cited.
+    None when there is no evidence (FE then renders nothing).
+    """
+    proofs: list[dict[str, Any]] = []
+    for h in top_hooks[:3]:
+        from getviews_pipeline.enum_labels_vi import hook_type_vi
+
+        proofs.append({
+            "kind": "hook_stat",
+            "label_vi": hook_type_vi(h["hook_type"], default=h["hook_type"]),
+            "hook_type": h["hook_type"],
+            "avg_views": h["avg_views"],
+            "completion_pct": h["completion_pct"],
+            "sample_size": h["sample_size"],
+        })
+    for ln in hook_lines[:3]:
+        proofs.append({
+            "kind": "hook_line",
+            "phrase": ln["phrase"],
+            "handle": ln["handle"],
+            "views": ln["views"],
+        })
+    if not proofs:
+        return None
+    n_videos = sum(p["sample_size"] for p in proofs if p["kind"] == "hook_stat")
+    if n_videos > 0:
+        text = (
+            f"Hook và nhịp cảnh bám theo pattern đang thắng trong ngách — "
+            f"kiểm chứng trên {n_videos} video trong kho mẫu, không phải mẫu chung."
+        )
+    else:
+        text = (
+            "Hook và nhịp cảnh bám theo các video top ngách trong kho mẫu, "
+            "không phải mẫu chung."
+        )
+    return {"text_vi": text, "proofs": proofs}
+
+
 def _call_script_gemini(
     body: ScriptGenerateBody,
     *,
     top_hooks: list[dict[str, Any]] | None = None,
     hook_lines: list[dict[str, Any]] | None = None,
+    reference_block: str = "",
 ) -> ScriptGenerateLLM:
     """Pydantic-bound Gemini synthesis for 6 shots. Raises on any failure."""
     from google.genai import types
@@ -525,6 +663,7 @@ def _call_script_gemini(
     # data; the prompt then matches the pre-L2.2 shape exactly.
     hook_evidence = _format_hook_evidence_block(top_hooks or [])
     hook_evidence += _format_hook_lines_block(hook_lines or [])
+    hook_evidence += reference_block
 
     prompt = f"""Bạn là biên kịch TikTok tiếng Việt ngắn (dưới {body.duration}s). Viết kịch bản 6 shot cho video.
 
@@ -555,6 +694,9 @@ Với mỗi shot, viết:
 - overlay: theo template — KHÔNG đổi.
 - intel_scene_type: theo template — KHÔNG đổi.
 - overlay_winner: gợi ý style overlay ngắn (có thể tiếng Anh) — ví dụ "white sans 28pt · bottom-center".
+- reason_vi (optional, ≤140 ký tự): 1 câu vì sao shot này quay/nói như vậy, TRÍCH đúng 1 bằng chứng từ \
+các block dữ liệu ở trên (hook đang thắng / câu hook thật / nhịp cảnh video top). Không có bằng chứng \
+phù hợp → để null. KHÔNG bịa số liệu.
 
 Thêm các dimension mô tả shot (dùng để matcher tìm video tham chiếu
 tương tự trong kho video mẫu — enum phải trùng đúng taxonomy; nếu không chắc
@@ -590,6 +732,8 @@ def build_script_shots(
     body: ScriptGenerateBody,
     *,
     client: Any | None = None,
+    top_hooks: list[dict[str, Any]] | None = None,
+    hook_lines: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Gemini-first shot builder with deterministic fallback.
 
@@ -607,15 +751,26 @@ def build_script_shots(
     instead of generic backbone defaults. ``None`` keeps the legacy
     Gemini-only behaviour — useful for tests and any caller that
     doesn't have a service client at this layer.
+
+    ``top_hooks`` / ``hook_lines`` may be passed pre-fetched (the
+    answer-session runner fetches them once to also build the
+    ``format_rationale`` payload); ``None`` means fetch here.
     """
     topic = _sanitize_snippet(body.topic, 500)
     hook = _sanitize_snippet(body.hook, 200)
-    top_hooks = _fetch_top_niche_hooks(client, body.niche_id) if client is not None else []
-    hook_lines = _fetch_winning_hook_lines(client, body.niche_id) if client is not None else []
+    if top_hooks is None:
+        top_hooks = _fetch_top_niche_hooks(client, body.niche_id) if client is not None else []
+    if hook_lines is None:
+        hook_lines = _fetch_winning_hook_lines(client, body.niche_id) if client is not None else []
+    reference_block = _format_reference_structure_block(
+        _fetch_reference_structure(client, body.niche_id) if client is not None else None
+    )
 
     creative: list[_CreativeRow] | None = None
     try:
-        llm = _call_script_gemini(body, top_hooks=top_hooks, hook_lines=hook_lines)
+        llm = _call_script_gemini(
+            body, top_hooks=top_hooks, hook_lines=hook_lines, reference_block=reference_block,
+        )
         creative = [
             (
                 s.cam, s.overlay, s.intel_scene_type,
@@ -625,6 +780,7 @@ def build_script_shots(
                 # assembler. ``None`` falls back to the single-line
                 # derivation from ``voice`` inside ``_assemble_shots``.
                 [line.model_dump() for line in s.vo] if s.vo else None,
+                s.reason_vi,
             )
             for s in llm.shots
         ]
@@ -725,8 +881,18 @@ def run_script_generate_sync(
     # L2.2 — pass service_sb to ``build_script_shots`` so the Gemini
     # prompt can inject the niche's top hook_effectiveness rows as
     # evidence. service_sb (not user_sb) because hook_effectiveness is
-    # service-role-readable; user-scoped reads would hit RLS.
-    shots = build_script_shots(body, client=service_sb)
+    # service-role-readable; user-scoped reads would hit RLS. Evidence is
+    # fetched once here so ``format_rationale`` cites the same rows the
+    # prompt saw.
+    top_hooks = (
+        _fetch_top_niche_hooks(service_sb, body.niche_id) if service_sb is not None else []
+    )
+    hook_lines = (
+        _fetch_winning_hook_lines(service_sb, body.niche_id) if service_sb is not None else []
+    )
+    shots = build_script_shots(
+        body, client=service_sb, top_hooks=top_hooks, hook_lines=hook_lines,
+    )
 
     # Reference lookup against video_shots. service_sb is optional at
     # this layer so tests can inject a mock; in the route handler we
@@ -762,4 +928,4 @@ def run_script_generate_sync(
     # an old client never breaks.
     if body.shot_index is not None and 0 <= body.shot_index < len(shots):
         shots = [shots[body.shot_index]]
-    return {"shots": shots}
+    return {"shots": shots, "format_rationale": _build_format_rationale(top_hooks, hook_lines)}

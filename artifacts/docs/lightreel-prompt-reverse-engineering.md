@@ -151,6 +151,14 @@ Reference: `cloud-run/getviews_pipeline/channel_diagnose_prompts.py`,
 
 ## 3. Recommended changes (prioritized)
 
+> **Status (2026-06-11):** P1.1–P1.4, P2.5 (prompt-level variant), P2.6 and P2.7 are
+> **implemented** (`channel_diagnose_prompts.py`, `script_generate.py`,
+> `report_script.py`, `ScriptBody.tsx`, `api-types.ts`). P2.5 keeps the fixed 6-shot
+> template (frozen FE contract) and instead injects the niche's top `video_shots`
+> video as a "NHỊP CẢNH" rhythm block. P2.8 is **not implementable at this surface** —
+> `ScriptGenerateBody` carries no channel identity; the anti-repeat intent is covered
+> by P1.4 (channel-diagnosis `next_video`). P3 items remain unplanned.
+
 ### P1 — prompt-only changes to channel diagnosis (cheap, high yield)
 
 All in `channel_diagnose_prompts.py`; no new data, no new cost.
