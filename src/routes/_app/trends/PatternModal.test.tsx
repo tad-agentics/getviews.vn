@@ -29,21 +29,44 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   videos: [
     {
       video_id: "v1",
-      thumbnail_url: "https://t/1.jpg",
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v1.webp",
       creator_handle: "an.tech",
       views: 250_000,
       tiktok_url: null,
     },
     {
       video_id: "v2",
-      thumbnail_url: null,
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v2.webp",
       creator_handle: "huy.codes",
       views: 180_000,
       tiktok_url: null,
     },
     {
       video_id: "v3",
-      thumbnail_url: "https://t/3.jpg",
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v3.webp",
+      creator_handle: "@chinasecrets",
+      views: 90_000,
+      tiktok_url: null,
+    },
+  ],
+  video_pool: [
+    {
+      video_id: "v1",
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v1.webp",
+      creator_handle: "an.tech",
+      views: 250_000,
+      tiktok_url: null,
+    },
+    {
+      video_id: "v2",
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v2.webp",
+      creator_handle: "huy.codes",
+      views: 180_000,
+      tiktok_url: null,
+    },
+    {
+      video_id: "v3",
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v3.webp",
       creator_handle: "@chinasecrets",
       views: 90_000,
       tiktok_url: null,
@@ -108,8 +131,10 @@ describe("PatternModal — open state", () => {
   });
 
   it("hides the sample switcher when only one video is present", () => {
+    const oneVideo = samplePattern().videos[0]!;
     const onePattern = samplePattern({
-      videos: [samplePattern().videos[0]],
+      videos: [oneVideo],
+      video_pool: [oneVideo],
     });
     const { queryByText } = wrap(
       <PatternModal pattern={onePattern} nicheId={4} open onOpenChange={() => {}} />,
@@ -139,16 +164,16 @@ describe("PatternModal — open state", () => {
 
   it("loads TikTok embed on hover and unloads on mouse leave for numeric aweme id", () => {
     const embedId = "7349098765432101123";
+    const embedVideo = {
+      video_id: embedId,
+      thumbnail_url: "https://media.getviews.vn/thumbnails/embed.webp",
+      creator_handle: "an.tech",
+      views: 250_000,
+      tiktok_url: null,
+    };
     const p = samplePattern({
-      videos: [
-        {
-          video_id: embedId,
-          thumbnail_url: "https://t/1.jpg",
-          creator_handle: "an.tech",
-          views: 250_000,
-          tiktok_url: null,
-        },
-      ],
+      videos: [embedVideo],
+      video_pool: [embedVideo],
     });
     wrap(<PatternModal pattern={p} nicheId={4} open onOpenChange={() => {}} />);
     const iframeSel = `iframe[src*="tiktok.com/embed/v2/${embedId}"]`;
@@ -166,7 +191,7 @@ describe("PatternModal — open state", () => {
   });
 
   it("renders a 'no video' fallback when pattern has zero videos", () => {
-    const empty = samplePattern({ videos: [] });
+    const empty = samplePattern({ videos: [], video_pool: [] });
     const { getByText } = wrap(
       <PatternModal pattern={empty} nicheId={4} open onOpenChange={() => {}} />,
     );

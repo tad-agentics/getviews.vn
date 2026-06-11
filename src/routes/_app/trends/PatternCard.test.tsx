@@ -19,24 +19,26 @@ afterEach(() => {
   cleanup();
 });
 
+const R2 = "https://media.getviews.vn/thumbnails";
+
 const sampleVideos: TopPattern["videos"] = [
   {
     video_id: "v1",
-    thumbnail_url: "https://t/1.jpg",
+    thumbnail_url: `${R2}/v1.webp`,
     creator_handle: "an.tech",
     views: 250_000,
     tiktok_url: null,
   },
   {
     video_id: "v2",
-    thumbnail_url: null,
+    thumbnail_url: `${R2}/v2.webp`,
     creator_handle: "huy.codes",
     views: 180_000,
     tiktok_url: null,
   },
   {
     video_id: "v3",
-    thumbnail_url: "https://t/3.jpg",
+    thumbnail_url: `${R2}/v3.webp`,
     creator_handle: "@chinasecrets",
     views: 90_000,
     tiktok_url: null,
@@ -55,6 +57,7 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   lift_vs_niche: 2.4,
   sample_hook: "Mình dùng iPad Pro 6 tháng rồi và…",
   videos: sampleVideos,
+  video_pool: sampleVideos,
   tier: "strong",
   structure: [
     "Mở: câu hỏi cá nhân (0-2s)",
@@ -164,7 +167,10 @@ describe("PatternCard", () => {
     // Sprint 5 — at low niche_video_count the old 2×2 padCollage filled with
     // grey placeholder tiles, making the card look broken. Now we render a
     // flex strip with only the videos that actually exist.
-    const onlyOne = samplePattern({ videos: [sampleVideos[0]!] });
+    const onlyOne = samplePattern({
+      videos: [sampleVideos[0]!],
+      video_pool: [sampleVideos[0]!],
+    });
     const { container } = render(<PatternCard pattern={onlyOne} />);
     // No 2-col grid exists anymore — the strip uses flex and contains exactly
     // one tile when only one video is provided.
@@ -174,7 +180,7 @@ describe("PatternCard", () => {
   });
 
   it("renders a 'Chưa có video mẫu' placeholder when the videos array is empty", () => {
-    const empty = samplePattern({ videos: [] });
+    const empty = samplePattern({ videos: [], video_pool: [] });
     const { getByText } = render(<PatternCard pattern={empty} />);
     expect(getByText(/Chưa có video mẫu/)).toBeTruthy();
   });
@@ -182,8 +188,12 @@ describe("PatternCard", () => {
   it("normalises @-prefixed creator handles and auto-prefixes bare ones in collage", () => {
     const pattern = samplePattern({
       videos: [
-        { video_id: "a", thumbnail_url: null, creator_handle: "@chinasecrets", views: 100, tiktok_url: null },
-        { video_id: "b", thumbnail_url: null, creator_handle: "an.tech", views: 200, tiktok_url: null },
+        { video_id: "a", thumbnail_url: `${R2}/a.webp`, creator_handle: "@chinasecrets", views: 100, tiktok_url: null },
+        { video_id: "b", thumbnail_url: `${R2}/b.webp`, creator_handle: "an.tech", views: 200, tiktok_url: null },
+      ],
+      video_pool: [
+        { video_id: "a", thumbnail_url: `${R2}/a.webp`, creator_handle: "@chinasecrets", views: 100, tiktok_url: null },
+        { video_id: "b", thumbnail_url: `${R2}/b.webp`, creator_handle: "an.tech", views: 200, tiktok_url: null },
       ],
     });
     const { container } = render(<PatternCard pattern={pattern} />);

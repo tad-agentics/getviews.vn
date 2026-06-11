@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 
 import { CarouselBadge } from "@/components/CarouselBadge";
@@ -64,7 +64,7 @@ export const PatternCard = memo(function PatternCard({
         aria-label={`Mở công thức: ${headline}`}
       >
         {/* Video strip — 1-4 actual videos, no padded placeholders. */}
-        <CollageStrip videos={pattern.videos} />
+        <CollageStrip videos={pattern.videos} pool={pattern.video_pool} />
 
         {/* Body */}
         <div className="flex flex-col gap-2.5 px-3.5 py-3.5">
@@ -161,8 +161,36 @@ function formatLift(lift: number | null): string | null {
  * with empty cells — at small ``niche_video_count`` the placeholder
  * tiles dominated the card visually and read as "broken".
  */
-function CollageStrip({ videos }: { videos: ReadonlyArray<PatternVideo> }) {
-  const cells = videos.slice(0, 4);
+function CollageStrip({
+  videos,
+  pool,
+}: {
+  videos: ReadonlyArray<PatternVideo>;
+  pool: ReadonlyArray<PatternVideo>;
+}) {
+  const [cells, setCells] = useState(() => videos.slice(0, 4));
+
+  useEffect(() => {
+    setCells(videos.slice(0, 4));
+  }, [videos]);
+
+  const handleTileFailed = useCallback(
+    (videoId: string) => {
+      setCells((prev) => {
+        const shown = new Set(prev.map((cell) => cell.video_id));
+        const replacement = pool.find(
+          (row) => row.video_id !== videoId && !shown.has(row.video_id),
+        );
+        if (!replacement) {
+          const next = prev.filter((cell) => cell.video_id !== videoId);
+          return next.length > 0 ? next : prev;
+        }
+        return prev.map((cell) => (cell.video_id === videoId ? replacement : cell));
+      });
+    },
+    [pool],
+  );
+
   if (cells.length === 0) {
     return (
       <div
@@ -181,13 +209,23 @@ function CollageStrip({ videos }: { videos: ReadonlyArray<PatternVideo> }) {
       aria-hidden
     >
       {cells.map((cell, i) => (
-        <CollageTile key={cell.video_id || i} cell={cell} />
+        <CollageTile
+          key={cell.video_id || i}
+          cell={cell}
+          onThumbFailed={() => handleTileFailed(cell.video_id)}
+        />
       ))}
     </div>
   );
 }
 
-function CollageTile({ cell }: { cell: PatternVideo }) {
+function CollageTile({
+  cell,
+  onThumbFailed,
+}: {
+  cell: PatternVideo;
+  onThumbFailed: () => void;
+}) {
   const handleLabel = (cell.creator_handle ?? "").startsWith("@")
     ? cell.creator_handle
     : cell.creator_handle
@@ -200,6 +238,7 @@ function CollageTile({ cell }: { cell: PatternVideo }) {
         videoId={cell.video_id}
         className="absolute inset-0 h-full w-full"
         placeholderClassName="bg-[color:var(--gv-canvas-2)]"
+        onAllCandidatesFailed={onThumbFailed}
       />
       <div
         className="absolute inset-0"

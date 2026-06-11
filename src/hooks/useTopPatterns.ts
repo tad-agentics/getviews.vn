@@ -1,5 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { applyVideoCorpusNicheFilter } from "@/lib/corpusNicheFilter";
+import {
+  applyBrowsableCorpusFilter,
+  applyVideoCorpusNicheFilter,
+} from "@/lib/corpusNicheFilter";
+import { pickPatternDisplayVideos } from "@/lib/patternDisplayVideos";
 import { supabase } from "@/lib/supabase";
 import { normalizeHookPhrase } from "@/lib/patternDisplay";
 
@@ -43,9 +47,10 @@ export type TopPattern = {
   sample_hook: string | null;
   /** Creator on the highest-view scoped video — for VÍ DỤ when hook_phrase missing. */
   sample_creator_handle?: string | null;
-  /** Top videos in this pattern by view count, scope-scoped. Empty array when
-   * no corpus rows tagged with the pattern exist in the caller's scope. */
+  /** Top videos with stable R2 thumbs — collage + modal switcher (max 4). */
   videos: PatternVideo[];
+  /** All scoped videos with stable R2 thumbs, views-DESC — collage/modal fallback pool. */
+  video_pool: PatternVideo[];
   /** L2.2 Sprint 7b — credibility tier the card was admitted under.
    *  - ``"strong"`` — n≥3 AND lift≥1.2× (the original Sprint 5 strict gate).
    *    Card renders with the green ``↑ {lift}× ngách`` badge.
@@ -203,7 +208,7 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
         .from("video_corpus")
         .select("video_id, pattern_id, views, hook_phrase, thumbnail_url, creator_handle, tiktok_url, content_type")
         .in("pattern_id", ids);
-      corpusQuery = applyCorpusScope(corpusQuery, scope);
+      corpusQuery = applyBrowsableCorpusFilter(applyCorpusScope(corpusQuery, scope));
 
       let medianQuery = supabase
         .from("video_corpus")
@@ -211,7 +216,7 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
         .gte("created_at", since30d)
         .not("views", "is", null)
         .limit(COHORT_VIEWS_MAX);
-      medianQuery = applyCorpusScope(medianQuery, scope);
+      medianQuery = applyBrowsableCorpusFilter(applyCorpusScope(medianQuery, scope));
 
       const [corpusRes, medianRes] = await Promise.all([corpusQuery, medianQuery]);
       if (corpusRes.error) throw corpusRes.error;
@@ -295,9 +300,9 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
             : null;
         const tier = tierOf(n, lift);
         if (tier == null) return [];
-        const videos = stat
-          ? [...stat.rows].sort((a, b) => b.views - a.views).slice(0, 4)
-          : [];
+        const { display, pool } = stat
+          ? pickPatternDisplayVideos(stat.rows)
+          : { display: [], pool: [] };
         return [{
           ...p,
           niche_video_count: n,
@@ -305,7 +310,8 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
           lift_vs_niche: lift,
           sample_hook: stat?.sampleHook ?? null,
           sample_creator_handle: stat?.topCreatorHandle ?? null,
-          videos,
+          videos: display,
+          video_pool: pool,
           tier,
           structure: (p as { structure?: string[] | null }).structure ?? null,
           why: (p as { why?: string | null }).why ?? null,
@@ -325,7 +331,7 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
       const deduped: TopPattern[] = [];
       const seenFormulas = new Set<string>();
       for (const p of enriched) {
-        // Card/modal need at least one sample video (R2 thumb fallback via video_id).
+        // Card/modal need at least one video with a stable R2 thumb in DB.
         if (p.videos.length === 0) continue;
         const key = (p.display_name?.trim() || p.id).toLowerCase();
         if (seenFormulas.has(key)) continue;

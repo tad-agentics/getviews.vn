@@ -21,6 +21,7 @@ const base: TopPattern = {
   sample_hook: "none",
   sample_creator_handle: "miule",
   videos: [],
+  video_pool: [],
   tier: "strong",
   structure: ["Hook: Cận mặt + hỏi thẳng về triệu chứng lạ"],
   why: null,

@@ -4,7 +4,12 @@ vi.mock("@/lib/env", () => ({
   env: { VITE_R2_PUBLIC_URL: "https://media.getviews.vn" },
 }));
 
-import { corpusThumbnailSrcCandidates, r2FrameUrl, r2ThumbnailUrl } from "./r2";
+import {
+  corpusThumbnailSrcCandidates,
+  isStableR2ThumbnailUrl,
+  r2FrameUrl,
+  r2ThumbnailUrl,
+} from "./r2";
 
 describe("r2 thumbnail helpers", () => {
   it("builds frame and thumbnail URLs", () => {
@@ -45,5 +50,11 @@ describe("r2 thumbnail helpers", () => {
   it("does not fall back to heavy frames/0.png", () => {
     const urls = corpusThumbnailSrcCandidates("999", null);
     expect(urls.some((u) => u.includes("/frames/"))).toBe(false);
+  });
+
+  it("detects stable R2 thumbnail URLs", () => {
+    expect(isStableR2ThumbnailUrl("https://media.getviews.vn/thumbnails/1.webp")).toBe(true);
+    expect(isStableR2ThumbnailUrl("https://tiktok.cdn/x.jpg")).toBe(false);
+    expect(isStableR2ThumbnailUrl(null)).toBe(false);
   });
 });

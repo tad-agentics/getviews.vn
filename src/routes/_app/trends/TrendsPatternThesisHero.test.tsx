@@ -40,7 +40,22 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   lift_vs_niche: 2.4,
   sample_hook: "Mình dùng iPad Pro 6 tháng rồi và…",
   videos: [
-    { video_id: "v1", thumbnail_url: null, creator_handle: "an.tech", views: 250_000, tiktok_url: null },
+    {
+      video_id: "v1",
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v1.webp",
+      creator_handle: "an.tech",
+      views: 250_000,
+      tiktok_url: null,
+    },
+  ],
+  video_pool: [
+    {
+      video_id: "v1",
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v1.webp",
+      creator_handle: "an.tech",
+      views: 250_000,
+      tiktok_url: null,
+    },
   ],
   tier: "strong",
   structure: ["Mở: câu hỏi cá nhân (0-2s)", "Setup", "Body", "Payoff"],

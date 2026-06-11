@@ -82,6 +82,7 @@ describe("scriptPrefillFromPattern", () => {
     lift_vs_niche: 2.4,
     sample_hook: "Mình dùng iPad Pro 6 tháng rồi và…",
     videos: [],
+    video_pool: [],
     structure: [
       "Mở: câu hỏi cá nhân (0-2s)",
       "Setup: bối cảnh dùng sản phẩm (2-6s)",

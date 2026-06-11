@@ -10,10 +10,19 @@ import { env } from "@/lib/env";
  * call sites that already import it from there.
  */
 
-function r2PublicBase(): string | null {
+export function r2PublicBase(): string | null {
   const base = env.VITE_R2_PUBLIC_URL;
   if (!base) return null;
   return base.replace(/\/$/, "");
+}
+
+/** True when ``thumbnail_url`` is a non-empty permanent R2 public URL (not TikTok CDN). */
+export function isStableR2ThumbnailUrl(thumbnailUrl: string | null | undefined): boolean {
+  const trimmed = thumbnailUrl?.trim();
+  if (!trimmed) return false;
+  const base = r2PublicBase();
+  if (!base) return false;
+  return trimmed.startsWith(base);
 }
 
 /** Derive a stable R2 frame URL for a video_id (frame 0 = ~0s thumbnail). */

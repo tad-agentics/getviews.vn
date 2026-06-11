@@ -88,6 +88,8 @@ export type VideoThumbnailProps = {
   fetchPriority?: "auto" | "high" | "low";
   /** ``cover`` fills frame (may crop); ``contain`` shows full frame (letterbox). */
   objectFit?: "cover" | "contain";
+  /** Fires once when every ``corpusThumbnailSrcCandidates`` URL failed to load. */
+  onAllCandidatesFailed?: () => void;
 };
 
 export function VideoThumbnail({
@@ -100,6 +102,7 @@ export function VideoThumbnail({
   loading = "lazy",
   fetchPriority = "auto",
   objectFit = "cover",
+  onAllCandidatesFailed,
 }: VideoThumbnailProps) {
   const candidates = useMemo(
     () => corpusThumbnailSrcCandidates(videoId, thumbnailUrl),
@@ -133,6 +136,7 @@ export function VideoThumbnail({
             videoId ?? undefined,
             candidates[0] ?? thumbnailUrl?.trim() ?? url,
           );
+          onAllCandidatesFailed?.();
         }}
       />
     );

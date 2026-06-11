@@ -45,7 +45,16 @@ const samplePattern = (id: string, overrides: Partial<TopPattern> = {}): TopPatt
   videos: [
     {
       video_id: "v1",
-      thumbnail_url: "https://example.com/thumb.webp",
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v1.webp",
+      creator_handle: "creator",
+      views: 100_000,
+      tiktok_url: "https://www.tiktok.com/@creator/video/v1",
+    },
+  ],
+  video_pool: [
+    {
+      video_id: "v1",
+      thumbnail_url: "https://media.getviews.vn/thumbnails/v1.webp",
       creator_handle: "creator",
       views: 100_000,
       tiktok_url: "https://www.tiktok.com/@creator/video/v1",

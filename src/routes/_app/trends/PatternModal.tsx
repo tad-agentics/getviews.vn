@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowRight, Play, X } from "lucide-react";
 
@@ -70,8 +70,43 @@ export const PatternModal = memo(function PatternModal({
 
 function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: number | null }) {
   const navigate = useNavigate();
-  const videos = pattern.videos.length > 0 ? pattern.videos : ([] as PatternVideo[]);
+  const pool =
+    pattern.video_pool.length > 0 ? pattern.video_pool : pattern.videos;
+  const [switcherVideos, setSwitcherVideos] = useState<PatternVideo[]>(
+    () => pattern.videos,
+  );
   const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    setSwitcherVideos(pattern.videos);
+    setActiveIdx(0);
+  }, [pattern.id, pattern.videos]);
+
+  const promoteOnThumbFail = useCallback(
+    (videoId: string) => {
+      setSwitcherVideos((prev) => {
+        const shown = new Set(prev.map((row) => row.video_id));
+        const replacement = pool.find(
+          (row) => row.video_id !== videoId && !shown.has(row.video_id),
+        );
+        if (!replacement) {
+          const next = prev.filter((row) => row.video_id !== videoId);
+          return next.length > 0 ? next : prev;
+        }
+        return prev.map((row) => (row.video_id === videoId ? replacement : row));
+      });
+    },
+    [pool],
+  );
+
+  const videos = switcherVideos.length > 0 ? switcherVideos : ([] as PatternVideo[]);
+
+  useEffect(() => {
+    setActiveIdx((idx) =>
+      idx >= videos.length ? Math.max(0, videos.length - 1) : idx,
+    );
+  }, [videos.length]);
+
   const active = videos[activeIdx] ?? null;
   const avgViewsLabel =
     pattern.avg_views != null ? formatViews(pattern.avg_views) : "—";
@@ -115,7 +150,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
           <p className="gv-mono mb-2.5 text-[11px] font-semibold gv-kicker tracking-[0.08em] text-[color:var(--gv-ink-3)]">
             Video mẫu
           </p>
-          <PhoneTile video={active} />
+          <PhoneTile video={active} onThumbFailed={promoteOnThumbFail} />
           <Btn
             variant="ghost"
             size="md"
@@ -161,7 +196,9 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
                     >
                       <VideoThumbnail
                         thumbnailUrl={v.thumbnail_url}
+                        videoId={v.video_id}
                         className="absolute inset-0 h-full w-full"
+                        onAllCandidatesFailed={() => promoteOnThumbFail(v.video_id)}
                       />
                       {v.content_type === "carousel" ? (
                         <span className="absolute left-1 top-1 z-10">
@@ -253,7 +290,13 @@ function PhoneTileMeta({ video }: { video: PatternVideo }) {
   );
 }
 
-function PhoneTile({ video }: { video: PatternVideo | null }) {
+function PhoneTile({
+  video,
+  onThumbFailed,
+}: {
+  video: PatternVideo | null;
+  onThumbFailed: (videoId: string) => void;
+}) {
   const [hoverPlay, setHoverPlay] = useState(false);
   useEffect(() => {
     setHoverPlay(false);
@@ -299,6 +342,7 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
                 placeholderClassName="bg-black"
                 loading="eager"
                 fetchPriority="high"
+                onAllCandidatesFailed={() => onThumbFailed(video.video_id)}
               />
               <span
                 className="absolute inset-0 pointer-events-none"
@@ -334,6 +378,7 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
           objectFit="contain"
           className="absolute inset-0 h-full w-full"
           placeholderClassName="bg-black"
+          onAllCandidatesFailed={() => onThumbFailed(video.video_id)}
         />
         <span
           className="absolute inset-0 pointer-events-none"
