@@ -5,7 +5,6 @@ import { Check, Zap, Sparkles, Gift } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { Btn } from "@/components/v2/Btn";
-import { env } from "@/lib/env";
 import { pricingSavings } from "@/lib/mock-data";
 import { planPricePresentation, type BillingPeriod } from "@/lib/pricingDisplay";
 import { useProfile } from "@/hooks/useProfile";
@@ -68,10 +67,6 @@ const topupCopy = [
   { pack: "pack_30" as const, line: "30 phân tích — 350.000đ (11.700đ/lần)", highlight: false },
   { pack: "pack_50" as const, line: "50 phân tích — 550.000đ (11.000đ/lần) · Phổ biến", highlight: true },
 ];
-
-const paymentMethodLabels = ["MoMo", "VNPay", "ZaloPay", "Visa", "Bank"] as const;
-
-const zaloPayEnabled = env.VITE_ZALOPAY_ENABLED;
 
 function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
   const periods: Period[] = ["monthly", "biannual", "annual"];
@@ -315,8 +310,6 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
   const { data: profile, isPending: profileLoading } = useProfile();
   const { data: subscription } = useSubscription();
 
-  const paymentMethods = paymentMethodLabels.filter((label) => (label === "ZaloPay" ? zaloPayEnabled : true));
-
   const userTier = profile?.subscription_tier ?? "free";
   const subRow: SubRow = subscription
     ? { tier: String(subscription.tier), billing_period: String(subscription.billing_period) }
@@ -346,7 +339,7 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
 
         {embedded ? (
           <p className="mb-6 text-sm text-[color:var(--gv-ink-3)]">
-            Thanh toán qua MoMo, VNPay, chuyển khoản hoặc thẻ quốc tế. Không ràng buộc hợp đồng.
+            Thanh toán qua PayOS chuyển khoản. Không ràng buộc hợp đồng.
           </p>
         ) : (
           <div className="mb-10 text-center">
@@ -355,7 +348,7 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
               Lựa chọn gói phân tích phù hợp
             </h1>
             <p className="text-sm text-[color:var(--gv-ink-3)]">
-              Thanh toán qua MoMo, VNPay, chuyển khoản hoặc thẻ quốc tế.
+              Thanh toán qua PayOS chuyển khoản.
             </p>
           </div>
         )}
@@ -471,19 +464,14 @@ export function PricingContent({ embedded = false, onBack }: PricingContentProps
         <div className="border-t border-[color:var(--gv-rule)] pt-6">
           <p className="gv-kicker mb-3 text-[color:var(--gv-ink-3)]">Phương thức thanh toán</p>
           <div className="flex flex-wrap gap-2">
-            {paymentMethods.map((label) => (
-              <div
-                key={label}
-                className="flex min-w-[64px] items-center justify-center rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-2"
-              >
-                <span className="font-mono text-xs font-semibold tracking-wide text-[color:var(--gv-ink-2)]">
-                  {label}
-                </span>
-              </div>
-            ))}
+            <div className="flex items-center justify-center rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-2">
+              <span className="font-mono text-xs font-semibold tracking-wide text-[color:var(--gv-ink-2)]">
+                PayOS Chuyển khoản
+              </span>
+            </div>
           </div>
           <p className="mt-3 text-xs leading-relaxed text-[color:var(--gv-ink-4)]">
-            Cổng thanh toán PayOS — lượt phân tích được cộng ngay sau khi giao dịch thành công.
+            Lượt phân tích được cộng ngay sau khi giao dịch thành công.
           </p>
         </div>
       </div>
