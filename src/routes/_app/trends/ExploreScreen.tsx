@@ -681,33 +681,36 @@ export default function ExploreScreen() {
 
   /** Total videos in niche (no search / view / format filters) — §II kho title. */
   const { data: nicheTotalCount, isPending: nicheTotalCountPending } = useQuery({
-    queryKey: [...corpusKeys.nicheTotal(selectedNicheId), contentClassIds, selectedCreatorNicheId],
+    queryKey: [...corpusKeys.nicheTotal(selectedNicheId), contentClassIds, selectedCreatorNicheId, "exact"],
     queryFn: async () => {
       let q = applyBrowsableCorpusFilter(
-        applyVideoCorpusNicheFilter(supabase.from("video_corpus").select("*", { count: "planned", head: true }), {
-          legacyNicheId: selectedNicheId,
-          creatorNicheId: selectedCreatorNicheId,
-          contentClassIds,
-        }),
+        applyVideoCorpusNicheFilter(
+          supabase.from("video_corpus").select("id", { count: "exact", head: true }),
+          {
+            legacyNicheId: selectedNicheId,
+            creatorNicheId: selectedCreatorNicheId,
+            contentClassIds,
+          },
+        ),
       );
       const { count, error } = await q;
       if (error) return null;
       return count;
     },
-    enabled: selectedNicheId != null,
+    enabled: selectedNicheId != null && contentClassIds.length > 0,
     staleTime: 5 * 60_000,
   });
 
   /** Rolling 7d indexed count — hero H1 (“tuần qua”); uses ``indexed_at`` like the grid date filter. */
   const { data: nicheWeekCount } = useQuery({
-    queryKey: [...corpusKeys.nicheLast7d(selectedNicheId), contentClassIds, selectedCreatorNicheId],
+    queryKey: [...corpusKeys.nicheLast7d(selectedNicheId), contentClassIds, selectedCreatorNicheId, "exact"],
     queryFn: async () => {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       let q = applyBrowsableCorpusFilter(
         applyVideoCorpusNicheFilter(
           supabase
             .from("video_corpus")
-            .select("*", { count: "planned", head: true })
+            .select("id", { count: "exact", head: true })
             .gte("indexed_at", since),
           {
             legacyNicheId: selectedNicheId,
@@ -720,7 +723,7 @@ export default function ExploreScreen() {
       if (error) return null;
       return count;
     },
-    enabled: selectedNicheId != null,
+    enabled: selectedNicheId != null && contentClassIds.length > 0,
     staleTime: 5 * 60_000,
   });
 
