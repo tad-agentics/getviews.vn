@@ -991,7 +991,7 @@ async def fetch_handle_corpus_for_findings(
             user_sb.table("video_corpus")
             .select(
                 "video_id,analysis_json,boost_attribution,content_class_id,"
-                "posted_at,caption,indexed_at"
+                "posted_at,caption,indexed_at,views"
             )
             .eq("creator_handle", h)
             .order("posted_at", desc=True)
@@ -1002,6 +1002,178 @@ async def fetch_handle_corpus_for_findings(
     except Exception as exc:
         logger.debug("[channel_diagnose] handle corpus for findings failed: %s", exc)
         return []
+
+
+# ---------------------------------------------------------------------------
+# P3 (Lightreel audit 2026-06-11) — recent-content feature audit + brand UGC
+# ---------------------------------------------------------------------------
+
+_AUDIT_MIN_ROWS = 3
+_AUDIT_MAX_ROWS = 12
+_FACE_SCENE_TYPES = frozenset({"face_to_camera"})
+
+
+def _audit_features_from_analysis(analysis: Any) -> dict[str, Any] | None:
+    """Per-video feature flags from a corpus ``analysis_json`` blob.
+
+    Tolerates both raw Scene keys (``type``/``start``) and normalised
+    payloads (``scene_type``/``start_s``). None when there is no analysis.
+    """
+    if not isinstance(analysis, dict) or not analysis:
+        return None
+    scenes = analysis.get("scenes")
+    scenes = scenes if isinstance(scenes, list) else []
+    has_face = False
+    has_overlay = False
+    for sc in scenes:
+        if not isinstance(sc, dict):
+            continue
+        if (
+            str(sc.get("subject") or "") == "face"
+            or str(sc.get("type") or sc.get("scene_type") or "") in _FACE_SCENE_TYPES
+        ):
+            has_face = True
+        if str(sc.get("overlay_style") or "").lower() not in ("", "none", "null"):
+            has_overlay = True
+    ha = analysis.get("hook_analysis")
+    ha = ha if isinstance(ha, dict) else {}
+    hook_phrase = str(ha.get("hook_phrase") or "").strip()
+    hook_type = str(ha.get("hook_type") or "").strip().lower()
+    has_hook = len(hook_phrase) >= 4 or hook_type not in ("", "none", "null")
+    role = str(analysis.get("audio_track_role") or "").strip().lower() or None
+    return {
+        "has_face": has_face,
+        "has_overlay": has_overlay,
+        "has_hook": has_hook,
+        "audio_track_role": role,
+    }
+
+
+def compute_recent_content_audit(
+    handle_corpus_rows: list[dict[str, Any]],
+    *,
+    recent_total: int | None = None,
+) -> dict[str, Any] | None:
+    """Aggregate frame-level features across the handle's recent corpus rows.
+
+    Lightreel G4 (P3): the "no human faces / no hooks / music is background"
+    absence audit across recent content. Zero new Gemini calls — rows come
+    from ``fetch_handle_corpus_for_findings`` (extraction already paid for at
+    ingest). Returns None below ``_AUDIT_MIN_ROWS`` analysed rows: a thin
+    audit would be noise dressed as a count.
+    """
+    feats: list[dict[str, Any]] = []
+    for row in handle_corpus_rows[:_AUDIT_MAX_ROWS]:
+        f = _audit_features_from_analysis(row.get("analysis_json"))
+        if f is None:
+            continue
+        try:
+            f["views"] = int(row.get("views") or 0)
+        except (TypeError, ValueError):
+            f["views"] = 0
+        feats.append(f)
+    if len(feats) < _AUDIT_MIN_ROWS:
+        return None
+    n = len(feats)
+    roles = Counter(f["audio_track_role"] for f in feats if f["audio_track_role"])
+    out: dict[str, Any] = {
+        "videos_scanned": n,
+        "recent_total": recent_total,
+        "face_videos": sum(1 for f in feats if f["has_face"]),
+        "hook_videos": sum(1 for f in feats if f["has_hook"]),
+        "overlay_videos": sum(1 for f in feats if f["has_overlay"]),
+        "audio_roles": dict(roles),
+    }
+    face_views = [f["views"] for f in feats if f["has_face"] and f["views"] > 0]
+    noface_views = [f["views"] for f in feats if not f["has_face"] and f["views"] > 0]
+    if face_views and noface_views:
+        out["avg_views_with_face"] = int(sum(face_views) / len(face_views))
+        out["avg_views_without_face"] = int(sum(noface_views) / len(noface_views))
+    return out
+
+
+_BRAND_HANDLE_NOISE = frozenset(
+    {"official", "vn", "store", "shop", "real", "studio", "team", "brand"}
+)
+
+
+def _brand_term_from_handle(handle: str) -> str:
+    """Search term for brand-mention UGC: longest non-noise token of the handle.
+
+    ``curnon.official`` → ``curnon``; falls back to the raw handle when
+    stripping would leave nothing usable.
+    """
+    tokens = [t for t in re.split(r"[._\d]+", (handle or "").lower()) if t]
+    core = [t for t in tokens if t not in _BRAND_HANDLE_NOISE]
+    if core:
+        best = max(core, key=len)
+        if len(best) >= 3:
+            return best
+    return (handle or "").lower()
+
+
+async def fetch_brand_ugc_videos(
+    handle: str,
+    recent_avg_views: float,
+    *,
+    limit: int = 3,
+) -> list[dict[str, Any]]:
+    """External creators' videos ABOUT this brand/channel (Lightreel G5, P3).
+
+    One ED keyword-search call per uncached diagnosis (daily budget gate lives
+    in ``ensemble._ensemble_get``); the route additionally gates on
+    ``config.BRAND_UGC_SEARCH_ENABLED``. A creator qualifies only when the
+    caption (or their handle) actually mentions the brand term AND the video
+    clears 1.5× the channel's recent average — the section's claim is "UGC
+    outperforms the brand channel", so weaker rows would dilute it.
+    Empty list on any failure — never raises.
+    """
+    term = _brand_term_from_handle(handle)
+    if len(term) < 3:
+        return []
+    try:
+        awemes, _ = await ensemble.fetch_keyword_search(term, period=180, sorting=1)
+    except Exception as exc:
+        logger.warning(
+            "[channel_diagnose] brand UGC keyword search failed handle=%s: %s", handle, exc
+        )
+        return []
+    floor = max(1.5 * float(recent_avg_views or 0), 1.0)
+    h_lower = (handle or "").lower()
+    best_by_author: dict[str, dict[str, Any]] = {}
+    for aw in awemes or []:
+        norm = _normalise_aweme(aw)
+        if not norm:
+            continue
+        uid = str(norm.get("author_handle") or "").lower()
+        if not uid or uid == h_lower:
+            continue
+        caption_l = str(norm.get("caption") or "").lower()
+        if term not in caption_l and term not in uid:
+            continue
+        views = int(norm.get("views") or 0)
+        if views < floor:
+            continue
+        prev = best_by_author.get(uid)
+        if prev is None or views > int(prev.get("views") or 0):
+            best_by_author[uid] = norm
+    ranked = sorted(
+        best_by_author.values(), key=lambda r: int(r.get("views") or 0), reverse=True
+    )[:limit]
+    out: list[dict[str, Any]] = []
+    for r in ranked:
+        views = int(r.get("views") or 0)
+        out.append({
+            "handle": str(r.get("author_handle") or ""),
+            "followers": r.get("author_followers"),
+            "views": views,
+            "caption_snippet": str(r.get("caption") or "")[:80],
+            "video_id": str(r.get("video_id") or ""),
+            "video_url": str(r.get("video_url") or ""),
+            "thumbnail_url": r.get("thumbnail_url"),
+            "multiplier": round(views / max(float(recent_avg_views or 0), 1.0), 1),
+        })
+    return out
 
 
 def compute_posting_cadence(videos: list[dict[str, Any]]) -> dict[str, Any]:

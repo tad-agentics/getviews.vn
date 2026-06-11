@@ -157,7 +157,17 @@ Reference: `cloud-run/getviews_pipeline/channel_diagnose_prompts.py`,
 > template (frozen FE contract) and instead injects the niche's top `video_shots`
 > video as a "NHỊP CẢNH" rhythm block. P2.8 is **not implementable at this surface** —
 > `ScriptGenerateBody` carries no channel identity; the anti-repeat intent is covered
-> by P1.4 (channel-diagnosis `next_video`). P3 items remain unplanned.
+> by P1.4 (channel-diagnosis `next_video`).
+>
+> **P3 (implemented 2026-06-11, same day):**
+> P3.9 ships as `compute_recent_content_audit` — zero new Gemini calls; it aggregates
+> face/hook/overlay/audio-role counts from the handle's already-analysed
+> `video_corpus` rows (`fetch_handle_corpus_for_findings`) and injects
+> `<<<RECENT CONTENT AUDIT>>>`; `what_falling` cites the counts verbatim.
+> P3.10 ships as `fetch_brand_ugc_videos` (one ED keyword-search call per uncached
+> diagnosis) + the new `ugc_vs_channel` memo section with creator tiles and the
+> multiplier stat — **flag-gated by `BRAND_UGC_SEARCH_ENABLED`, default OFF** until
+> the ED keyword-search unit cost is confirmed against the daily budget.
 
 ### P1 — prompt-only changes to channel diagnosis (cheap, high yield)
 

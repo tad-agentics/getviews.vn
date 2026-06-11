@@ -660,6 +660,7 @@ CHANNEL_MEMO_SECTION_ORDER: tuple[str, ...] = (
     "what_falling",
     "video_vs_channel",
     "competitive_landscape",
+    "ugc_vs_channel",
     "hashtag_insights",
     "next_video",
     "account_health",
@@ -678,6 +679,7 @@ def select_channel_sections_to_emit(
     has_next_video_seed: bool = False,
     has_ugc_peers: bool = False,
     peer_source: str | None = None,
+    has_brand_ugc: bool = False,
 ) -> list[str]:
     """Salience-driven memo section list (§5.5 Wave 2 — channel analogue of V6 select)."""
     hints = {f.section_hint for f in findings}
@@ -699,6 +701,11 @@ def select_channel_sections_to_emit(
 
     if has_next_video_seed:
         selected.add("next_video")
+
+    # P3 (Lightreel G5) — brand-mention UGC axis, only when the ED search
+    # actually found qualifying creators (flag-gated upstream).
+    if has_brand_ugc:
+        selected.add("ugc_vs_channel")
 
     selected.update(optional_memo_sections_from_findings(findings))
 

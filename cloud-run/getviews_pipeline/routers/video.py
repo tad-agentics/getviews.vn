@@ -238,7 +238,7 @@ async def channel_refresh_mine_endpoint(
 # Section markers the server parses from Gemini output
 _SECTION_HEADER_RE = re.compile(
     r"^=== (verdict|what_worked|what_falling|video_vs_channel"
-    r"|competitive_landscape|next_video|recommendations"
+    r"|competitive_landscape|ugc_vs_channel|next_video|recommendations"
     r"|account_health|policy_risk) ===$",
     re.MULTILINE,
 )
@@ -390,16 +390,19 @@ async def _run_channel_diagnose(
     step_queue: asyncio.Queue,
 ) -> dict[str, Any]:
     """Orchestrator: runs the full channel diagnosis pipeline in a thread pool."""
+    from getviews_pipeline import config as gv_config
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
         compute_creator_match,
         compute_hashtag_insights,
         compute_inflection_point,
+        compute_recent_content_audit,
         compute_recent_window_stats,
         compute_score_card,
         derive_channel_persona,
         derive_next_video_concept,
+        fetch_brand_ugc_videos,
         fetch_channel_videos_live,
         fetch_handle_corpus_for_findings,
         fetch_niche_benchmarks,
@@ -572,6 +575,41 @@ async def _run_channel_diagnose(
     )
 
     handle_corpus_rows = await fetch_handle_corpus_for_findings(sb_user, handle)
+
+    # P3 (Lightreel) — deterministic feature audit over the handle's analysed
+    # corpus rows (no new Gemini calls) + flag-gated brand-mention UGC search.
+    recent_audit = compute_recent_content_audit(
+        handle_corpus_rows,
+        recent_total=int(recent_window.get("video_count") or 0) or None,
+    )
+    brand_ugc: list[dict[str, Any]] = []
+    if gv_config.BRAND_UGC_SEARCH_ENABLED:
+        try:
+            brand_ugc = await fetch_brand_ugc_videos(
+                handle,
+                float(recent_window.get("avg_views") or channel_avg or 0),
+            )
+        except Exception as exc:
+            logger.warning("[channel_diagnose] brand UGC fetch failed: %s", exc)
+            brand_ugc = []
+    brand_ugc_fe = [
+        normalize_peer_creator_for_fe(
+            {
+                "handle": c.get("handle"),
+                "followers": c.get("followers"),
+                "avg_views": c.get("views"),
+                "format_label": "UGC về kênh",
+                "sample_videos": [{
+                    "views": c.get("views"),
+                    "thumbnail_url": c.get("thumbnail_url"),
+                    "video_url": c.get("video_url"),
+                }],
+            },
+            niche_slug=niche_slug,
+        )
+        for c in brand_ugc
+    ]
+
     channel_findings = build_channel_findings(
         videos=videos,
         channel_pattern=channel_pattern,
@@ -591,6 +629,7 @@ async def _run_channel_diagnose(
         has_next_video_seed=bool(next_video_seed),
         has_ugc_peers=bool(peer_creators_raw),
         peer_source=peer_source,
+        has_brand_ugc=bool(brand_ugc),
     )
     findings_api = serialize_findings_for_api(channel_findings)
     await step_queue.put({"type": "channel_findings", "findings": findings_api})
@@ -613,6 +652,8 @@ async def _run_channel_diagnose(
         channel_findings=channel_findings,
         optional_memo_sections=optional_memo_sections,
         sections_to_emit=sections_to_emit,
+        recent_content_audit=recent_audit,
+        brand_ugc_creators=brand_ugc,
     )
 
     from google.genai import types as genai_types
@@ -701,6 +742,11 @@ async def _run_channel_diagnose(
             start["embedded_tiles"] = tiles
         if is_landscape and ugc_creators:
             start["embedded_creators"] = ugc_creators
+        if sid == "ugc_vs_channel" and brand_ugc_fe:
+            start["embedded_creators"] = brand_ugc_fe
+            # Persist on the section row itself — cache replay re-emits
+            # section-attached extras for this v2 section (§16 invariant).
+            section["embedded_creators"] = brand_ugc_fe
         if sid == "next_video" and next_video_seed:
             start["next_video"] = next_video_seed
         await step_queue.put(start)
@@ -934,6 +980,8 @@ async def channel_diagnose_endpoint(
                     sec_evt["embedded_tiles"] = worst_performers
                 elif sid == "competitive_landscape" and ugc_creators:
                     sec_evt["embedded_creators"] = ugc_creators
+                elif sid == "ugc_vs_channel" and section.get("embedded_creators"):
+                    sec_evt["embedded_creators"] = section["embedded_creators"]
                 elif sid == "hashtag_insights":
                     sec_evt["hashtag_insights"] = hashtag_insights_row
                 elif sid == "next_video" and next_video_row:

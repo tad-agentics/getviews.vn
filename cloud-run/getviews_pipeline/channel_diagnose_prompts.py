@@ -103,6 +103,9 @@ view của kênh đều có <A> hoặc <B> — thường cả hai». <X> là s�
 TITLE: <trajectory-specific title>
 ĐIỂM YẾU: đúng 3 gạch đầu dòng. Mỗi gạch mở bằng **tên pattern 2-4 từ tự đặt** (như what_worked — \
 «Ảnh catalog tĩnh», «Caption mô tả sản phẩm»), rồi: <điểm yếu>: <số liệu so sánh> — <nguyên nhân> — <cách sửa>.
+Nếu có <<<RECENT CONTENT AUDIT>>>: trích thẳng tỉ lệ thiếu làm bằng chứng («X/Y video gần nhất không có \
+mặt người») — audit là số đếm thật trên video đã phân tích khung hình, không suy đoán. Có \
+avg_views_with_face vs without thì nêu chênh lệch.
 Kết: 1 câu chốt nguyên nhân lớn nhất + 1 hành động tuần này.
 
 === video_vs_channel ===    [CHỈ emit khi context có THIS VIDEO]
@@ -115,6 +118,13 @@ Với MỖI peer trong <<<KÊNH CÙNG NGÁCH>>>, 1 câu riêng: họ mạnh/yế
 và insight cho kênh đang phân tích.
 Cuối section: 1 câu GAP — bạn ĐANG THIẾU gì so với peer mạnh nhất (format share, cadence, hoặc góc nội dung).
 Nếu peer_source=thin: so sánh thận trọng với số peer hiện có, không tuyên bố mạnh.
+
+=== ugc_vs_channel ===    [CHỈ emit khi context có <<<UGC CREATORS>>>]
+TITLE: UGC VS KÊNH CHÍNH
+Mỗi creator trong <<<UGC CREATORS>>> 1 câu: họ làm gì khác kênh chính (góc cá nhân, bối cảnh đời thường, \
+câu hỏi thật của người xem) mà đạt bội số đó — dùng đúng số multiplier trong block.
+Câu chốt: nếu UGC vượt kênh nhiều lần với follower ít hơn → vấn đề không nằm ở sản phẩm, nằm ở cách kênh \
+tự nói về mình + 1 hành động cụ thể (repost/duet/hợp tác với creator đã nêu).
 
 === next_video ===
 TITLE: VIDEO TIẾP THEO NÊN QUAY
@@ -236,6 +246,13 @@ DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("competitive_landscape", "breakout"): "ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ",
     ("competitive_landscape", "bursty"): "ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ",
     ("competitive_landscape", "new_account"): "ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ",
+    # ugc_vs_channel — P3 (Lightreel G5), emitted only when brand UGC found
+    ("ugc_vs_channel", "decline_from_peak"): "UGC VS KÊNH CHÍNH",
+    ("ugc_vs_channel", "stagnant"): "UGC VS KÊNH CHÍNH",
+    ("ugc_vs_channel", "steady_growth"): "UGC VS KÊNH CHÍNH",
+    ("ugc_vs_channel", "breakout"): "UGC VS KÊNH CHÍNH",
+    ("ugc_vs_channel", "bursty"): "UGC VS KÊNH CHÍNH",
+    ("ugc_vs_channel", "new_account"): "UGC VS KÊNH CHÍNH",
     # next_video — title often overridden by model
     ("next_video", "decline_from_peak"): "VIDEO TIẾP THEO NÊN QUAY",
     ("next_video", "stagnant"): "VIDEO TIẾP THEO NÊN QUAY",
@@ -315,6 +332,8 @@ def build_channel_diagnosis_context(
     channel_findings: list[Any] | None = None,
     optional_memo_sections: list[str] | None = None,
     sections_to_emit: list[str] | None = None,
+    recent_content_audit: dict[str, Any] | None = None,
+    brand_ugc_creators: list[dict[str, Any]] | None = None,
 ) -> str:
     """Build the user-facing context string with ``<<<BLOCK>>>`` delimiters.
 
@@ -426,6 +445,31 @@ def build_channel_diagnosis_context(
             )
         blocks.append("<<<WORST RECENT PERFORMERS>>>\n" + "\n".join(worst_lines))
 
+    # --- <<<RECENT CONTENT AUDIT>>> (P3/G4 — deterministic feature counts) ---
+    if recent_content_audit:
+        a = recent_content_audit
+        n_scanned = int(a.get("videos_scanned") or 0)
+        audit_lines = [
+            f"videos_scanned: {n_scanned} (video gần nhất của kênh đã có phân tích khung hình trong kho mẫu)",
+            f"has_human_face: {int(a.get('face_videos') or 0)}/{n_scanned}",
+            f"has_hook_first_3s: {int(a.get('hook_videos') or 0)}/{n_scanned}",
+            f"has_text_overlay: {int(a.get('overlay_videos') or 0)}/{n_scanned}",
+        ]
+        roles = a.get("audio_roles") or {}
+        if roles:
+            audit_lines.append(
+                "audio_track_role: " + ", ".join(f"{k}={v}" for k, v in sorted(roles.items()))
+            )
+        if a.get("avg_views_with_face") is not None:
+            audit_lines.append(
+                f"avg_views_with_face: {_fmt_views(a['avg_views_with_face'])} "
+                f"vs avg_views_without_face: {_fmt_views(a['avg_views_without_face'])}"
+            )
+        blocks.append(
+            "<<<RECENT CONTENT AUDIT (đặc điểm nội dung gần đây — số đếm thật)>>>\n"
+            + "\n".join(audit_lines)
+        )
+
     # --- <<<INFLECTION POINT>>> ---
     if inflection:
         inf_lines: list[str] = []
@@ -489,6 +533,28 @@ def build_channel_diagnosis_context(
         blocks.append(
             f"<<<KÊNH CÙNG NGÁCH (peer_source={src})>>>\n"
             "(Không đủ kênh cùng ngách trong kho dữ liệu để so sánh — nói rõ trong competitive_landscape.)"
+        )
+
+    # --- <<<UGC CREATORS>>> (P3/G5 — external creators posting ABOUT this brand) ---
+    # Block name matches the system-prompt multiplier rule («Nếu <<<UGC CREATORS>>>
+    # có creator ngoài vượt video tốt nhất của kênh: nêu thẳng bội số…»).
+    if brand_ugc_creators:
+        brand_lines = []
+        for c in brand_ugc_creators:
+            followers_c = c.get("followers")
+            followers_str = (
+                f"{_fmt_views(int(followers_c))} followers"
+                if followers_c not in (None, 0)
+                else "N/A followers"
+            )
+            snippet = str(c.get("caption_snippet") or "")[:80]
+            brand_lines.append(
+                f"@{c.get('handle')} | {followers_str} | video {_fmt_views(int(c.get('views') or 0))} views "
+                f"(gấp {c.get('multiplier')}× TB 30 ngày của kênh) | \"{snippet}\""
+            )
+        blocks.append(
+            "<<<UGC CREATORS (creator NGOÀI đăng video về brand/kênh này)>>>\n"
+            + "\n".join(brand_lines)
         )
 
     # --- <<<NICHE BENCHMARK>>> ---
