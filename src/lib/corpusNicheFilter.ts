@@ -11,6 +11,7 @@ export type CorpusNicheFilterableQuery = {
   eq: (column: string, value: number) => CorpusNicheFilterableQuery;
   in: (column: string, values: number[]) => CorpusNicheFilterableQuery;
   not: (column: string, operator: string, value: null) => CorpusNicheFilterableQuery;
+  like: (column: string, pattern: string) => CorpusNicheFilterableQuery;
   or: (filters: string) => CorpusNicheFilterableQuery;
 };
 
@@ -107,13 +108,22 @@ export function applyVideoCorpusNicheFilter<T extends CorpusNicheFilterableQuery
   return q;
 }
 
+/** Permanent R2 thumb key shape — excludes stale TikTok CDN ``thumbnail_url`` values. */
+export const BROWSABLE_THUMBNAIL_LIKE = "%/thumbnails/%";
+
 /**
  * Browse-only filter: hide corpus rows with no stable thumbnail (NULL after
- * backfill). Keeps analysis/matcher rows in DB; Explore grid, Home breakouts,
+ * backfill) and rows whose ``thumbnail_url`` is not an R2 ``/thumbnails/``
+ * object. Keeps analysis/matcher rows in DB; Explore grid, Home breakouts,
  * and browse counts use this. Do not apply to thin-corpus / intel sample checks.
+ *
+ * Phantom R2 URLs (DB row present, object missing) still pass this filter;
+ * browse UIs hide those cards client-side via ``VideoThumbnail.onAllCandidatesFailed``.
  */
-export function applyBrowsableCorpusFilter<T extends Pick<CorpusNicheFilterableQuery, "not">>(
-  query: T,
-): T {
-  return query.not("thumbnail_url", "is", null) as unknown as T;
+export function applyBrowsableCorpusFilter<
+  T extends Pick<CorpusNicheFilterableQuery, "not" | "like">,
+>(query: T): T {
+  return query
+    .not("thumbnail_url", "is", null)
+    .like("thumbnail_url", BROWSABLE_THUMBNAIL_LIKE) as unknown as T;
 }

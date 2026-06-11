@@ -167,9 +167,12 @@ function exploreVideoPreviewItem(v: ExploreGridVideo): CorpusVideoPreviewItem {
 function VideoCard({
   video,
   onNavigate,
+  onThumbFailed,
 }: {
   video: ExploreGridVideo;
   onNavigate?: () => void;
+  /** Hide grid tile when every R2/CDN thumb candidate 404s (phantom R2 row). */
+  onThumbFailed?: (videoId: string) => void;
 }) {
   const [hoverClip, setHoverClip] = useState(false);
   const clipRef = useRef<HTMLVideoElement>(null);
@@ -243,6 +246,7 @@ function VideoCard({
             hoverClip && canHoverClip ? "opacity-0" : "opacity-100"
           }`}
           placeholderClassName="bg-[var(--surface-alt)]"
+          onAllCandidatesFailed={() => onThumbFailed?.(video.video_id)}
         />
         <div className="pointer-events-none absolute inset-0 z-[15] bg-gradient-to-b from-transparent from-40% to-black/70" />
         {(showBreakout || showViral) && (
@@ -742,6 +746,55 @@ export default function ExploreScreen() {
     });
   }, [corpusRows]);
 
+  /** Phantom R2 thumbs pass DB browse filter but 404 at load — drop those tiles. */
+  const [brokenThumbVideoIds, setBrokenThumbVideoIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const browseThumbResetKey = useMemo(
+    () =>
+      [
+        selectedNicheId,
+        selectedCreatorNicheId,
+        contentClassIds.join(","),
+        searchQuery,
+        activeViewFilter,
+        activeFormat,
+        stitchOnly,
+        duetOnly,
+        sortBy,
+        dateRange,
+      ].join("|"),
+    [
+      selectedNicheId,
+      selectedCreatorNicheId,
+      contentClassIds,
+      searchQuery,
+      activeViewFilter,
+      activeFormat,
+      stitchOnly,
+      duetOnly,
+      sortBy,
+      dateRange,
+    ],
+  );
+  useEffect(() => {
+    setBrokenThumbVideoIds(new Set());
+  }, [browseThumbResetKey]);
+
+  const onExploreThumbFailed = useCallback((videoId: string) => {
+    setBrokenThumbVideoIds((prev) => {
+      if (prev.has(videoId)) return prev;
+      const next = new Set(prev);
+      next.add(videoId);
+      return next;
+    });
+  }, []);
+
+  const visibleVideos = useMemo(
+    () => videos.filter((v) => !brokenThumbVideoIds.has(v.video_id)),
+    [videos, brokenThumbVideoIds],
+  );
+
   const exploreTitleBase = "Khám phá";
   /** Đã chọn ngách: tổng video trong ngách (không lọc). Chưa chọn: ước lượng theo bộ lọc grid hoặc đếm trang. */
   const exploreTitleCount =
@@ -1057,12 +1110,12 @@ export default function ExploreScreen() {
               </div>
             ) : null}
 
-            {!isPending && !isError && videos.length > 0 ? (
+            {!isPending && !isError && visibleVideos.length > 0 ? (
               <div
                 className="grid gap-3.5"
                 style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))" }}
               >
-                {videos.map((video, idx) => (
+                {visibleVideos.map((video, idx) => (
                   <motion.div
                     key={video.id}
                     initial={{ opacity: 0, y: 6 }}
@@ -1072,6 +1125,7 @@ export default function ExploreScreen() {
                     <VideoCard
                       video={video}
                       onNavigate={() => openCorpusPreview(video)}
+                      onThumbFailed={onExploreThumbFailed}
                     />
                   </motion.div>
                 ))}

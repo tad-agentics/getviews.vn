@@ -9,6 +9,7 @@ import {
   applyCarouselTopicGuard,
   applyInferredTopicGuard,
   applyVideoCorpusNicheFilter,
+  BROWSABLE_THUMBNAIL_LIKE,
   CAROUSEL_FORMAT_CLASS_IDS,
   fetchContentClassIdsForCreatorNiche,
   INFERRED_TOPIC_CONFIDENCE_FLOOR,
@@ -28,6 +29,10 @@ function mockQuery() {
     },
     not(col: string, operator: string, val: null) {
       calls.push({ op: "not", col, val: operator });
+      return q;
+    },
+    like(col: string, val: string) {
+      calls.push({ op: "like", col, val });
       return q;
     },
     or(filter: string) {
@@ -106,10 +111,13 @@ describe("applyCarouselTopicGuard", () => {
 });
 
 describe("applyBrowsableCorpusFilter", () => {
-  it("excludes rows with null thumbnail_url", () => {
+  it("excludes null and non-R2 thumbnail_url values", () => {
     const q = mockQuery();
     applyBrowsableCorpusFilter(q);
-    expect(q.calls).toEqual([{ op: "not", col: "thumbnail_url", val: "is" }]);
+    expect(q.calls).toEqual([
+      { op: "not", col: "thumbnail_url", val: "is" },
+      { op: "like", col: "thumbnail_url", val: BROWSABLE_THUMBNAIL_LIKE },
+    ]);
   });
 });
 
