@@ -629,6 +629,46 @@ async def download_and_extract_frames(
         clip_path.unlink(missing_ok=True)
 
 
+def bank_video_clip(video_path: Path, video_id: str) -> str | None:
+    """Trim the LOCAL downloaded video to the standard 30s clip and upload.
+
+    Live-path twin of ``download_and_upload_video`` (2026-06-11): the
+    on-demand analysis already holds the full file for Gemini — stream-copy
+    the first 32s (no re-encode) and bank it at ``videos/{id}.mp4`` so the
+    analyzed video AND live-search references become inline-playable
+    immediately, without waiting for the nightly ingest. Skips when the
+    clip already exists. Sync — call via ``run_in_executor``. Never raises.
+    """
+    if not r2_configured() or not _ffmpeg_available():
+        return None
+    if not video_path.exists():
+        return None
+    key = f"videos/{video_id}.mp4"
+    if r2_object_exists(key):
+        public_base = R2_VIDEO_PUBLIC_URL or R2_PUBLIC_URL
+        return f"{public_base.rstrip('/')}/{key}" if public_base else None
+
+    clip_path = Path("/tmp") / f"clip_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
+    cmd = [
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-nostdin",
+        "-i", str(video_path),
+        "-t", "32",
+        "-c", "copy",
+        "-movflags", "+faststart",
+        str(clip_path),
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=60)
+        if not clip_path.exists() or clip_path.stat().st_size == 0:
+            return None
+        return upload_video(video_id, clip_path)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        logger.warning("[r2] clip bank failed %s: %s", video_id, exc)
+        return None
+    finally:
+        clip_path.unlink(missing_ok=True)
+
+
 def upload_video(video_id: str, clip_path: Path) -> str | None:
     """Upload a 720p/30s .mp4 clip to R2 at videos/{video_id}.mp4.
 

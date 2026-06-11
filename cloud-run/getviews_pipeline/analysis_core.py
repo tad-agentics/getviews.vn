@@ -185,6 +185,9 @@ async def _analyze_video(
     include_diagnosis: bool,
 ) -> dict:
     video_path: Path | None = None
+    # Bound after a successful download; ``finally`` waits on it before the
+    # temp file unlink — must exist on the early download-error paths too.
+    clip_task: asyncio.Future | None = None
     try:
         try:
             video_path = await asyncio.wait_for(
@@ -215,6 +218,19 @@ async def _analyze_video(
             )
         except Exception as exc:  # noqa: BLE001 — thumbnail must never block analysis
             logger.warning("[analysis_core] frame capture failed %s: %s", metadata.video_id, exc)
+        # Bank the 30s playback clip concurrently with ASR+Gemini (2026-06-11
+        # inline-playback): stream-copy trim + R2 upload overlap the 30-120s
+        # analysis window, so a live-search reference (or the user's own
+        # video) becomes playable in-app at zero added latency. The task is
+        # bounded-awaited in ``finally`` before the temp file is deleted.
+        try:
+            from getviews_pipeline.r2 import bank_video_clip
+
+            clip_task = asyncio.get_event_loop().run_in_executor(
+                None, bank_video_clip, video_path, metadata.video_id,
+            )
+        except Exception as exc:  # noqa: BLE001 — playback must never block analysis
+            logger.warning("[analysis_core] clip bank start failed %s: %s", metadata.video_id, exc)
         try:
             loop = asyncio.get_event_loop()
             try:
@@ -262,10 +278,27 @@ async def _analyze_video(
         )
         # Same key contract as _analyze_carousel — corpus_ingest and the
         # report meta prefer this permanent URL over the platform cover.
-        if r2_thumb_url and isinstance(result, dict) and not result.get("error"):
-            result["r2_thumbnail_url"] = r2_thumb_url
+        if isinstance(result, dict) and not result.get("error"):
+            if r2_thumb_url:
+                result["r2_thumbnail_url"] = r2_thumb_url
+            if clip_task is not None:
+                try:
+                    r2_video_url = await asyncio.wait_for(asyncio.shield(clip_task), 45)
+                    if r2_video_url:
+                        result["r2_video_url"] = r2_video_url
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[analysis_core] clip bank await failed %s: %s", metadata.video_id, exc,
+                    )
         return result
     finally:
+        # The clip task reads the temp file — bounded-wait before unlink so
+        # ffmpeg never loses its input mid-copy (error paths included).
+        if clip_task is not None and not clip_task.done():
+            try:
+                await asyncio.wait_for(asyncio.shield(clip_task), 60)
+            except Exception:  # noqa: BLE001 — cleanup must proceed regardless
+                pass
         if video_path is not None and video_path.exists():
             try:
                 video_path.unlink()

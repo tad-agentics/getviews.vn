@@ -410,3 +410,60 @@ def test_slim_reference_ships_r2_playback_only() -> None:
     assert _slim_reference_video(cdn_ref)["playback_url"] is None
     # No clip at all → None (FE keeps the external TikTok link).
     assert _slim_reference_video(base)["playback_url"] is None
+
+
+# ── 9. Live-search reference playback (2026-06-11 part 2) ────────────
+
+
+def test_bank_video_clip_skips_when_exists(monkeypatch, tmp_path) -> None:
+    from getviews_pipeline import r2
+
+    monkeypatch.setattr(r2, "r2_configured", lambda: True)
+    monkeypatch.setattr(r2, "_ffmpeg_available", lambda: True)
+    monkeypatch.setattr(r2, "r2_object_exists", lambda key: True)
+    monkeypatch.setattr(r2, "R2_VIDEO_PUBLIC_URL", "https://pub-x.r2.dev")
+    vid_file = tmp_path / "v.mp4"
+    vid_file.write_bytes(b"\x00" * 64)
+    assert r2.bank_video_clip(vid_file, "v77") == "https://pub-x.r2.dev/videos/v77.mp4"
+    # Unconfigured → quiet None.
+    monkeypatch.setattr(r2, "r2_configured", lambda: False)
+    assert r2.bank_video_clip(vid_file, "v77") is None
+
+
+def test_live_slim_input_carries_banked_clip_and_thumbnail() -> None:
+    from getviews_pipeline.pipelines import _slim_reference_video
+    from getviews_pipeline.video_analyze import _live_analyzed_to_slim_input
+
+    result = {
+        "metadata": {
+            "video_id": "555",
+            "author": {"username": "@livecreator"},
+            "metrics": {"views": 90_000},
+            "description": "video hay",
+            "thumbnail_url": "https://p16.tiktokcdn.com/cover.jpg",
+        },
+        "analysis": {"hook_analysis": {"hook_type": "question"}},
+        "r2_thumbnail_url": "https://pub-x.r2.dev/thumbnails/555.webp",
+        "r2_video_url": "https://pub-x.r2.dev/videos/555.mp4",
+    }
+    slim_in = _live_analyzed_to_slim_input(result)
+    # Banked assets beat the platform CDN values.
+    assert slim_in["thumbnail_url"] == "https://pub-x.r2.dev/thumbnails/555.webp"
+    card = _slim_reference_video(slim_in, "live_search")
+    assert card["playback_url"] == "https://pub-x.r2.dev/videos/555.mp4"
+    assert card["source"] == "live_search"
+
+
+def test_analyze_video_awaits_clip_before_unlink() -> None:
+    """Source tripwire: the finally block must bounded-await the clip task
+    before deleting the temp file — ffmpeg must never lose its input."""
+    import inspect
+
+    from getviews_pipeline import analysis_core
+
+    src = inspect.getsource(analysis_core._analyze_video)
+    fin = src.rfind("finally:")
+    tail = src[fin:]
+    assert "clip_task" in tail and tail.find("clip_task") < tail.find("video_path.unlink()"), (
+        "finally must wait on clip_task before video_path.unlink()"
+    )

@@ -1739,9 +1739,10 @@ def _build_corpus_row(
     if r2_thumb:
         thumbnail_url = r2_thumb
 
-    # Video play URL (first H264 URL)
+    # Video play URL — prefer the permanent R2 clip banked during live
+    # analysis (2026-06-11) over the expiring platform H264 URL.
     video_urls = ensemble.extract_video_urls(aweme)
-    video_url = video_urls[0] if video_urls else None
+    video_url = analysis.get("r2_video_url") or (video_urls[0] if video_urls else None)
 
     views = int(metrics.get("views") or raw_stats.get("play_count") or raw_stats.get("playCount") or 0)
     likes = int(metrics.get("likes") or raw_stats.get("digg_count") or 0)
@@ -2709,7 +2710,13 @@ async def _ingest_candidate_awemes(
                 scene_frame_urls_by_video_id[row["video_id"]] = dict(scene_frame_pairs)
 
     if rows and r2_configured():
-        video_rows = [r for r in rows if r.get("content_type", "video") == "video" and r.get("video_url")]
+        video_rows = [
+            r for r in rows
+            if r.get("content_type", "video") == "video"
+            and r.get("video_url")
+            # Already R2-hosted (live analysis banked the clip) — skip re-upload.
+            and "/videos/" not in str(r.get("video_url") or "")
+        ]
 
         for row in video_rows:
             pre_frames = frame_urls_by_video_id.get(row["video_id"], [])

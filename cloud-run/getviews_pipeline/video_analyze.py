@@ -994,7 +994,11 @@ def _live_analyzed_to_slim_input(result: dict[str, Any]) -> dict[str, Any]:
     return {
         "aweme_id": vid,
         "author": {"unique_id": handle},
-        "thumbnail_url": meta.get("thumbnail_url"),
+        # Frame capture + 30s clip banked during the live analysis — the
+        # slim card ships these so live-search references render AND play
+        # inline immediately (2026-06-11).
+        "thumbnail_url": result.get("r2_thumbnail_url") or meta.get("thumbnail_url"),
+        "video_url": result.get("r2_video_url"),
         "statistics": {"play_count": metrics.get("views")},
         "desc": desc or None,
         "engagement_rate": meta.get("engagement_rate"),
