@@ -36,7 +36,7 @@ import logging
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from getviews_pipeline.models import (
     FramingType,
@@ -118,6 +118,16 @@ class ScriptShotLLM(BaseModel):
     # caption under the shot card. Must cite the evidence blocks injected
     # into the prompt; null when there was nothing to cite.
     reason_vi: str | None = Field(default=None, max_length=140)
+
+    @field_validator("reason_vi", mode="before")
+    @classmethod
+    def _clamp_reason_vi(cls, v: Any) -> Any:
+        # Gemini honors maxLength only loosely — an over-long value on this
+        # optional field must not fail the whole response (which would drop
+        # every creative field to the deterministic fallback).
+        if isinstance(v, str):
+            return _sanitize_snippet(v, 140) or None
+        return v
 
     # 2026-05-11 — enrichment dimensions mirrored from the Scene model
     # (getviews_pipeline.models). All Optional; see module docstring.
@@ -604,10 +614,10 @@ def _build_format_rationale(
     queries — so the numbers can't drift from what the prompt cited.
     None when there is no evidence (FE then renders nothing).
     """
+    from getviews_pipeline.enum_labels_vi import hook_type_vi
+
     proofs: list[dict[str, Any]] = []
     for h in top_hooks[:3]:
-        from getviews_pipeline.enum_labels_vi import hook_type_vi
-
         proofs.append({
             "kind": "hook_stat",
             "label_vi": hook_type_vi(h["hook_type"], default=h["hook_type"]),

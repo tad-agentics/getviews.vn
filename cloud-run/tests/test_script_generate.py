@@ -530,6 +530,31 @@ def test_gemini_reason_vi_threads_through_to_shot_payload() -> None:
     assert shots[1]["reason_vi"] is None
 
 
+def test_overlong_reason_vi_truncated_not_fatal() -> None:
+    """Gemini honors maxLength loosely — an over-long ``reason_vi`` must be
+    clamped to 140 chars, NOT fail validation (which would discard the whole
+    response and drop every creative field to the deterministic fallback)."""
+    long_reason = "Hook câu hỏi đạt trung bình 320k view trong ngách " * 6  # ≫140 chars
+    shot = ScriptShotLLM(
+        cam="Cận mặt",
+        voice="Mình vừa test xong.",
+        viz="Tay cầm sản phẩm",
+        overlay="BOLD CENTER",
+        intel_scene_type="face_to_camera",
+        reason_vi=long_reason,
+    )
+    assert shot.reason_vi is not None
+    assert len(shot.reason_vi) <= 140
+    assert shot.reason_vi.endswith("…")
+    # Whitespace-only input clamps to None, not "".
+    blank = ScriptShotLLM(
+        cam="Cận mặt", voice="v", viz="z",
+        overlay="BOLD CENTER", intel_scene_type="face_to_camera",
+        reason_vi="   ",
+    )
+    assert blank.reason_vi is None
+
+
 def test_fallback_shots_carry_null_reason_vi() -> None:
     body = ScriptGenerateBody(
         topic="x", hook="y", hook_delay_ms=1200,
