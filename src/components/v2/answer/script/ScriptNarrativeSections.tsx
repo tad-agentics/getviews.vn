@@ -40,10 +40,7 @@ export function ScriptNarrativeSections({
             {text ? <ScriptNarrativeProse text={text} /> : null}
             {tiles.length > 0 ? (
               <div className="mt-3 border-t border-[color:var(--gv-rule)] pt-3">
-                <DiagnosisReferenceVideoCards
-                  tiles={tiles}
-                  label="Clip tham chiếu từ corpus"
-                />
+                <DiagnosisReferenceVideoCards tiles={tiles} embedded showLabel={false} />
               </div>
             ) : null}
           </article>
