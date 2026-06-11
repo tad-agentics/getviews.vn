@@ -7,6 +7,7 @@
 - **Cloud Run:** `_normalize_analysis_depth` always `"deep"`; removed `upsell_locked_sections`, `_attach_depth_upsell_metadata`, on-demand basic→deep upgrade; gemini/registry/salience defaults `"deep"`. Router coerces legacy POST `analysis_depth=basic` → `deep`.
 - **DB:** Migration `20261211000000_marketing_video_picks_deep_default.sql` — marketing pick default `analysis_depth='deep'`.
 - **Docs:** `system-design.md`, `feature-map-v1.md`, `feature-map.md`, `screen-specs-getviews-vn-v1.md`, `product-value-audit.md`, `product-analysis/README.md` + historical handoff banners.
+- **Deploy (prod):** Supabase `lzhiqnxfveqttsujebiv` migration applied; Cloud Run user `getviews-pipeline-user-00232-sjn`, batch `getviews-pipeline-batch-00213-xmp`; Vercel `main` @ `1acd827f`.
 
 ## 2026-06-11 — EnsembleData daily limit → `ensemble_quota` (not `stream_failed`)
 
