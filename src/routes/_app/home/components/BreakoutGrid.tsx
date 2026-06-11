@@ -43,12 +43,16 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [thumbFailed, setThumbFailed] = useState(false);
 
   const dur = formatDuration(v.video_duration ?? undefined);
   const isBreakout = v.breakout_multiplier != null;
-  const panelClass = v.thumbnail_url
-    ? ""
-    : (FALLBACK_PANEL[idx % FALLBACK_PANEL.length] ?? "bg-[color:var(--gv-ink-2)]");
+  const clipSrc = v.video_url?.trim() ?? "";
+  const canHoverClip = Boolean(clipSrc);
+  const panelClass =
+    FALLBACK_PANEL[idx % FALLBACK_PANEL.length] ?? "bg-[color:var(--gv-canvas-2)]";
+  const tileSurfaceClass =
+    thumbFailed || !v.thumbnail_url ? panelClass : "bg-[color:var(--gv-canvas-2)]";
   const hookShort =
     v.hook_phrase && v.hook_phrase.length > 48 ? `${v.hook_phrase.slice(0, 48)}…` : v.hook_phrase;
   const handleLabel = v.creator_handle.startsWith("@")
@@ -59,10 +63,16 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
     : `Phân tích video ${handleLabel}`;
 
   const handleMouseEnter = useCallback(() => {
-    if (!v.video_url || !videoRef.current) return;
-    videoRef.current.currentTime = 0;
-    void videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
-  }, [v.video_url]);
+    if (!canHoverClip) return;
+    const el = videoRef.current;
+    if (!el) return;
+    if (!el.getAttribute("src")) {
+      el.src = clipSrc;
+      el.load();
+    }
+    el.currentTime = 0;
+    void el.play().then(() => setPlaying(true)).catch(() => {});
+  }, [canHoverClip, clipSrc]);
 
   const handleMouseLeave = useCallback(() => {
     if (!videoRef.current) return;
@@ -74,32 +84,30 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
   return (
     <div className="flex w-full flex-col">
       <div
-        className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
+        className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)] ${tileSurfaceClass}`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Thumbnail — fades out when video is playing */}
-        <div className={`absolute inset-0 transition-opacity duration-300 ${playing ? "opacity-0" : "opacity-100"}`}>
-          <VideoThumbnail
-            thumbnailUrl={v.thumbnail_url}
-            videoId={v.video_id}
-            className="h-full w-full"
-            placeholderClassName=""
-          />
-        </div>
-
-        {/* Video — renders only when a URL is available */}
-        {v.video_url ? (
+        {canHoverClip ? (
           <video
             ref={videoRef}
-            src={v.video_url}
             muted
             loop
             playsInline
             preload="none"
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${playing ? "opacity-100" : "opacity-0"}`}
+            className={`pointer-events-none absolute inset-0 z-[5] h-full w-full object-cover transition-opacity duration-300 ${playing ? "opacity-100" : "opacity-0"}`}
+            aria-hidden
           />
         ) : null}
+        <VideoThumbnail
+          thumbnailUrl={v.thumbnail_url}
+          videoId={v.video_id}
+          alt=""
+          loading="lazy"
+          className={`absolute inset-0 z-10 h-full w-full transition-opacity duration-300 ${playing && canHoverClip ? "opacity-0" : "opacity-100"}`}
+          placeholderClassName={panelClass}
+          onAllCandidatesFailed={() => setThumbFailed(true)}
+        />
 
         <div
           className="pointer-events-none absolute inset-0 z-[15] bg-gradient-to-b from-transparent from-40% to-black/70"
