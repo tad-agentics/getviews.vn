@@ -14,8 +14,6 @@ import { useTopPatterns, type TopPatternsScope } from "@/hooks/useTopPatterns";
 import { fetchContentClassIdsForCreatorNiche } from "@/lib/corpusNicheFilter";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
-import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
-import { CHANNEL_SAU_CREDIT_COST } from "@/lib/channelDepth";
 import { profileFirstNicheId, profileCreatorNicheId } from "@/lib/profileNiches";
 import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
 import {
@@ -39,7 +37,7 @@ import { useHomeGreetingFit } from "./useHomeGreetingFit";
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
  *
- * Order: ticker → greeting → composer (4 pills + depth) → GỢI Ý HÔM NAY.
+ * Order: ticker → greeting → composer (4 intent pills) → GỢI Ý HÔM NAY.
  */
 
 export default function HomeScreen() {
@@ -67,7 +65,6 @@ export default function HomeScreen() {
 
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [composerText, setComposerText] = useState("");
-  const [analysisDepth, setAnalysisDepth] = useState<AnswerHandoffDepth>("basic");
   const [studioPill, setStudioPill] = useState<StudioComposerPill>("video_flop");
   // L1.5 audit follow-up — surfaces a Vietnamese hint when the user
   // submits an unfilled paste-template chip (legacy template text in composer).
@@ -171,28 +168,13 @@ export default function HomeScreen() {
     nicheLabel,
     newHookCount,
   ]);
-  const creditsRemaining =
-    (profile as { credits_remaining?: number } | null | undefined)?.credits_remaining ?? 0;
-
-  useEffect(() => {
-    if (profilePending) return;
-    if (
-      studioPill === "channel" &&
-      analysisDepth === "deep" &&
-      creditsRemaining < CHANNEL_SAU_CREDIT_COST
-    ) {
-      setAnalysisDepth("basic");
-    }
-  }, [studioPill, analysisDepth, creditsRemaining, profilePending]);
-
   const launchChat = (text: string) => {
     logUsage("studio_composer_submit", {
       surface: "home",
       length: text.length,
-      analysis_depth: analysisDepth,
       studio_pill: studioPill,
     });
-    const plan = planStudioComposerSubmit(studioPill, text, analysisDepth);
+    const plan = planStudioComposerSubmit(studioPill, text);
     if (plan.kind === "blocked") {
       if (plan.reason === "non_tiktok_url" && plan.message) {
         setPlaceholderHint(plan.message);
@@ -331,12 +313,8 @@ export default function HomeScreen() {
               urlInvalidMessage={
                 composerUrlChip.kind === "invalid" ? composerUrlChip.message : undefined
               }
-              analysisDepth={analysisDepth}
-              onAnalysisDepthChange={setAnalysisDepth}
               studioPill={studioPill}
               onStudioPillChange={setStudioPill}
-              creditsRemaining={profilePending ? undefined : creditsRemaining}
-              channelDeepCreditCost={CHANNEL_SAU_CREDIT_COST}
             />
             {placeholderHint ? (
               <p

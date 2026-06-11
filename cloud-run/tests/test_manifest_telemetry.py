@@ -93,10 +93,8 @@ def test_rich_fixture_deep_emits_commerce_and_hook_sections() -> None:
     ctx = _rich_commerce_ctx()
     manifest = build_signal_manifest(ctx)
     deep = select_sections_to_emit(manifest, ctx, depth="deep")
-    basic = select_sections_to_emit(manifest, ctx, depth="basic")
 
     assert "hook_analysis" in deep
     assert "diagnosis" in deep
     assert "commerce" in deep
-    assert "commerce" not in basic
     assert len(manifest.get("hook_analysis") or []) >= 1

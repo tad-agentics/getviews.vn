@@ -67,7 +67,7 @@ export function analysisErrorCopy(error: unknown): string {
     return "Câu hỏi tiếp theo chưa gửi được. Bấm Gửi lại.";
   }
   if (code === "stream_failed") {
-    return "Kết nối streaming bị ngắt. Bấm Gửi lại — có thể tốn thêm 1 credit.";
+    return "Kết nối streaming bị ngắt. Bấm Gửi lại — có thể tốn thêm 2 credit.";
   }
   if (code === "stream_timeout") {
     return "Server im lặng quá lâu — có thể đang quá tải. Bấm Gửi lại.";

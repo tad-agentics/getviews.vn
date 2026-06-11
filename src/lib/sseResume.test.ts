@@ -81,7 +81,6 @@ describe("sseResume", () => {
       turnKind: "primary" as const,
       startedAt: EPOCH,
       sessionFormat: "video" as const,
-      analysisDepth: "deep" as const,
     };
     sessionStorage.setItem(PENDING_ANSWER_STREAM_KEY, JSON.stringify(legacy));
     const loaded = loadPendingAnswerStream("sess-1", EPOCH + 10_000);
@@ -148,8 +147,7 @@ describe("sseResume", () => {
   it("optimisticAnswerCreditsUsed mirrors append_turn billing", () => {
     expect(optimisticAnswerCreditsUsed("script")).toBe(3);
     expect(optimisticAnswerCreditsUsed("primary", "script")).toBe(3);
-    expect(optimisticAnswerCreditsUsed("primary", "video", "deep")).toBe(2);
-    expect(optimisticAnswerCreditsUsed("primary", "video", "basic")).toBe(1);
+    expect(optimisticAnswerCreditsUsed("primary", "video")).toBe(2);
     expect(optimisticAnswerCreditsUsed("primary", "pattern")).toBe(1);
     expect(optimisticAnswerCreditsUsed("timing")).toBe(0);
   });

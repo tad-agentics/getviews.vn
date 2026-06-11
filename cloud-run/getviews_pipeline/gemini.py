@@ -1509,7 +1509,7 @@ def _synthesize_diagnosis_v6_section_pool(
     creator_format_history_block: str,
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
-    analysis_depth: str = "basic",
+    analysis_depth: str = "deep",
     comment_radar: dict[str, Any] | None = None,
     addressing_mode: str = "third_party",
     video_creator_handle: str | None = None,
@@ -1535,7 +1535,7 @@ def _synthesize_diagnosis_v6_section_pool(
     )
 
     allowed = _allowed_aweme_ids(reference_videos)
-    depth = "basic" if analysis_depth == "basic" else "deep"
+    depth = "deep"
     ctx_dict = build_diagnosis_ctx(
         user_analysis=user_analysis,
         user_stats=user_stats,
@@ -1682,7 +1682,7 @@ def synthesize_diagnosis_v2(
     creator_format_history_block: str = "",
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
-    analysis_depth: str = "basic",
+    analysis_depth: str = "deep",
     comment_radar: dict[str, Any] | None = None,
     addressing_mode: str = "third_party",
     video_creator_handle: str | None = None,

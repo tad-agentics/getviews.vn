@@ -15,7 +15,7 @@ from getviews_pipeline.video_analyze import (
 
 logger = logging.getLogger(__name__)
 
-MARKETING_ANALYSIS_DEPTH = "basic"
+MARKETING_ANALYSIS_DEPTH = "deep"
 MARKETING_VIDEO_MODE = "win"
 POOL_EXHAUSTED = "marketing_pool_exhausted"
 ANALYSIS_FAILED = "analysis_failed"
@@ -137,7 +137,7 @@ def build_marketing_pick_response(
 
 
 def run_marketing_corpus_pick() -> dict[str, Any]:
-    """Pick one corpus video, run basic/win diagnosis, record pick, return payload.
+    """Pick one corpus video, run deep/win diagnosis, record pick, return payload.
 
     Raises ``RuntimeError`` with code ``marketing_pool_exhausted`` or
     ``analysis_failed`` for HTTP mapping.

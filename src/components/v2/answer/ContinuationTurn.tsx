@@ -28,8 +28,6 @@ import {
   patternAnswerBlockKicker,
   timingAnswerBlockKicker,
 } from "@/components/v2/answer/sessionIntentLabels";
-import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
-import type { LockedSectionTeaser } from "@/lib/videoDeepUpsell";
 
 // Map ``AnswerTurnRow.kind`` → accent kicker copy. Continuation turns
 // only — primary is omitted at render time (AnswerScreen hero). Keys are
@@ -138,9 +136,6 @@ function ReportPayloadBody({
   sessionId,
   sessionNicheId,
   onOpenScriptShoot,
-  analysisDepth,
-  showDeepUpsell,
-  lockedSections,
   onRequestAppendTurn,
 }: {
   payload: ReportV1;
@@ -155,9 +150,6 @@ function ReportPayloadBody({
   sessionId?: string | null;
   sessionNicheId?: number | null;
   onOpenScriptShoot?: (draftId: string) => void;
-  analysisDepth?: AnswerHandoffDepth | null;
-  showDeepUpsell?: boolean;
-  lockedSections?: LockedSectionTeaser[];
   onRequestAppendTurn?: (query: string) => void;
 }) {
   // Kicker strings intentionally Vietnamese — matches CLAUDE.md's
@@ -213,9 +205,6 @@ function ReportPayloadBody({
             preSynthesisData={videoStreamProgress?.preSynthesisData ?? null}
             channelContext={videoStreamProgress?.channelContext ?? null}
             narrativeReady={videoStreamProgress?.narrativeReady ?? null}
-            analysisDepth={analysisDepth ?? null}
-            showDeepUpsell={showDeepUpsell}
-            lockedSections={lockedSections}
             onRequestAppendTurn={onRequestAppendTurn}
           />
         </AnswerBlock>
@@ -281,9 +270,6 @@ export function ContinuationTurn({
   sessionId,
   sessionNicheId,
   onOpenScriptShoot,
-  analysisDepth,
-  showDeepUpsell,
-  lockedSections,
   onRequestAppendTurn,
 }: {
   turn: AnswerTurnRow;
@@ -296,9 +282,6 @@ export function ContinuationTurn({
   sessionId?: string | null;
   sessionNicheId?: number | null;
   onOpenScriptShoot?: (draftId: string) => void;
-  analysisDepth?: AnswerHandoffDepth | null;
-  showDeepUpsell?: boolean;
-  lockedSections?: LockedSectionTeaser[];
   onRequestAppendTurn?: (query: string) => void;
 }) {
   // Primary turn duplicates AnswerScreen hero (“Câu hỏi” + H1). Divider +
@@ -314,9 +297,6 @@ export function ContinuationTurn({
         sessionId={sessionId}
         sessionNicheId={sessionNicheId}
         onOpenScriptShoot={onOpenScriptShoot}
-        analysisDepth={analysisDepth}
-        showDeepUpsell={showDeepUpsell}
-        lockedSections={lockedSections}
         onRequestAppendTurn={onRequestAppendTurn}
       />
     </article>

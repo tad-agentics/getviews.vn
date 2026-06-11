@@ -39,11 +39,16 @@ import {
 import { Plus, Check, ArrowLeft } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { ScriptShootPanel } from "@/components/v2/answer/script/ScriptShootPanel";
-import { CHANNEL_SAU_CREDIT_COST } from "@/lib/channelDepth";
+import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import {
   planStudioComposerSubmit,
   type StudioComposerPill,
 } from "@/lib/studioComposer";
+import { AnswerShell } from "@/components/v2/answer/AnswerShell";
+import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
+import { IntentCtaRail } from "@/components/v2/answer/IntentCtaRail";
+import type { IntentCtaContext, IntentCtaSuggestion } from "@/lib/intentCtaSuggestions";
+import { appendTurnKindForIntent, appendTurnKindForQuery } from "@/routes/_app/intent-router";
 import {
   parseAnswerHandoffParams,
   planAnswerEntry,
@@ -51,15 +56,8 @@ import {
 import {
   buildAnswerHandoffPath,
   resolveVideoHandoffQuery,
-  type AnswerHandoffDepth,
   type ParsedAnswerHandoff,
 } from "@/lib/answerHandoff";
-import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
-import { AnswerShell } from "@/components/v2/answer/AnswerShell";
-import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
-import { IntentCtaRail } from "@/components/v2/answer/IntentCtaRail";
-import type { IntentCtaContext, IntentCtaSuggestion } from "@/lib/intentCtaSuggestions";
-import { appendTurnKindForIntent, appendTurnKindForQuery } from "@/routes/_app/intent-router";
 import {
   CacheHitBadge,
   LivePipelineStrip,
@@ -141,7 +139,6 @@ function answerSessionUrlParams(
   handoff: ParsedAnswerHandoff,
 ): URLSearchParams {
   const next = new URLSearchParams({ session: sessionId, q });
-  next.set("depth", handoff.depth);
   if (handoff.mode) next.set("mode", handoff.mode);
   if (handoff.from) next.set("from", handoff.from);
   return next;
@@ -245,7 +242,7 @@ function scriptDraftIdFromTurns(turns: AnswerTurnRow[]): string | null {
 
 export default function AnswerScreen() {
   const { user } = useAuth();
-  const { data: profile, isPending: profilePending } = useProfile();
+  const { data: profile } = useProfile();
   const { data: niches } = useNicheTaxonomy();
   const navigate = useNavigate();
   const location = useLocation();
@@ -256,47 +253,12 @@ export default function AnswerScreen() {
   const shootDraftId = searchParams.get("shoot");
   const handoff = useMemo(() => parseAnswerHandoffParams(searchParams), [searchParams]);
 
-  const setAnalysisDepth = useCallback(
-    (depth: AnswerHandoffDepth) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("depth", depth);
-          return next;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
-
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [bootstrapLoading, setBootstrapLoading] = useState(false);
   const [studioPill, setStudioPill] = useState<StudioComposerPill>("video_flop");
 
-  const creditsRemaining =
-    (profile as { credits_remaining?: number } | null | undefined)?.credits_remaining ?? 0;
-
   const isAnswerLanding = !sessionId && !seedQ.trim();
-
-  useEffect(() => {
-    if (profilePending || !isAnswerLanding) return;
-    if (
-      studioPill === "channel" &&
-      handoff.depth === "deep" &&
-      creditsRemaining < CHANNEL_SAU_CREDIT_COST
-    ) {
-      setAnalysisDepth("basic");
-    }
-  }, [
-    studioPill,
-    handoff.depth,
-    creditsRemaining,
-    profilePending,
-    isAnswerLanding,
-    setAnalysisDepth,
-  ]);
 
   const openScriptShoot = useCallback(
     (draftId: string) => {
@@ -456,20 +418,17 @@ export default function AnswerScreen() {
     if (!incoming || typeof incoming !== "string" || !incoming.trim()) return;
     const params = new URLSearchParams(searchParams);
     params.set("q", incoming.trim());
-    if (!params.has("depth")) params.set("depth", "basic");
     if (!params.has("mode")) params.set("mode", "win");
     navigate(`${location.pathname}?${params.toString()}`, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate, searchParams]);
 
   /**
-   * Blocks duplicate bootstrap for the same `?q=` + `depth` (React Strict Mode) but
-   * must not block a basic→deep upgrade on the same TikTok URL while this route stays
-   * mounted.
+   * Blocks duplicate bootstrap for the same `?q=` (React Strict Mode).
    */
   const bootstrapInFlightRef = useRef<string | null>(null);
 
-  function bootstrapDedupeKey(q: string, depth: ParsedAnswerHandoff["depth"]): string {
-    return `${q.trim()}|${depth}`;
+  function bootstrapDedupeKey(q: string): string {
+    return q.trim();
   }
 
   /**
@@ -659,7 +618,6 @@ export default function AnswerScreen() {
             optimisticAnswerCreditsUsed(
               turnKind,
               pending?.sessionFormat ?? sessionRow?.format,
-              pending?.analysisDepth ?? handoff.depth,
             ),
           created_at: new Date().toISOString(),
         });
@@ -708,10 +666,6 @@ export default function AnswerScreen() {
         turnKind,
         sessionFormat,
         videoMode: sessionFormat === "video" ? handoff.mode ?? undefined : undefined,
-        analysisDepth:
-          sessionFormat === "video"
-            ? pending?.analysisDepth ?? handoff.depth
-            : undefined,
         sourceEntry: "error_retry_ui",
       });
       if (!result.ok) {
@@ -743,11 +697,7 @@ export default function AnswerScreen() {
           payload: result.finalPayload,
           credits_used:
             pending?.creditsUsed ??
-            optimisticAnswerCreditsUsed(
-              turnKind,
-              sessionFormat,
-              pending?.analysisDepth ?? handoff.depth,
-            ),
+            optimisticAnswerCreditsUsed(turnKind, sessionFormat),
           created_at: new Date().toISOString(),
         });
       }
@@ -771,7 +721,6 @@ export default function AnswerScreen() {
     primaryRetryQuery,
     detailQuery.data?.session,
     detailQuery.data?.turns.length,
-    handoff.depth,
     handoff.mode,
     stream,
     queryClient,
@@ -809,7 +758,6 @@ export default function AnswerScreen() {
           turnKind,
           sessionFormat: detailQuery.data?.session?.format,
           sourceEntry: opts.sourceEntry,
-          analysisDepth: handoff.depth,
           videoMode: handoff.mode ?? undefined,
         });
         if (!result.ok) {
@@ -877,7 +825,6 @@ export default function AnswerScreen() {
       stream,
       queryClient,
       uid,
-      handoff.depth,
       handoff.mode,
       detailQuery.data?.session?.format,
     ],
@@ -903,7 +850,7 @@ export default function AnswerScreen() {
   useEffect(() => {
     if (sessionId || !seedQ.trim() || !CLOUD || !user) return;
     const submittedQ = seedQ.trim();
-    const bootstrapKey = bootstrapDedupeKey(submittedQ, handoff.depth);
+    const bootstrapKey = bootstrapDedupeKey(submittedQ);
     if (bootstrapInFlightRef.current === bootstrapKey) return;
     bootstrapInFlightRef.current = bootstrapKey;
 
@@ -952,7 +899,6 @@ export default function AnswerScreen() {
           sessionFormat: sessionFormat,
           videoMode:
             sessionFormat === "video" ? handoff.mode ?? undefined : undefined,
-          analysisDepth: sessionFormat === "video" ? handoff.depth : undefined,
           sourceEntry: handoff.from ?? undefined,
         });
 
@@ -989,7 +935,7 @@ export default function AnswerScreen() {
                 ? 3
                 : sessionFormat === "compare"
                   ? 2
-                  : sessionFormat === "video" && handoff.depth === "deep"
+                  : sessionFormat === "video"
                     ? 2
                     : 1,
             created_at: new Date().toISOString(),
@@ -1040,8 +986,6 @@ export default function AnswerScreen() {
           sourceEntry: "intent_cta",
           intentType: suggestion.intentType,
           ctaId: suggestion.id,
-          analysisDepth:
-            suggestion.id === "video_deep" ? "deep" : handoff.depth,
           videoMode: handoff.mode ?? undefined,
         });
         if (!result.ok) {
@@ -1105,49 +1049,14 @@ export default function AnswerScreen() {
       stream,
       queryClient,
       uid,
-      handoff.depth,
       handoff.mode,
       detailQuery.data?.session?.format,
     ],
   );
 
-  const onRequestDeepAnalysis = useCallback(() => {
-    const report = lastPayload?.kind === "video" ? lastPayload.report : null;
-    const meta = report?.meta;
-    const url = resolveVideoHandoffQuery({
-      seedQ,
-      sessionInitialQ: detailQuery.data?.session?.initial_q,
-      videoId: report?.video_id,
-      creatorHandle: typeof meta?.creator === "string" ? meta.creator : null,
-    });
-    if (!url) return;
-    // Same TikTok URL as the basic session — clear dedupe so bootstrap re-runs at depth=deep.
-    bootstrapInFlightRef.current = null;
-    navigate(
-      buildAnswerHandoffPath({
-        q: url,
-        depth: "deep",
-        mode: handoff.mode ?? "win",
-        ...(handoff.from ? { from: handoff.from } : {}),
-      }),
-      { replace: true },
-    );
-  }, [
-    navigate,
-    seedQ,
-    handoff.mode,
-    handoff.from,
-    lastPayload,
-    detailQuery.data?.session?.initial_q,
-  ]);
-
   const handleIntentCta = useCallback(
     (suggestion: IntentCtaSuggestion, query: string) => {
       if (suggestion.action === "handoff") {
-        if (suggestion.id === "video_deep") {
-          onRequestDeepAnalysis();
-          return;
-        }
         const report = lastPayload?.kind === "video" ? lastPayload.report : null;
         const meta = report?.meta;
         const url =
@@ -1163,7 +1072,6 @@ export default function AnswerScreen() {
         navigate(
           buildAnswerHandoffPath({
             q: url,
-            depth: handoff.depth,
             mode: handoff.mode ?? "win",
             ...(handoff.from ? { from: handoff.from } : {}),
           }),
@@ -1191,7 +1099,6 @@ export default function AnswerScreen() {
         navigate(
           buildAnswerHandoffPath({
             q: `${urlA} ${urlB}`,
-            depth: handoff.depth,
             ...(handoff.from ? { from: handoff.from } : {}),
           }),
         );
@@ -1218,7 +1125,6 @@ export default function AnswerScreen() {
           buildChannelStudioPath({
             handle,
             videoUrl,
-            depth: handoff.depth === "deep" ? "deep" : undefined,
           }),
         );
         return;
@@ -1234,7 +1140,6 @@ export default function AnswerScreen() {
       turns,
       openScriptShoot,
       detailQuery.data?.session?.initial_q,
-      onRequestDeepAnalysis,
     ],
   );
 
@@ -1247,7 +1152,7 @@ export default function AnswerScreen() {
       return;
     }
     if (!sessionId) {
-      const plan = planStudioComposerSubmit(studioPill, q, handoff.depth);
+      const plan = planStudioComposerSubmit(studioPill, q);
       if (plan.kind === "blocked") {
         setError(plan.reason === "non_tiktok_url" ? "non_tiktok_url" : "start_failed");
         return;
@@ -1269,7 +1174,6 @@ export default function AnswerScreen() {
     bootstrapLoading,
     streamInFlight,
     sessionId,
-    handoff.depth,
     studioPill,
     navigate,
     turnCount,
@@ -1317,7 +1221,6 @@ export default function AnswerScreen() {
     return {
       format: detailQuery.data?.session?.format ?? "generic",
       mode: handoff.mode,
-      depth: handoff.depth,
       videoQuery: resolveVideoHandoffQuery({
         seedQ,
         sessionInitialQ: detailQuery.data?.session?.initial_q,
@@ -1336,7 +1239,6 @@ export default function AnswerScreen() {
     detailQuery.data?.session?.format,
     detailQuery.data?.session?.initial_q,
     handoff.mode,
-    handoff.depth,
     seedQ,
     lastPayload,
     turns,
@@ -1600,18 +1502,6 @@ export default function AnswerScreen() {
                           ? videoStreamProgress
                           : undefined
                       }
-                      analysisDepth={handoff.depth}
-                      showDeepUpsell={
-                        t.payload.kind === "video" &&
-                        idx === turns.length - 1 &&
-                        !loading &&
-                        handoff.depth === "basic"
-                      }
-                      lockedSections={
-                        t.payload.kind === "video"
-                          ? t.payload.report.locked_sections
-                          : undefined
-                      }
                       onRequestAppendTurn={
                         t.payload.kind === "video" &&
                         idx === turns.length - 1 &&
@@ -1678,13 +1568,9 @@ export default function AnswerScreen() {
                   onSubmit={submitComposer}
                   variant={sessionId ? "followUp" : "initial"}
                   disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
-                  analysisDepth={handoff.depth}
-                  onAnalysisDepthChange={setAnalysisDepth}
                   studioPill={isAnswerLanding ? studioPill : undefined}
                   onStudioPillChange={isAnswerLanding ? setStudioPill : undefined}
                   nicheLabel={nicheLabel ?? "ngách của bạn"}
-                  creditsRemaining={profilePending ? undefined : creditsRemaining}
-                  channelDeepCreditCost={CHANNEL_SAU_CREDIT_COST}
                 />
               ) : null}
             </TimelineRail>

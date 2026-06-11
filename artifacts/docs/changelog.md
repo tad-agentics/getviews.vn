@@ -1,5 +1,13 @@
 # Changelog — GetViews.vn
 
+## 2026-06-11 — Remove basic/deep analysis tiers (single quality)
+
+- **Product:** No user-facing Cơ bản/Chuyên sâu or channel nhanh/sâu. Video primary always **2 credits** (full report). Channel diagnosis always **3 credits**. Legacy `?depth=` ignored in handoff parse.
+- **FE:** Removed depth pills, `VideoDeepUpsell`, `video_deep` CTA, channel depth toggle; `QueryComposer` intent pills only. Fixed copy: Explore preview **2 credit**; stream retry message **2 credit**.
+- **Cloud Run:** `_normalize_analysis_depth` always `"deep"`; removed `upsell_locked_sections`, `_attach_depth_upsell_metadata`, on-demand basic→deep upgrade; gemini/registry/salience defaults `"deep"`. Router coerces legacy POST `analysis_depth=basic` → `deep`.
+- **DB:** Migration `20261211000000_marketing_video_picks_deep_default.sql` — marketing pick default `analysis_depth='deep'`.
+- **Docs:** `system-design.md`, `feature-map-v1.md`, `feature-map.md`, `screen-specs-getviews-vn-v1.md`, `product-value-audit.md`, `product-analysis/README.md` + historical handoff banners.
+
 ## 2026-06-11 — EnsembleData daily limit → `ensemble_quota` (not `stream_failed`)
 
 - **Cloud Run:** `append_turn` maps EnsembleData code 495 / daily unit exhaustion to `ensemble_quota` + `step_error`; SSE done token carries structured code (also `gemini_quota_exceeded`).

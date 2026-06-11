@@ -394,14 +394,6 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
     }
   });
 
-  it("own_channel with depth=deep → /app/channel?depth=deep", () => {
-    const p = planAnswerEntry("Soi kênh @rival — audit brief.", false, "deep");
-    expect(p.kind).toBe("redirect");
-    if (p.kind === "redirect") {
-      expect(p.to).toBe("/app/channel?handle=rival&depth=deep");
-    }
-  });
-
   it("own_channel without handle → /app/channel", () => {
     const p = planAnswerEntry(
       "Soi kênh của mình — tổng quan hook, format và gợi ý cải thiện.",

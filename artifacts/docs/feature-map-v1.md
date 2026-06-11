@@ -1,9 +1,11 @@
 # Product Vision V1 — GetViews.vn
 
 **Version:** 2.0 — **FINAL (GTM scope)**  
-**Last updated:** 2026-05-23 (§5 Vòng panel · §7 F7 scene intel · doc sync)  
-**Codebase ref:** 2026-05-23 — `cf05ddc8` channel audit rings + `b49e6b3d` script scene intel  
+**Last updated:** 2026-06-11 (depth tiers removed — single analysis quality)  
+**Codebase ref:** 2026-06-11 — depth removal; prior 2026-05-23 channel audit rings  
 **Status:** W0–W5 ✅ · Channel UX ✅ — composer pill **Khám Kênh** → `/app/channel` full page
+
+> **Depth tiers removed (2026-06-11):** No user-facing Cơ bản/Chuyên sâu or channel Nhanh/Sâu. Video primary always **2 credits** (internal `analysis_depth=deep`); channel diagnosis **3 credits**. No `?depth=` in new handoffs; legacy `basic` POST body coerced to `deep`. Upsell (`VideoDeepUpsell`, `locked_sections`) removed. SSOT: [`system-design.md`](system-design.md) §13 + §16.
 
 > **Pivot SSOT (2026-05-21+, prod defaults ON):** Class-first ingest/browse/benchmark — [`system-design.md`](system-design.md) §9. **`content_class_intelligence`** + tier/stats MVs canonical; legacy `niche_intelligence` refresh **skipped** in prod (bridge only for unmigrated percentile paths).
 
@@ -27,7 +29,7 @@
 
 ## 1. North star V1
 
-> Thay phần lớn thời gian doomscroll bằng **Creator Studio**: **gợi ý quay hôm nay** + **công thức/kho video** đã có sẵn, rồi **khám video/kênh** (cơ bản hoặc chuyên sâu) và **kịch bản** — mọi insight dùng **cùng một lớp extract corpus**, không pipeline rời.
+> Thay phần lớn thời gian doomscroll bằng **Creator Studio**: **gợi ý quay hôm nay** + **công thức/kho video** đã có sẵn, rồi **khám video/kênh** và **kịch bản** — mọi insight dùng **cùng một lớp extract corpus**, không pipeline rời.
 
 **Ba câu hỏi sản phẩm (GTM):**
 
@@ -201,7 +203,7 @@ Tab riêng — **không** gộp pill Studio. TopBar as-built: “Xu Hướng Tu�
 | `TrendsNichePills`, `TrendsPatternThesisHero` | ✅ Giữ |
 | `TrendingSoundsSection`, `TrendsDouyinCard` | ✅ Giữ — **không** bắt buộc QA segment Douyin |
 | `CrossNicheBreakoutLane` | ✅ Shipped (Wave 3b) — cap 3, `content_class_id NOT IN` junction; distinct from Home Tier III |
-| `TrendsRail` (desktop + mobile inline) | ✅ Class-first 14d breakouts, `reference_eligible` first; preview → analyze (1 credit) — distinct from Home Tier III rotation |
+| `TrendsRail` (desktop + mobile inline) | ✅ Class-first 14d breakouts, `reference_eligible` first; preview → analyze (**2 credit**) — distinct from Home Tier III rotation |
 | Segment cấp 1 **TikTok \| Douyin** | ❌ **Không** ship requirement — Post-V1 |
 
 **Ritual “hôm nay quay gì”** chỉ ở **Studio §3.1.1** — không thêm block ritual trên Xu hướng cho V1.
@@ -299,9 +301,9 @@ Sau khi chạy `select_sections_to_emit` như hiện tại, **giữ lại** (the
 | `niche_pattern` | Khi có `reference_videos` | Benchmark ngách + refs |
 | `next_video` | Luôn (`always_emit`) | Cầu nối Q1 → Script Studio |
 
-**Không có trong Cơ bản** (chỉ Chuyên sâu): `distribution`, `boost_attribution`, `douyin_origin`, `channel_pattern`, `commerce`, `metadata`, `editing`, `sound`, `persona`, `script_structure`.
+**Không có trong Cơ bản** (chỉ Chuyên sâu): `distribution`, `boost_attribution`, `douyin_origin`, `channel_pattern`, `commerce`, `metadata`, `editing`, `sound`, `persona`, `script_structure`. *(Historical — 2026-06-11: single deep-quality pool for all users; table below kept for W3 archaeology.)*
 
-**Upsell UX:** ✅ sau Cơ bản — teaser section bị khóa (“Âm thanh”, “Editing”, “Douyin”…) từ manifest qua `locked_sections`; không synthesize cho đến Chuyên sâu. BE: [`upsell_locked_sections`](../../cloud-run/getviews_pipeline/diagnose_sections.py) + [`_attach_depth_upsell_metadata`](../../cloud-run/getviews_pipeline/video_analyze.py); FE: [`VideoDeepUpsell`](../../src/components/v2/answer/video/VideoDeepUpsell.tsx).
+**Upsell UX:** ~~removed 2026-06-11~~ — was: teaser `locked_sections` + `VideoDeepUpsell`. All sections synthesize in the one product tier.
 
 **As-built:**
 
@@ -825,7 +827,7 @@ Tham chiếu [`artifacts/uiux-reference/`](../../artifacts/uiux-reference/) + [`
 | Vị trí | **Composer Tab Studio** — visible khi pill **Khám Video flop/win** hoặc **Khám Kênh** | ✅ `QueryComposer.tsx` + `HomeScreen.tsx` |
 | Không áp dụng | Pill **Tạo kịch bản** (ẩn depth picker; URL không có `depth`); handoff Tab Xu hướng (`from=trends` → `depth=basic` cố định) | ✅ `QueryComposer` + `includeDepth: false` @ script pill |
 | UI | Hai **nút** (không modal): **Cơ bản** · **Chuyên sâu** | ✅ |
-| Copy gợi ý | Video: “Giải mã nhanh · 1 credit” / “Đầy đủ góc · 2 credit”; kênh: “Đọc corpus · 0 credit” / “Memo SSE · 3 credit” | ✅ `composerDepthTitles()` |
+| Copy gợi ý | Video: **2 credit**/lần; kênh: **3 credit**/lần (không toggle depth) | ✅ removed 2026-06-11 |
 | Default | Cơ bản | ✅ `analysisDepth` state |
 | Pill flop/win | Chỉ preset `mode`; **không** thay nút depth | ✅ `videoModeForPill()` |
 

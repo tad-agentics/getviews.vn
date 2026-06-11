@@ -29,7 +29,7 @@ export function ChannelAuditRingsPanel({ findings }: { findings: ChannelDiagnosi
       className="mb-5 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-4 py-4"
       aria-label="Kiểm toán theo Vòng"
     >
-      <p className="gv-kicker mb-1 text-[color:var(--gv-ink-3)]">Chẩn đoán 5 bước (Kiểm toán theo Vòng) · Chuyên sâu</p>
+      <p className="gv-kicker mb-1 text-[color:var(--gv-ink-3)]">Chẩn đoán 5 bước (Kiểm toán theo Vòng)</p>
       <p className="mb-4 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
         5 mức độ kiểm tra thuật toán — xếp loại các lỗi của kênh theo thứ tự cần ưu tiên xử lý.
       </p>

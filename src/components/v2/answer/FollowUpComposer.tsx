@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Sparkles } from "lucide-react";
 import { QueryComposer } from "@/components/v2/QueryComposer";
-import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
 import {
   studioComposerPlaceholder,
   type StudioComposerPill,
@@ -45,13 +44,9 @@ export function FollowUpComposer({
   suggestedPrompts,
   variant = "followUp",
   placeholder,
-  analysisDepth,
-  onAnalysisDepthChange,
   studioPill,
   onStudioPillChange,
   nicheLabel,
-  creditsRemaining,
-  channelDeepCreditCost,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -62,14 +57,10 @@ export function FollowUpComposer({
   /** `initial` — chưa có phiên: bắt đầu phân tích mới (không disable theo session). */
   variant?: "initial" | "followUp";
   placeholder?: string;
-  analysisDepth?: AnswerHandoffDepth;
-  onAnalysisDepthChange?: (depth: AnswerHandoffDepth) => void;
   /** Studio parity — 4 intent pills on blank `/app/answer` landing. */
   studioPill?: StudioComposerPill;
   onStudioPillChange?: (pill: StudioComposerPill) => void;
   nicheLabel?: string;
-  creditsRemaining?: number;
-  channelDeepCreditCost?: number;
 }) {
   const prompts = useMemo(() => mergeFollowUpPrompts(suggestedPrompts), [suggestedPrompts]);
   const urlChip = queryUrlChipState(value);
@@ -96,14 +87,8 @@ export function FollowUpComposer({
         showUrlChip={urlChip.kind === "tiktok"}
         urlInvalidMessage={urlChip.kind === "invalid" ? urlChip.message : undefined}
         disabled={disabled}
-        analysisDepth={analysisDepth}
-        onAnalysisDepthChange={onAnalysisDepthChange}
-        showDepthPicker={variant === "initial"}
         studioPill={variant === "initial" ? studioPill : undefined}
         onStudioPillChange={variant === "initial" ? onStudioPillChange : undefined}
-        nicheLabel={variant === "initial" ? nicheLabel : undefined}
-        creditsRemaining={variant === "initial" ? creditsRemaining : undefined}
-        channelDeepCreditCost={variant === "initial" ? channelDeepCreditCost : undefined}
         followUpSlot={
           variant === "followUp" ? (
             <>

@@ -31,7 +31,7 @@ def test_boost_views_er_mismatch_fires():
     assert any(s.id == "boost_views_er_mismatch" for s in sigs)
 
 
-def test_boost_attribution_deep_only_not_in_basic():
+def test_boost_attribution_in_deep_sections():
     ctx = build_diagnosis_ctx(
         user_analysis={"hook_analysis": {"hook_type": "question", "first_frame_type": "face"}},
         user_stats={
@@ -53,7 +53,5 @@ def test_boost_attribution_deep_only_not_in_basic():
         },
     )
     manifest = build_signal_manifest(ctx)
-    basic = select_sections_to_emit(manifest, ctx, depth="basic")
     deep = select_sections_to_emit(manifest, ctx, depth="deep")
-    assert "boost_attribution" not in basic
     assert "boost_attribution" in deep

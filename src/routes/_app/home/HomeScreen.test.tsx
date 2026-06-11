@@ -298,17 +298,4 @@ describe("HomeScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Viết kịch bản" }));
     expect(screen.getByPlaceholderText(/kịch bản/i)).toBeTruthy();
   });
-
-  it("does not downgrade Chuyên sâu while profile credits are still loading", () => {
-    mockUseProfile.mockReturnValue({
-      data: undefined,
-      isPending: true,
-    });
-    renderHome();
-    fireEvent.click(screen.getByRole("button", { name: "Soi kênh đối thủ" }));
-    fireEvent.click(screen.getByRole("button", { name: "Chuyên sâu" }));
-    expect(screen.getByRole("button", { name: "Chuyên sâu" }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
-  });
 });

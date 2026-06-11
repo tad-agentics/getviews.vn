@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.deps import require_user
@@ -47,6 +47,16 @@ class AnswerTurnAppendBody(StrictBody):
     video_mode: Literal["win", "flop"] | None = None
     analysis_depth: Literal["basic", "deep"] | None = None
     source_entry: str | None = Field(default=None, max_length=40)
+
+    @field_validator("analysis_depth", mode="before")
+    @classmethod
+    def _coerce_legacy_analysis_depth(cls, v: object) -> Literal["deep"] | None:
+        """Legacy clients may send ``basic`` — always coerced to ``deep``."""
+        if v is None or v == "":
+            return None
+        if str(v).strip().lower() in ("basic", "deep"):
+            return "deep"
+        return None
 
 
 class AnswerSessionPatchBody(StrictBody):

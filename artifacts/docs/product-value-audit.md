@@ -440,7 +440,7 @@ Verified against `6d439c2`. Corrections applied in this pass:
 | Home ritual | “3-tier scripts / channel / trend” (API) | **UI** tiers I–III: ritual scripts + `HooksTable` + `BreakoutGrid` (`HomeSuggestionsToday.tsx`). API `/home/daily-ritual` = **3 scripts** only (`morning_ritual.py`). |
 | Ticker window | ~3 days | **7 days** (`cloud-run/.../ticker.py` L6–7). |
 | Compare status | “Wave 4 planned/live” | **Shipped:** `/app/compare`, `compare_videos`, `POST /stream`, **1** `decrement_credit` at stream entry (`report_compare.py` L37–39, `intent.py` L298). |
-| Answer video billing | “1 credit” | **1×** `decrement_credit` on `kind=primary` → debits `profiles.credits_remaining` (`answer_session.py` L465–466). |
+| Answer video billing | Video primary **2 credits** | **2×** `decrement_credit(p_amount=2)` when `format=video` on `kind=primary` (`answer_session.py`). |
 | Answer script billing | “3 credits” | **3×** `decrement_credit` when `builder_fmt == "script"` (L460–464). |
 | Channel billing | “3 credits” | **Mismatch:** FE `CREDIT_COST = 3` gates UI (`ChannelScreen.tsx` L22); BE calls `decrement_credit` **once** per diagnosis (`channel_diagnose.py` L41–54). Treat as **known FE/BE discrepancy** until aligned. |
 | `/api/chat` | “legacy only” | Still active: Vercel fallback when no Cloud Run URL; `FREE_INTENTS` subset; **compare does not use this path**. |

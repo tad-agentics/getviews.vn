@@ -56,22 +56,6 @@ vi.mock("@/routes/_app/components/CommentRadarTile", () => ({
 vi.mock("@/routes/_app/components/ThumbnailTile", () => ({
   ThumbnailTile: () => <div data-testid="thumbnail-tile" />,
 }));
-vi.mock("@/components/v2/answer/video/VideoDeepUpsell", () => ({
-  VideoDeepUpsell: ({
-    lockedSections,
-  }: {
-    lockedSections: { title_vi: string; signal_count?: number }[];
-  }) => (
-    <div data-testid="video-deep-upsell">
-      {lockedSections.map((s) => (
-        <span key={s.title_vi}>
-          {s.title_vi}
-          {s.signal_count ? ` +${s.signal_count}` : ""}
-        </span>
-      ))}
-    </div>
-  ),
-}));
 
 import { VideoBody } from "./VideoBody";
 
@@ -614,34 +598,10 @@ describe("VideoBody render", () => {
     expect(screen.queryAllByRole("link", { name: /Xem video/ })).toHaveLength(0);
   });
 
-  it("renders locked-section teasers when basic depth and showDeepUpsell", () => {
-    render(
-      <MemoryRouter>
-        <VideoBody
-          report={makeWinReport({
-            analysis_depth: "basic",
-            locked_sections: [
-              {
-                section_id: "sound",
-                title_vi: "Âm thanh và nhịp điệu",
-                signal_count: 2,
-              },
-            ],
-          })}
-          analysisDepth="basic"
-          showDeepUpsell
-        />
-      </MemoryRouter>,
-    );
-    expect(screen.getByTestId("video-deep-upsell")).toBeTruthy();
-    expect(screen.getByText(/Âm thanh và nhịp điệu \+2/)).toBeTruthy();
-  });
-
-  it("hides BoostAttributionBlock meta fallback on basic depth", () => {
+  it("renders BoostAttributionBlock meta fallback when section absent", () => {
     const base = makeWinReport();
     renderInRouter(
       makeWinReport({
-        analysis_depth: "basic",
         meta: {
           ...base.meta,
           boost_attribution: "suspect_medium",
@@ -649,7 +609,7 @@ describe("VideoBody render", () => {
         },
       }),
     );
-    expect(screen.queryByLabelText("Phân loại nguồn view")).toBeNull();
+    expect(screen.getByLabelText("Phân loại nguồn lượt xem")).toBeTruthy();
   });
 
   it("renders CommentRadarTile when on-demand report includes comment_radar", () => {
@@ -667,19 +627,6 @@ describe("VideoBody render", () => {
       }),
     );
     expect(screen.getByTestId("comment-radar-tile")).toBeTruthy();
-  });
-
-  it("hides deep upsell for deep analysis depth", () => {
-    render(
-      <MemoryRouter>
-        <VideoBody
-          report={makeWinReport({ analysis_depth: "deep" })}
-          analysisDepth="deep"
-          showDeepUpsell
-        />
-      </MemoryRouter>,
-    );
-    expect(screen.queryByTestId("video-deep-upsell")).toBeNull();
   });
 
   it("shows hook_analysis prose only — no phase grid or timeline embed", () => {
@@ -718,11 +665,10 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/8 nhịp kịch bản/)).toBeTruthy();
   });
 
-  it("renders StatsHistoryStrip on deep depth when diagnosis sections exist", () => {
+  it("renders StatsHistoryStrip when diagnosis sections exist", () => {
     const base = makeWinReport();
     renderInRouter(
       makeWinReport({
-        analysis_depth: "deep",
         meta: {
           ...base.meta,
           stats_history: [
@@ -742,18 +688,16 @@ describe("VideoBody render", () => {
           },
         },
       }),
-      { analysisDepth: "deep" },
     );
     expect(screen.getByLabelText("Diễn biến lượt xem theo thời gian")).toBeTruthy();
     expect(screen.getByText(/Tăng vọt rồi đi ngang/)).toBeTruthy();
     expect(screen.getByText("1.0K")).toBeTruthy();
   });
 
-  it("renders StatsHistoryStrip fallback when distribution section is absent on deep depth", () => {
+  it("renders StatsHistoryStrip fallback when distribution section is absent", () => {
     const base = makeWinReport();
     renderInRouter(
       makeWinReport({
-        analysis_depth: "deep",
         meta: {
           ...base.meta,
           stats_history: [
@@ -772,28 +716,9 @@ describe("VideoBody render", () => {
           },
         },
       }),
-      { analysisDepth: "deep" },
     );
     expect(screen.getByLabelText("Diễn biến lượt xem theo thời gian")).toBeTruthy();
     expect(screen.getByText("2.0K")).toBeTruthy();
-  });
-
-  it("hides StatsHistoryStrip on basic depth even when stats_history present", () => {
-    const base = makeWinReport();
-    renderInRouter(
-      makeWinReport({
-        analysis_depth: "basic",
-        meta: {
-          ...base.meta,
-          stats_history: [
-            { at: "a", phase: "t0", views: 2000, likes: 40, comments: 8, shares: 2 },
-            { at: "b", phase: "t24h", views: 9000, likes: 90, comments: 15, shares: 6 },
-          ],
-        },
-      }),
-      { analysisDepth: "basic" },
-    );
-    expect(screen.queryByLabelText("Diễn biến lượt xem theo thời gian")).toBeNull();
   });
 
   it("renders BoostAttributionBlock after boost_attribution section", () => {
@@ -827,34 +752,17 @@ describe("VideoBody render", () => {
     expect(screen.getAllByText("View spike").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders CarouselIntelStrip when carousel_intel present on deep depth", () => {
+  it("renders CarouselIntelStrip when carousel_intel present", () => {
     renderInRouter(
       makeWinReport({
-        analysis_depth: "deep",
         carousel_subformat_label: "So sánh",
         carousel_intel: {
           content_arc: "list",
           slides: [{ index: 0, text_preview: "Slide 1" }],
         },
       }),
-      { analysisDepth: "deep" },
     );
     expect(screen.getByText(/Logic lướt · 1 slide/)).toBeTruthy();
     expect(screen.getByText("Slide 1")).toBeTruthy();
-  });
-
-  it("hides CarouselIntelStrip on basic depth", () => {
-    renderInRouter(
-      makeWinReport({
-        analysis_depth: "basic",
-        carousel_intel: {
-          content_arc: "list",
-          slides: [{ index: 0, text_preview: "Slide 1" }],
-        },
-      }),
-      { analysisDepth: "basic" },
-    );
-    expect(screen.queryByText(/Logic lướt · 1 slide/)).toBeNull();
-    expect(screen.queryByText("Slide 1")).toBeNull();
   });
 });

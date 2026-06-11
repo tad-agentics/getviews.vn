@@ -3,12 +3,11 @@
  * Fixed Vietnamese labels + explicit intent_type; no free-text classify.
  */
 import type { AnswerSessionFormat } from "@/lib/api-types";
-import type { AnswerHandoffDepth, AnswerHandoffMode } from "@/lib/answerHandoff";
+import type { AnswerHandoffMode } from "@/lib/answerHandoff";
 
 export type IntentCtaId =
   | "video_script"
   | "video_compare"
-  | "video_deep"
   | "video_hook_variants"
   | "video_timing"
   | "script_shoot"
@@ -43,7 +42,6 @@ export type IntentCtaSuggestion = {
 export type IntentCtaContext = {
   format: AnswerSessionFormat;
   mode: AnswerHandoffMode | null;
-  depth: AnswerHandoffDepth;
   /** Resolved TikTok URL or aweme id for video-context CTAs. */
   videoQuery: string | null;
   scriptDraftId: string | null;
@@ -98,14 +96,6 @@ function baseVideoRows(ctx: IntentCtaContext): MatrixRow[] {
       label: "Giờ đăng tốt",
       intentType: "timing",
       action: "append_turn",
-    });
-  }
-  if (ctx.depth === "basic") {
-    rows.push({
-      id: "video_deep",
-      label: "Phân tích chuyên sâu (2 credit)",
-      intentType: "video_diagnosis",
-      action: "handoff",
     });
   }
   return rows;
@@ -241,38 +231,14 @@ function applyPrerequisites(row: MatrixRow, ctx: IntentCtaContext): IntentCtaSug
 
 const VISIBLE_CTA_LIMIT = 4;
 
-/** When basic video has >4 rows, keep deep upgrade — drop lower-priority pills first. */
-const VIDEO_CTA_DROP_PRIORITY: IntentCtaId[] = [
-  "video_compare",
-  "video_hook_variants",
-  "video_timing",
-  "video_channel",
-];
-
 function capVisibleSuggestions(
   rows: IntentCtaSuggestion[],
-  ctx: IntentCtaContext,
 ): IntentCtaSuggestion[] {
   if (rows.length <= VISIBLE_CTA_LIMIT) return rows;
-  const deepIdx = rows.findIndex((r) => r.id === "video_deep");
-  const mustKeepDeep =
-    ctx.format === "video" && ctx.depth === "basic" && deepIdx >= VISIBLE_CTA_LIMIT;
-  if (!mustKeepDeep) return rows.slice(0, VISIBLE_CTA_LIMIT);
-
-  const deep = rows[deepIdx]!;
-  const kept = rows.slice(0, VISIBLE_CTA_LIMIT);
-  for (const dropId of VIDEO_CTA_DROP_PRIORITY) {
-    const swapIdx = kept.findIndex((r) => r.id === dropId);
-    if (swapIdx >= 0) {
-      const next = [...kept];
-      next[swapIdx] = deep;
-      return next;
-    }
-  }
   return rows.slice(0, VISIBLE_CTA_LIMIT);
 }
 
-/** 2–4 visible CTAs filtered by format, mode, depth, prerequisites. */
+/** 2–4 visible CTAs filtered by format, mode, prerequisites. */
 export function getIntentCtaSuggestions(ctx: IntentCtaContext): IntentCtaSuggestion[] {
   const raw =
     ctx.format === "video" ? baseVideoRows(ctx) : (MATRIX[ctx.format] ?? MATRIX.generic);
@@ -283,7 +249,7 @@ export function getIntentCtaSuggestions(ctx: IntentCtaContext): IntentCtaSuggest
     }
     return applied;
   });
-  return capVisibleSuggestions(mapped, ctx);
+  return capVisibleSuggestions(mapped);
 }
 
 /** Query string sent to append_turn — fixed copy, not user free text. */
@@ -306,6 +272,8 @@ export function intentCtaQueryForSuggestion(
       return "Lên lịch đăng tuần này";
     case "generic_trends":
       return "Xu hướng đang hot trong ngách";
+    case "video_channel":
+      return "";
     default:
       return suggestion.label;
   }

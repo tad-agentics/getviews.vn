@@ -1,13 +1,11 @@
-"""Wave 3 — analysis_depth whitelist, manifest cap, cache key helper."""
+"""Wave 3 — analysis_depth deep-only, manifest cap, cache key helper."""
 
 from __future__ import annotations
 
 import pytest
 
 from getviews_pipeline.diagnose_sections import (
-    BASIC_SECTION_ALLOWLIST,
     select_sections_to_emit,
-    upsell_locked_sections,
 )
 from getviews_pipeline.signals.base import Signal
 from getviews_pipeline.signals.registry import (
@@ -19,14 +17,22 @@ from getviews_pipeline.signals.salience import section_emit_threshold
 from getviews_pipeline.video_analyze import _normalize_analysis_depth
 
 
-def test_normalize_analysis_depth() -> None:
-    assert _normalize_analysis_depth("basic") == "basic"
+def test_normalize_analysis_depth_always_deep() -> None:
+    assert _normalize_analysis_depth("basic") == "deep"
     assert _normalize_analysis_depth("deep") == "deep"
-    assert _normalize_analysis_depth(None) == "basic"
-    assert _normalize_analysis_depth("invalid") == "basic"
+    assert _normalize_analysis_depth(None) == "deep"
+    assert _normalize_analysis_depth("invalid") == "deep"
 
 
-def test_basic_depth_omits_commerce_whitelist() -> None:
+def test_answer_turn_body_coerces_legacy_basic_depth() -> None:
+    from getviews_pipeline.routers.answer import AnswerTurnAppendBody
+
+    assert AnswerTurnAppendBody(query="x", analysis_depth="basic").analysis_depth == "deep"
+    assert AnswerTurnAppendBody(query="x", analysis_depth="deep").analysis_depth == "deep"
+    assert AnswerTurnAppendBody(query="x").analysis_depth is None
+
+
+def test_deep_depth_emits_commerce() -> None:
     ctx = build_diagnosis_ctx(
         user_analysis={
             "promotion_type": "organic",
@@ -52,14 +58,11 @@ def test_basic_depth_omits_commerce_whitelist() -> None:
         performance_tier="average",
     )
     manifest = build_signal_manifest(ctx)
-    deep = select_sections_to_emit(manifest, ctx, depth="deep")
-    basic = select_sections_to_emit(manifest, ctx, depth="basic")
-    assert "commerce" in deep
-    assert "commerce" not in basic
-    assert set(basic).issubset(BASIC_SECTION_ALLOWLIST)
+    sections = select_sections_to_emit(manifest, ctx, depth="deep")
+    assert "commerce" in sections
 
 
-def test_manifest_for_prompt_cap_by_depth() -> None:
+def test_manifest_for_prompt_deep_cap() -> None:
     manifest = {
         "diagnosis": [
             Signal(
@@ -73,13 +76,11 @@ def test_manifest_for_prompt_cap_by_depth() -> None:
             for i in range(6)
         ]
     }
-    basic_trim = manifest_for_prompt(manifest, depth="basic")
     deep_trim = manifest_for_prompt(manifest, depth="deep")
-    assert len(basic_trim["diagnosis"]) == 3
     assert len(deep_trim["diagnosis"]) == 5
 
 
-def test_select_sections_default_is_basic() -> None:
+def test_select_sections_default_is_deep() -> None:
     ctx = build_diagnosis_ctx(
         user_analysis={
             "promotion_type": "organic",
@@ -106,72 +107,9 @@ def test_select_sections_default_is_basic() -> None:
     )
     manifest = build_signal_manifest(ctx)
     default_sections = select_sections_to_emit(manifest, ctx)
-    basic_sections = select_sections_to_emit(manifest, ctx, depth="basic")
-    assert default_sections == basic_sections
-    assert "commerce" not in default_sections
-
-
-def test_upsell_locked_sections_basic_only() -> None:
-    ctx = build_diagnosis_ctx(
-        user_analysis={
-            "promotion_type": "organic",
-            "commerce_intent": {
-                "conversion_objective": "shop_direct",
-                "product_price_tier": "not_commerce",
-                "creator_type": "kos_seller",
-                "verbal_cta_present": True,
-                "disclosure_present": True,
-                "disclosure_form": "voice",
-            },
-            "hook_analysis": {
-                "first_frame_type": "face",
-                "hook_phrase": "x",
-                "hook_type": "question",
-                "hook_notes": "",
-                "hook_timeline": [],
-            },
-        },
-        user_stats={"caption": "hi", "views": 50_000, "commerce_conversion": {"order_count": 80}},
-        reference_videos=[],
-        channel_context=None,
-        performance_tier="average",
-    )
-    manifest = build_signal_manifest(ctx)
-    locked = upsell_locked_sections(manifest, ctx, depth="basic", performance_tier="average")
-    assert locked
-    assert all(row["section_id"] not in BASIC_SECTION_ALLOWLIST for row in locked)
-    commerce = next(row for row in locked if row["section_id"] == "commerce")
-    assert int(commerce.get("signal_count") or 0) >= 1
-    assert upsell_locked_sections(manifest, ctx, depth="deep", performance_tier="average") == []
-
-
-def test_upsell_locked_sections_boost_teaser_vi() -> None:
-    ctx = build_diagnosis_ctx(
-        user_analysis={"hook_analysis": {"hook_type": "question", "first_frame_type": "face"}},
-        user_stats={
-            "views": 120_000,
-            "likes": 200,
-            "comments": 0,
-            "engagement_rate": 0.5,
-            "breakout_multiplier": 2.0,
-        },
-        reference_videos=[{"video_id": "1", "views": 1000}],
-        channel_context={"available": True, "sample_size": 5, "median_views": 1000},
-        performance_tier="average",
-        niche_meta={
-            "sample_size": 100,
-            "median_er": 4.0,
-            "p25_er": 2.5,
-            "p75_views": 10_000,
-            "p90_views": 50_000,
-        },
-    )
-    manifest = build_signal_manifest(ctx)
-    locked = upsell_locked_sections(manifest, ctx, depth="basic", performance_tier="average")
-    boost = next((row for row in locked if row["section_id"] == "boost_attribution"), None)
-    assert boost is not None
-    assert boost.get("teaser_vi")
-    assert int(boost.get("signal_count") or 0) >= 1
+    deep_sections = select_sections_to_emit(manifest, ctx, depth="deep")
+    assert default_sections == deep_sections
+    assert "commerce" in default_sections
 
 
 def test_builder_for_intent_cta_maps_intents() -> None:
@@ -234,8 +172,7 @@ def test_append_turn_deduct_credits_atomic(monkeypatch) -> None:
     assert rpc_calls == [{"p_user_id": "u-1", "p_amount": 2}]
 
 
-def test_section_emit_threshold_default() -> None:
-    assert section_emit_threshold(depth="basic") == 0.5
+def test_section_emit_threshold_deep() -> None:
     assert section_emit_threshold(depth="deep") == 0.45
 
 
@@ -243,12 +180,10 @@ def test_deep_relax_salience_can_be_disabled(monkeypatch) -> None:
     from getviews_pipeline import settings as settings_mod
 
     monkeypatch.setattr(settings_mod.settings, "getviews_deep_relax_salience", False)
-    assert section_emit_threshold(depth="basic") == 0.5
     assert section_emit_threshold(depth="deep") == 0.5
 
 
 def test_deep_relax_salience_lowers_threshold_only_for_deep() -> None:
-    assert section_emit_threshold(depth="basic") == 0.5
     assert section_emit_threshold(depth="deep") == 0.45
 
 
@@ -275,7 +210,6 @@ def test_deep_relax_salience_emits_borderline_metadata_section(monkeypatch) -> N
         ]
     }
     assert "metadata" in select_sections_to_emit(manifest, ctx, depth="deep")
-    assert "metadata" not in select_sections_to_emit(manifest, ctx, depth="basic")
     monkeypatch.setattr(settings_mod.settings, "getviews_deep_relax_salience", False)
     assert "metadata" not in select_sections_to_emit(manifest, ctx, depth="deep")
 

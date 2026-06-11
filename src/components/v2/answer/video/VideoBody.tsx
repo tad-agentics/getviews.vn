@@ -53,12 +53,6 @@ import {
   tierImpliesWinFraming,
   videoReportWasModeCorrected,
 } from "@/lib/videoReportCoherence";
-import { VideoDeepUpsell } from "@/components/v2/answer/video/VideoDeepUpsell";
-import {
-  normalizeLockedSectionTeasers,
-  shouldShowDeepUpsell,
-  type LockedSectionTeaser,
-} from "@/lib/videoDeepUpsell";
 import {
   adjunctSectionTitle,
   buildCreatorComparisonProse,
@@ -162,18 +156,12 @@ export function VideoBody({
   preSynthesisData = null,
   channelContext = null,
   narrativeReady = null,
-  analysisDepth = null,
-  showDeepUpsell = false,
-  lockedSections,
   onRequestAppendTurn,
 }: {
   report: VideoReportPayload;
   preSynthesisData?: VideoAnswerPreSynthesisPayload | null;
   channelContext?: ChannelContext | null;
   narrativeReady?: VideoAnswerNarrativeReadyPayload | null;
-  analysisDepth?: "basic" | "deep" | null;
-  showDeepUpsell?: boolean;
-  lockedSections?: LockedSectionTeaser[];
   /** Append a shot-list turn in the same answer session (format-card CTA). */
   onRequestAppendTurn?: (query: string) => void;
 }) {
@@ -252,15 +240,6 @@ export function VideoBody({
     () => resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, viewMode),
     [narrativeVi, flopIssuesForNarrative, viewMode],
   );
-  const lockedSectionTeasers = useMemo(
-    () =>
-      normalizeLockedSectionTeasers(
-        lockedSections ?? report.locked_sections ?? null,
-      ),
-    [lockedSections, report.locked_sections],
-  );
-  const isBasicDepth = shouldShowDeepUpsell(analysisDepth, report.analysis_depth);
-  const renderDeepUpsell = showDeepUpsell && isBasicDepth;
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const hasChannelPattern = sectionIds.has("channel_pattern");
   const hasBoostAttribution = sectionIds.has("boost_attribution");
@@ -289,12 +268,9 @@ export function VideoBody({
     return embeds;
   }, [report, meta, duration]);
   const showStatsHistory = (meta.stats_history?.length ?? 0) >= 2;
-  /** §5.3 — M4 stats + carousel slide intel are deep-only; basic gets locked-section upsell. */
-  const showStatsHistoryStrip = showStatsHistory && !isBasicDepth;
-  const showCarouselIntel =
-    !isBasicDepth && (report.carousel_intel?.slides?.length ?? 0) > 0;
+  const showStatsHistoryStrip = showStatsHistory;
+  const showCarouselIntel = (report.carousel_intel?.slides?.length ?? 0) > 0;
   const showBoostFallback =
-    !isBasicDepth &&
     !hasBoostAttribution &&
     shouldShowBoostAttributionBlock(meta.boost_attribution, meta.reference_eligible);
 
@@ -319,7 +295,6 @@ export function VideoBody({
       buildChannelStudioPath({
         handle: raw,
         videoUrl: tiktokWatchUrl ?? undefined,
-        depth: analysisDepth === "deep" ? "deep" : undefined,
       }),
     );
   };
@@ -788,10 +763,6 @@ export function VideoBody({
               ))}
             </ul>
           </section>
-        ) : null}
-
-        {renderDeepUpsell ? (
-          <VideoDeepUpsell lockedSections={lockedSectionTeasers} />
         ) : null}
       </div>
     </div>

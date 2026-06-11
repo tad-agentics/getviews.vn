@@ -131,33 +131,31 @@ describe("ChannelStudioPanel", () => {
     expect(screen.getByLabelText(/Handle hoặc URL kênh TikTok/)).toBeTruthy();
   });
 
-  it("renders Cơ bản panel by default when handle is set", () => {
+  it("renders benchmark strip when handle is set", () => {
     renderPanel("?handle=sammie.tech");
-    expect(screen.getByText(/Soi kênh · Cơ bản/)).toBeTruthy();
-    expect(screen.getByText(/trần view/)).toBeTruthy();
+    expect(screen.getByLabelText("So sánh kênh với mảng nội dung")).toBeTruthy();
   });
 
   it("uses profile default handle when query param absent", () => {
     renderPanel("", "mychannel");
-    expect(screen.getByText(/Soi kênh · Cơ bản/)).toBeTruthy();
+    expect(screen.getByLabelText("So sánh kênh với mảng nội dung")).toBeTruthy();
   });
 
-  it("shows upsell when deep-linked to Chuyên sâu without enough credits", () => {
+  it("shows credit warning when handle is set but credits are insufficient", () => {
     mockUseProfile.mockReturnValue({
       data: { creator_niche_id: 1, credits_remaining: 1, tiktok_handle: null },
       isPending: false,
     });
-    renderPanel("?handle=sammie.tech&depth=deep");
-    expect(screen.getByText(/Cần 3 credit để chạy Chuyên sâu/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Chuyển Cơ bản/i })).toBeTruthy();
+    renderPanel("?handle=sammie.tech");
+    expect(screen.getByText(/Cần 3 credit để phân tích kênh/)).toBeTruthy();
   });
 
-  it("allows handle submit when Chuyên sâu selected but credits are low", () => {
+  it("allows handle submit when credits are low", () => {
     mockUseProfile.mockReturnValue({
       data: { creator_niche_id: 1, credits_remaining: 1, tiktok_handle: null },
       isPending: false,
     });
-    renderPanel("?depth=deep");
+    renderPanel();
     fireEvent.change(screen.getByLabelText(/Handle hoặc URL kênh TikTok/), {
       target: { value: "@creator" },
     });
@@ -187,7 +185,7 @@ describe("ChannelStudioPanel", () => {
         cache_hit: false,
       },
     });
-    renderPanel("?handle=sammie.tech&depth=deep");
+    renderPanel("?handle=sammie.tech");
     expect(screen.getByText(/Kết luận/)).toBeTruthy();
   });
 });

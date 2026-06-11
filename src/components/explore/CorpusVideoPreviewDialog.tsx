@@ -177,7 +177,7 @@ export function CorpusVideoPreviewDialog({
   open,
   onOpenChange,
   onAnalyze,
-  analyzeLabel = "Phân tích video này (1 credit)",
+  analyzeLabel = "Phân tích video này (2 credit)",
   description = "Xem trước video trước khi phân tích hoặc mở TikTok",
   showTikTokLinkButton = true,
 }: CorpusVideoPreviewDialogProps) {

@@ -19,7 +19,7 @@
 
 | Item | As-built / route | Ghi chú |
 |------|------------------|---------|
-| **So sánh 2 video (F3)** | `/app/compare`, `CompareScreen.tsx`, `report_compare.py` | POST `/stream` `compare_videos`; 1 credit; ẩn khỏi V1 UX. Wave 2 / agency |
+| **So sánh 2 video (F3)** | `/app/compare`, `CompareScreen.tsx`, `report_compare.py` | POST answer session `format=compare`; **2 credits**; ẩn khỏi V1 UX. Wave 2 / agency |
 | **Watchlist đối thủ + push alert** | — | Wave 2 |
 | **Douyin trend forecast** (lead-time productized) | — | Wave 2; V1 chỉ `TrendsDouyinCard` optional trên `/app/trends` |
 | **Passive FYP mirror / push feed** | — | Wave 2+ |
@@ -235,7 +235,7 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
   2. **Kho video** (`II — KHO VIDEO`) — searchable `video_corpus` grid + `ExploreCorpusVideoModal`; filters via `applyVideoCorpusNicheFilter` (`content_class_id IN junction`)
 - **Auxiliary blocks (shipped, not V1 gate):**
   - **`CrossNicheBreakoutLane`** — `useCrossNicheBreakouts`: cap 3 tiles, `content_class_id NOT IN` user's junction, `breakout_multiplier ≥ 1.5`, 14d window (**cross-format** inspiration — distinct from Home tier III within-niche breakouts)
-  - **`TrendsRail`** (desktop sidebar + mobile inline) — `useTrendsRailVideos`: class-first or legacy niche; top 5 organic breakouts (14d `posted_at`, pool 20 + rotation); preview modal → “Phân tích (1 credit)”
+  - **`TrendsRail`** (desktop sidebar + mobile inline) — `useTrendsRailVideos`: class-first or legacy niche; top 5 organic breakouts (14d `posted_at`, pool 20 + rotation); preview modal → “Phân tích (2 credit)”
   - **`TrendsNichePills`**, **`TrendingSoundsSection`**, **`TrendsDouyinCard`**
 - **Thin-corpus banner:** `useContentClassIntelligence` — sum junction `sample_size` from `content_class_intelligence` MV gates “dữ liệu chưa đầy đủ” copy
 - **BE (direct Supabase reads):** `video_corpus`, `creator_niche_content_classes`, `content_classifications`, MVs `content_class_intelligence`, `content_class_tier_intelligence`, `creator_niche_content_class_stats`

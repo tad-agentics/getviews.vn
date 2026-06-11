@@ -166,8 +166,8 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 - faq_2_a: "Khóa học dạy bạn nền tảng — algorithm, cách quay, cách edit. Tốt. Nhưng nó không nói cho bạn biết tuần này hook nào đang chạy trong đúng niche của bạn. GetViews bổ sung chỗ khóa học không cover được: data thực, cập nhật mỗi ngày, cho đúng niche." — Ambient
 - faq_3_q: "Khác gì Kalodata?" — Ambient
 - faq_3_a: "Kalodata chỉ cho bạn biết sản phẩm nào bán chạy. GetViews chỉ cho bạn biết TẠI SAO cái video bán được chạy — hook kiểu gì, mở đầu ra sao, nhịp cắt thế nào. Hai cái khác nhau, dùng song song được." — Ambient
-- faq_4_q: "1 credit là gì?" — Ambient
-- faq_4_a: "Phân tích sâu (soi video, phân tích đối thủ, viết brief) = 1 credit. Lướt xu hướng, tìm KOL, và hỏi thêm trong cùng phiên — miễn phí, không giới hạn." — Ambient
+- faq_4_q: "Một lượt phân tích được tính như thế nào?" — Ambient
+- faq_4_a: "Soi video = 2 credit/lần. Chẩn đoán kênh đối thủ = 3 credit/lần. Viết kịch bản AI = 3 credit/lần. Lướt xu hướng, tìm KOL, và hỏi thêm trong cùng phiên — miễn phí, không giới hạn." — Ambient
 - faq_5_q: "Thanh toán sao?" — Ambient
 - faq_5_a: "MoMo, VNPay, chuyển khoản, hoặc thẻ Visa/Mastercard. Mua xong dùng được ngay." — Ambient
 - faq_6_q: "Lỡ không hiệu quả thì sao?" — Ambient
@@ -502,7 +502,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 - Network lost mid-stream → error message "— Bị gián đoạn. Gõ 'tiếp' để tiếp tục." appended inline
 - iOS keyboard opens → ChatInput scrolls up; CreditBar stays above keyboard
 
-**Credit cost:** 1 credit per deep intent (①–⑤). Free for ⑥, ⑦, and follow-ups within same session.
+**Credit cost:** Video primary **2 credits**; channel diagnosis **3 credits**; script **3 credits**; pattern/ideas/timing primary **1 credit**. Free for follow-ups within same session.
 
 ---
 
@@ -959,7 +959,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 - niche_change: "Thay đổi" — Ambient
 - niche_save: "Lưu" — Confirmation
 - section_history: "Lịch sử credit" — Ambient
-- credit_event_label: "{{intent_name}} · {{date}} · −1 credit" — Ambient
+- credit_event_label: "{{intent_name}} · {{date}} · −{{credits}} credit" — Ambient
 - logout_button: "Đăng xuất" — Ambient
 - logout_confirm: "Đăng xuất khỏi GetViews?" — Ambient
 - logout_confirm_cta: "Đăng xuất" — Ambient

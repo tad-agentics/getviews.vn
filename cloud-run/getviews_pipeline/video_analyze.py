@@ -18,7 +18,7 @@ AnalysisDepth = Literal["basic", "deep"]
 
 
 def _normalize_analysis_depth(depth: str | None) -> AnalysisDepth:
-    return "deep" if depth == "deep" else "basic"
+    return "deep"
 
 
 from getviews_pipeline.corpus_context import (
@@ -66,27 +66,7 @@ def _apply_peer_tier_to_niche_meta(
 ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3
 # Minimum on-demand blob version we still attempt embed repair on (v2 blobs may lack tiles).
 ON_DEMAND_RESPONSE_SCHEMA_VERSION_MIN = 2
-# Persisted in on-demand ``cached_response`` for basic→deep synthesis-only upgrade (§4.12.2).
 EXTRACT_JSON_SCHEMA_VERSION = 1
-_ON_DEMAND_UPGRADE_STRIP_KEYS = frozenset(
-    {
-        "narrative_vi",
-        "format_cards",
-        "diagnosis",
-        "performance_tier",
-        "locked_sections",
-        "analysis_depth",
-        "bright_spot_signal",
-        "view_scenarios",
-        "channel_context",
-        "niche_posting_context",
-        "creator_comparison",
-        "sources",
-        "related_questions",
-        "embed_contract_version",
-        "_schema_version",
-    }
-)
 # Server-only fields persisted in ``cached_response`` — never ship to the FE.
 _ON_DEMAND_CLIENT_STRIP_KEYS = frozenset({"extract_json", "extract_schema_version"})
 
@@ -1311,75 +1291,10 @@ def _persist_embed_repair_to_diagnostics(out: dict[str, Any]) -> None:
         )
 
 
-def _attach_depth_upsell_metadata(
-    out: dict[str, Any],
-    depth: AnalysisDepth,
-    *,
-    analysis: dict[str, Any] | None = None,
-    content_format: str | None = None,
-) -> None:
-    """§4.11.3 — echo analysis_depth + locked deep-only section teasers on basic reports."""
-    from getviews_pipeline.compliance import collect_compliance_flags
-    from getviews_pipeline.diagnose_sections import upsell_locked_sections
-    from getviews_pipeline.signals.registry import build_diagnosis_ctx, build_signal_manifest
-
-    out["analysis_depth"] = depth
-    if depth != "basic":
-        out.pop("locked_sections", None)
-        return
-
-    analysis_obj = (
-        analysis
-        if isinstance(analysis, dict) and analysis
-        else out.get("__narrative_analysis")
-    )
-    if not isinstance(analysis_obj, dict) or not analysis_obj:
-        out.pop("locked_sections", None)
-        return
-
-    meta = out.get("meta") if isinstance(out.get("meta"), dict) else {}
-    niche_meta = out.get("niche_meta") if isinstance(out.get("niche_meta"), dict) else {}
-    content_format_str = str(
-        content_format
-        or out.get("__narrative_content_format")
-        or meta.get("content_format")
-        or ""
-    )
-    views = int(meta.get("views") or 0)
-    user_stats: dict[str, Any] = {
-        "views": views,
-        "likes": int(meta.get("likes") or 0),
-        "comments": int(meta.get("comments") or 0),
-        "shares": int(meta.get("shares") or 0),
-        "duration_sec": float(meta.get("duration_sec") or 0.0),
-        "save_rate": float(meta.get("save_rate") or 0.0),
-        "caption": str(meta.get("caption") or meta.get("title") or ""),
-        "engagement_rate": float(meta.get("engagement_rate") or 0.0),
-    }
-    cc_raw = meta.get("commerce_conversion")
-    if isinstance(cc_raw, dict) and cc_raw:
-        user_stats["commerce_conversion"] = cc_raw
-
-    ctx = build_diagnosis_ctx(
-        user_analysis=analysis_obj,
-        user_stats=user_stats,
-        reference_videos=out.get("reference_videos") or [],
-        channel_context=out.get("channel_context"),
-        performance_tier=str(out.get("performance_tier") or "unknown"),
-        niche_meta=niche_meta,
-        compliance_flags=collect_compliance_flags(analysis_obj, user_stats),
-        content_format=content_format_str,
-        niche_name=str(meta.get("niche_label") or ""),
-        corpus_size=int(niche_meta.get("sample_size") or niche_meta.get("corpus_size") or 0),
-        comment_radar=out.get("comment_radar") if isinstance(out.get("comment_radar"), dict) else None,
-    )
-    manifest = build_signal_manifest(ctx)
-    tier = str(out.get("performance_tier") or "unknown")
-    locked = upsell_locked_sections(manifest, ctx, depth=depth, performance_tier=tier)
-    if locked:
-        out["locked_sections"] = locked
-    else:
-        out.pop("locked_sections", None)
+def _finalize_report_depth_fields(out: dict[str, Any]) -> None:
+    """User-facing analysis is always deep; strip legacy upsell metadata."""
+    out["analysis_depth"] = "deep"
+    out.pop("locked_sections", None)
 
 
 def finalize_video_narrative_layer(
@@ -1436,7 +1351,7 @@ def finalize_video_narrative_layer(
 
             if int(out.get("embed_contract_version") or 0) < EMBED_CONTRACT_VERSION:
                 out["embed_contract_version"] = EMBED_CONTRACT_VERSION
-        _attach_depth_upsell_metadata(out, depth)
+        _finalize_report_depth_fields(out)
         # Strip pipeline-private keys so the response shape stays clean
         # for the caller (matches the post-synthesis branch below).
         out.pop("__narrative_analysis", None)
@@ -2006,12 +1921,7 @@ def finalize_video_narrative_layer(
         except Exception as _exc:
             logger.warning("[finalize] corpus promote failed video_id=%s: %s", on_demand_vid, _exc)
 
-    _attach_depth_upsell_metadata(
-        out,
-        depth,
-        analysis=analysis,
-        content_format=content_format,
-    )
+    _finalize_report_depth_fields(out)
     _strip_on_demand_client_cache_fields(out)
 
 
@@ -2538,85 +2448,6 @@ def _try_on_demand_cache_hit(
     return cached
 
 
-def _try_on_demand_basic_upgrade_source(
-    service_sb: Any,
-    tiktok_url: str,
-    *,
-    step_queue: Any | None = None,
-) -> dict[str, Any] | None:
-    """Rehydrate pre-synthesis state from a fresh basic on-demand row (§4.12.2).
-
-    Returns an ``out`` dict with ``__narrative_analysis`` set from persisted
-    ``extract_json`` so ``finalize_video_narrative_layer`` can run deep synthesis
-    without re-extracting via Gemini vision. Legacy basic rows without
-    ``extract_json`` return ``None`` (caller falls back to full extract).
-    """
-    if not tiktok_url:
-        return None
-    canonical_url = normalize_tiktok_url(tiktok_url)
-    try:
-        res = (
-            service_sb.table("video_diagnostics")
-            .select("cached_response,computed_at")
-            .eq("tiktok_url", canonical_url)
-            .eq("source", "on_demand")
-            .eq("analysis_depth", "basic")
-            .limit(1)
-            .execute()
-        )
-    except Exception as exc:
-        logger.warning(
-            "[video_analyze:on_demand] basic upgrade lookup failed url=%s: %s",
-            tiktok_url,
-            exc,
-        )
-        return None
-    rows = getattr(res, "data", None) or []
-    if not rows:
-        return None
-    row = rows[0]
-    if not _diagnostics_fresh(row):
-        return None
-    cached = row.get("cached_response")
-    if not isinstance(cached, dict) or not cached:
-        return None
-    if int(cached.get("response_schema_version") or 1) < ON_DEMAND_RESPONSE_SCHEMA_VERSION_MIN:
-        return None
-    extract = cached.get("extract_json")
-    if not isinstance(extract, dict) or not extract:
-        return None
-
-    out: dict[str, Any] = dict(cached)
-    for key in _ON_DEMAND_UPGRADE_STRIP_KEYS:
-        out.pop(key, None)
-
-    meta = out.get("meta") if isinstance(out.get("meta"), dict) else {}
-    out["__narrative_analysis"] = extract
-    out.pop("extract_json", None)
-    out.pop("extract_schema_version", None)
-    out["__narrative_content_format"] = str(
-        meta.get("content_format") or out.get("content_format") or ""
-    )
-    out["__tiktok_desc"] = str(meta.get("caption") or meta.get("title") or "")
-    out["__cache_on_demand_url"] = tiktok_url
-    out["__cache_on_demand_vid"] = str(out.get("video_id") or cached.get("video_id") or "")
-    out["__analysis_depth"] = "deep"
-
-    if step_queue is not None:
-        from getviews_pipeline.step_events import emit, step_process
-
-        emit(step_queue, step_process("Đang nâng cấp phân tích chuyên sâu..."))
-
-    from getviews_pipeline.observability import log_cache_event
-
-    log_cache_event(
-        event="synthesis_upgrade",
-        cache_source="on_demand_cache",
-        video_id=out.get("video_id"),
-    )
-    return out
-
-
 def _persist_on_demand_cache(
     service_sb: Any,
     *,
@@ -2697,15 +2528,6 @@ def run_video_analyze_on_demand(
     )
     if cached is not None:
         return cached
-
-    if depth == "deep":
-        upgrade = _try_on_demand_basic_upgrade_source(
-            service_sb,
-            tiktok_url,
-            step_queue=step_queue,
-        )
-        if upgrade is not None:
-            return upgrade
 
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process

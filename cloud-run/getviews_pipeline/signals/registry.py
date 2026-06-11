@@ -23,7 +23,6 @@ from getviews_pipeline.signals.persona import extract_persona_signals
 from getviews_pipeline.signals.reference import extract_reference_signals
 from getviews_pipeline.signals.salience import (
     MAX_SIGNALS_PER_SECTION_DEEP,
-    MAX_SIGNALS_PER_SECTION_IN_PROMPT,
 )
 from getviews_pipeline.signals.script import extract_script_signals
 from getviews_pipeline.signals.sound import extract_sound_signals
@@ -67,9 +66,9 @@ def build_diagnosis_ctx(
     niche_name: str = "",
     corpus_size: int = 0,
     comment_radar: dict | None = None,
-    analysis_depth: str = "basic",
+    analysis_depth: str = "deep",
 ) -> dict:
-    depth = "deep" if str(analysis_depth or "").strip().lower() == "deep" else "basic"
+    depth = "deep"
     return {
         "user_analysis": user_analysis,
         "user_stats": user_stats,
@@ -147,14 +146,10 @@ def log_manifest_telemetry(
 def manifest_for_prompt(
     manifest: dict[str, list[Signal]],
     *,
-    depth: str = "basic",
+    depth: str = "deep",
 ) -> dict[str, list[Signal]]:
-    """Top-N signals per section for LLM payload only (§4.8 — cap 3 basic / 5 deep)."""
-    cap = (
-        MAX_SIGNALS_PER_SECTION_DEEP
-        if depth == "deep"
-        else MAX_SIGNALS_PER_SECTION_IN_PROMPT
-    )
+    """Top-N signals per section for LLM payload only (§4.8 — cap 5 deep)."""
+    cap = MAX_SIGNALS_PER_SECTION_DEEP
     return {
         sid: lst[:cap]
         for sid, lst in manifest.items()

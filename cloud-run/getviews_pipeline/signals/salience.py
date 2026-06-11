@@ -6,7 +6,7 @@ MAX_SIGNALS_PER_SECTION_IN_PROMPT = 3
 MAX_SIGNALS_PER_SECTION_DEEP = 5
 
 
-def section_emit_threshold(*, depth: str = "basic") -> float:
+def section_emit_threshold(*, depth: str = "deep") -> float:
     """Default section gate (0.5); deep may relax to 0.45 when env flag is on (§4.3)."""
     if depth != "deep":
         return SECTION_EMIT_THRESHOLD

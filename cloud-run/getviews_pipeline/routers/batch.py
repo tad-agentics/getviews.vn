@@ -1564,7 +1564,7 @@ async def batch_douyin_patterns(
 async def batch_marketing_corpus_pick(
     _caller: dict | None = Depends(require_batch_caller),
 ) -> JSONResponse:
-    """Marketing API — pick random corpus video (>100k views), run basic/win diagnosis.
+    """Marketing API — pick random corpus video (>100k views), run deep/win diagnosis.
 
     Proxied from Supabase Edge ``marketing-corpus-pick`` (service_role JWT).
     Records pick only after ``narrative_vi`` is present. Typical latency 20–40s.

@@ -1,5 +1,7 @@
 # Phân tích video (Cơ bản / Chuyên sâu) — Handoff Marketing
 
+> **⚠ Lịch sử (2026-05):** Doc mô tả hai tier Cơ bản/Chuyên sâu. **Ship 2026-06-11:** một tier duy nhất (chất lượng deep), **2 credit**, không pills/upsell — xem [`system-design.md`](../system-design.md).
+
 **Phiên bản:** as-built 2026-05 · **Độc lập:** đọc file này là đủ để hiểu tính năng và cách một báo cáo được lắp ghép.
 
 ---

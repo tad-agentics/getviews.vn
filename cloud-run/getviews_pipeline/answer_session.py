@@ -487,9 +487,7 @@ def append_turn(
             session_fmt,
             builder_fmt,
         )
-    resolved_video_depth = (
-        analysis_depth if analysis_depth in ("basic", "deep") else "basic"
-    )
+    resolved_video_depth = "deep"
 
     def _deduct_credits(u: Any, amount: int) -> None:
         if amount <= 0:
@@ -527,7 +525,7 @@ def append_turn(
         _deduct_credits(_user_client(), 2)
         charged = 2
     elif kind == "primary":
-        charge = 2 if builder_fmt == "video" and resolved_video_depth == "deep" else 1
+        charge = 2 if builder_fmt == "video" else 1
         _deduct_credits(_user_client(), charge)
         charged = charge
     from getviews_pipeline.adaptive_window import ReportKind, choose_adaptive_window_days
@@ -789,7 +787,7 @@ def append_turn(
     elif builder_fmt == "compare":
         credits_used = 2
     elif kind == "primary":
-        credits_used = 2 if builder_fmt == "video" and resolved_video_depth == "deep" else 1
+        credits_used = 2 if builder_fmt == "video" else 1
     else:
         credits_used = 0
     row_ins = {

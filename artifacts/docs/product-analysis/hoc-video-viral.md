@@ -1,5 +1,7 @@
 # Học video viral (Cơ bản / Chuyên sâu) — Handoff Marketing
 
+> **⚠ Lịch sử (2026-05):** URL handoff từng dùng `depth=basic`. **Ship 2026-06-11:** không `?depth=`; video primary **2 credit** — xem [`system-design.md`](../system-design.md).
+
 **Phiên bản:** as-built 2026-05 · **Độc lập:** file này mô tả đầy đủ mọi cách user “học từ video viral” trên GetViews.
 
 ---
@@ -14,7 +16,7 @@
 | **2** | **Bảng xu hướng tuần** | Hỏi “hook nào đang hot trong ngách?” (không URL) | Báo cáo **Pattern** — rank hook + video mẫu |
 | **3** | **Thẻ công thức** (browse) | Mở card công thức trên Tab Xu hướng | Modal: structure / why / careful / angles (không tốn credit) |
 
-**Cơ bản / Chuyên sâu** áp dụng rõ nhất cho **#1** (cùng billing phân tích video: 1 vs 2 credit).  
+**Cơ bản / Chuyên sâu** ~~đã bỏ 2026-06-11~~ — video primary luôn **2 credit** (một tier deep).  
 **#2** không có toggle depth — “mỏng” khi corpus ít mẫu.  
 **#3** là nội dung marketing trên Trends, refresh batch 7 ngày.
 

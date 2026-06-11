@@ -199,9 +199,6 @@ def _applies_script_structure(ctx: dict, manifest: Manifest) -> bool:
 
 
 def _hook_analysis_min_salience(ctx: dict) -> float:
-    depth = str(ctx.get("analysis_depth") or "basic").strip().lower()
-    if depth == "basic":
-        return 0.45
     return HOOK_ANALYSIS_SECTION_MIN_SALIENCE
 
 
@@ -311,17 +308,6 @@ def default_section_title(section_id: str, performance_tier: str) -> str:
     )
 
 
-# §4.2 — basic depth whitelist (Win + Flop share the same set).
-BASIC_SECTION_ALLOWLIST = frozenset({
-    "diagnosis",
-    "compliance",
-    "hook_analysis",
-    "script_structure",
-    "metadata",
-    "niche_pattern",
-    "next_video",
-})
-
 # Redesign 2026-05: actionable blocks first; cap deep narrative sections.
 _REDESIGN_PRIORITY_ORDER: tuple[str, ...] = (
     "diagnosis",
@@ -386,53 +372,11 @@ def select_sections_to_emit(
     manifest: Manifest,
     ctx: dict,
     *,
-    depth: str = "basic",
+    depth: str = "deep",
 ) -> list[str]:
-    """Return section_id strings in display order (compliance forced after diagnosis).
-
-    ``depth=basic`` applies §4.2 whitelist; ``depth=deep`` keeps full salience pool.
-    Default ``basic`` matches Answer-session product default (explicit ``deep`` when billed 2×).
-    """
+    """Return section_id strings in display order (compliance forced after diagnosis)."""
     full = _select_sections_full(manifest, _ctx_with_emit_threshold(ctx, depth=depth))
-    if depth == "basic":
-        filtered = [s for s in full if s in BASIC_SECTION_ALLOWLIST]
-    else:
-        filtered = full
-    return _reorder_and_cap_sections(filtered, depth=depth)
-
-
-_BOOST_ATTRIBUTION_TEASER_VI = (
-    "Kiểm tra phân phối bất thường và benchmark đã lọc outlier"
-)
-
-
-def upsell_locked_sections(
-    manifest: Manifest,
-    ctx: dict,
-    *,
-    depth: str,
-    performance_tier: str,
-) -> list[dict[str, str | int]]:
-    """§4.11.3 — deep-only sections + manifest signal counts for post-basic upsell."""
-    if depth != "basic":
-        return []
-    deep_ids = select_sections_to_emit(manifest, ctx, depth="deep")
-    basic_ids = set(select_sections_to_emit(manifest, ctx, depth="basic"))
-    locked: list[dict[str, str | int]] = []
-    for sid in deep_ids:
-        if sid in basic_ids:
-            continue
-        row: dict[str, str | int] = {
-            "section_id": sid,
-            "title_vi": default_section_title(sid, performance_tier),
-        }
-        signal_count = len(manifest.get(sid) or [])
-        if signal_count > 0:
-            row["signal_count"] = signal_count
-        if sid == "boost_attribution":
-            row["teaser_vi"] = _BOOST_ATTRIBUTION_TEASER_VI
-        locked.append(row)
-    return locked
+    return _reorder_and_cap_sections(full, depth=depth)
 
 
 def section_ids_ordered() -> list[str]:

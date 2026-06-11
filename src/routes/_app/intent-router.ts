@@ -1,8 +1,7 @@
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
-import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
 import { nonTikTokUrlValidationMessage } from "@/lib/tiktokUrl";
 
-/** Wave 1 — §3.1 URL handoff contract (`?q=&depth=&mode=&from=`). */
+/** Wave 1 — §3.1 URL handoff contract (`?q=&mode=&from=`). Legacy `?depth=` ignored. */
 export { parseAnswerHandoffParams } from "@/lib/answerHandoff";
 
 /**
@@ -377,7 +376,6 @@ export type AnswerEntryPlan =
 export function planAnswerEntry(
   query: string,
   priorAssistant: boolean,
-  depth?: AnswerHandoffDepth,
 ): AnswerEntryPlan {
   const trimmed = query.trim();
   if (!trimmed) {
@@ -410,8 +408,8 @@ export function planAnswerEntry(
   if (dest === "channel") {
     const handleMatch = trimmed.match(/@([\w.]+)/);
     const to = handleMatch
-      ? buildChannelStudioPath({ handle: handleMatch[1], depth })
-      : buildChannelStudioPath({ depth });
+      ? buildChannelStudioPath({ handle: handleMatch[1] })
+      : buildChannelStudioPath({});
     return { kind: "redirect", to };
   }
   const format: AnswerSessionFormat =

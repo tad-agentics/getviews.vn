@@ -83,13 +83,13 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/` | Landing | Pre-rendered for SEO. Eager-loaded. |
 | `/login` `/signup` | Auth | Supabase OAuth redirect. |
 | `/auth/callback` | Auth | OAuth callback handler. |
-| `/app` | Studio Home | Auth-guarded shell. `?session=` → `/app/answer?session=`. No niche → `/app/onboarding`. Legacy `?handle=` → redirect `/app/channel`. Composer 4 pills + Cơ bản/Chuyên sâu. |
+| `/app` | Studio Home | Auth-guarded shell. `?session=` → `/app/answer?session=`. No niche → `/app/onboarding`. Legacy `?handle=` → redirect `/app/channel`. Composer 4 intent pills (video win/flop, channel, script). |
 | `/app/onboarding` | Onboarding | Single-niche picker (`profiles.creator_niche_id`). |
 | `/app/answer` | Answer | **Primary** structured video report + Q&A turns (`ReportV1`). Replaces deleted `/app/video`. |
 | `/app/history` | History | Answer sessions only via `history_union` RPC. |
 | `/app/trends` | Trends | Niche intelligence + hook effectiveness. |
 | `/app/douyin` | Douyin | Douyin trend analysis. |
-| `/app/channel` | Khám kênh | Full page `ChannelStudioPanel`. Query `?handle=`, `?depth=basic\|deep`. Legacy `/app?handle=` redirects here. Nhanh → GET `/channel/quick-peek`; Sâu → POST `/channel/diagnose`. |
+| `/app/channel` | Khám kênh | Full page `ChannelStudioPanel`. Query `?handle=` (legacy `?depth=` ignored). GET `/channel/quick-peek` benchmark strip + POST `/channel/diagnose` SSE (3 credits). |
 | `/app/script` | *(legacy shim)* | Redirects to `/app/answer` with composer `?q=` prefill. |
 | `/app/script/shoot/:draftId` | *(legacy shim)* | Redirects to `/app/answer?shoot=:draftId`. |
 | `/app/settings` | Settings | Profile + niche edit. |
@@ -156,7 +156,7 @@ This is the default path when a creator pastes a TikTok URL in Home or Answer.
 3. FE: useSessionStream({ mode: "answer_turn" })
         → POST /answer/sessions/{session_id}/turns (Supabase JWT)
 4. Cloud Run: answer_append_turn → append_turn() (answer_session.py)
-   ├─ primary kind: decrement_credit(p_amount=1) basic video; p_amount=2 when analysis_depth=deep
+   ├─ primary kind: decrement_credit(p_amount=2) for video format; p_amount=1 for non-video primaries
    ├─ script kind: decrement_credit(p_amount=3) — single atomic RPC (TD-1)
    └─ other kinds: often free (see append_turn builder matrix)
 
@@ -596,7 +596,7 @@ When adding a new pipeline (e.g., `instagram_ingest.py`):
 
 ### Credit rules (`append_turn`)
 
-- **Primary turn** (`kind = 'primary'`): 1 credit (`decrement_credit(p_amount=1)`) for basic video and non-video primaries; **2 credits** (`p_amount=2`) when `format=video` and `analysis_depth=deep`. Insufficient balance → `insufficient_credits`, no turn row (atomic RPC — no partial deduct).
+- **Primary turn** (`kind = 'primary'`): **2 credits** (`decrement_credit(p_amount=2)`) when `format=video`; **1 credit** for non-video primaries. Internal/API field `analysis_depth` is always `"deep"` (DB CHECK constraint retained; no user-facing tier). Insufficient balance → `insufficient_credits`, no turn row (atomic RPC — no partial deduct).
 - **Script turn** (`builder_fmt == "script"`): **3 credits** via single `decrement_credit(p_amount=3)` (B.4 parity with script workshop).
 - **Most other follow-up kinds** (`timing`, `creators`, `generic`, …): 0 credits on that turn.
 - Channel diagnosis (`/channel/diagnose`) bills separately (3 credits) — not via answer turns; wallet column `profiles.credits_remaining`.
@@ -811,12 +811,14 @@ Mandatory LLM sections: **verdict** + **recommendations** — fallback to raw pr
 
 ### Frontend
 
-**Composer pill channel (2026-05-24):** Pill **Khám Kênh** + Cơ bản/Chuyên sâu on Studio → `/app/channel`. `ChannelScreen` full page; legacy `/app?handle=` → `studioHomeChannelRedirectPath`. Nav tab **Khám kênh** removed.
+**Composer pill channel (2026-05-24):** Pill **Khám Kênh** on Studio → `/app/channel`. `ChannelScreen` full page; legacy `/app?handle=` → `studioHomeChannelRedirectPath`. Nav tab **Khám kênh** removed.
 
-| Depth | Hook / component | Transport |
-|-------|------------------|-----------|
-| **Cơ bản / F5 (Nhanh)** | `useChannelQuickPeek` → `ChannelBenchmarkStrip` | GET `/channel/quick-peek` (0 credit) |
-| **Chuyên sâu / F4 (Sâu)** | `useChannelDiagnose` → `ChannelDiagnosisBody` | POST `/channel/diagnose` SSE (3× credit on cache miss) |
+| Surface | Hook / component | Transport |
+|---------|------------------|-----------|
+| Benchmark strip | `useChannelQuickPeek` → `ChannelBenchmarkStrip` | GET `/channel/quick-peek` (0 credit; teaser only) |
+| Full diagnosis | `useChannelDiagnose` → `ChannelDiagnosisBody` | POST `/channel/diagnose` SSE (**3 credits** on cache miss) |
+
+**2026-06-11:** Removed user-facing basic/deep (Cơ bản/Chuyên sâu) and channel nhanh/sâu tiers. One analysis quality for video + channel; no `?depth=` in new handoff URLs.
 
 - **Hook (Sâu):** `useChannelDiagnose` — handles `score_card` SSE; exposes `scoreCard`, `channelPersona`, `peerSource`; merges terminal `payload` for replay completeness.
 - **Components:** `ChannelStudioPanel`, `ChannelBenchmarkStrip`, `ScoreCard`, `HashtagInsightsBlock`, `NextVideoCard`, `SectionRenderer`, `VideoTileRow`, `CreatorTileRow`, `NumberedRecommendation` (hero / anti grouping), `StepProgress`, `ProvenanceLine` under `src/routes/_app/channel/components/`.

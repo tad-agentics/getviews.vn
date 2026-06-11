@@ -6,7 +6,6 @@ import { IntentCtaRail } from "./IntentCtaRail";
 const ctx = {
   format: "video" as const,
   mode: "win" as const,
-  depth: "basic" as const,
   videoQuery: "https://www.tiktok.com/@a/video/1",
   scriptDraftId: null,
   evidenceVideoQuery: null,

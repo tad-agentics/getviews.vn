@@ -159,18 +159,12 @@ def _mean_signals_per_emitted_section(ctx: dict, *, depth: str) -> float:
     return float(statistics.mean(counts))
 
 
-def test_section_486_ten_video_deep_vs_basic_signal_density() -> None:
-    """Feature-map §4.8.6 — deep prompt averages ≥2 signals/section vs basic."""
+def test_section_486_ten_video_deep_signal_density() -> None:
+    """Feature-map §4.8.6 — deep prompt averages ≥2 signals/section."""
     contexts = _sample_contexts()
     assert len(contexts) == 10
 
-    basic_means = [_mean_signals_per_emitted_section(ctx, depth="basic") for ctx in contexts]
     deep_means = [_mean_signals_per_emitted_section(ctx, depth="deep") for ctx in contexts]
-
-    avg_basic = statistics.mean(basic_means)
     avg_deep = statistics.mean(deep_means)
 
     assert avg_deep >= 2.0, f"deep avg {avg_deep:.2f} < 2.0"
-    assert avg_deep > avg_basic, (
-        f"deep avg {avg_deep:.2f} not greater than basic avg {avg_basic:.2f}"
-    )

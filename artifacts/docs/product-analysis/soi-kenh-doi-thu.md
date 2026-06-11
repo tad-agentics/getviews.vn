@@ -1,5 +1,7 @@
 # Soi kênh đối thủ (Cơ bản / Chuyên sâu) — Handoff Marketing
 
+> **⚠ Lịch sử (2026-05):** Doc mô tả Nhanh (0 cr) + Sâu (3 cr). **Ship 2026-06-11:** benchmark strip (0 cr) + full diagnosis (**3 cr**), không toggle tier — xem [`system-design.md`](../system-design.md).
+
 **Phiên bản:** as-built 2026-05 · **Độc lập:** mô tả đầy đủ F5 Nhanh + F4 Sâu và cách một “bài soi kênh” được ghép.
 
 ---

@@ -6,16 +6,9 @@ import {
 } from "./channelStudioHandoff";
 
 describe("channelStudioHandoff", () => {
-  it("buildChannelStudioPath encodes handle and depth on /app/channel", () => {
-    expect(buildChannelStudioPath({ handle: "@foo", depth: "deep" })).toBe(
-      "/app/channel?handle=foo&depth=deep",
-    );
-    expect(buildChannelStudioPath({ handle: "bar", depth: "sau" })).toBe(
-      "/app/channel?handle=bar&depth=deep",
-    );
-    expect(buildChannelStudioPath({ handle: "bar", depth: "basic" })).toBe(
-      "/app/channel?handle=bar",
-    );
+  it("buildChannelStudioPath encodes handle on /app/channel", () => {
+    expect(buildChannelStudioPath({ handle: "@foo" })).toBe("/app/channel?handle=foo");
+    expect(buildChannelStudioPath({ handle: "bar" })).toBe("/app/channel?handle=bar");
   });
 
   it("studioHomeChannelRedirectPath preserves legacy /app?handle= params", () => {
@@ -23,7 +16,7 @@ describe("channelStudioHandoff", () => {
       "handle=bar&depth=sau&video_url=https%3A%2F%2Fx&force_refresh=1",
     );
     expect(studioHomeChannelRedirectPath(params)).toBe(
-      "/app/channel?handle=bar&depth=deep&video_url=https%3A%2F%2Fx&force_refresh=1",
+      "/app/channel?handle=bar&video_url=https%3A%2F%2Fx&force_refresh=1",
     );
   });
 

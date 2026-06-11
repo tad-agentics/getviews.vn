@@ -46,7 +46,6 @@ export function buildResumeAnswerStreamArgs(input: {
   } = input;
   const turnKind = pending?.turnKind ?? "primary";
   const fmt = pending?.sessionFormat ?? sessionFormat ?? null;
-  const depth = pending?.analysisDepth ?? handoff.depth;
   const videoMode = pending?.videoMode ?? handoff.mode ?? undefined;
   const base: StreamArgs = {
     mode: "answer_turn",
@@ -54,7 +53,6 @@ export function buildResumeAnswerStreamArgs(input: {
     query,
     turnKind,
     sessionFormat: fmt,
-    analysisDepth: depth,
     videoMode: fmt === "video" ? videoMode : undefined,
     sourceEntry: handoff.from ?? undefined,
   };

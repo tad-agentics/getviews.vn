@@ -158,7 +158,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
                   ? `https://www.tiktok.com/@${active.creator_handle.replace(/^@/, "")}/video/${active.video_id}`
                   : active.video_id;
                 navigate(
-                  `/app/answer?q=${encodeURIComponent(q)}&depth=basic&mode=win&from=pattern`,
+                  `/app/answer?q=${encodeURIComponent(q)}&mode=win&from=pattern`,
                 );
               }
             }}

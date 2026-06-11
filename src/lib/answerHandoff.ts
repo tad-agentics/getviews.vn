@@ -2,34 +2,22 @@ import { scriptPrefillFromQueryParams } from "./scriptPrefill";
 
 /** §3.1 — shared `/app/answer` entry query contract (incremental v1 Wave 1). */
 
-export type AnswerHandoffDepth = "basic" | "deep";
 export type AnswerHandoffMode = "win" | "flop";
 
 export type AnswerHandoffParams = {
   q: string;
-  depth?: AnswerHandoffDepth;
   mode?: AnswerHandoffMode;
   from?: string;
-  /** §4.11.2 — script composer omits depth (billing §7, not video basic/deep). */
-  includeDepth?: boolean;
 };
 
 export type ParsedAnswerHandoff = {
-  depth: AnswerHandoffDepth;
   mode: AnswerHandoffMode | null;
   from: string | null;
 };
 
-export function buildAnswerHandoffPath({
-  q,
-  depth = "basic",
-  mode,
-  from,
-  includeDepth = true,
-}: AnswerHandoffParams): string {
+export function buildAnswerHandoffPath({ q, mode, from }: AnswerHandoffParams): string {
   const params = new URLSearchParams();
   params.set("q", q);
-  if (includeDepth) params.set("depth", depth);
   if (mode) params.set("mode", mode);
   if (from) params.set("from", from);
   return `/app/answer?${params.toString()}`;
@@ -38,16 +26,14 @@ export function buildAnswerHandoffPath({
 export function parseAnswerHandoffParams(
   searchParams: URLSearchParams,
 ): ParsedAnswerHandoff {
-  const depthRaw = searchParams.get("depth");
-  const depth: AnswerHandoffDepth = depthRaw === "deep" ? "deep" : "basic";
   const modeRaw = searchParams.get("mode");
   const mode: AnswerHandoffMode | null =
     modeRaw === "win" || modeRaw === "flop" ? modeRaw : null;
   const from = searchParams.get("from")?.trim() || null;
-  return { depth, mode, from };
+  return { mode, from };
 }
 
-/** Resolve TikTok URL/`q` for depth upsell when `?q=` is absent (session-only URLs). */
+/** Resolve TikTok URL/`q` when `?q=` is absent (session-only URLs). */
 export function resolveVideoHandoffQuery(options: {
   seedQ?: string | null;
   sessionInitialQ?: string | null;
@@ -70,19 +56,18 @@ export function resolveVideoHandoffQuery(options: {
 
 /** Trends / kho video — corpus-hit win path entry. */
 export function trendsVideoHandoffPath(q: string): string {
-  return buildAnswerHandoffPath({ q, depth: "basic", mode: "win", from: "trends" });
+  return buildAnswerHandoffPath({ q, mode: "win", from: "trends" });
 }
 
-/** Inherit depth/mode from current Answer URL when drilling from evidence tiles. */
+/** Inherit mode from current Answer URL when drilling from evidence tiles. */
 export function inheritHandoffFromSearch(
   searchParams: URLSearchParams,
   q: string,
   from?: string,
 ): string {
-  const { depth, mode } = parseAnswerHandoffParams(searchParams);
+  const { mode } = parseAnswerHandoffParams(searchParams);
   return buildAnswerHandoffPath({
     q,
-    depth,
     mode: mode ?? "win",
     from: from ?? searchParams.get("from") ?? undefined,
   });
