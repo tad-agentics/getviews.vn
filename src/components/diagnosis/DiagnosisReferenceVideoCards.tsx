@@ -1,6 +1,6 @@
 /**
- * Peer reference videos under v6 diagnosis sections — one card per video with
- * narrative context above the thumbnail (GetReels-style evidence layout).
+ * Peer reference videos under v6 diagnosis sections — narrative copy above each
+ * 9:16 hover tile; handle + views overlay on the clip (Xu hướng parity).
  *
  * Inline playback (2026-06-11): tiles whose corpus row has an R2-hosted MP4
  * (`playback_url`) open the existing VideoPlayerModal in-app — the creator
@@ -83,9 +83,9 @@ function ReferenceVideoCard({
     el.currentTime = 0;
   }, []);
 
-  const tileLabel = `Video tham chiếu${handle ? ` ${handle}` : ""}${viewsLabel ? ` · ${viewsLabel}` : ""}`;
+  const tileLabel = `Video tham chiếu${handle ? ` ${handle}` : ""}${viewsLabel ? ` · ${viewsLabel}` : ""}${narrative ? `: ${narrative}` : ""}`;
 
-  const inner = (
+  const videoTile = (
     <div
       className="relative w-full overflow-hidden rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]"
       style={{ aspectRatio: "9/16" }}
@@ -116,15 +116,11 @@ function ReferenceVideoCard({
         placeholderClassName="bg-[color:var(--gv-canvas-2)]"
       />
       <div
-        className="pointer-events-none absolute inset-0 z-[15]"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 28%, transparent 55%, rgba(0,0,0,0.78) 100%)",
-        }}
+        className="pointer-events-none absolute inset-0 z-[15] bg-gradient-to-b from-transparent from-40% to-black/70"
         aria-hidden
       />
       <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 z-20 text-white">
-        <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2">
           {handle ? (
             <span className="min-w-0 truncate gv-kicker text-[11px] text-white">
               {handle}
@@ -138,12 +134,18 @@ function ReferenceVideoCard({
             </span>
           ) : null}
         </div>
-        {narrative ? (
-          <p className="m-0 line-clamp-3 text-[12px] font-medium leading-tight text-white/95">
-            {narrative}
-          </p>
-        ) : null}
       </div>
+    </div>
+  );
+
+  const inner = (
+    <div className="flex flex-col gap-2">
+      {narrative ? (
+        <p className="m-0 text-[13px] leading-[1.45] text-[color:var(--gv-ink)]">
+          {narrative}
+        </p>
+      ) : null}
+      {videoTile}
     </div>
   );
 
