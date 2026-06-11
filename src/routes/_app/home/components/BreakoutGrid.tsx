@@ -54,7 +54,7 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
   const handleLabel = v.creator_handle.startsWith("@")
     ? v.creator_handle
     : `@${v.creator_handle}`;
-  const cardLabel = v.hook_phrase
+  const analyzeLabel = v.hook_phrase
     ? `Phân tích video ${handleLabel}: ${v.hook_phrase}`
     : `Phân tích video ${handleLabel}`;
 
@@ -72,19 +72,11 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
   }, []);
 
   return (
-    <button
-      type="button"
-      aria-label={cardLabel}
-      onClick={() => {
-        logUsage("home_breakout_analyze_click", { video_id: v.video_id });
-        navigate(breakoutAnalyzePath(v));
-      }}
-      className="group flex w-full cursor-pointer flex-col rounded-none border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
+    <div className="flex w-full flex-col">
       <div
-        className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
+        className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Thumbnail — fades out when video is playing */}
         <div className={`absolute inset-0 transition-opacity duration-300 ${playing ? "opacity-0" : "opacity-100"}`}>
@@ -109,24 +101,19 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
           />
         ) : null}
 
-        {/* Hover-to-play hint — only shown when video is available and not playing */}
-        {v.video_url && !playing ? (
-          <div className="pointer-events-none absolute inset-0 z-[12] flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="white" aria-hidden>
-                <path d="M3 2.5l10 5.5-10 5.5V2.5z" />
-              </svg>
-            </div>
-          </div>
-        ) : null}
-
         <div
           className="pointer-events-none absolute inset-0 z-[15] bg-gradient-to-b from-transparent from-40% to-black/70"
           aria-hidden
         />
         <div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-between p-3.5 text-white">
           <div className="flex items-start justify-between gap-2">
-            <span className="rounded px-2 py-0.5 gv-kicker text-white bg-[color:var(--gv-accent)]">
+            <span
+              className={
+                isBreakout
+                  ? "rounded-[3px] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[color:var(--gv-paper)] bg-[color:var(--gv-accent)]"
+                  : "rounded-[3px] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[color:var(--gv-ink)] bg-[color:var(--gv-accent-2)]"
+              }
+            >
               {isBreakout ? "BỨT PHÁ" : "ĐANG THỊNH HÀNH"}
             </span>
             {v.content_type === "carousel" ? (
@@ -151,13 +138,22 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
                 Hook · {v.hook_type}
               </p>
             ) : null}
-            <div className="mt-1.5 rounded-md border border-white/25 bg-black/45 px-2.5 py-1.5 text-[11px] text-white/90 backdrop-blur-[2px]">
+            <button
+              type="button"
+              aria-label={analyzeLabel}
+              onClick={(e) => {
+                e.stopPropagation();
+                logUsage("home_breakout_analyze_click", { video_id: v.video_id });
+                navigate(breakoutAnalyzePath(v));
+              }}
+              className="pointer-events-auto mt-1.5 flex min-h-[32px] w-full cursor-pointer items-center rounded-md border border-white/25 bg-black/45 px-2 py-1 text-left text-[11px] leading-tight text-white/90 backdrop-blur-[2px] transition-colors duration-[120ms] hover:border-[color:color-mix(in_srgb,var(--gv-accent)_70%,white)] hover:bg-[color:color-mix(in_srgb,var(--gv-accent)_42%,transparent)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
+            >
               Phân tích video →
-            </div>
+            </button>
           </div>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 

@@ -275,7 +275,7 @@ function VideoCard({
                 e.stopPropagation();
                 onAnalyze();
               }}
-              className="pointer-events-auto mt-1.5 flex min-h-[44px] w-full cursor-pointer items-center rounded-md border border-white/25 bg-black/45 px-2.5 py-1.5 text-left text-[11px] text-white/90 backdrop-blur-[2px] transition-colors duration-[120ms] hover:border-[color:color-mix(in_srgb,var(--gv-accent)_70%,white)] hover:bg-[color:color-mix(in_srgb,var(--gv-accent)_42%,transparent)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
+              className="pointer-events-auto mt-1.5 flex min-h-[32px] w-full cursor-pointer items-center rounded-md border border-white/25 bg-black/45 px-2 py-1 text-left text-[11px] leading-tight text-white/90 backdrop-blur-[2px] transition-colors duration-[120ms] hover:border-[color:color-mix(in_srgb,var(--gv-accent)_70%,white)] hover:bg-[color:color-mix(in_srgb,var(--gv-accent)_42%,transparent)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
             >
               Phân tích video →
             </button>
