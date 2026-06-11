@@ -389,3 +389,24 @@ def test_live_analysis_banks_frame_capture_before_gemini() -> None:
     gemini = src.find("analyze_video,")
     assert 0 < cap < gemini, "frame capture must run before the Gemini analysis call"
     assert 'result["r2_thumbnail_url"]' in src
+
+
+# ── 8. Inline reference playback (2026-06-11) ────────────────────────
+
+
+def test_slim_reference_ships_r2_playback_only() -> None:
+    from getviews_pipeline.pipelines import _slim_reference_video
+
+    base = {
+        "aweme_id": "111",
+        "author": {"unique_id": "creator1"},
+        "statistics": {"play_count": 5000},
+    }
+    # R2-hosted corpus clip → shipped for inline playback.
+    r2_ref = {**base, "_corpus_video_url": "https://pub-x.r2.dev/videos/111.mp4"}
+    assert _slim_reference_video(r2_ref)["playback_url"] == "https://pub-x.r2.dev/videos/111.mp4"
+    # Expiring platform play URL → never shipped.
+    cdn_ref = {**base, "_corpus_video_url": "https://v16.tiktokcdn.com/play/111.mp4"}
+    assert _slim_reference_video(cdn_ref)["playback_url"] is None
+    # No clip at all → None (FE keeps the external TikTok link).
+    assert _slim_reference_video(base)["playback_url"] is None

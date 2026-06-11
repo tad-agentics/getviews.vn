@@ -177,6 +177,16 @@ def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str
     tiktok_url = None
     if author_handle and aweme_id:
         tiktok_url = f"https://tiktok.com/@{author_handle}/video/{aweme_id}"
+    # Inline playback (2026-06-11): only ship the URL when it's an R2-hosted
+    # clip from corpus ingest — never an expiring platform play URL. The FE
+    # plays these in the existing VideoPlayerModal instead of bouncing the
+    # creator out to TikTok.
+    raw_video_url = str(r.get("_corpus_video_url") or r.get("video_url") or "")
+    playback_url = (
+        raw_video_url
+        if "/videos/" in raw_video_url and "tiktokcdn" not in raw_video_url
+        else None
+    )
     prox = r.get("_proximity_score")
     out: dict[str, Any] = {
         "aweme_id": aweme_id,
@@ -188,6 +198,7 @@ def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str
         "author_handle": author_handle,
         "thumbnail_url": thumb,
         "tiktok_url": tiktok_url,
+        "playback_url": playback_url,
         "source": source,
     }
     if prox is not None:

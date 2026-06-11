@@ -12,6 +12,8 @@ export interface DiagnosisReferenceTile extends ChannelPerformerTile {
   narrative_vi?: string;
   author_handle?: string | null;
   hook_type?: string | null;
+  /** R2-hosted MP4 — present ⇒ play inline instead of linking to TikTok. */
+  playback_url?: string | null;
 }
 
 const EMBED_PROSE_TRAIL_RE =
@@ -58,6 +60,7 @@ export function mapDiagnosisEmbeddedTiles(
       narrative_vi: narrative || undefined,
       author_handle: src.author_handle ?? null,
       hook_type: src.hook_type ?? null,
+      playback_url: src.playback_url ?? null,
     });
   }
   return out;

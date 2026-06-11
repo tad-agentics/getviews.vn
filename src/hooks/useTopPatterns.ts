@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   applyBrowsableCorpusFilter,
   applyVideoCorpusNicheFilter,
+  type CorpusNicheFilterableQuery,
 } from "@/lib/corpusNicheFilter";
 import { pickPatternDisplayVideos } from "@/lib/patternDisplayVideos";
 import { supabase } from "@/lib/supabase";
@@ -115,7 +116,7 @@ function scopeQueryKey(scope: TopPatternsScope): string {
   return `c:${classes}|cn:${scope.creatorNicheId ?? ""}|n:${scope.legacyNicheId ?? ""}`;
 }
 
-function applyCorpusScope<T extends { eq: (col: string, val: number) => T; in: (col: string, val: number[]) => T; not: (col: string, op: string, val: null) => T; or: (filters: string) => T }>(
+function applyCorpusScope<T extends CorpusNicheFilterableQuery>(
   query: T,
   scope: TopPatternsScope,
 ): T {

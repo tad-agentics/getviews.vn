@@ -818,6 +818,8 @@ def _build_reference_awemes_from_rows(
             "_from_corpus": True,
             "_corpus_analysis": corpus_analysis,
             "_corpus_tiktok_url": tiktok_url,
+            # R2-hosted MP4 (corpus ingest uploads clips) — inline playback.
+            "_corpus_video_url": row.get("video_url"),
             "_corpus_scenes": corpus_analysis.get("scenes") or [],
             "_corpus_hook_analysis": corpus_analysis.get("hook_analysis") or {},
             "_corpus_content_format": row.get("content_format") or "",
@@ -853,6 +855,7 @@ def content_class_id_for_reference_pool(
 _REFERENCE_POOL_SELECT = (
     "video_id, creator_handle, views, likes, comments, shares, "
     "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
+    "video_url, "  # R2 MP4 when ingested — powers inline reference playback
     "indexed_at, content_format, content_type, content_class_id, analysis_json"
 )
 # Widen cohort when class-scoped pool is too thin (parity with REF_N / proximity pick).

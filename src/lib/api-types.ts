@@ -1096,6 +1096,8 @@ export interface ReferenceVideoCard {
   author_handle: string | null;
   thumbnail_url: string | null;
   tiktok_url: string | null;
+  /** R2-hosted MP4 from corpus ingest — present ⇒ inline playback; never an expiring CDN URL. */
+  playback_url?: string | null;
   source: "corpus" | "live_search";
 }
 
