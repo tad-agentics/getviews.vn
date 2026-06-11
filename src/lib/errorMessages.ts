@@ -48,7 +48,7 @@ export function analysisErrorCopy(error: unknown): string {
   }
 
   if (name === "EnsembleQuota" || code === "ensemble_quota") {
-    return "API tải video TikTok đã hết lượt hôm nay (reset khoảng 07:00 sáng). Thử video đã có trong Kho video, hoặc quay lại ngày mai.";
+    return "GetViews chưa phân tích được video này lúc này. Thử chọn video từ Kho video, hoặc quay lại sau.";
   }
 
   if (code === "gemini_quota_exceeded") {

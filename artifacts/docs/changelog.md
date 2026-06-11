@@ -3,7 +3,7 @@
 ## 2026-06-11 — EnsembleData daily limit → `ensemble_quota` (not `stream_failed`)
 
 - **Cloud Run:** `append_turn` maps EnsembleData code 495 / daily unit exhaustion to `ensemble_quota` + `step_error`; SSE done token carries structured code (also `gemini_quota_exceeded`).
-- **FE:** Vietnamese copy explains ED quota reset ~07:00 VN; no misleading "streaming bị ngắt" resume CTA for quota errors.
+- **FE:** User-facing copy — no API/quota jargon; suggests Kho video or retry later; no misleading "streaming bị ngắt" resume CTA.
 
 ## 2026-06-04 — Batch ingest ops (stale sweeper, shift post-processing, HI-13)
 
