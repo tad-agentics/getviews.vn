@@ -97,6 +97,8 @@ const ANSWER_ERROR_CODES = new Set([
   "invalid_payload",
   "idempotency_conflict",
   "non_tiktok_url",
+  "ensemble_quota",
+  "gemini_quota_exceeded",
 ]);
 
 /** Stream errors where TD-4 resume or a fresh primary retry may recover. */

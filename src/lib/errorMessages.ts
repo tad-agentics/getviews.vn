@@ -48,7 +48,11 @@ export function analysisErrorCopy(error: unknown): string {
   }
 
   if (name === "EnsembleQuota" || code === "ensemble_quota") {
-    return "Hệ thống tìm kiếm TikTok đang bận — thử lại sau vài phút.";
+    return "API tải video TikTok đã hết lượt hôm nay (reset khoảng 07:00 sáng). Thử video đã có trong Kho video, hoặc quay lại ngày mai.";
+  }
+
+  if (code === "gemini_quota_exceeded") {
+    return "Dịch vụ AI đang quá tải — thử lại sau 1-2 phút. Nếu lỗi tiếp diễn, liên hệ hỗ trợ.";
   }
 
   // AnswerScreen codes — these are stored as raw strings in state and

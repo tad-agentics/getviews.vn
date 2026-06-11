@@ -733,11 +733,28 @@ def append_turn(
                         ),
                     ),
                 )
-        else:
-            logger.exception(
-                "[answer/turns] build FAILED builder_fmt=%s niche=%s session=%s",
-                builder_fmt, niche_pk, session_id,
+            raise RuntimeError("gemini_quota_exceeded") from exc
+        if "Daily unit limit exhausted" in _exc_str:
+            logger.warning(
+                "[answer/turns] EnsembleData daily unit limit builder_fmt=%s session=%s",
+                builder_fmt, session_id,
             )
+            if step_queue is not None:
+                emit(
+                    step_queue,
+                    step_error(
+                        code="ensemble_quota",
+                        message_vi=(
+                            "API tải video TikTok đã hết lượt hôm nay (reset khoảng 07:00 sáng). "
+                            "Thử video đã có trong Kho video, hoặc quay lại ngày mai."
+                        ),
+                    ),
+                )
+            raise RuntimeError("ensemble_quota") from exc
+        logger.exception(
+            "[answer/turns] build FAILED builder_fmt=%s niche=%s session=%s",
+            builder_fmt, niche_pk, session_id,
+        )
         raise
     finally:
         if step_queue is not None:

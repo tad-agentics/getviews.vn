@@ -61,6 +61,8 @@ describe("analysisErrorCopy", () => {
     ["invalid_payload", /Dữ liệu gửi lên không hợp lệ/],
     ["idempotency_conflict", /Phiên đã được tạo trước đó/],
     ["non_tiktok_url", /link TikTok/i],
+    ["ensemble_quota", /hết lượt hôm nay/],
+    ["gemini_quota_exceeded", /Dịch vụ AI đang quá tải/],
   ])("translates the AnswerScreen error code %s to Vietnamese", (code, re) => {
     expect(analysisErrorCopy(code)).toMatch(re);
   });

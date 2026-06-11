@@ -263,9 +263,15 @@ async def answer_append_turn(
                 yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "session_not_found"})
                 return
             except RuntimeError as exc:
-                if str(exc) == "insufficient_credits":
+                _known = {
+                    "insufficient_credits",
+                    "ensemble_quota",
+                    "gemini_quota_exceeded",
+                }
+                code = str(exc)
+                if code in _known:
                     seq += 1
-                    yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": "insufficient_credits"})
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "done": True, "error": code})
                     return
                 raise
             except Exception as exc:

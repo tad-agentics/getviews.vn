@@ -279,3 +279,26 @@ async def test_resume_cache_miss_falls_through_to_fresh_run() -> None:
     assert len(frames) == 3
     hello = _parse_sse_frame(frames[0])
     assert hello.get("hello") is True
+
+
+@pytest.mark.asyncio
+async def test_append_turn_ensemble_daily_limit_surfaces_ensemble_quota() -> None:
+    """On-demand video fetch when ED daily units are exhausted must not
+    masquerade as a generic stream_failed drop."""
+    from getviews_pipeline.routers.answer import AnswerTurnAppendBody, answer_append_turn
+
+    body = AnswerTurnAppendBody(query="https://www.tiktok.com/@x/video/123", kind="primary")
+    user = {"user_id": "u-1", "access_token": "t"}
+
+    def fake_append_turn(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("ensemble_quota")
+
+    with patch("getviews_pipeline.answer_session.append_turn", fake_append_turn):
+        response = await answer_append_turn(
+            "sess-1", body, user=user, resume_stream_id=None, resume_from_seq=None
+        )
+        frames = [chunk async for chunk in response.body_iterator]
+
+    done = _parse_sse_frame(frames[-1])
+    assert done.get("done") is True
+    assert done.get("error") == "ensemble_quota"
