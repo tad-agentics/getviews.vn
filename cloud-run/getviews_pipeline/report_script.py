@@ -157,6 +157,9 @@ def _niche_label_sync(niche_id: int) -> str:
 
 
 def _shots_summary_for_narrative(shots: list[dict[str, Any]]) -> str:
+    """Per-shot summary incl. the matched reference (when one exists) so the
+    narrative can prove each move with a real creator's scene — the report
+    must read 'mirror cách @handle mở (250K view)', not generic advice."""
     lines: list[str] = []
     for i, shot in enumerate(shots[:6], start=1):
         t0 = shot.get("t0", 0)
@@ -164,9 +167,18 @@ def _shots_summary_for_narrative(shots: list[dict[str, Any]]) -> str:
         cam = str(shot.get("cam") or "").strip()
         voice = str(shot.get("voice") or "").strip()[:120]
         overlay = str(shot.get("overlay") or "").strip()
-        lines.append(
+        line = (
             f"Cảnh {i} ({t0}-{t1}s): cam={cam}; voice=\"{voice}\"; overlay={overlay}"
         )
+        refs = shot.get("references") or []
+        if refs and isinstance(refs[0], dict):
+            r = refs[0]
+            handle = str(r.get("creator_handle") or "").lstrip("@")
+            views = r.get("views")
+            views_s = f"{int(views):,}".replace(",", ".") if views else "?"
+            desc = str(r.get("description") or "")[:60]
+            line += f"\n  ref: @{handle or '?'} ({views_s} view) — {desc}"
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -194,13 +206,18 @@ Hook mở: {hook}
 
 Trả về JSON:
 - headline_vi: một câu headline (≤20 từ) — nêu góc quay rõ ràng
-- ket_luan_nhanh: 1-2 câu tóm tắt vì sao cấu trúc này ăn trong ngách
+- ket_luan_nhanh: 1-2 câu CHỨNG MINH format này không phải đoán — nếu cảnh nào có
+  "ref: @handle (X view)" thì nêu thẳng: "Format này đã được @handle chứng minh (X view)."
 - diagnosis_vi.sections: đúng 3 section theo thứ tự:
-  1) section_id "hook_analysis" — title_vi + text_vi (phân tích hook 0-3s)
-  2) section_id "script_structure" — title_vi + text_vi (dòng chảy 6 cảnh)
+  1) section_id "hook_analysis" — title_vi + text_vi (phân tích hook 0-3s; nếu Cảnh 1
+     có ref: so sánh trực tiếp với cách creator đó mở — "mirror cách @handle mở")
+  2) section_id "script_structure" — title_vi + text_vi (dòng chảy 6 cảnh; cảnh nào
+     có ref thì gắn 1 mệnh đề ngắn nêu creator + view làm bằng chứng cho nhịp/khung đó)
   3) section_id "next_video" — title_vi + text_vi (video tiếp theo nên quay gì)
 
-Quy tắc: cite số cụ thể khi có; không dùng từ cấm (bí mật, công thức vàng, triệu view); không mở bằng "Chào bạn"."""
+Kỷ luật câu: câu ngắn, mỗi câu một ý, mỗi câu mang số hoặc tên creator cụ thể; CẤM câu
+đệm ("có thể thấy rằng", "nhìn chung"). Cite số cụ thể khi có; không dùng từ cấm
+(bí mật, công thức vàng, triệu view); không mở bằng "Chào bạn"."""
 
     cfg = types.GenerateContentConfig(
         temperature=0.35,

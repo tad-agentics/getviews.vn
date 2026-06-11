@@ -235,3 +235,61 @@ def test_fetch_winning_hook_lines_never_raises() -> None:
     client.table.side_effect = Exception("db down")
     assert _fetch_winning_hook_lines(client, 2) == []
     assert _fetch_winning_hook_lines(None, 2) == []
+
+
+# ── 5. Prose-discipline contracts (CEO direction 2026-06-11) ─────────
+
+
+def test_channel_prompt_carries_sentence_discipline() -> None:
+    from getviews_pipeline import channel_diagnose_prompts as cdp
+
+    src = cdp.__doc__ or ""
+    # The system prompt text lives in module-level constants; scan the module source.
+    import inspect
+
+    text = inspect.getsource(cdp)
+    assert "KỶ LUẬT CÂU" in text
+    assert "khóa pattern" in text
+    assert "CẤM câu đệm" in text
+    assert "cùng video" in text  # prose and FE card must reference the same video
+    del src
+
+
+def test_video_diagnosis_prompt_carries_cadence_rules() -> None:
+    from getviews_pipeline.diagnose_prompts import build_diagnosis_v6_user_prompt
+
+    prompt = build_diagnosis_v6_user_prompt(
+        sections_to_emit=["verdict"],
+        manifest_for_llm={},
+        ctx={},
+        content_format="tutorial",
+        niche_name="Skincare",
+        corpus_size=100,
+        reference_videos=[],
+        user_analysis={},
+        user_stats={"views": 100},
+        performance_tier="average",
+        channel_context=None,
+        errors=None,
+        wants_directions=False,
+    )
+    assert "KỶ LUẬT CÂU" in prompt
+    assert "CẤM câu đệm" in prompt
+
+
+def test_script_narrative_summary_carries_shot_references() -> None:
+    from getviews_pipeline.report_script import _shots_summary_for_narrative
+
+    shots = [{
+        "t0": 0, "t1": 3, "cam": "Cận mặt", "voice": "Hook mở", "overlay": "BOLD",
+        "references": [{
+            "creator_handle": "@beautyvn", "views": 250_000,
+            "description": "Cận mặt creator nói câu mở đầu",
+        }],
+    }]
+    block = _shots_summary_for_narrative(shots)
+    assert "ref: @beautyvn (250.000 view)" in block
+    assert "Cận mặt creator" in block
+    # Shots without references stay one-line (no dangling ref label).
+    plain = _shots_summary_for_narrative([{"t0": 0, "t1": 3, "cam": "x", "voice": "y", "overlay": "z"}])
+    assert "ref:" not in plain

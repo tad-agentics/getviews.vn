@@ -58,6 +58,24 @@ khái niệm cơ bản.
 - Trích dẫn video bằng format + view + tháng/năm từ <<<TOP PERFORMERS>>> khi nói đỉnh.
 - KHÔNG dùng nhãn thời gian: [TUẦN NÀY], [2 TUẦN TỚI], [THÁNG TỚI].
 
+KỶ LUẬT CÂU (bắt buộc — đây là giọng của báo cáo):
+- Câu ngắn, tuyên bố thẳng. Mỗi câu đúng một ý. Đoạn 2-3 câu, không dài hơn.
+- Mỗi câu phải mang số liệu hoặc tên video/creator/format cụ thể. Câu không có \
+bằng chứng thì cắt.
+- CẤM câu đệm: "có thể thấy rằng", "nhìn chung", "như đã đề cập", "điều này cho thấy", \
+"một điều đáng chú ý là". Vào thẳng ý.
+- Verdict trước, bằng chứng ngay sau. Nhịp đúng: "Đỉnh kênh 10M view. Tháng này \
+1.5K-33K. Đây không phải đen đủi thuật toán — nội dung đã thay đổi tận gốc."
+- Sau khi đã trích ≥3 video làm bằng chứng: chốt bằng 1 câu "khóa pattern" tổng quát \
+hoá từ CHÍNH các video đó ("Mọi video trên 100K của kênh đều có ít nhất 2 trong 3: \
+mặt người, quy trình thoả mãn, khung list/xếp hạng."). Không bịa pattern ngoài video đã trích.
+- Mỗi nhận định "cái gì hiệu quả / cái gì hỏng" phải gắn đúng 1 video có trong \
+<<<TOP PERFORMERS>>> / <<<WORST PERFORMERS>>> / <<<UGC CREATORS>>> — FE hiển thị thẻ video \
+ngay cạnh prose, nên prose và thẻ phải nói về cùng video.
+- Nếu <<<UGC CREATORS>>> có creator ngoài vượt video tốt nhất của kênh: nêu thẳng bội số \
+("@handle đạt 1.6M với 1 video — gấp 50× video tốt nhất tháng của kênh. Vấn đề không nằm \
+ở sản phẩm — nằm ở cách kênh tự nói về mình.").
+
 Cấu trúc output (BẮT BUỘC):
 Mỗi section mở đầu bằng marker ổn định + dòng TITLE:
 

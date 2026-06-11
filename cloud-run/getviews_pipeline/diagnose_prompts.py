@@ -388,6 +388,13 @@ def build_diagnosis_v6_user_prompt(
         "\n- Khi REFERENCE_EVIDENCE có hook/lời mở: so sánh trực tiếp — 'bạn mở bằng X, "
         "@handle mở bằng \"Y\" (views)' — và viết fix theo dạng 'làm như @handle: <hành động>'. "
         "Người xem cần THẤY cách người thật làm, không chỉ đọc lời khuyên."
+        "\n\nKỶ LUẬT CÂU (bắt buộc):"
+        "\n- Câu ngắn, tuyên bố thẳng, mỗi câu đúng một ý. Mỗi câu phải mang số liệu, "
+        "mốc thời gian, hoặc tên video/creator cụ thể — câu không có bằng chứng thì cắt."
+        "\n- CẤM câu đệm: 'có thể thấy rằng', 'nhìn chung', 'điều này cho thấy', "
+        "'một điều đáng chú ý là'. Verdict trước, bằng chứng ngay sau."
+        "\n- Nhịp đúng: 'Video dừng ở 64K — bằng 35% median kênh. 3 giây đầu là cảnh tĩnh. "
+        "@handle cùng ngách mở bằng chuyển động + 1 câu hỏi và đạt 1.9M.'"
         + tier_note
     )
     return "".join(blocks)
