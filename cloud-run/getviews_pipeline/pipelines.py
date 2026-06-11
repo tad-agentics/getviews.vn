@@ -512,7 +512,7 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
         client = get_service_client()
         res = (
             client.table("video_corpus")
-            .select("video_id, caption, views, content_format, posted_at, indexed_at")
+            .select("video_id, caption, views, content_format, posted_at, indexed_at, analysis_json")
             .eq("creator_handle", handle)
             .neq("video_id", vid)
             .order("posted_at", desc=True)
@@ -596,6 +596,15 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
         dom_p = _dominant_creator_persona_from_corpus(client, handle, vid)
         if dom_p:
             out_ctx["dominant_creator_persona"] = dom_p
+        # P3 follow-up (2026-06-11) — per-feature audit over the same rows
+        # (face/hook/overlay/audio-role counts) so the video report can say
+        # "this video has no face — and neither do your last N". Zero extra
+        # queries; absent when too few rows carry analysis_json.
+        from getviews_pipeline.channel_diagnose import compute_recent_content_audit
+
+        audit = compute_recent_content_audit(videos, recent_total=len(videos))
+        if audit:
+            out_ctx["recent_content_audit"] = audit
         return out_ctx
     except Exception as exc:
         msg = str(exc)[:80]

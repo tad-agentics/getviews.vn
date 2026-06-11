@@ -253,3 +253,58 @@ def test_brand_ugc_flag_default_off() -> None:
     from getviews_pipeline import config
 
     assert config.BRAND_UGC_SEARCH_ENABLED is False
+
+
+# ── P3 follow-up: audit inside video_diagnosis channel context ────────
+
+
+def test_channel_context_sync_attaches_audit() -> None:
+    from unittest.mock import MagicMock
+
+    from getviews_pipeline.pipelines import fetch_channel_context_sync
+
+    rows = [
+        {**_row(500_000, face=True), "video_id": f"v{i}", "caption": "c",
+         "content_format": "talking_head", "posted_at": "2026-06-01"}
+        for i in range(2)
+    ] + [
+        {**_row(20_000, face=False, hook=False, role="silent"), "video_id": f"w{i}",
+         "caption": "c", "content_format": "product_shot", "posted_at": "2026-05-20"}
+        for i in range(2)
+    ]
+    client = MagicMock()
+    (client.table.return_value.select.return_value.eq.return_value
+     .neq.return_value.order.return_value.limit.return_value
+     .execute.return_value) = type("R", (), {"data": rows})()
+    with patch("getviews_pipeline.pipelines.get_service_client", return_value=client), patch(
+        "getviews_pipeline.pipelines._dominant_creator_persona_from_corpus",
+        return_value=None,
+    ):
+        ctx = fetch_channel_context_sync("creator", "current-vid")
+    assert ctx["available"] is True
+    audit = ctx.get("recent_content_audit")
+    assert audit is not None
+    assert audit["videos_scanned"] == 4
+    assert audit["face_videos"] == 2
+
+
+def test_trim_channel_context_passes_audit_through() -> None:
+    from getviews_pipeline.diagnose_prompts import _trim_channel_context
+
+    audit = {"videos_scanned": 5, "face_videos": 1, "hook_videos": 2,
+             "overlay_videos": 3, "audio_roles": {"silent": 4}}
+    trimmed = _trim_channel_context({
+        "available": True, "sample_size": 5, "median_views": 1000,
+        "recent_content_audit": audit,
+    })
+    assert trimmed["recent_content_audit"] == audit
+    # Absent → key absent (no empty-dict noise in the prompt payload).
+    trimmed_no = _trim_channel_context({"available": True, "sample_size": 5})
+    assert "recent_content_audit" not in trimmed_no
+
+
+def test_v6_rules_allow_audit_citation_in_channel_pattern() -> None:
+    from getviews_pipeline.diagnose_prompts import DIAGNOSIS_V6_JSON_INSTRUCTION
+
+    assert "recent_content_audit" in DIAGNOSIS_V6_JSON_INSTRUCTION
+    assert "KHÔNG suy đoán ngoài số đếm" in DIAGNOSIS_V6_JSON_INSTRUCTION

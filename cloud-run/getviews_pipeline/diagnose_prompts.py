@@ -65,6 +65,7 @@ REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
 
 CHANNEL_PATTERN (Ref-style: kênh tự chứng minh):
 - Dùng channel_context: trích số cụ thể (top video X views, bottom Y views, mức view thường của kênh). 1 câu verdict in đậm: video này so với mức thường của kênh thế nào + creator nên nhân đôi cái gì. Tối đa 2 câu. Nếu source="live": ghi chú nhẹ dữ liệu kênh là live.
+- Nếu channel_context.recent_content_audit có mặt: được trích số đếm thật để nối video này với pattern kênh («video này không có mặt người — X/Y video gần nhất của kênh cũng vậy»; avg_views_with_face vs without nếu có). KHÔNG suy đoán ngoài số đếm.
 
 NEXT_VIDEO (script copy-paste được, KHÔNG concept trừu tượng):
 - next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" }; findings: [].
@@ -137,6 +138,12 @@ def _trim_channel_context(cc: dict[str, Any] | None) -> dict[str, Any]:
         "best_performing_format": cc.get("best_performing_format"),
         "performance_tier": cc.get("performance_tier"),
     }
+    # P3 follow-up — compact per-feature counts (face/hook/overlay/audio role)
+    # over the creator's recent analysed corpus rows. Already count-shaped,
+    # so it passes through whole.
+    audit = cc.get("recent_content_audit")
+    if isinstance(audit, dict) and audit:
+        out["recent_content_audit"] = audit
     top = cc.get("top_videos") or []
     bottom = cc.get("bottom_videos") or []
     if top:
