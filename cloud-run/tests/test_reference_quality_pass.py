@@ -328,3 +328,64 @@ def test_mirror_runs_even_when_queue_enqueue_fails() -> None:
         "2026-06-11 decoupling fix"
     )
     del asyncio
+
+
+# ── 7. Frame-first thumbnails (2026-06-11 directive) ─────────────────
+
+
+def test_capture_returns_none_when_r2_unconfigured(tmp_path) -> None:
+    from getviews_pipeline.r2 import capture_thumbnail_from_video
+
+    vid_file = tmp_path / "v.mp4"
+    vid_file.write_bytes(b"\x00" * 64)
+    # r2 unconfigured in tests → hard None, never raises.
+    assert capture_thumbnail_from_video(vid_file, "v1") is None
+
+
+def test_capture_skips_when_thumbnail_already_exists(monkeypatch, tmp_path) -> None:
+    from getviews_pipeline import r2
+
+    monkeypatch.setattr(r2, "r2_configured", lambda: True)
+    monkeypatch.setattr(r2, "_ffmpeg_available", lambda: True)
+    monkeypatch.setattr(r2, "r2_public_thumbnail_exists", lambda vid: True)
+    monkeypatch.setattr(r2, "r2_public_thumbnail_url", lambda vid: f"https://r2/thumbnails/{vid}.webp")
+    vid_file = tmp_path / "v.mp4"
+    vid_file.write_bytes(b"\x00" * 64)
+    assert r2.capture_thumbnail_from_video(vid_file, "v1") == "https://r2/thumbnails/v1.webp"
+
+
+def test_resolve_prefers_fresh_frame_over_existing_cover_webp(monkeypatch) -> None:
+    """prefer_frame=True must OVERWRITE a cover-mirrored webp with the real
+    frame — the video's opening frame beats the platform's default cover."""
+    import asyncio
+
+    from getviews_pipeline import r2
+
+    monkeypatch.setattr(r2, "copy_first_frame_to_thumbnail", lambda vid: f"https://r2/thumbnails/{vid}.webp")
+    # exists-check would short-circuit without prefer_frame:
+    monkeypatch.setattr(r2, "r2_public_thumbnail_exists", lambda vid: True)
+    monkeypatch.setattr(r2, "r2_public_thumbnail_url", lambda vid: "https://r2/OLD-cover.webp")
+
+    out = asyncio.run(
+        r2.resolve_ingest_thumbnail_url("v9", "https://cdn/x.jpg", prefer_frame=True)
+    )
+    assert out == "https://r2/thumbnails/v9.webp"  # frame transcode won
+
+    out2 = asyncio.run(
+        r2.resolve_ingest_thumbnail_url("v9", "https://cdn/x.jpg", prefer_frame=False)
+    )
+    assert out2 == "https://r2/OLD-cover.webp"  # legacy behaviour unchanged
+
+
+def test_live_analysis_banks_frame_capture_before_gemini() -> None:
+    """Source tripwire: _analyze_video must capture the frame after download
+    and BEFORE the Gemini call, and thread r2_thumbnail_url into the result."""
+    import inspect
+
+    from getviews_pipeline import analysis_core
+
+    src = inspect.getsource(analysis_core._analyze_video)
+    cap = src.find("capture_thumbnail_from_video")
+    gemini = src.find("analyze_video,")
+    assert 0 < cap < gemini, "frame capture must run before the Gemini analysis call"
+    assert 'result["r2_thumbnail_url"]' in src

@@ -202,6 +202,19 @@ async def _analyze_video(
             }
         except Exception as e:
             return {"error": str(e), "metadata": metadata.model_dump()}
+        # Frame-first thumbnail (2026-06-11): we hold the video bytes right
+        # now — capture the opening frame to R2 so this video's tile never
+        # depends on TikTok's expiring CDN cover. Banked BEFORE Gemini so
+        # even an analysis timeout leaves a permanent thumbnail behind.
+        r2_thumb_url: str | None = None
+        try:
+            from getviews_pipeline.r2 import capture_thumbnail_from_video
+
+            r2_thumb_url = await asyncio.get_event_loop().run_in_executor(
+                None, capture_thumbnail_from_video, video_path, metadata.video_id,
+            )
+        except Exception as exc:  # noqa: BLE001 — thumbnail must never block analysis
+            logger.warning("[analysis_core] frame capture failed %s: %s", metadata.video_id, exc)
         try:
             loop = asyncio.get_event_loop()
             try:
@@ -241,12 +254,17 @@ async def _analyze_video(
             }
         except Exception as e:
             return {"error": str(e), "metadata": metadata.model_dump()}
-        return await _finish_analysis(
+        result = await _finish_analysis(
             metadata=metadata,
             analysis_obj=analysis,
             metadata_for_diagnosis=metadata.model_dump(),
             include_diagnosis=include_diagnosis,
         )
+        # Same key contract as _analyze_carousel — corpus_ingest and the
+        # report meta prefer this permanent URL over the platform cover.
+        if r2_thumb_url and isinstance(result, dict) and not result.get("error"):
+            result["r2_thumbnail_url"] = r2_thumb_url
+        return result
     finally:
         if video_path is not None and video_path.exists():
             try:

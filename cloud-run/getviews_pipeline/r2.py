@@ -448,6 +448,56 @@ def _transcode_local_image_to_webp_thumbnail(video_id: str, src_path: Path) -> s
         out_path.unlink(missing_ok=True)
 
 
+def capture_thumbnail_from_video(
+    video_path: Path,
+    video_id: str,
+    *,
+    timestamp_s: float = 0.6,
+    overwrite: bool = False,
+) -> str | None:
+    """Grab ONE frame from a LOCAL video file → 360w WebP on R2.
+
+    The frame-first thumbnail primitive (CEO direction 2026-06-11: never
+    depend on TikTok's expiring CDN covers — whenever we hold the video
+    bytes, the thumbnail comes from the video itself). Used by the live
+    on-demand analysis path right after download, before the temp file is
+    deleted. ~100ms of ffmpeg; sync — call via ``run_in_executor``.
+
+    ``timestamp_s`` defaults inside the hook window (0.6s) so the tile
+    shows the actual opening frame, not a black lead-in at t=0.
+    Never raises; returns the public URL or None.
+    """
+    if not r2_configured() or not _ffmpeg_available():
+        return None
+    if not video_path.exists():
+        return None
+    if not overwrite and r2_public_thumbnail_exists(video_id):
+        return r2_public_thumbnail_url(video_id)
+
+    run_id = uuid.uuid4().hex[:8]
+    out_path = Path("/tmp") / f"thumb_cap_{video_id}_{run_id}{_THUMB_EXT}"
+    cmd = [
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-nostdin",
+        "-ss", f"{max(0.0, float(timestamp_s)):.2f}",
+        "-i", str(video_path),
+        "-frames:v", "1",
+        "-vf", f"scale={_THUMB_SCALE_WIDTH}:-2",
+        "-c:v", "libwebp",
+        "-quality", str(_THUMB_WEBP_QUALITY),
+        str(out_path),
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=30)
+        if not out_path.exists() or out_path.stat().st_size == 0:
+            return None
+        return _put_thumbnail_webp(video_id, out_path.read_bytes())
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        logger.warning("[r2] frame capture failed %s: %s", video_id, exc)
+        return None
+    finally:
+        out_path.unlink(missing_ok=True)
+
+
 def copy_first_frame_to_thumbnail(video_id: str) -> str | None:
     """Derive a 360w WebP user-facing thumbnail from frame[0] (or legacy PNG).
 
@@ -830,6 +880,8 @@ def is_r2_pub_thumbnail_db_url(url: str | None) -> bool:
 async def resolve_ingest_thumbnail_url(
     video_id: str,
     existing_thumbnail_url: str | None,
+    *,
+    prefer_frame: bool = False,
 ) -> str | None:
     """Ensure corpus upsert gets a permanent 360w WebP ``thumbnail_url``.
 
@@ -838,9 +890,22 @@ async def resolve_ingest_thumbnail_url(
     transcodes from ``frames/0.png`` or legacy ``thumbnails/*.png`` on R2, then
     mirrors a non-R2 platform CDN URL. Stale R2 DB URLs are not used as CDN
     sources (they 403/404 from datacenter IPs).
+
+    ``prefer_frame=True`` (frame-first directive 2026-06-11): when THIS run
+    just uploaded fresh ``frames/{id}/*`` from the actual video, transcode
+    frame[0] FIRST — overwriting any webp that was previously mirrored from
+    a TikTok CDN cover. The video's own opening frame always beats the
+    platform's default cover.
     """
     existing = (existing_thumbnail_url or "").strip()
     loop = asyncio.get_event_loop()
+
+    if prefer_frame:
+        transcoded = await loop.run_in_executor(
+            None, copy_first_frame_to_thumbnail, video_id,
+        )
+        if transcoded:
+            return transcoded
 
     if await loop.run_in_executor(None, r2_public_thumbnail_exists, video_id):
         return r2_public_thumbnail_url(video_id) or existing or None

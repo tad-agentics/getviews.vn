@@ -854,7 +854,12 @@ def _response_from_diagnostics_row(
             # don't have to special-case.
             "save_rate": _normalise_save_rate(video),
             "duration_sec": dur,
-            "thumbnail_url": video.get("thumbnail_url"),
+            # Frame-first (2026-06-11): the permanent R2 frame capture from
+            # the live analysis beats the platform cover — without this, the
+            # stored turn payload carried an expiring tiktokcdn URL and the
+            # user's own tile went gray when revisiting history weeks later.
+            "thumbnail_url": analysis.get("r2_thumbnail_url")
+            or video.get("thumbnail_url"),
             "date_posted": (video.get("created_at") or "")[:10]
             if video.get("created_at")
             else None,
@@ -2328,7 +2333,16 @@ def _build_video_dict_from_aweme(
         "engagement_rate": float(metadata.engagement_rate or 0.0),
         "caption": (metadata.description or str(aweme.get("desc") or "")).strip()
         or None,
-        "thumbnail_url": metadata.thumbnail_url,
+        # Frame-first (2026-06-11): the live analysis captured a permanent
+        # R2 frame from the downloaded video — never store the expiring
+        # platform cover when we have it.
+        "thumbnail_url": (
+            (analyze_result.get("analysis") or {}).get("r2_thumbnail_url")
+            if isinstance(analyze_result.get("analysis"), dict)
+            else None
+        )
+        or analyze_result.get("r2_thumbnail_url")
+        or metadata.thumbnail_url,
         "created_at": created_iso,
         "niche_id": niche_id,
         # The Gemini-driven analysis dict — same shape as a corpus row's

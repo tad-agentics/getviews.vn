@@ -2738,6 +2738,10 @@ async def _ingest_candidate_awemes(
             return await resolve_ingest_thumbnail_url(
                 str(row["video_id"]),
                 row.get("thumbnail_url"),
+                # Frame-first (2026-06-11): rows whose frames were just
+                # extracted from the actual video overwrite any webp that
+                # was previously mirrored from a TikTok CDN cover.
+                prefer_frame=bool(row.get("frame_urls")),
             )
 
         thumb_tasks = [_row_thumbnail(row) for row in rows]
