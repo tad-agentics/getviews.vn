@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router";
-import * as RadioGroup from "@radix-ui/react-radio-group";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -8,18 +7,13 @@ import { AppLayout } from "@/components/AppLayout";
 import { MobileShellStandalone } from "@/components/MobileShellStandalone";
 import { supabase } from "@/lib/supabase";
 
-type PaymentMethod = "momo" | "bank_transfer" | "vietqr";
-
 type CheckoutState = {
   plan?: string;
   billingPeriod?: "monthly" | "biannual" | "annual";
 };
 
-const paymentOptions: { value: PaymentMethod; label: string }[] = [
-  { value: "momo", label: "MoMo" },
-  { value: "vietqr", label: "VietQR" },
-  { value: "bank_transfer", label: "Chuyển khoản ngân hàng" },
-];
+/** PayOS bank transfer — sole production payment rail. */
+const PAYOS_PAYMENT_METHOD = "bank_transfer" as const;
 
 const ORDER_COPY: Record<
   string,
@@ -37,57 +31,24 @@ const ORDER_COPY: Record<
   pack_50: { title: "50 phân tích", subtitle: "Mua thêm", amount: "550.000đ" },
 };
 
-function PaymentMethodIcon({ method }: { method: PaymentMethod }) {
-  const config = {
-    momo: { label: "MM", bg: "#fce4f0", color: "#a9135d" },
-    vietqr: { label: "QR", bg: "#deeaff", color: "#0b3f99" },
-    bank_transfer: { label: "Bank", bg: "#d4edda", color: "#2d7d46" },
-  }[method];
-
-  return (
-    <div
-      className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-      style={{ background: config.bg }}
-    >
-      <span className="text-[11px] font-bold" style={{ color: config.color }}>
-        {config.label}
-      </span>
-    </div>
-  );
-}
-
 export default function CheckoutScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as CheckoutState | null;
   const plan = state?.plan;
 
-  const defaultMethod = useMemo((): PaymentMethod => {
-    const bp = state?.billingPeriod;
-    if (bp === "annual" || bp === "biannual") return "bank_transfer";
-    return "momo";
-  }, [state?.billingPeriod]);
-
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultMethod);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const payosStartedRef = useRef(false);
 
-  useEffect(() => {
-    setPaymentMethod(defaultMethod);
-  }, [defaultMethod]);
-
-  if (!plan || !ORDER_COPY[plan]) {
-    return <Navigate to="/app/settings?section=billing&pricing=1" replace />;
-  }
-
-  const order = ORDER_COPY[plan];
-
-  async function handlePay() {
+  const startPayosCheckout = useCallback(async () => {
+    if (!plan) return;
     setSubmitError(null);
     setSubmitting(true);
+    let redirected = false;
     try {
       const { data, error } = await supabase.functions.invoke("create-payment", {
-        body: { plan, payment_method: paymentMethod },
+        body: { plan, payment_method: PAYOS_PAYMENT_METHOD },
       });
       if (error) {
         setSubmitError("Thanh toán không thành công — thử lại.");
@@ -102,6 +63,7 @@ export default function CheckoutScreen() {
       }
       const checkoutUrl = payload?.checkoutUrl?.trim();
       if (checkoutUrl) {
+        redirected = true;
         window.location.href = checkoutUrl;
         return;
       }
@@ -111,9 +73,22 @@ export default function CheckoutScreen() {
       setSubmitError("Thanh toán không thành công — thử lại.");
       toast.error("Thanh toán không thành công — thử lại.");
     } finally {
-      setSubmitting(false);
+      if (!redirected) setSubmitting(false);
     }
+  }, [plan]);
+
+  useEffect(() => {
+    if (!plan || !ORDER_COPY[plan]) return;
+    if (payosStartedRef.current) return;
+    payosStartedRef.current = true;
+    void startPayosCheckout();
+  }, [plan, startPayosCheckout]);
+
+  if (!plan || !ORDER_COPY[plan]) {
+    return <Navigate to="/app/settings?section=billing&pricing=1" replace />;
   }
+
+  const order = ORDER_COPY[plan];
 
   return (
     <AppLayout enableMobileSidebar>
@@ -125,6 +100,7 @@ export default function CheckoutScreen() {
               type="button"
               onClick={() => navigate("/app/settings?section=billing&pricing=1")}
               className="mt-14 lg:mt-0 inline-flex min-h-[44px] min-w-[44px] items-center text-sm text-[var(--muted)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
+              disabled={submitting && !submitError}
             >
               ← Quay lại
             </button>
@@ -142,51 +118,31 @@ export default function CheckoutScreen() {
               </div>
             </div>
 
-            <div>
-              <h3 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide mb-2">
                 Phương thức thanh toán
-              </h3>
-              <RadioGroup.Root
-                value={paymentMethod}
-                onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
-              >
-                <div className="space-y-2">
-                  {paymentOptions.map(({ value, label }) => (
-                    <RadioGroup.Item
-                      key={value}
-                      value={value}
-                      className="w-full flex items-center gap-3 min-h-[44px] p-4 bg-[var(--surface)] border rounded-xl cursor-pointer transition-all duration-[120ms] data-[state=checked]:border-[var(--gv-accent)] data-[state=checked]:bg-[var(--gv-accent-soft)] hover:border-[var(--gv-ink)]"
-                    >
-                      <div
-                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors duration-[120ms] ${
-                          paymentMethod === value ? "border-[var(--gv-accent)]" : "border-[var(--border)]"
-                        }`}
-                      >
-                        {paymentMethod === value && <div className="w-2 h-2 rounded-full bg-[var(--gv-accent)]" />}
-                      </div>
-                      <PaymentMethodIcon method={value} />
-                      <span className="font-medium text-sm text-[var(--ink)]">{label}</span>
-                    </RadioGroup.Item>
-                  ))}
-                </div>
-              </RadioGroup.Root>
+              </p>
+              <p className="font-mono text-sm font-semibold text-[var(--ink)]">PayOS Chuyển khoản</p>
+              {submitting && !submitError ? (
+                <p className="mt-3 flex items-center gap-2 text-sm text-[var(--muted)]">
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--gv-accent)]" aria-hidden />
+                  Đang chuyển đến cổng thanh toán PayOS…
+                </p>
+              ) : null}
             </div>
 
-            <Button
-              fullWidth
-              className="h-12 text-sm"
-              onClick={() => void handlePay()}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <span className="inline-flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  Đang xử lý...
-                </span>
-              ) : (
-                "Xác nhận thanh toán"
-              )}
-            </Button>
+            {submitError ? (
+              <Button fullWidth className="h-12 text-sm" onClick={() => void startPayosCheckout()} disabled={submitting}>
+                {submitting ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    Đang xử lý...
+                  </span>
+                ) : (
+                  "Thử lại thanh toán PayOS"
+                )}
+              </Button>
+            ) : null}
             {submitError ? <p className="text-sm text-destructive text-center">{submitError}</p> : null}
           </div>
         </div>
