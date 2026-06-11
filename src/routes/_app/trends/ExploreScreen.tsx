@@ -33,11 +33,8 @@ import { looksLikeNonVietnameseCaption } from "@/lib/nonVietnameseFilter";
 import {
   TrendingSoundsSection,
 } from "@/components/explore/TrendingSoundsSection";
-import {
-  CorpusVideoPreviewDialog,
-  type CorpusVideoPreviewItem,
-} from "@/components/explore/CorpusVideoPreviewDialog";
 import { type ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
+import { trendsVideoHandoffPath } from "@/lib/answerHandoff";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import {
   legacyNicheIdForCreatorNiche,
@@ -151,26 +148,24 @@ function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
   };
 }
 
-function exploreVideoPreviewItem(v: ExploreGridVideo): CorpusVideoPreviewItem {
-  const thumbUrl = v.img && v.img !== PLACEHOLDER_THUMB ? v.img : null;
-  return {
-    video_id: v.video_id,
-    title: v.text || v.caption,
-    subtitle: `${v.handle} · ↑ ${v.views}`,
-    thumbnail_url: thumbUrl,
-    tiktok_url: v.tiktok_url,
-    video_url: v.videoUrl?.trim() || null,
-  };
+function exploreVideoAnalyzePath(video: ExploreGridVideo): string {
+  const cleanHandle = video.handle?.replace(/^@/, "") ?? "";
+  const q =
+    video.tiktok_url?.trim() ||
+    (cleanHandle
+      ? `https://www.tiktok.com/@${cleanHandle}/video/${video.video_id}`
+      : video.video_id);
+  return trendsVideoHandoffPath(q);
 }
 
-/* --- Video Thumbnail Card (UIUX `trends.jsx` `VideoTile`: one button, navigate) --- */
+/* --- Video Thumbnail Card: hover tile = clip preview; chip = analyze handoff --- */
 function VideoCard({
   video,
-  onNavigate,
+  onAnalyze,
   onThumbFailed,
 }: {
   video: ExploreGridVideo;
-  onNavigate?: () => void;
+  onAnalyze?: () => void;
   /** Hide grid tile when every R2/CDN thumb candidate 404s (phantom R2 row). */
   onThumbFailed?: (videoId: string) => void;
 }) {
@@ -199,25 +194,16 @@ function VideoCard({
     el.currentTime = 0;
   }, []);
 
-  const cardLabel = onNavigate
-    ? video.text
-      ? `Phân tích video ${video.handle}: ${video.text}`
-      : `Phân tích video ${video.handle}`
-    : video.text
-      ? `Video ${video.handle}: ${video.text}`
-      : `Video ${video.handle}`;
+  const analyzeLabel = video.text
+    ? `Phân tích video ${video.handle}: ${video.text}`
+    : `Phân tích video ${video.handle}`;
 
   const br = video.breakoutMultiplier;
   const showBreakout = br != null && br >= 1.5;
   const showViral = Boolean(video.isViral);
 
   return (
-    <button
-      type="button"
-      aria-label={cardLabel}
-      onClick={() => onNavigate?.()}
-      className="flex w-full cursor-pointer flex-col rounded-none border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
-    >
+    <div className="flex w-full flex-col">
       <div
         className="relative overflow-hidden rounded-lg bg-[var(--surface-alt)] border border-[var(--border)] transition-colors duration-[120ms] hover:border-[var(--gv-ink)]"
         style={{ aspectRatio: "9/16" }}
@@ -281,14 +267,22 @@ function VideoCard({
             </span>
           </div>
           <p className="line-clamp-2 text-[12px] font-medium leading-tight">{video.text || video.caption}</p>
-          {onNavigate ? (
-            <div className="mt-1.5 rounded-md border border-white/25 bg-black/45 px-2.5 py-1.5 text-[11px] text-white/90 backdrop-blur-[2px]">
+          {onAnalyze ? (
+            <button
+              type="button"
+              aria-label={analyzeLabel}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAnalyze();
+              }}
+              className="pointer-events-auto mt-1.5 flex min-h-[44px] w-full cursor-pointer items-center rounded-md border border-white/25 bg-black/45 px-2.5 py-1.5 text-left text-[11px] text-white/90 backdrop-blur-[2px] transition-colors duration-[120ms] hover:border-[color:color-mix(in_srgb,var(--gv-accent)_70%,white)] hover:bg-[color:color-mix(in_srgb,var(--gv-accent)_42%,transparent)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)]"
+            >
               Phân tích video →
-            </div>
+            </button>
           ) : null}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -509,12 +503,6 @@ export default function ExploreScreen() {
   const formatMenuRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [corpusPreview, setCorpusPreview] = useState<ExploreGridVideo | null>(null);
-  /** Defer open to the next task so the opening click's pointer-up cannot be treated as "outside" the portal content (Radix dismiss). */
-  const openCorpusPreview = useCallback((video: ExploreGridVideo) => {
-    window.setTimeout(() => setCorpusPreview(video), 0);
-  }, []);
-
   // Trends niche selection — local state only since 2026-05-05 (PR4 of
   // single-niche refactor). Default = the user's profile niche; pill
   // clicks let the user transiently browse other niches without altering
@@ -1124,7 +1112,10 @@ export default function ExploreScreen() {
                   >
                     <VideoCard
                       video={video}
-                      onNavigate={() => openCorpusPreview(video)}
+                      onAnalyze={() => {
+                        logUsage("trends_corpus_analyze_click", { video_id: video.video_id });
+                        navigate(exploreVideoAnalyzePath(video));
+                      }}
                       onThumbFailed={onExploreThumbFailed}
                     />
                   </motion.div>
@@ -1156,28 +1147,6 @@ export default function ExploreScreen() {
           </aside>
           ) : null}
         </div>
-        <CorpusVideoPreviewDialog
-          video={corpusPreview ? exploreVideoPreviewItem(corpusPreview) : null}
-          open={corpusPreview != null}
-          onOpenChange={(next) => {
-            if (!next) setCorpusPreview(null);
-          }}
-          onAnalyze={() => {
-            const v = corpusPreview;
-            if (!v) return;
-            setCorpusPreview(null);
-            const cleanHandle = v.handle?.replace(/^@/, "") ?? "";
-            const q = cleanHandle
-              ? `https://www.tiktok.com/@${cleanHandle}/video/${v.video_id}`
-              : v.video_id;
-            navigate(
-              `/app/answer?q=${encodeURIComponent(q)}&depth=basic&mode=win&from=trends`,
-            );
-          }}
-          showTikTokLinkButton={false}
-          analyzeLabel="Giải mã video này"
-          description="Xem video TikTok trong nền tảng trước khi mở phân tích"
-        />
       </div>
     </AppLayout>
   );
