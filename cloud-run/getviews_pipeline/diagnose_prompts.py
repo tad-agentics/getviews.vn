@@ -14,7 +14,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
 ```json
 {
   "diagnosis_vi": {
-    "headline_vi": "một câu ≤16 từ — verdict dứt khoát + đòn bẩy lớn nhất (KHÔNG kiểu 'tốt nhưng cần tối ưu')",
+    "headline_vi": "một câu ≤16 từ — verdict dứt khoát + đòn bẩy lớn nhất, gọi đúng CƠ CHẾ kèm mốc giây khi evidence có («0-3s không có người nói») — KHÔNG triệu chứng chung («hook yếu»), KHÔNG kiểu 'tốt nhưng cần tối ưu'",
     "sections": [
       {
         "section_id": "<id>",
@@ -55,7 +55,12 @@ FINDINGS (đơn vị hiển thị chính của section issue-based):
 - KHÔNG tạo finding về tiết lộ thương mại / #qc / #ad / Luật Quảng cáo disclosure — ngoài phạm vi sản phẩm video diagnosis.
 - Section không issue-based (next_video, niche_pattern, channel_pattern, douyin_origin, persona): findings: [].
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
+- Khi USER_EVIDENCE_DIGEST có hook_timeline / scene_pattern: body_vi của finding về hook/editing phải trích đúng mốc giây từ digest («text overlay chỉ xuất hiện 3.2s») — bằng chứng đến từng giây, không phỏng đoán.
 - CHỐNG pad: mỗi câu advance argument; không lặp ý. evidence_anchors khớp claim trong text.
+
+DIAGNOSIS (2 yêu cầu thêm — Lightreel contract):
+- Câu verdict đặt **tên archetype 2-4 từ tự đặt** cho cách video này làm nội dung («Ảnh catalog tĩnh», «Quy trình đóng hộp», «Mặt người kể chuyện») — findings và next_video gọi lại đúng tên đó để hành động bám chẩn đoán.
+- Nêu 1 điểm GIỮ NGUYÊN có bằng chứng (kể cả khi video yếu — vd nhịp cắt, giọng đọc, texture cận) — fix không được phá cái đang chạy.
 
 REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
 - Section show được trực quan (niche_pattern, diagnosis, hook_analysis, script_structure): điền tối đa **3** embedded_tiles **khác aweme_id** từ REFERENCE_EVIDENCE. niche_pattern ưu tiên đủ 3 tile — đây là lưới "top ngách đang làm gì", reference là nhân vật chính, prose dẫn vào chỉ 1 câu.
@@ -70,9 +75,12 @@ CHANNEL_PATTERN (Ref-style: kênh tự chứng minh):
 NEXT_VIDEO (script copy-paste được, KHÔNG concept trừu tượng):
 - next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" }; findings: [].
 - text của section = script theo cảnh, mỗi dòng 1 bullet •: "• Hook (0-1s): [câu copy-paste]" → "• Beat 2: ..." → "• Beat 3: ..." → "• CTA: ...". Creator phải quay được ngay mà không cần nghĩ thêm.
+- GIỮ / ĐỔI (chống lặp + chống đập đi xây lại): reason_vi nêu 1 điều GIỮ từ video đang phân tích (có bằng chứng chạy được) và 1 điều ĐỔI then chốt — nối đúng tên archetype đã đặt ở diagnosis.
+- Beat script bám NHỊP của đúng 1 video trong REFERENCE_EVIDENCE (reason_vi nói rõ học nhịp video nào, vì sao) — học cấu trúc đã thắng, không sáng tác từ con số 0.
 
 NICHE_PATTERN:
 - embedded_tiles từ reference pool (ưu tiên đủ 3); findings: []. Nếu có cross_format_signal: 1 câu verdict in đậm — "format X đang chạy ở N ngách / hook nào đạt view cao nhất" + creator học gì. Phải ra conclusion, không chỉ mô tả.
+- KHÓA PATTERN: khi đủ ≥3 tile và có USER_EVIDENCE_DIGEST, câu verdict in đậm = mẫu số chung của CHÍNH các tile đã chọn + video này làm gì khác («Cả 3 video tham chiếu mở bằng mặt người nói trong 1s đầu — video này vào thẳng sản phẩm đến 3.2s»). Không bịa mẫu số chung ngoài tile đã trích; thiếu tile hoặc thiếu digest → verdict thường.
 - Ngôn ngữ: tiếng Việt peer-to-peer. Dùng **view** (không "lượt xem"), **tỷ lệ tương tác** (không "engagement rate"). Tránh quote tiếng Anh thô — diễn đạt format/hook bằng tiếng Việt. Khi performance_tier=hit: khung breakout, hook chỉ là polish — không mô tả như flop.
 
 KHÁCH QUAN VỚI PERFORMANCE_TIER (chống bias kết quả):

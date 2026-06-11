@@ -199,3 +199,28 @@ def test_video_age_days_graceful_on_garbage() -> None:
     # Future timestamp (clock skew) → None, never negative.
     future = (datetime.now(tz=UTC) + timedelta(days=2)).isoformat()
     assert _video_age_days_from_meta({"created_at": future}) is None
+
+
+# ── Lightreel contract on the V6 video prompt (2026-06-11 follow-up) ──
+
+
+def test_v6_lightreel_generative_rules_pinned() -> None:
+    """Pin the four generative Lightreel moves applied to video diagnosis:
+    mechanism-level headline, coined archetype + keep-rule in diagnosis,
+    pattern-lock over reference tiles, and GIỮ/ĐỔI + rhythm-mirror in
+    next_video."""
+    from getviews_pipeline.diagnose_prompts import DIAGNOSIS_V6_JSON_INSTRUCTION as v6
+
+    # Headline names the mechanism with a timestamp, not the symptom.
+    assert "gọi đúng CƠ CHẾ kèm mốc giây" in v6
+    # Diagnosis: coined archetype reused downstream + keep-one-thing rule.
+    assert "tên archetype 2-4 từ tự đặt" in v6
+    assert "GIỮ NGUYÊN có bằng chứng" in v6
+    # Niche pattern: induced common denominator of the cited tiles only.
+    assert "KHÓA PATTERN" in v6
+    assert "Không bịa mẫu số chung ngoài tile đã trích" in v6
+    # Next video: anti-repeat ledger + structure mirrored from one reference.
+    assert "GIỮ / ĐỔI" in v6
+    assert "bám NHỊP của đúng 1 video trong REFERENCE_EVIDENCE" in v6
+    # Findings: second-level evidence from the digest.
+    assert "trích đúng mốc giây từ digest" in v6
