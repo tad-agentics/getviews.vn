@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from getviews_pipeline.voice_copy import humanize_narrative_vi_dict, humanize_stats_prose
+from getviews_pipeline.voice_copy import (
+    humanize_narrative_vi_dict,
+    humanize_stats_prose,
+    humanize_video_report_out,
+)
 
 
 def test_humanize_stats_prose_median_and_p75() -> None:
@@ -52,6 +56,44 @@ def test_humanize_stats_prose_jargon_substrings_safe() -> None:
     # Vietnamese words must not be mangled by the whole-word jargon subs.
     raw = "Chuyên gia lưu ý: video này hướng dẫn rõ ràng."
     assert humanize_stats_prose(raw) == raw
+
+
+def test_humanize_stats_prose_round2_jargon() -> None:
+    raw = (
+        "Format 'Faceless' thiếu pain point rõ. Dùng template hook + Tip "
+        "để tăng discoverability. Lời promise phải có trong 3 giây đầu."
+    )
+    out = humanize_stats_prose(raw)
+    lowered = out.lower()
+    for banned in (
+        "pain point",
+        "format",
+        "template",
+        "tip",
+        "faceless",
+        "discoverability",
+        "promise",
+    ):
+        assert banned not in lowered, f"{banned!r} leaked: {out!r}"
+    assert "định dạng không lộ mặt" in lowered
+    assert "điểm nhạy" in out
+
+
+def test_humanize_video_report_out_sanitizes_enrichment() -> None:
+    out = {
+        "narrative_vi": {"headline_vi": "Format faceless — pain point yếu"},
+        "enrichment": {
+            "pain_points": ["Main pain point: no promise in hook"],
+            "target_audience": "Gym creators using tutorial template",
+        },
+        "errors": [{"title": "Weak promise", "detail": "No pain point", "fix": "Add Tip"}],
+    }
+    humanize_video_report_out(out)
+    headline = out["narrative_vi"]["headline_vi"].lower()
+    assert "format" not in headline
+    assert "pain point" not in headline
+    assert "promise" not in out["errors"][0]["title"].lower()
+    assert "pain point" not in out["enrichment"]["pain_points"][0].lower()
 
 
 def test_humanize_narrative_vi_dict_walks_nested_sections() -> None:

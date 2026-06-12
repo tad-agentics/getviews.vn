@@ -31,7 +31,34 @@ _TRUNG_VI_RE = re.compile(r"trung vị", re.IGNORECASE)
 # voice_guide steering block. Mirrors getviews_pipeline/voice_guide.py — keep
 # in sync. Whole-word, case-insensitive; multi-word phrases listed before the
 # single words they contain so the longer match wins.
+# Content-format slugs Gemini echoes in prose — mirrors
+# src/lib/contentFormatLabels.ts + enum_labels_vi (never raw English labels).
+_CONTENT_FORMAT_SLUG_VI: dict[str, str] = {
+    "faceless": "không lộ mặt",
+    "talking_head": "nói thẳng camera",
+    "tutorial": "hướng dẫn",
+    "review": "đánh giá",
+    "haul": "mua sắm",
+    "grwm": "chuẩn bị đi",
+    "vlog": "vlog ngày",
+    "before_after": "trước/sau",
+    "pov": "góc nhìn POV",
+    "storytime": "kể chuyện",
+    "storytelling": "kể chuyện",
+    "listicle": "danh sách",
+    "mukbang": "mukbang",
+    "recipe": "nấu ăn",
+    "comparison": "so sánh",
+    "comedy_skit": "tiểu phẩm",
+    "outfit_transition": "phối đồ",
+    "dance": "nhảy",
+    "highlight": "tóm tắt clip",
+    "gameplay": "chơi game",
+    "lesson": "bài học",
+}
+
 _JARGON_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bpain[\s_-]?points?\b", re.IGNORECASE), "điểm nhạy"),
     (re.compile(r"\bpattern[\s_-]?interrupt\b", re.IGNORECASE), "ngắt nhịp"),
     (re.compile(r"\boverlay checklist\b", re.IGNORECASE), "danh sách bước trên màn hình"),
     (re.compile(r"\btext[\s_-]?overlay\b", re.IGNORECASE), "chữ trên màn hình"),
@@ -39,12 +66,19 @@ _JARGON_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bentertainment[\s_-]?first\b", re.IGNORECASE), "giải trí là chính"),
     (re.compile(r"\bdead[\s_-]?air\b", re.IGNORECASE), "khoảng lặng"),
     (re.compile(r"\bjump[\s_-]?cut\b", re.IGNORECASE), "cắt giật"),
+    (re.compile(r"\bdiscoverability\b", re.IGNORECASE), "khả năng được tìm thấy"),
+    (re.compile(r"\bformat\s+['\"]faceless['\"]", re.IGNORECASE), "định dạng không lộ mặt"),
+    (re.compile(r"\bformat\s+faceless\b", re.IGNORECASE), "định dạng không lộ mặt"),
     (re.compile(r"\barchetypes?\b", re.IGNORECASE), "hình mẫu"),
     (re.compile(r"\bbookmarks?\b", re.IGNORECASE), "lưu"),
     (re.compile(r"\bexperts?\b", re.IGNORECASE), "chuyên gia"),
     (re.compile(r"\btutorials?\b", re.IGNORECASE), "hướng dẫn"),
+    (re.compile(r"\btemplates?\b", re.IGNORECASE), "mẫu"),
+    (re.compile(r"\bpromises?\b", re.IGNORECASE), "lời hứa"),
+    (re.compile(r"\btips?\b", re.IGNORECASE), "mẹo"),
     (re.compile(r"\bheatmaps?\b", re.IGNORECASE), "bản đồ nhiệt"),
     (re.compile(r"\bcorpus\b", re.IGNORECASE), "kho video"),
+    (re.compile(r"\bformats?\b", re.IGNORECASE), "định dạng"),
 )
 
 
@@ -72,6 +106,88 @@ def humanize_stats_prose(text: str) -> str:
     out = _TRUNG_VI_RE.sub(_GENERIC_MEDIAN, out)
     for pattern, replacement in _JARGON_SUBS:
         out = pattern.sub(replacement, out)
+    for slug, label in _CONTENT_FORMAT_SLUG_VI.items():
+        slug_pat = slug.replace("_", r"[\s_-]")
+        out = re.sub(rf"\b{slug_pat}\b", label, out, flags=re.IGNORECASE)
+    return out
+
+
+_PROSE_FIELD_KEYS = frozenset({
+    "headline_vi",
+    "ket_luan_nhanh",
+    "van_de_chinh",
+    "dinh_huong_chien_luoc",
+    "title_vi",
+    "body_vi",
+    "fix_vi",
+    "text",
+    "text_vi",
+    "narrative_vi",
+    "narrative",
+    "title",
+    "detail",
+    "fix",
+    "reason_vi",
+    "premise_vi",
+    "hook_vi",
+    "format_name_vi",
+    "mechanism_vi",
+    "example_hook_vi",
+    "caption_snippet",
+    "desc",
+    "question",
+    "label",
+})
+
+
+def _humanize_string_fields(obj: Any) -> Any:
+    """Recursively humanize known prose keys in dict/list trees."""
+    if isinstance(obj, str):
+        return humanize_stats_prose(obj)
+    if isinstance(obj, dict):
+        out: dict[str, Any] = {}
+        for k, v in obj.items():
+            if isinstance(v, str) and k in _PROSE_FIELD_KEYS:
+                out[k] = humanize_stats_prose(v)
+            else:
+                out[k] = _humanize_string_fields(v)
+        return out
+    if isinstance(obj, list):
+        return [_humanize_string_fields(v) for v in obj]
+    return obj
+
+
+def humanize_video_report_out(out: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Final-pass Vietnamese cleanup on every user-visible prose field in a video report."""
+    if not out:
+        return out
+    narrative = out.get("narrative_vi")
+    if isinstance(narrative, dict):
+        cleaned = humanize_narrative_vi_dict(narrative)
+        if cleaned is not None:
+            out["narrative_vi"] = cleaned
+    cards = out.get("format_cards")
+    if isinstance(cards, list):
+        out["format_cards"] = _humanize_string_fields(cards)
+    for err_key in ("errors", "structural_errors"):
+        errs = out.get(err_key)
+        if isinstance(errs, list):
+            out[err_key] = _humanize_string_fields(errs)
+    enrich = out.get("enrichment")
+    if isinstance(enrich, dict):
+        if isinstance(enrich.get("target_audience"), str):
+            enrich["target_audience"] = humanize_stats_prose(enrich["target_audience"])
+        pp = enrich.get("pain_points")
+        if isinstance(pp, list):
+            enrich["pain_points"] = [
+                humanize_stats_prose(p) if isinstance(p, str) else p for p in pp
+            ]
+    rq = out.get("related_questions")
+    if isinstance(rq, list):
+        out["related_questions"] = [
+            humanize_stats_prose(q) if isinstance(q, str) else _humanize_string_fields(q)
+            for q in rq
+        ]
     return out
 
 

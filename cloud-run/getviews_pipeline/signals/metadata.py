@@ -120,7 +120,7 @@ def extract_hashtag_volume_gap_signal(ctx: dict) -> list[Signal]:
         fix = "Thêm 2–4 hashtag cụ thể (sản phẩm, pain, địa phương) thay generic."
     else:
         claim = (
-            f"{count} hashtag vượt TB ngách ~{avg:.1f} — dễ loãng tín hiệu discoverability."
+            f"{count} hashtag vượt TB ngách ~{avg:.1f} — dễ loãng tín hiệu tìm kiếm."
         )
         fix = "Giữ 4–7 hashtag; ưu tiên 2–3 tag ngách + 1–2 tag trend."
 
@@ -174,7 +174,7 @@ def extract_caption_density_signal(ctx: dict) -> list[Signal]:
             salience=0.64,
             claim=(
                 f"Caption {cap_len} ký tự trong khi ~{pct:.0f}% video ngách có text caption "
-                "— mỏng hơn chuẩn discoverability."
+                "— mỏng hơn chuẩn khả năng được tìm thấy."
             ),
             evidence=[
                 Evidence(

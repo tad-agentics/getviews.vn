@@ -42,7 +42,7 @@ def extract_distribution_signals(ctx: dict) -> list[Signal]:
                 section_id="metadata",
                 taxonomy_ref="§meta",
                 salience=0.72,
-                claim=f"Caption chỉ {cap_len} ký tự — mỏng hơn chuẩn discoverability.",
+                claim=f"Caption chỉ {cap_len} ký tự — mỏng hơn chuẩn khả năng được tìm thấy.",
                 evidence=[
                     Evidence(
                         type="user_analysis_field",

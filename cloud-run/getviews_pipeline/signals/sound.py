@@ -91,7 +91,7 @@ def extract_sound_lifecycle_signal(ctx: dict) -> list[Signal]:
             "Tách biệt bằng hook hoặc staging cá nhân — sound đang bão hòa, cần điểm nhấn riêng."
         )
     else:
-        suggested_fix = "Chuẩn bị sound/template kế tiếp — xu hướng đang hạ nhiệt."
+        suggested_fix = "Chuẩn bị âm thanh/mẫu kế tiếp — xu hướng đang hạ nhiệt."
     return [
         Signal(
             id="sound_lifecycle_phase",
@@ -284,7 +284,7 @@ def extract_sound_no_audio_hook_window_signal(ctx: dict) -> list[Signal]:
             salience=0.66,
             claim=(
                 "Cửa sổ hook 0–3s không có thoại rõ (first_word) — "
-                "viewer tắt tiếng khó bắt promise."
+                "viewer tắt tiếng khó bắt lời hứa."
             ),
             evidence=[
                 Evidence(
@@ -293,7 +293,7 @@ def extract_sound_no_audio_hook_window_signal(ctx: dict) -> list[Signal]:
                     location="user_analysis.hook_analysis+audio_transcript",
                 )
             ],
-            suggested_fix="Mở bằng 1 câu thoại ngắn ≤8 từ hoặc text overlay promise rõ trước giây 3.",
+            suggested_fix="Mở bằng 1 câu thoại ngắn ≤8 từ hoặc chữ trên màn hình hứa rõ trước giây 3.",
         )
     ]
 

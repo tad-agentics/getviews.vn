@@ -1381,6 +1381,9 @@ def finalize_video_narrative_layer(
             if int(out.get("embed_contract_version") or 0) < EMBED_CONTRACT_VERSION:
                 out["embed_contract_version"] = EMBED_CONTRACT_VERSION
         _finalize_report_depth_fields(out)
+        from getviews_pipeline.voice_copy import humanize_video_report_out
+
+        humanize_video_report_out(out)
         # Strip pipeline-private keys so the response shape stays clean
         # for the caller (matches the post-synthesis branch below).
         out.pop("__narrative_analysis", None)
@@ -2001,6 +2004,9 @@ def finalize_video_narrative_layer(
             logger.warning("[finalize] corpus promote failed video_id=%s: %s", on_demand_vid, _exc)
 
     _finalize_report_depth_fields(out)
+    from getviews_pipeline.voice_copy import humanize_video_report_out
+
+    humanize_video_report_out(out)
     _strip_on_demand_client_cache_fields(out)
 
 
