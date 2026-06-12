@@ -8,6 +8,7 @@ import {
   formatReferenceBridgeProse,
   mapDiagnosisEmbeddedTiles,
   partitionFindingsByChip,
+  resolvePeerReferenceTiles,
   referenceTileNarrative,
   stripGenericReferenceBoilerplate,
   stripSectionProseForEmbeddedRefs,
@@ -152,6 +153,17 @@ describe("partitionFindingsByChip", () => {
     expect(strengths[0].title_vi).toBe("Nhịp tốt");
     expect(gaps[0].title_vi).toBe("Hook chậm");
   });
+
+  it("routes a finding with no fix_vi to observations (not a gap)", () => {
+    const { strengths, gaps, observations } = partitionFindingsByChip([
+      { title_vi: "Quan sát trung tính", body_vi: "Không có hành động." },
+      { title_vi: "Hook chậm", fix_vi: "Mở bằng câu hỏi trong 1s đầu." },
+    ]);
+    expect(strengths).toHaveLength(0);
+    expect(gaps).toHaveLength(1);
+    expect(observations).toHaveLength(1);
+    expect(observations[0].title_vi).toBe("Quan sát trung tính");
+  });
 });
 
 describe("referenceFallbackNarrative", () => {
@@ -256,6 +268,58 @@ describe("enrichReferenceTilesForGaps", () => {
     );
     expect(out[0].narrative_vi).toContain("«Hook yếu»");
     expect(out[0].narrative_vi).not.toContain("Được chọn vì");
+  });
+});
+
+describe("resolvePeerReferenceTiles", () => {
+  const tile = {
+    video_url: "https://tiktok.com/@peer/video/111",
+    thumbnail_url: "https://t/1.jpg",
+    views: 100_000,
+    caption_snippet: "",
+    posted_at: "",
+    aweme_id: "111",
+    narrative_vi: "Peer làm hook tốt hơn.",
+  };
+
+  it("returns empty for diagnosis when findings are strengths-only", () => {
+    expect(
+      resolvePeerReferenceTiles(
+        "diagnosis",
+        [tile],
+        [{ title_vi: "Persona tin cậy", fix_vi: "Tiếp tục giữ phong cách thật." }],
+      ),
+    ).toEqual([]);
+  });
+
+  it("returns gap-linked tiles for diagnosis when corrective findings exist", () => {
+    const out = resolvePeerReferenceTiles(
+      "diagnosis",
+      [tile],
+      [{ title_vi: "Hook yếu", fix_vi: "Đổi câu mở cụ thể." }],
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].narrative_vi).toContain("«Hook yếu»");
+  });
+
+  it("does not surface peers for a no-fix finding in gap-only sections (#2)", () => {
+    expect(
+      resolvePeerReferenceTiles(
+        "hook_analysis",
+        [tile],
+        [{ title_vi: "Quan sát", body_vi: "Không hành động." }],
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps niche_pattern tiles regardless of finding chips", () => {
+    expect(
+      resolvePeerReferenceTiles(
+        "niche_pattern",
+        [tile],
+        [{ title_vi: "X", fix_vi: "Tiếp tục giữ Y." }],
+      ),
+    ).toHaveLength(1);
   });
 });
 

@@ -14,14 +14,18 @@ import type {
 } from "@/lib/api-types";
 import {
   buildDiagnosisReferenceTiles,
-  enrichReferenceTilesForGaps,
   formatReferenceBridgeProse,
   partitionFindingsByChip,
+  resolvePeerReferenceTiles,
   stripSectionProseForEmbeddedRefs,
   type DiagnosisReferenceTile,
   type ReferenceBridgeTopic,
 } from "@/lib/diagnosisReferenceTiles";
 import { fixChipMeta } from "@/lib/findingFixChip";
+import {
+  FindingEvidenceClip,
+  type AnalyzedClipContext,
+} from "@/components/diagnosis/FindingEvidenceClip";
 import { splitVerdictProse } from "@/lib/humanizeStatsProse";
 import { sortScriptBulletsByTimestamp } from "@/lib/nextVideoScript";
 import { CreatorComparisonEmbed } from "@/components/diagnosis/CreatorComparisonEmbed";
@@ -83,9 +87,12 @@ function looseNextVideoConcept(
 function SectionFindingCard({
   rank,
   finding,
+  analyzedClip,
 }: {
   rank: number;
   finding: DiagnosisFinding;
+  /** When present, a strength/observation can show a "Xem đoạn này" clip from the analyzed video. */
+  analyzedClip?: AnalyzedClipContext | null;
 }) {
   const { title_vi, body_vi, fix_vi } = finding;
   if (!title_vi && !body_vi && !fix_vi) return null;
@@ -133,37 +140,47 @@ function SectionFindingCard({
             );
           })()
         ) : null}
+        <FindingEvidenceClip evidenceRef={finding.evidence_ref} clip={analyzedClip} />
       </div>
     </div>
   );
 }
 
 function StrengthGapSectionLayout({
+  sectionId,
   title,
   text,
   findings,
   referenceTiles,
   gapKicker,
   bridgeTopic,
-  children,
+  analyzedClip,
+  analyzedClipEvidence,
 }: {
+  sectionId: string;
   title: string;
   text: string;
   findings: DiagnosisFinding[];
   referenceTiles: DiagnosisReferenceTile[];
   gapKicker: "KHOẢNG TRỐNG" | "THIẾU SÓT";
   bridgeTopic: ReferenceBridgeTopic;
-  children?: React.ReactNode;
+  /** Per-finding deep-link context into the analyzed clip (strengths cite own clip). */
+  analyzedClip?: AnalyzedClipContext | null;
+  /** Timeline / segments from the video under analysis — not peer corpus clips. */
+  analyzedClipEvidence?: React.ReactNode;
 }) {
-  const { strengths, gaps } = partitionFindingsByChip(findings);
-  const gapLinkedTiles =
-    referenceTiles.length > 0 && gaps.length > 0
-      ? enrichReferenceTilesForGaps(referenceTiles, gaps, bridgeTopic)
-      : referenceTiles;
+  const { strengths, gaps, observations } = partitionFindingsByChip(findings);
+  const gapLinkedTiles = resolvePeerReferenceTiles(
+    sectionId,
+    referenceTiles,
+    findings,
+    bridgeTopic,
+  );
   const refBridge =
-    gapLinkedTiles.length > 0 && gaps.length > 0
+    gapLinkedTiles.length > 0
       ? formatReferenceBridgeProse(gaps, gapLinkedTiles.length, bridgeTopic)
       : "";
+  const hasAnyFinding = strengths.length + gaps.length + observations.length > 0;
   let findingRank = 0;
 
   return (
@@ -180,9 +197,17 @@ function StrengthGapSectionLayout({
           <div className="flex flex-col gap-3">
             {strengths.map((f, i) => {
               findingRank += 1;
-              return <SectionFindingCard key={`s-${i}`} rank={findingRank} finding={f} />;
+              return (
+                <SectionFindingCard
+                  key={`s-${i}`}
+                  rank={findingRank}
+                  finding={f}
+                  analyzedClip={analyzedClip}
+                />
+              );
             })}
           </div>
+          {analyzedClipEvidence ? <div className="mt-3">{analyzedClipEvidence}</div> : null}
         </div>
       ) : null}
       {gaps.length > 0 ? (
@@ -194,6 +219,29 @@ function StrengthGapSectionLayout({
             {gaps.map((f, i) => {
               findingRank += 1;
               return <SectionFindingCard key={`g-${i}`} rank={findingRank} finding={f} />;
+            })}
+          </div>
+          {strengths.length === 0 && analyzedClipEvidence ? (
+            <div className="mt-3">{analyzedClipEvidence}</div>
+          ) : null}
+        </div>
+      ) : null}
+      {observations.length > 0 ? (
+        <div className="mt-4">
+          <p className="gv-mono m-0 mb-2 text-[11px] gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
+            QUAN SÁT
+          </p>
+          <div className="flex flex-col gap-3">
+            {observations.map((f, i) => {
+              findingRank += 1;
+              return (
+                <SectionFindingCard
+                  key={`o-${i}`}
+                  rank={findingRank}
+                  finding={f}
+                  analyzedClip={analyzedClip}
+                />
+              );
             })}
           </div>
         </div>
@@ -211,7 +259,9 @@ function StrengthGapSectionLayout({
           showLabel={!refBridge}
         />
       ) : null}
-      {children}
+      {!hasAnyFinding && analyzedClipEvidence ? (
+        <div className="mt-4">{analyzedClipEvidence}</div>
+      ) : null}
     </div>
   );
 }
@@ -279,6 +329,8 @@ export interface ChannelPatternEmbedProps {
 export interface VideoDiagnosisSectionEmbeds {
   scriptStructure?: { segments: VideoSegment[]; durationSec: number };
   metadata?: { meta: VideoAnalyzeMeta; enrichment?: VideoEnrichment | null };
+  /** Analyzed clip context for per-finding "Xem đoạn này" deep-links. */
+  analyzedClip?: AnalyzedClipContext | null;
 }
 
 interface DiagnosisSectionRendererProps {
@@ -307,9 +359,13 @@ export function DiagnosisSectionRenderer({
     referenceVideos,
     evidenceAnchors,
   );
+  const findings = (section.findings ?? []).filter(
+    (f) => f.title_vi || f.body_vi || f.fix_vi,
+  );
+  const peerTiles = resolvePeerReferenceTiles(sid, referenceTiles, findings);
   const rawText = sectionText(section) || (fallbackProse ?? "").trim();
   const text =
-    referenceTiles.length > 0 ? stripSectionProseForEmbeddedRefs(rawText) : rawText;
+    peerTiles.length > 0 ? stripSectionProseForEmbeddedRefs(rawText) : rawText;
 
   if (sid === "next_video") {
     const nvRaw =
@@ -349,35 +405,47 @@ export function DiagnosisSectionRenderer({
     );
   }
 
-  const findings = (section.findings ?? []).filter(
-    (f) => f.title_vi || f.body_vi || f.fix_vi,
-  );
-
   const isVideoStructureSection = sid === "script_structure";
+  const isHookSection = sid === "hook_analysis";
 
+  const partitioned = partitionFindingsByChip(findings);
   const useStrengthGapLayout =
-    (sid === "diagnosis" && title.toLowerCase().includes("khoảng trống")) ||
-    isVideoStructureSection;
+    isVideoStructureSection ||
+    isHookSection ||
+    (sid === "diagnosis" &&
+      (title.toLowerCase().includes("khoảng trống") ||
+        partitioned.strengths.length > 0 ||
+        partitioned.gaps.length > 0 ||
+        partitioned.observations.length > 0));
 
   if (useStrengthGapLayout) {
+    // Only the structure block owns the segment Timeline; hook/diagnosis cite
+    // the analyzed clip per-finding via FindingEvidenceClip instead.
+    const analyzedClipEvidence =
+      isVideoStructureSection && videoEmbeds?.scriptStructure ? (
+        <>
+          <p className="gv-mono m-0 mb-2 text-[11px] gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
+            BẰNG CHỨNG TRONG CLIP
+          </p>
+          <Timeline
+            segments={videoEmbeds.scriptStructure.segments}
+            durationSec={videoEmbeds.scriptStructure.durationSec}
+          />
+        </>
+      ) : undefined;
+
     return (
       <StrengthGapSectionLayout
+        sectionId={sid}
         title={title}
         text={text}
         findings={findings}
         referenceTiles={referenceTiles}
-        gapKicker={isVideoStructureSection ? "THIẾU SÓT" : "KHOẢNG TRỐNG"}
+        gapKicker={isVideoStructureSection || isHookSection ? "THIẾU SÓT" : "KHOẢNG TRỐNG"}
         bridgeTopic={isVideoStructureSection ? "structure" : "general"}
-      >
-        {isVideoStructureSection && videoEmbeds?.scriptStructure ? (
-          <div className="mt-4">
-            <Timeline
-              segments={videoEmbeds.scriptStructure.segments}
-              durationSec={videoEmbeds.scriptStructure.durationSec}
-            />
-          </div>
-        ) : null}
-      </StrengthGapSectionLayout>
+        analyzedClip={videoEmbeds?.analyzedClip}
+        analyzedClipEvidence={analyzedClipEvidence}
+      />
     );
   }
 
@@ -387,7 +455,12 @@ export function DiagnosisSectionRenderer({
       {findings.length > 0 ? (
         <div className="mt-3 flex flex-col gap-3">
           {findings.map((f, i) => (
-            <SectionFindingCard key={i} rank={i + 1} finding={f} />
+            <SectionFindingCard
+              key={i}
+              rank={i + 1}
+              finding={f}
+              analyzedClip={videoEmbeds?.analyzedClip}
+            />
           ))}
         </div>
       ) : null}
@@ -412,8 +485,8 @@ export function DiagnosisSectionRenderer({
           />
         )
       ) : null}
-      {referenceTiles.length > 0 ? (
-        <DiagnosisReferenceVideoCards tiles={referenceTiles} embedded showLabel={false} />
+      {peerTiles.length > 0 ? (
+        <DiagnosisReferenceVideoCards tiles={peerTiles} embedded showLabel={false} />
       ) : null}
       {sid === "script_structure" && videoEmbeds?.scriptStructure ? (
         <div className="mt-4">

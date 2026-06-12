@@ -87,12 +87,15 @@ export function VideoPlayerModal({
   onClose,
   cardTitle,
   hookTemplate,
+  startSec,
 }: {
   video: ExploreGridVideo;
   allVideos: ExploreGridVideo[];
   onClose: () => void;
   cardTitle?: string;
   hookTemplate?: string;
+  /** Seek the selected clip to this time (seconds) on load — used by finding-evidence deep-links. */
+  startSec?: number;
 }) {
   const [selected, setSelected] = useState(video);
   const [muted, setMuted] = useState(true);
@@ -109,14 +112,34 @@ export function VideoPlayerModal({
 
   useEffect(() => {
     if (videoRef.current) {
+      const el = videoRef.current;
       setAutoplayBlocked(false);
-      videoRef.current.load();
-      videoRef.current.play().catch((err: unknown) => {
+      el.load();
+      // Seek only applies to the originally-requested clip, not when the user
+      // navigates to a sibling video via the list.
+      const seekTo =
+        startSec != null && Number.isFinite(startSec) && startSec > 0 && selected.id === video.id
+          ? startSec
+          : null;
+      const applySeek = () => {
+        if (seekTo != null) {
+          try {
+            el.currentTime = seekTo;
+          } catch {
+            // ignore — metadata not ready or unsupported
+          }
+        }
+      };
+      if (seekTo != null) {
+        el.addEventListener("loadedmetadata", applySeek, { once: true });
+      }
+      el.play().catch((err: unknown) => {
         console.warn("[VideoPlayerModal] autoplay rejected:", err);
         setAutoplayBlocked(true);
       });
+      return () => el.removeEventListener("loadedmetadata", applySeek);
     }
-  }, [selected]);
+  }, [selected, startSec, video.id]);
 
   // Save the element that had focus before the modal opened so we can restore
   // on close — otherwise keyboard users lose their place entirely.

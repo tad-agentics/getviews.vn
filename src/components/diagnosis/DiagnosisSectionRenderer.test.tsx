@@ -59,8 +59,8 @@ describe("SectionFindingCard fix chip", () => {
 });
 
 describe("diagnosis strength-gap layout", () => {
-  it("does not apply strength-gap layout for hit tier (Đang làm tốt)", () => {
-    render(
+  it("hit tier (Đang làm tốt) shows strengths without peer reference cards", () => {
+    const { container } = render(
       <DiagnosisSectionRenderer
         section={{
           section_id: "diagnosis",
@@ -72,12 +72,27 @@ describe("diagnosis strength-gap layout", () => {
               fix_vi: "Tiếp tục giữ hook câu hỏi.",
             },
           ],
+          embedded_tiles: [{ aweme_id: "111", narrative_vi: "Peer hook mạnh hơn." }],
         }}
-        referenceVideos={[]}
+        referenceVideos={[
+          {
+            aweme_id: "111",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 100_000,
+            engagement_rate: null,
+            author_handle: "@peer",
+            thumbnail_url: "https://t/1.jpg",
+            tiktok_url: "https://tiktok.com/@peer/video/111",
+            source: "corpus",
+          },
+        ]}
       />,
     );
-    expect(screen.queryByText("ĐIỂM MẠNH")).toBeNull();
+    expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
     expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
+    expect(container.querySelector("a[href*='tiktok.com']")).toBeNull();
   });
 
   it("renders strength/gap subsections, bridge prose, and gap-linked reference cards", () => {
@@ -182,6 +197,150 @@ describe("video structure strength-gap layout", () => {
     expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
     expect(screen.getByText(/thiếu sót «Dead air giữa clip»/)).toBeTruthy();
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
+  });
+
+  it("renders analyzed-clip evidence for adjunct script_structure when findings are empty", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "script_structure",
+          title_vi: "Phân tích cấu trúc Video",
+          text: "",
+          findings: [],
+        }}
+        referenceVideos={[]}
+        videoEmbeds={{
+          scriptStructure: {
+            segments: [{ name: "Hook", pct: 12, color_key: "hook" }],
+            durationSec: 28,
+          },
+        }}
+        fallbackProse="8 nhịp kịch bản trong 28 giây."
+      />,
+    );
+    expect(screen.getByText("BẰNG CHỨNG TRONG CLIP")).toBeTruthy();
+    expect(screen.getByText(/8 nhịp kịch bản/)).toBeTruthy();
+  });
+});
+
+describe("hook_analysis strength-gap layout (#1)", () => {
+  it("splits hook findings into ĐIỂM MẠNH / THIẾU SÓT and links peers to gaps only", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "hook_analysis",
+          title_vi: "Phân tích hook",
+          text_vi: "**Hook ổn** nhưng text overlay vào trễ.",
+          findings: [
+            { title_vi: "Mặt vào sớm", fix_vi: "Tiếp tục cho mặt vào 0,3s." },
+            { title_vi: "Overlay trễ", body_vi: "Text vào 3,2s.", fix_vi: "Đưa text overlay về 0,5s." },
+          ],
+          embedded_tiles: [{ aweme_id: "333", narrative_vi: "Peer mở text 0,4s." }],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "333",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 120_000,
+            engagement_rate: null,
+            author_handle: "@hook",
+            thumbnail_url: "https://t/3.jpg",
+            tiktok_url: "https://tiktok.com/@hook/video/333",
+            source: "corpus",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
+    expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
+    expect(screen.getByText(/Để khắc phục «Overlay trễ»/)).toBeTruthy();
+    // Peer card present (one gap), but only one — strength must not pull peers.
+    expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(1);
+  });
+});
+
+describe("finding without fix_vi → QUAN SÁT, no peer (#2)", () => {
+  it("routes a no-fix finding to observations and hides peer cards", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "diagnosis",
+          title_vi: "Đang làm tốt",
+          text_vi: "Video chạy tốt.",
+          findings: [{ title_vi: "Quan sát trung tính", body_vi: "Không có hành động." }],
+          embedded_tiles: [{ aweme_id: "444", narrative_vi: "Peer." }],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "444",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 90_000,
+            engagement_rate: null,
+            author_handle: "@obs",
+            thumbnail_url: "https://t/4.jpg",
+            tiktok_url: "https://tiktok.com/@obs/video/444",
+            source: "corpus",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("QUAN SÁT")).toBeTruthy();
+    expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
+    expect(container.querySelector("a[href*='tiktok.com']")).toBeNull();
+  });
+});
+
+describe("per-finding analyzed-clip evidence button (#3)", () => {
+  it("shows 'Xem ...' button for a strength with evidence_ref + clip url", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "diagnosis",
+          title_vi: "Đang làm tốt",
+          text_vi: "Video chạy tốt.",
+          findings: [
+            {
+              title_vi: "Mặt vào sớm",
+              fix_vi: "Tiếp tục cho mặt vào 0,3s.",
+              evidence_ref: { start_sec: 0, end_sec: 3, label_vi: "mặt vào khung" },
+            },
+          ],
+        }}
+        referenceVideos={[]}
+        videoEmbeds={{
+          analyzedClip: { videoId: "999", clipUrl: "https://r2.test/videos/999.mp4", durationSec: 28 },
+        }}
+      />,
+    );
+    expect(screen.getByText(/Xem 0–3s trong clip · mặt vào khung/)).toBeTruthy();
+  });
+
+  it("hides the button when the analyzed clip url is missing", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "diagnosis",
+          title_vi: "Đang làm tốt",
+          text_vi: "Video chạy tốt.",
+          findings: [
+            {
+              title_vi: "Mặt vào sớm",
+              fix_vi: "Tiếp tục cho mặt vào 0,3s.",
+              evidence_ref: { start_sec: 0, end_sec: 3 },
+            },
+          ],
+        }}
+        referenceVideos={[]}
+        videoEmbeds={{
+          analyzedClip: { videoId: "999", clipUrl: null, durationSec: 28 },
+        }}
+      />,
+    );
+    expect(screen.queryByText(/Xem .* trong clip/)).toBeNull();
   });
 });
 

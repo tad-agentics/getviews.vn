@@ -1005,10 +1005,20 @@ export type VideoDiagnosisSectionId =
   | "next_video";
 
 /** One closing finding card inside a v6 section. */
+/** Timestamp window in the ANALYZED clip that backs a finding (BE-clamped to [0, duration]). */
+export interface FindingEvidenceRef {
+  start_sec?: number;
+  end_sec?: number;
+  /** Short Vietnamese label for the moment, e.g. "mặt vào khung". */
+  label_vi?: string;
+}
+
 export interface DiagnosisFinding {
   title_vi?: string;
   body_vi?: string;
   fix_vi?: string;
+  /** Optional moment in the analyzed video proving this finding (strengths cite own clip, not peers). */
+  evidence_ref?: FindingEvidenceRef | null;
 }
 
 /** One section inside `diagnosis_vi.sections` — mirrors channel `ChannelSection` shape loosely for LLM JSON. */

@@ -298,6 +298,13 @@ export function VideoBody({
     if (shouldShowMetadataBlock(meta, report.enrichment)) {
       embeds.metadata = { meta, enrichment: report.enrichment };
     }
+    if (report.video_id) {
+      embeds.analyzedClip = {
+        videoId: report.video_id,
+        clipUrl: r2VideoPlaybackUrl(report.video_id),
+        durationSec: duration,
+      };
+    }
     return embeds;
   }, [report, meta, duration]);
   const showStatsHistory = (meta.stats_history?.length ?? 0) >= 2;

@@ -30,7 +30,8 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
           {
             "title_vi": "Tên vấn đề — hậu quả, ≤10 từ",
             "body_vi": "1 câu + số liệu cụ thể (X views, Y% mẫu)",
-            "fix_vi": "1 hành động copy-paste được creator làm ngay (hook template, con số, thao tác)"
+            "fix_vi": "1 hành động copy-paste được creator làm ngay (hook template, con số, thao tác)",
+            "evidence_ref": {"start_sec": 0.0, "end_sec": 3.0, "label_vi": "khoảnh khắc trong clip (≤6 từ)"}
           }
         ],
         "embedded_tiles": [
@@ -64,6 +65,7 @@ FINDINGS (đơn vị hiển thị chính của section issue-based):
 - Tín hiệu seeding/ads/boost (signal section_id=boost_attribution) chỉ được diễn đạt MỘT lần — trong text của section boost_attribution. KHÔNG lặp lại thành finding hay nhắc lại trong section khác.
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
 - Khi USER_EVIDENCE_DIGEST có hook_timeline / scene_pattern: body_vi của finding về hook/editing phải trích đúng mốc giây từ digest («text overlay chỉ xuất hiện 3.2s») — bằng chứng đến từng giây, không phỏng đoán.
+- evidence_ref (BẰNG CHỨNG TRONG CHÍNH CLIP): với mỗi finding ĐIỂM MẠNH (fix_vi «Tiếp tục»/«Giữ») và mỗi finding về hook/nhịp/cảnh, gắn evidence_ref {start_sec, end_sec, label_vi} = khoảng giây TRONG CLIP ĐANG PHÂN TÍCH chứng minh nhận định — lấy từ hook_timeline/scene_pattern trong USER_EVIDENCE_DIGEST. start_sec/end_sec phải nằm trong độ dài video; end_sec > start_sec; label_vi ≤6 từ tiếng Việt. KHÔNG bịa mốc giây khi digest không có timestamp tương ứng → bỏ evidence_ref (null). evidence_ref CHỈ trỏ vào clip đang phân tích, KHÔNG phải video peer.
 - CHỐNG pad: mỗi câu advance argument; không lặp ý. evidence_anchors khớp claim trong text.
 
 DIAGNOSIS (2 yêu cầu thêm — Lightreel contract):
@@ -72,7 +74,7 @@ DIAGNOSIS (2 yêu cầu thêm — Lightreel contract):
 
 REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
 - Section show được trực quan (niche_pattern, diagnosis, hook_analysis, script_structure): điền tối đa **3** embedded_tiles **khác aweme_id** từ REFERENCE_EVIDENCE. niche_pattern ưu tiên đủ 3 tile — đây là lưới "top ngách đang làm gì", reference là nhân vật chính, prose dẫn vào chỉ 1 câu.
-- Mỗi aweme_id chỉ dùng ở MỘT section. narrative_vi = 1 câu (tối đa 2) **khác nhau cho từng video**: nêu **điều cần copy** (hook/format/nhịp cụ thể) so với clip đang phân tích. Góc theo section (hook_analysis → 3 giây đầu; diagnosis/niche_pattern → format/hiệu quả). KHÔNG nhắc @handle hay số view (card đã hiển thị). KHÔNG lặp narrative_vi vào text. Tuân thủ ADDRESSING_MODE trong DIAGNOSTIC_CONTEXT.
+- Mỗi aweme_id chỉ dùng ở MỘT section. narrative_vi = 1 câu (tối đa 2) **khác nhau cho từng video**: nêu **điều cần học theo** (hook/format/nhịp cụ thể) so với clip đang phân tích — chỉ gắn vào **khoảng trống/thiếu sót**, KHÔNG gắn vào điểm mạnh («Tiếp tục»/«Giữ»). Điểm mạnh chứng minh bằng mốc giây/cảnh của clip đang phân tích (digest), không bằng video peer. Góc theo section (hook_analysis → 3 giây đầu; diagnosis/niche_pattern → format/hiệu quả). KHÔNG nhắc @handle hay số view (card đã hiển thị). KHÔNG lặp narrative_vi vào text. Tuân thủ ADDRESSING_MODE trong DIAGNOSTIC_CONTEXT.
 - Chỉ chọn video gần context (CTX_SUMMARY). Không đủ peer phù hợp → ít tile hơn hoặc [].
 - Section phân tích thuần (channel_pattern, persona, compliance): tile tùy chọn, không bắt buộc.
 
@@ -426,6 +428,11 @@ def build_diagnosis_v6_user_prompt(
             "\n\nLƯU Ý video đang breakout/thắng (performance_tier hoặc so với kênh ≥2×): "
             "headline_vi và diagnosis phải khẳng định thắng — chỉ nêu hook/cắt hình như polish, "
             "không viết như video flop; dùng **view**, **tỷ lệ tương tác**."
+            "\n- SECTION diagnosis («Đang làm tốt»): điểm mạnh (fix_vi «Tiếp tục»/«Giữ»/«Duy trì») "
+            "chứng minh bằng mốc giây/cảnh trong USER_EVIDENCE_DIGEST của CHÍNH clip đang phân tích — "
+            "KHÔNG gắn embedded_tiles peer cho điểm mạnh. Peer reference chỉ khi có khoảng trống "
+            "(fix_vi sửa cụ thể) — narrative_vi nêu peer xử lý gap đó tốt hơn."
+            "\n- Nếu chỉ có điểm mạnh, không có khoảng trống: embedded_tiles của diagnosis = []."
         )
     strength_gap_note = ""
     if tier == "average" and "diagnosis" in sections_to_emit:

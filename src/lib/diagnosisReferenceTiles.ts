@@ -183,21 +183,34 @@ export function stripGenericReferenceBoilerplate(text: string): string {
   return t.trim();
 }
 
-/** Split findings into keep-advice (điểm mạnh) vs corrective (khoảng trống). */
+/**
+ * Split findings into three buckets:
+ * - `strengths`: keep-advice (fix_vi starts «Tiếp tục»/«Giữ»/…).
+ * - `gaps`: corrective findings that carry an actionable `fix_vi`.
+ * - `observations`: findings with no `fix_vi` — neither keep nor fix.
+ *
+ * Only `gaps` pull peer reference clips; a finding without `fix_vi` no
+ * longer drags an unrelated peer video onto the report (2026-06-13 audit).
+ */
 export function partitionFindingsByChip(findings: DiagnosisFinding[]): {
   strengths: DiagnosisFinding[];
   gaps: DiagnosisFinding[];
+  observations: DiagnosisFinding[];
 } {
   const strengths: DiagnosisFinding[] = [];
   const gaps: DiagnosisFinding[] = [];
+  const observations: DiagnosisFinding[] = [];
   for (const f of findings) {
-    if (fixChipMeta(f.fix_vi).positive) {
+    const hasFix = Boolean(f.fix_vi?.trim());
+    if (hasFix && fixChipMeta(f.fix_vi).positive) {
       strengths.push(f);
-    } else {
+    } else if (hasFix) {
       gaps.push(f);
+    } else {
+      observations.push(f);
     }
   }
-  return { strengths, gaps };
+  return { strengths, gaps, observations };
 }
 
 export type ReferenceBridgeTopic = "general" | "structure";
@@ -289,6 +302,32 @@ export function enrichReferenceTilesForGaps(
     ...tile,
     narrative_vi: buildGapLinkedTileNarrative(tile, gaps[i] ?? gaps[0], topic),
   }));
+}
+
+/** Sections where peer corpus clips illustrate gaps — not strengths. */
+export const PEER_REF_GAP_ONLY_SECTION_IDS = new Set([
+  "diagnosis",
+  "hook_analysis",
+  "script_structure",
+]);
+
+/**
+ * Peer reference videos belong under corrective findings only.
+ * Strengths should cite the analyzed clip (timeline/segments), not other creators.
+ */
+export function resolvePeerReferenceTiles(
+  sectionId: string,
+  tiles: DiagnosisReferenceTile[],
+  findings: DiagnosisFinding[],
+  topic: ReferenceBridgeTopic = "general",
+): DiagnosisReferenceTile[] {
+  if (!tiles.length) return [];
+  if (!PEER_REF_GAP_ONLY_SECTION_IDS.has(sectionId.trim())) {
+    return tiles;
+  }
+  const { gaps } = partitionFindingsByChip(findings);
+  if (!gaps.length) return [];
+  return enrichReferenceTilesForGaps(tiles, gaps, topic);
 }
 
 export function referenceTileNarrative(tile: DiagnosisReferenceTile): string {

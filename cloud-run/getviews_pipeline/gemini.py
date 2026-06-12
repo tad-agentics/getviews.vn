@@ -1431,6 +1431,66 @@ _SEEDING_FINDING_RE = re.compile(
 )
 
 
+def _clamp_finding_evidence_refs(
+    diagnosis_vi: dict[str, Any],
+    duration_sec: float | None,
+) -> None:
+    """Validate per-finding ``evidence_ref`` timestamps against the analyzed clip.
+
+    Gemini may emit ``evidence_ref`` pointing at the wrong window or out of range.
+    Keep only refs whose start/end are finite, non-negative, ordered, and (when a
+    duration is known) inside the clip. Anything else is dropped to ``None`` so the
+    FE falls back to a text-only finding card instead of a broken seek deep-link.
+    """
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return
+    dur = float(duration_sec) if duration_sec and duration_sec > 0 else None
+
+    def _num(value: Any) -> float | None:
+        try:
+            n = float(value)
+        except (TypeError, ValueError):
+            return None
+        return n if n == n and n not in (float("inf"), float("-inf")) else None
+
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        findings = sec.get("findings")
+        if not isinstance(findings, list):
+            continue
+        for f in findings:
+            if not isinstance(f, dict) or "evidence_ref" not in f:
+                continue
+            ref = f.get("evidence_ref")
+            if not isinstance(ref, dict):
+                f["evidence_ref"] = None
+                continue
+            start = _num(ref.get("start_sec"))
+            end = _num(ref.get("end_sec"))
+            if dur is not None:
+                if start is not None:
+                    start = max(0.0, min(start, dur))
+                if end is not None:
+                    end = max(0.0, min(end, dur))
+            # Need at least one usable, ordered timestamp.
+            if start is not None and end is not None and end <= start:
+                end = None
+            if start is None and end is None:
+                f["evidence_ref"] = None
+                continue
+            cleaned: dict[str, Any] = {}
+            if start is not None:
+                cleaned["start_sec"] = round(start, 2)
+            if end is not None:
+                cleaned["end_sec"] = round(end, 2)
+            label = str(ref.get("label_vi") or "").strip()
+            if label:
+                cleaned["label_vi"] = label[:60]
+            f["evidence_ref"] = cleaned
+
+
 def _dedupe_seeding_claim_surfaces(diagnosis_vi: dict[str, Any]) -> None:
     """The seeding/ads claim feeds ONE surface — the boost_attribution block.
 
@@ -1898,6 +1958,21 @@ def _synthesize_diagnosis_v6_section_pool(
         )
         if diag_vi:
             _validate_anchor_signal_ids(diag_vi, manifest)
+            _dur_raw = user_stats.get("duration_sec") or user_analysis.get("duration_sec")
+            try:
+                _clip_duration = float(_dur_raw) if _dur_raw is not None else None
+            except (TypeError, ValueError):
+                _clip_duration = None
+            # humanize_narrative_vi_dict() deep-copies narrative_vi, so by this
+            # point diag_vi is orphaned from the object that gets persisted/streamed.
+            # Clamp the PERSISTED diagnosis_vi (fall back to diag_vi defensively).
+            _persisted_diag = (
+                narrative_vi.get("diagnosis_vi") if isinstance(narrative_vi, dict) else None
+            )
+            _clamp_finding_evidence_refs(
+                _persisted_diag if isinstance(_persisted_diag, dict) else diag_vi,
+                _clip_duration,
+            )
         if attempt == 0 and diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi):
             wc = diagnosis_v6_word_counts(diag_vi)
             logger.info(

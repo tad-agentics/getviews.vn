@@ -7,7 +7,10 @@ from getviews_pipeline.diagnosis_quality import (
     diagnosis_v6_word_budget_exceeded,
     score_diagnosis_output_v6,
 )
-from getviews_pipeline.gemini import _v6_section_body_and_narrative
+from getviews_pipeline.gemini import (
+    _clamp_finding_evidence_refs,
+    _v6_section_body_and_narrative,
+)
 from getviews_pipeline.signals.registry import build_diagnosis_ctx, build_signal_manifest
 
 
@@ -285,3 +288,53 @@ def test_validate_narrative_citations_invokes_diagnosis_vi_guard() -> None:
     }
     _validate_narrative_citations(nv, None, set())
     assert nv["diagnosis_vi"]["evidence_anchors"][0]["quote"] is None
+
+
+def test_clamp_finding_evidence_refs_clamps_to_duration() -> None:
+    diag: dict = {
+        "sections": [
+            {
+                "findings": [
+                    {"title_vi": "ok", "evidence_ref": {"start_sec": -1, "end_sec": 99, "label_vi": "x"}},
+                ]
+            }
+        ]
+    }
+    _clamp_finding_evidence_refs(diag, 28.0)
+    ref = diag["sections"][0]["findings"][0]["evidence_ref"]
+    assert ref == {"start_sec": 0.0, "end_sec": 28.0, "label_vi": "x"}
+
+
+def test_clamp_finding_evidence_refs_drops_unordered_and_garbage() -> None:
+    diag: dict = {
+        "sections": [
+            {
+                "findings": [
+                    {"title_vi": "a", "evidence_ref": {"start_sec": 5, "end_sec": 3}},
+                    {"title_vi": "b", "evidence_ref": "nope"},
+                    {"title_vi": "c", "evidence_ref": {"start_sec": "NaN", "end_sec": None}},
+                ]
+            }
+        ]
+    }
+    _clamp_finding_evidence_refs(diag, 28.0)
+    fs = diag["sections"][0]["findings"]
+    # Unordered end<=start drops end_sec, keeps start.
+    assert fs[0]["evidence_ref"] == {"start_sec": 5.0}
+    # Non-dict ref → None.
+    assert fs[1]["evidence_ref"] is None
+    # Both unusable → None.
+    assert fs[2]["evidence_ref"] is None
+
+
+def test_clamp_finding_evidence_refs_without_duration_keeps_valid_range() -> None:
+    diag: dict = {
+        "sections": [
+            {"findings": [{"title_vi": "a", "evidence_ref": {"start_sec": 2, "end_sec": 6}}]}
+        ]
+    }
+    _clamp_finding_evidence_refs(diag, None)
+    assert diag["sections"][0]["findings"][0]["evidence_ref"] == {
+        "start_sec": 2.0,
+        "end_sec": 6.0,
+    }
