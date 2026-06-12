@@ -396,7 +396,7 @@ def test_tile_narrative_needs_regen_legacy_handle_views() -> None:
         "Kênh @tuyetmia204 (210.2K view) đang vận hành cực kỳ hiệu quả."
     )
     assert not tile_narrative_needs_regen(
-        "Được chọn vì hook dạng câu hỏi giữ chân ngay 3 giây đầu."
+        "Hook dạng đặt câu hỏi giữ chân ngay 3 giây đầu."
     )
 
 
@@ -422,7 +422,8 @@ def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
     assert "nhịp mở" in narrative_3
     assert len({narrative_1, narrative_2, narrative_3}) == 3
 
-    assert "Được chọn" in narrative_1 or "Tham chiếu" in narrative_1 or "Lý do tham chiếu" in narrative_1
+    assert "Được chọn" not in narrative_1
+    assert "Tham chiếu vì" not in narrative_1
     assert "đang vận hành cực kỳ hiệu quả" not in narrative_1
     assert "@user1" not in narrative_1
 

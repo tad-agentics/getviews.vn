@@ -58,6 +58,81 @@ describe("SectionFindingCard fix chip", () => {
   });
 });
 
+describe("diagnosis strength-gap layout", () => {
+  it("does not apply strength-gap layout for hit tier (Đang làm tốt)", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "diagnosis",
+          title_vi: "Đang làm tốt",
+          text_vi: "Video breakout.",
+          findings: [
+            {
+              title_vi: "Hook mạnh",
+              fix_vi: "Tiếp tục giữ hook câu hỏi.",
+            },
+          ],
+        }}
+        referenceVideos={[]}
+      />,
+    );
+    expect(screen.queryByText("ĐIỂM MẠNH")).toBeNull();
+    expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
+  });
+
+  it("renders strength/gap subsections, bridge prose, and gap-linked reference cards", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "diagnosis",
+          title_vi: "Điểm mạnh và khoảng trống",
+          text_vi:
+            "**Hình mẫu trắc nghiệm** đang kéo view tốt. Sự kết hợp ASMR và trắc nghiệm tạo tò mò. Video vượt 1,8× mức view thường của kênh. Peer trong ngách mở hook cụ thể hơn.",
+          findings: [
+            {
+              title_vi: "Nhịp ASMR ổn",
+              body_vi: "Giữ chân ổn định.",
+              fix_vi: "Tiếp tục dùng texture ASMR làm nền.",
+            },
+            {
+              title_vi: "Hook thiếu điểm nhạy",
+              body_vi: "Câu mở quá chung.",
+              fix_vi: "Đổi thành câu hỏi cụ thể trong 0s.",
+            },
+          ],
+          embedded_tiles: [
+            {
+              aweme_id: "111",
+              narrative_vi:
+                "Được chọn vì cấu trúc format và nhịp dẫn nhất quán suốt clip. So format và giữ chân suốt clip với video đang phân tích.",
+            },
+          ],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "111",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 100_000,
+            engagement_rate: null,
+            author_handle: "@peer",
+            thumbnail_url: "https://t/1.jpg",
+            tiktok_url: "https://tiktok.com/@peer/video/111",
+            source: "corpus",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
+    expect(screen.getByText("KHOẢNG TRỐNG")).toBeTruthy();
+    expect(screen.getByText(/Để khắc phục «Hook thiếu điểm nhạy»/)).toBeTruthy();
+    expect(screen.getByText(/Để xử lý «Hook thiếu điểm nhạy»/)).toBeTruthy();
+    expect(screen.queryByText("Được chọn vì")).toBeNull();
+    expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
+  });
+});
+
 describe("section verdict prose", () => {
   it("merges verdict + support into one paragraph when both are present", () => {
     const verdict =

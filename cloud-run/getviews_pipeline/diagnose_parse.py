@@ -208,47 +208,47 @@ def _reference_strength_sentence(
     idx: int,
     addressing_mode: AddressingMode = "third_party",
 ) -> str:
-    """Why this peer was picked — no @handle or view count (shown on card footer)."""
+    """Peer-action blurb — no @handle, view count, or «Được chọn vì» boilerplate."""
     hook_phrase, fmt_phrase = _tile_hook_fmt_phrases(tile)
     if hook_phrase and fmt_phrase:
         templates = [
-            f"Được chọn vì {hook_phrase} trên nền {fmt_phrase} giữ chân rõ ngay từ nhịp mở.",
-            f"Tham chiếu vì {fmt_phrase} kết hợp {hook_phrase} tạo lý do dừng lướt ngay đầu clip.",
-            f"Lý do tham chiếu: {hook_phrase} và {fmt_phrase} làm tốt hơn median ngách ở cùng góc so sánh.",
+            f"{hook_phrase.capitalize()} trên nền {fmt_phrase} giữ chân rõ ngay từ nhịp mở.",
+            f"{fmt_phrase.capitalize()} kết hợp {hook_phrase} tạo lý do dừng lướt ngay đầu clip.",
+            f"{hook_phrase.capitalize()} và {fmt_phrase} vượt mức view thường trong ngách ở cùng góc so sánh.",
         ]
     elif hook_phrase:
         if addressing_mode == "viewer_own":
             templates = [
-                f"Được chọn vì {hook_phrase} tạo lý do dừng lướt ngay 3 giây đầu.",
-                f"Tham chiếu vì {hook_phrase} mạnh hơn cách mở clip của bạn ở cùng chủ đề.",
-                f"Lý do tham chiếu: {hook_phrase} giữ nhịp tò mò ngay khung mở.",
+                f"{hook_phrase.capitalize()} tạo lý do dừng lướt ngay 3 giây đầu.",
+                f"{hook_phrase.capitalize()} mạnh hơn cách mở clip của bạn ở cùng chủ đề.",
+                f"{hook_phrase.capitalize()} giữ nhịp tò mò ngay khung mở.",
             ]
         else:
             templates = [
-                f"Được chọn vì {hook_phrase} tạo lý do dừng lướt ngay 3 giây đầu.",
-                f"Tham chiếu vì {hook_phrase} mạnh hơn cách mở clip đang phân tích ở cùng chủ đề.",
-                f"Lý do tham chiếu: {hook_phrase} giữ nhịp tò mò ngay khung mở.",
+                f"{hook_phrase.capitalize()} tạo lý do dừng lướt ngay 3 giây đầu.",
+                f"{hook_phrase.capitalize()} mạnh hơn cách mở clip đang phân tích ở cùng chủ đề.",
+                f"{hook_phrase.capitalize()} giữ nhịp tò mò ngay khung mở.",
             ]
     elif fmt_phrase:
         if addressing_mode == "viewer_own":
             templates = [
-                f"Được chọn vì {fmt_phrase} giữ nhịp và cấu trúc ổn định suốt clip.",
-                f"Tham chiếu vì {fmt_phrase} duy trì momentum giữa clip tốt hơn median.",
-                f"Lý do tham chiếu: {fmt_phrase} là điểm mạnh cần đối chiếu với video của bạn.",
+                f"{fmt_phrase.capitalize()} giữ nhịp và cấu trúc ổn định suốt clip.",
+                f"{fmt_phrase.capitalize()} duy trì momentum giữa clip tốt hơn mức view thường.",
+                f"{fmt_phrase.capitalize()} là điểm mạnh cần đối chiếu với video của bạn.",
             ]
         else:
             templates = [
-                f"Được chọn vì {fmt_phrase} giữ nhịp và cấu trúc ổn định suốt clip.",
-                f"Tham chiếu vì {fmt_phrase} duy trì momentum giữa clip tốt hơn median.",
-                f"Lý do tham chiếu: {fmt_phrase} là điểm mạnh cần đối chiếu với video này.",
+                f"{fmt_phrase.capitalize()} giữ nhịp và cấu trúc ổn định suốt clip.",
+                f"{fmt_phrase.capitalize()} duy trì momentum giữa clip tốt hơn mức view thường.",
+                f"{fmt_phrase.capitalize()} là điểm mạnh cần đối chiếu với video này.",
             ]
     else:
         templates = [
-            "Được chọn vì cấu trúc format và nhịp dẫn nhất quán suốt clip.",
-            "Tham chiếu vì clip này giữ chân ổn định hơn median ở cùng ngách.",
-            "Lý do tham chiếu: nhịp dựng và cách triển khai ý chính rõ ràng, dễ học theo.",
+            "Cấu trúc định dạng và nhịp dẫn nhất quán suốt clip.",
+            "Clip này giữ chân ổn định hơn mức view thường trong ngách.",
+            "Nhịp dựng và cách triển khai ý chính rõ ràng, dễ học theo.",
         ]
-    return templates[idx % len(templates)]
+    return templates[(idx + idx // 3) % len(templates)]
 
 
 def fallback_tile_narrative_vi(
@@ -259,6 +259,33 @@ def fallback_tile_narrative_vi(
 ) -> str:
     """Deterministic comparison blurb when Gemini omits ``narrative_vi`` on a tile."""
     strength = _reference_strength_sentence(tile, idx, addressing_mode)
+
+    # Diagnosis tiles get gap-aware reframing on the FE — one peer-action sentence
+    # without the generic «So format và giữ chân…» angle (live UX audit 2026-06-12).
+    if section_id == "diagnosis":
+        hook_phrase, fmt_phrase = _tile_hook_fmt_phrases(tile)
+        if hook_phrase and fmt_phrase:
+            peers = [
+                f"mở bằng {hook_phrase} trên nền {fmt_phrase} và giữ nhịp dẫn xuyên suốt clip.",
+                f"kết hợp {hook_phrase} với {fmt_phrase} để tạo lý do dừng lướt ngay đầu clip.",
+            ]
+        elif hook_phrase:
+            peers = [
+                f"mở bằng {hook_phrase} ngay 3 giây đầu và giữ nhịp tò mò suốt clip.",
+                f"dùng {hook_phrase} để neo chú ý trước khi triển khai ý chính.",
+            ]
+        elif fmt_phrase:
+            peers = [
+                f"triển khai {fmt_phrase} với nhịp dẫn ổn định suốt thời lượng.",
+                f"giữ cấu trúc {fmt_phrase} xuyên suốt mà không rời nhịp giữa clip.",
+            ]
+        else:
+            peers = [
+                "mở đầu cụ thể và giữ nhịp dẫn rõ ràng suốt clip.",
+                "duy trì momentum giữa các đoạn mà không để khoảng chết kéo dài.",
+                "chốt ý bằng CTA tự nhiên mà không làm đứt nhịp kể giữa clip.",
+            ]
+        return peers[(idx + idx // 3) % len(peers)]
 
     angles = _tile_narrative_angles(section_id, addressing_mode)
     if angles:

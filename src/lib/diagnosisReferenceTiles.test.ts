@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildDiagnosisReferenceTiles,
+  buildGapLinkedTileNarrative,
   embeddedTilesFromEvidenceAnchors,
+  enrichReferenceTilesForGaps,
+  formatReferenceBridgeProse,
   mapDiagnosisEmbeddedTiles,
+  partitionFindingsByChip,
   referenceTileNarrative,
+  stripGenericReferenceBoilerplate,
   stripSectionProseForEmbeddedRefs,
 } from "./diagnosisReferenceTiles";
 import type { ReferenceVideoCard } from "@/lib/api-types";
@@ -133,6 +138,98 @@ describe("stripSectionProseForEmbeddedRefs", () => {
     expect(stripSectionProseForEmbeddedRefs(text)).toBe(
       "Hook mở bằng câu hỏi đối lập với median ngách.",
     );
+  });
+});
+
+describe("partitionFindingsByChip", () => {
+  it("splits keep-advice from corrective findings", () => {
+    const { strengths, gaps } = partitionFindingsByChip([
+      { title_vi: "Nhịp tốt", fix_vi: "Tiếp tục giữ nhịp 1.2s/cảnh." },
+      { title_vi: "Hook chậm", fix_vi: "Mở bằng câu hỏi trong 1s đầu." },
+    ]);
+    expect(strengths).toHaveLength(1);
+    expect(gaps).toHaveLength(1);
+    expect(strengths[0].title_vi).toBe("Nhịp tốt");
+    expect(gaps[0].title_vi).toBe("Hook chậm");
+  });
+});
+
+describe("referenceFallbackNarrative", () => {
+  it("uses Vietnamese hook/format labels instead of raw enums", () => {
+    const text = referenceTileNarrative({
+      video_url: "",
+      thumbnail_url: "",
+      views: 1,
+      caption_snippet: "",
+      posted_at: "",
+      hook_type: "question",
+      content_format: "tutorial",
+      narrative_vi: "short",
+    });
+    expect(text).toContain("Đặt Câu Hỏi");
+    expect(text).toContain("Hướng dẫn");
+    expect(text).not.toContain("question");
+    expect(text).not.toContain("tutorial");
+  });
+});
+
+describe("stripGenericReferenceBoilerplate", () => {
+  it("removes generic lead and trailing angle from cached tile copy", () => {
+    const raw =
+      "Được chọn vì cấu trúc format và nhịp dẫn nhất quán suốt clip. So format và giữ chân suốt clip với video đang phân tích.";
+    expect(stripGenericReferenceBoilerplate(raw)).toBe(
+      "cấu trúc format và nhịp dẫn nhất quán suốt clip.",
+    );
+  });
+});
+
+describe("buildGapLinkedTileNarrative", () => {
+  it("frames peer lesson against a gap title", () => {
+    const text = buildGapLinkedTileNarrative(
+      {
+        video_url: "",
+        thumbnail_url: "",
+        views: 1,
+        caption_snippet: "",
+        posted_at: "",
+        narrative_vi: "mở bằng câu hỏi cụ thể ngay 0s.",
+      },
+      { title_vi: "Hook thiếu điểm nhạy", fix_vi: "Đổi thành câu hỏi cụ thể trong 0s." },
+    );
+    expect(text).toContain("«Hook thiếu điểm nhạy»");
+    expect(text).toContain("mở bằng câu hỏi cụ thể");
+    expect(text).toContain("Áp dụng:");
+  });
+});
+
+describe("formatReferenceBridgeProse", () => {
+  it("leads into a single reference card for one gap", () => {
+    expect(
+      formatReferenceBridgeProse(
+        [{ title_vi: "Hook thiếu điểm nhạy" }],
+        1,
+      ),
+    ).toContain("«Hook thiếu điểm nhạy»");
+  });
+});
+
+describe("enrichReferenceTilesForGaps", () => {
+  it("overrides narrative_vi per tile", () => {
+    const out = enrichReferenceTilesForGaps(
+      [
+        {
+          video_url: "",
+          thumbnail_url: "",
+          views: 1,
+          caption_snippet: "",
+          posted_at: "",
+          narrative_vi: "Được chọn vì hook câu hỏi mạnh.",
+        },
+      ],
+      [{ title_vi: "Hook yếu", fix_vi: "Mở bằng câu hỏi." }],
+    );
+    expect(out[0].narrative_vi).toContain("«Hook yếu»");
+    expect(out[0].narrative_vi).not.toContain("Được chọn vì");
   });
 });
 

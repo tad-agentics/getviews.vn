@@ -14,6 +14,9 @@ import type {
 } from "@/lib/api-types";
 import {
   buildDiagnosisReferenceTiles,
+  enrichReferenceTilesForGaps,
+  formatReferenceBridgeProse,
+  partitionFindingsByChip,
   stripSectionProseForEmbeddedRefs,
 } from "@/lib/diagnosisReferenceTiles";
 import { fixChipMeta } from "@/lib/findingFixChip";
@@ -269,6 +272,72 @@ export function DiagnosisSectionRenderer({
   const findings = (section.findings ?? []).filter(
     (f) => f.title_vi || f.body_vi || f.fix_vi,
   );
+
+  const useStrengthGapLayout =
+    sid === "diagnosis" && title.toLowerCase().includes("khoảng trống");
+
+  if (useStrengthGapLayout) {
+    const { strengths, gaps } = partitionFindingsByChip(findings);
+    const gapLinkedTiles =
+      referenceTiles.length > 0 && gaps.length > 0
+        ? enrichReferenceTilesForGaps(referenceTiles, gaps)
+        : referenceTiles;
+    const refBridge =
+      gapLinkedTiles.length > 0 && gaps.length > 0
+        ? formatReferenceBridgeProse(gaps, gapLinkedTiles.length)
+        : "";
+    let findingRank = 0;
+
+    return (
+      <div className="mb-6">
+        <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">
+          {title}
+        </h3>
+        {text ? <SectionVerdictBlock text={text} /> : null}
+        {strengths.length > 0 ? (
+          <div className="mt-4">
+            <p className="gv-mono m-0 mb-2 text-[11px] gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
+              ĐIỂM MẠNH
+            </p>
+            <div className="flex flex-col gap-3">
+              {strengths.map((f, i) => {
+                findingRank += 1;
+                return (
+                  <SectionFindingCard key={`s-${i}`} rank={findingRank} finding={f} />
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+        {gaps.length > 0 ? (
+          <div className="mt-4">
+            <p className="gv-mono m-0 mb-2 text-[11px] gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
+              KHOẢNG TRỐNG
+            </p>
+            <div className="flex flex-col gap-3">
+              {gaps.map((f, i) => {
+                findingRank += 1;
+                return <SectionFindingCard key={`g-${i}`} rank={findingRank} finding={f} />;
+              })}
+            </div>
+          </div>
+        ) : null}
+        {refBridge ? (
+          <p className="m-0 mt-4 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">
+            {refBridge}
+          </p>
+        ) : null}
+        {gapLinkedTiles.length > 0 ? (
+          <DiagnosisReferenceVideoCards
+            tiles={gapLinkedTiles}
+            label="VÍ DỤ TRONG NGÁCH"
+            embedded
+            showLabel={!refBridge}
+          />
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="mb-6">

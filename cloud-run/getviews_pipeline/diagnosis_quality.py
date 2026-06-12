@@ -6,8 +6,9 @@ from typing import Any
 from getviews_pipeline.diagnose_parse import approximate_word_count_vi
 
 # Report redesign 2026-05 — prompt targets; retry uses soft ceiling.
-DIAGNOSIS_V6_SECTION_MAX_WORDS = 50
-DIAGNOSIS_V6_SECTION_SOFT_MAX = 55
+# Aligned with diagnose_prompts.py section.text cap (≤90 từ, 2026-06-12).
+DIAGNOSIS_V6_SECTION_MAX_WORDS = 90
+DIAGNOSIS_V6_SECTION_SOFT_MAX = 95
 DIAGNOSIS_V6_TOTAL_TARGET_MAX = 450
 DIAGNOSIS_V6_TOTAL_RETRY_MAX = 480
 DIAGNOSIS_V6_NEXT_VIDEO_MAX_WORDS = 150

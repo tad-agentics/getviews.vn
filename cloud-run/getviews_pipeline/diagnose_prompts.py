@@ -25,7 +25,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
       {
         "section_id": "<id>",
         "title": "tiêu đề tiếng Việt — câu thường (chữ đầu viết hoa), KHÔNG viết hoa toàn bộ; dùng DEFAULT_TITLES_HINT khi có",
-        "text": "MỘT câu verdict in đậm (**...**) là kết luận section — đọc riêng câu này là đủ hiểu. Sau đó TỐI ĐA 2 câu chứng minh bằng số/dữ liệu kênh. KHÔNG quá 50 từ. KHÔNG viết đoạn 150-200 từ.",
+        "text": "MỘT câu verdict in đậm (**...**) là kết luận section — đọc riêng câu này là đủ hiểu. Sau đó tối đa 4 câu chứng minh bằng số/dữ liệu kênh. KHÔNG quá 90 từ. KHÔNG viết đoạn 150-200 từ.",
         "findings": [
           {
             "title_vi": "Tên vấn đề — hậu quả, ≤10 từ",
@@ -50,7 +50,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
 Quy tắc:
 
 ĐỘ DÀI & CẤU TRÚC (ưu tiên cao nhất — audience là creator, đọc lướt trên mobile):
-- TỔNG báo cáo ~350-450 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 2 câu chứng minh (≤50 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 3 câu prose.
+- TỔNG báo cáo ~350-450 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu chứng minh (≤90 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 5 câu prose.
 - VERDICT-FIRST: câu đầu mỗi section là kết luận in đậm — đọc các câu đậm xuyên suốt bài là hiểu toàn bộ. Phần còn lại chỉ chứng minh + fix + reference.
 - ĐƠN VỊ CHÍNH là FINDINGS + REFERENCE, KHÔNG phải prose. Khi phân vân giữa viết thêm 1 đoạn giải thích và đưa thêm 1 finding/1 reference tile → luôn chọn finding/reference. Prose chỉ là 1 câu verdict dẫn vào.
 - DẠY VIỆC CẦN LÀM > chẩn đoán. Nén chẩn đoán còn 1 câu; dồn không gian cho fix cụ thể, reference video, và script clip tiếp theo.
@@ -77,7 +77,7 @@ REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
 - Section phân tích thuần (channel_pattern, persona, compliance): tile tùy chọn, không bắt buộc.
 
 CHANNEL_PATTERN (Ref-style: kênh tự chứng minh):
-- Dùng channel_context: trích số cụ thể (top video X views, bottom Y views, mức view thường của kênh). 1 câu verdict in đậm: video này so với mức thường của kênh thế nào + creator nên nhân đôi cái gì. Tối đa 2 câu. Nếu source="live": ghi chú nhẹ dữ liệu kênh là live.
+- Dùng channel_context: trích số cụ thể (top video X views, bottom Y views, mức view thường của kênh). 1 câu verdict in đậm: video này so với mức thường của kênh thế nào + creator nên nhân đôi cái gì. ≤90 từ. Nếu source="live": ghi chú nhẹ dữ liệu kênh là live.
 - Nếu channel_context.recent_content_audit có mặt: được trích số đếm thật để nối video này với pattern kênh («video này không có mặt người — X/Y video gần nhất của kênh cũng vậy»; avg_views_with_face vs without nếu có). KHÔNG suy đoán ngoài số đếm.
 
 NEXT_VIDEO (script copy-paste được, KHÔNG concept trừu tượng):
@@ -104,7 +104,7 @@ KHÁCH QUAN VỚI PERFORMANCE_TIER (chống bias kết quả):
 DIAGNOSIS_V6_SHORTEN_RETRY_APPEND = """
 BẮT BUỘC RÚT GỌN (lần 2): Bản trước quá dài. Trả lại JSON đầy đủ cùng schema.
 - TỔNG ≤450 từ (mọi section.text + findings).
-- Mỗi section.text (trừ next_video): ≤50 từ — 1 verdict **in đậm** + tối đa 2 câu chứng minh.
+- Mỗi section.text (trừ next_video): ≤90 từ — 1 verdict **in đậm** + tối đa 4 câu chứng minh.
 - Giữ đủ findings (2-3/issue section) và embedded_tiles; cắt prose thừa, KHÔNG bỏ fix_vi.
 - next_video: giữ bullet script • Hook → Beat → CTA, gọn hơn nếu cần.
 """
@@ -427,9 +427,24 @@ def build_diagnosis_v6_user_prompt(
             "headline_vi và diagnosis phải khẳng định thắng — chỉ nêu hook/cắt hình như polish, "
             "không viết như video flop; dùng **view**, **tỷ lệ tương tác**."
         )
+    strength_gap_note = ""
+    if tier == "average" and "diagnosis" in sections_to_emit:
+        strength_gap_note = (
+            "\n\nSECTION diagnosis (tier=average — «Điểm mạnh và khoảng trống»):"
+            "\n- section.text: ưu tiên 4 câu trong ngân sách ≤90 từ (1 verdict **in đậm** + 3 câu "
+            "chứng minh có số liệu/mốc giây). Đây là đoạn dẫn nhập — đọc xong phải hiểu vì sao "
+            "video quanh chuẩn ngách."
+            "\n- findings: đúng 1 điểm mạnh (fix_vi bắt đầu «Tiếp tục»/«Giữ»/«Duy trì») + 1-2 "
+            "khoảng trống (fix_vi là hành động sửa cụ thể). UI tách hai nhóm — đừng gộp lẫn."
+            "\n- embedded_tiles narrative_vi: 1-2 câu mô tả peer làm gì tốt hơn clip đang phân tích "
+            "VÀ gắn trực tiếp vào 1 khoảng trống («để sửa hook chung chung, clip này mở bằng…»). "
+            "KHÔNG dùng câu chung «Được chọn vì format» / «Tham chiếu vì» không nói áp dụng cho gap nào."
+            "\n- Dệt 1-2 câu trong section.text dẫn sang thẻ video tham chiếu (thumbnail); "
+            "không lặp nguyên văn narrative_vi trên thẻ."
+        )
     blocks.append(
-        "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 2 câu "
-        "chứng minh (≤50 từ). Tổng báo cáo ~350-450 từ. Ưu tiên fix + reference video hơn giải "
+        "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu "
+        "chứng minh (≤90 từ). Tổng báo cáo ~350-450 từ. Ưu tiên fix + reference video hơn giải "
         "thích dài. KHÔNG tạo section timing/giờ đăng. Mỗi câu phải advance argument."
         "\n\nQUY TẮC ĐỘ SÂU (bắt buộc):"
         "\n- GIỮ NGUYÊN danh sách section trong SECTIONS_TO_EMIT — USER_EVIDENCE_DIGEST "
@@ -444,8 +459,10 @@ def build_diagnosis_v6_user_prompt(
         "mốc thời gian, hoặc tên video/creator cụ thể — câu không có bằng chứng thì cắt."
         "\n- CẤM câu đệm: 'có thể thấy rằng', 'nhìn chung', 'điều này cho thấy', "
         "'một điều đáng chú ý là'. Verdict trước, bằng chứng ngay sau."
-        "\n- Nhịp đúng: 'Video dừng ở 64K — bằng 35% median kênh. 3 giây đầu là cảnh tĩnh. "
-        "@handle cùng ngách mở bằng chuyển động + 1 câu hỏi và đạt 1.9M.'"
+        "\n- Nhịp đúng (≤90 từ): '**Hình mẫu X đang kéo view tốt** so với chuẩn ngách. "
+        "ASMR + trắc nghiệm tạo tò mò. Vượt 1,8× mức view thường kênh. "
+        "Hai clip tham chiếu dưới minh họa cách xử lý hook và nhịp.'"
         + tier_note
+        + strength_gap_note
     )
     return "".join(blocks)

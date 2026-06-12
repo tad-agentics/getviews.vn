@@ -129,7 +129,7 @@ def test_v6_section_body_and_narrative() -> None:
 def test_diagnosis_v6_word_budget_exceeded_on_long_section() -> None:
     diag = {
         "sections": [
-            {"section_id": "diagnosis", "text": "word " * 60},
+            {"section_id": "diagnosis", "text": "word " * 100},
         ],
     }
     assert diagnosis_v6_word_budget_exceeded(diag) is True

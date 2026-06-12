@@ -171,6 +171,10 @@ def test_v6_user_stats_trim_carries_ratio_and_age() -> None:
     assert "0.8" in prompt
     assert "video_age_days" in prompt
     assert "12.0" in prompt
+    assert "SECTION diagnosis (tier=average" in prompt
+    assert "≤90 từ" in prompt
+    assert "ưu tiên 4 câu trong ngân sách ≤90 từ" in prompt
+    assert "≤50 từ" not in prompt
 
 
 # ── section titles — early tier maps to neutral set ──────────────────

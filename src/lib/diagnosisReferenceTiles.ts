@@ -1,9 +1,14 @@
 import type {
   ChannelPerformerTile,
   DiagnosisEvidenceAnchorVi,
+  DiagnosisFinding,
   DiagnosisSectionVi,
   ReferenceVideoCard,
 } from "@/lib/api-types";
+import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
+import { hookNameVI } from "@/lib/constants/hook-names-vi";
+import { fixChipMeta } from "@/lib/findingFixChip";
+import { formatViews } from "@/lib/formatters";
 
 /** One peer reference video shown under a diagnosis section. */
 export interface DiagnosisReferenceTile extends ChannelPerformerTile {
@@ -124,16 +129,134 @@ export function sanitizeReferenceTileNarrative(text: string): string {
   return t.trim();
 }
 
+function referenceHookFormatPhrases(tile: DiagnosisReferenceTile): {
+  hookPhrase: string;
+  formatPhrase: string;
+} {
+  const hookRaw = tile.hook_type?.trim();
+  const fmtRaw = tile.content_format?.trim();
+  const hookVi = hookRaw ? hookNameVI(hookRaw) : "";
+  const fmtVi = fmtRaw ? contentFormatLabelVi(fmtRaw) : null;
+  return {
+    hookPhrase: hookVi ? `hook dạng ${hookVi}` : "",
+    formatPhrase: fmtVi ? `định dạng ${fmtVi}` : "",
+  };
+}
+
 function referenceFallbackNarrative(tile: DiagnosisReferenceTile): string {
-  const hook = tile.hook_type?.trim();
-  const fmt = tile.content_format?.trim();
-  const parts: string[] = [];
-  if (hook) parts.push(`hook ${hook}`);
-  if (fmt) parts.push(`format ${fmt}`);
-  if (parts.length > 0) {
-    return `Được chọn vì ${parts.join(" và ")} làm tốt hơn median — đối chiếu nhịp mở và cách giữ chân với clip của bạn.`;
+  const { hookPhrase, formatPhrase } = referenceHookFormatPhrases(tile);
+  if (hookPhrase && formatPhrase) {
+    return `giữ nhịp mở và giữ chân tốt hơn mức view thường trong ngách nhờ ${hookPhrase} và ${formatPhrase}.`;
   }
-  return "Được chọn vì cấu trúc format giữ chân ổn định — đối chiếu hook, nhịp dẫn và cách chốt với clip của bạn.";
+  if (hookPhrase) {
+    return `giữ chân ổn định suốt clip nhờ ${hookPhrase} ngay khung mở.`;
+  }
+  if (formatPhrase) {
+    return `giữ nhịp dẫn ổn định suốt clip nhờ ${formatPhrase}.`;
+  }
+  return "giữ chân ổn định suốt clip — đối chiếu cách mở đầu, nhịp dẫn và chốt với clip của bạn.";
+}
+
+const GENERIC_REF_LEAD_RE =
+  /^(?:Được chọn vì|Tham chiếu vì|Lý do tham chiếu:)\s*/iu;
+const GENERIC_REF_ANGLE_RE =
+  /\s*(?:So format và giữ chân suốt clip với video đang phân tích\.|Quan sát cấu trúc kịch bản và nhịp cuốn\.|Chú ý tương tác giữa clip và CTA chốt\.|Đối chiếu cách mở đầu và giữ chân với clip đang phân tích\.|Quan sát nhịp truyền tải và cách chốt ý cho lần quay tiếp theo của creator\.|Học cách duy trì momentum giữa clip mà không bị rời nhịp\.)\s*$/iu;
+const GAP_FRAMED_NARRATIVE_RE = /để\s+(?:xử lý|sửa|khắc phục)/iu;
+
+/** Strip cached backend boilerplate from tile narratives before gap reframing. */
+export function stripGenericReferenceBoilerplate(text: string): string {
+  let t = text.trim();
+  if (!t) return t;
+  t = t.replace(GENERIC_REF_LEAD_RE, "");
+  t = t.replace(GENERIC_REF_ANGLE_RE, "");
+  return t.trim();
+}
+
+/** Split findings into keep-advice (điểm mạnh) vs corrective (khoảng trống). */
+export function partitionFindingsByChip(findings: DiagnosisFinding[]): {
+  strengths: DiagnosisFinding[];
+  gaps: DiagnosisFinding[];
+} {
+  const strengths: DiagnosisFinding[] = [];
+  const gaps: DiagnosisFinding[] = [];
+  for (const f of findings) {
+    if (fixChipMeta(f.fix_vi).positive) {
+      strengths.push(f);
+    } else {
+      gaps.push(f);
+    }
+  }
+  return { strengths, gaps };
+}
+
+/** Lead-in prose before reference cards — ties gaps to peer examples. */
+export function formatReferenceBridgeProse(
+  gaps: DiagnosisFinding[],
+  tileCount: number,
+): string {
+  if (!tileCount || !gaps.length) return "";
+  const titles = gaps.map((g) => g.title_vi?.trim()).filter(Boolean) as string[];
+  if (!titles.length) {
+    return tileCount === 1
+      ? "Clip tham chiếu dưới minh họa cách creator trong ngách xử lý điểm cần cải thiện — đối chiếu cách mở đầu và giữ nhịp với video của bạn."
+      : `${tileCount} clip dưới minh họa cách creator trong ngách xử lý từng điểm cần cải thiện — đối chiếu cách mở đầu và giữ nhịp với video của bạn.`;
+  }
+  if (titles.length === 1 && tileCount === 1) {
+    return `Để khắc phục «${titles[0]}», xem clip tham chiếu dưới — creator trong ngách đã xử lý đúng điểm này như thế nào.`;
+  }
+  const listed = titles.map((t) => `«${t}»`).join(", ");
+  return `${tileCount} clip dưới là ví dụ trong ngách cho ${listed} — mỗi clip gắn với một hướng sửa cụ thể.`;
+}
+
+function sentenceCaseVi(text: string): string {
+  const t = text.trim();
+  if (!t) return t;
+  return t.charAt(0).toLowerCase() + t.slice(1);
+}
+
+/** Card copy: peer lesson framed as evidence for one gap (+ optional fix). */
+export function buildGapLinkedTileNarrative(
+  tile: DiagnosisReferenceTile,
+  gap?: Pick<DiagnosisFinding, "title_vi" | "fix_vi">,
+): string {
+  const cleaned = stripGenericReferenceBoilerplate(tile.narrative_vi?.trim() ?? "");
+  if (cleaned && GAP_FRAMED_NARRATIVE_RE.test(cleaned)) {
+    return cleaned;
+  }
+
+  let peerLesson = cleaned;
+  if (peerLesson.length < 24) {
+    peerLesson = stripGenericReferenceBoilerplate(referenceFallbackNarrative(tile));
+  }
+
+  const gapTitle = gap?.title_vi?.trim();
+  if (!gapTitle) {
+    return peerLesson || referenceTileNarrative(tile);
+  }
+
+  const fix = gap?.fix_vi?.trim();
+  const fixClause =
+    fix && !fixChipMeta(fix).positive
+      ? ` Áp dụng: ${sentenceCaseVi(fix.replace(/\.$/, ""))}.`
+      : "";
+
+  const core = peerLesson
+    ? `Để xử lý «${gapTitle}», clip này ${sentenceCaseVi(peerLesson.replace(/\.$/, ""))}.`
+    : `Để xử lý «${gapTitle}», đối chiếu cách clip này mở đầu và giữ nhịp so với video của bạn.`;
+
+  return `${core}${fixClause}`;
+}
+
+/** Clone tiles with gap-aware narratives for strength-gap diagnosis layout. */
+export function enrichReferenceTilesForGaps(
+  tiles: DiagnosisReferenceTile[],
+  gaps: DiagnosisFinding[],
+): DiagnosisReferenceTile[] {
+  if (!gaps.length) return tiles;
+  return tiles.map((tile, i) => ({
+    ...tile,
+    narrative_vi: buildGapLinkedTileNarrative(tile, gaps[i] ?? gaps[0]),
+  }));
 }
 
 export function referenceTileNarrative(tile: DiagnosisReferenceTile): string {
@@ -145,7 +268,7 @@ export function referenceTileNarrative(tile: DiagnosisReferenceTile): string {
   const desc = tile.caption_snippet?.trim();
   if (desc) {
     const clipped = desc.length > 180 ? `${desc.slice(0, 177)}…` : desc;
-    return `Được chọn vì cùng chủ đề «${clipped}» — so sánh cách mở đầu và nhịp dẫn với clip của bạn.`;
+    return `cùng chủ đề «${clipped}» nhưng mở đầu và nhịp dẫn rõ hơn clip đang phân tích.`;
   }
   return referenceFallbackNarrative(tile);
 }

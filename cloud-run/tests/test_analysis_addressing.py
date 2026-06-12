@@ -80,6 +80,29 @@ def test_v6_prompt_includes_addressing_mode_in_ctx() -> None:
     assert "ĐỐI TƯỢNG ĐỌC" in prompt
 
 
+def test_v6_prompt_average_diagnosis_has_no_short_prose_cap() -> None:
+    prompt = build_diagnosis_v6_user_prompt(
+        sections_to_emit=["diagnosis"],
+        manifest_for_llm={},
+        ctx={},
+        content_format="tutorial",
+        niche_name="skincare",
+        corpus_size=100,
+        reference_videos=[],
+        user_analysis={},
+        user_stats={"views": 1000},
+        performance_tier="average",
+        channel_context=None,
+        errors=None,
+        wants_directions=False,
+    )
+    assert "SECTION diagnosis (tier=average" in prompt
+    assert "≤90 từ" in prompt
+    assert "ưu tiên 4 câu trong ngân sách ≤90 từ" in prompt
+    assert "KHÔNG dùng câu chung «Được chọn vì format»" in prompt
+    assert "≤50 từ" not in prompt
+
+
 def test_fetch_viewer_tiktok_handle_reads_profile() -> None:
     sb = MagicMock()
     sb.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(
