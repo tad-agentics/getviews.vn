@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from getviews_pipeline.enum_labels_vi import hook_type_vi
 from getviews_pipeline.signals.base import Evidence, Signal
 
 logger = logging.getLogger(__name__)
@@ -130,8 +131,9 @@ def extract_win_hook_aligns_niche_top_signal(ctx: dict) -> list[Signal]:
             taxonomy_ref="§4.8.3",
             salience=0.86,
             claim=(
-                f"Hook `{ht}` trùng top hook đang tích lũy view trong ngách "
-                f"({', '.join(top)}) — cơ chế mở bài khớp pattern thắng."
+                f"Hook «{hook_type_vi(ht, default=ht)}» ({ht}) trùng top hook đang tích lũy "
+                f"view trong ngách ({', '.join(hook_type_vi(t, default=t) for t in top)}) — "
+                "cơ chế mở bài khớp pattern thắng."
             ),
             evidence=[
                 Evidence(

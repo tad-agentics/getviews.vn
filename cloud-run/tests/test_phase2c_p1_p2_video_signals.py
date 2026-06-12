@@ -245,9 +245,12 @@ def test_manifest_includes_all_phase2c_ids() -> None:
         user_stats={"views": 3000, "engagement_rate": 2.0, "caption": "x", "hashtag_count": 2}
     )
 
+    # 2026-06-12: seeding_comment_pattern now requires boost suspicion —
+    # views must clear the boost p90 (50K×1.8=90K) so the live classification
+    # is suspect, not organic_confident (which suppresses the claim).
     ctx_seeding = _ctx(
         user_stats={
-            "views": 50_000,
+            "views": 120_000,
             "comments": 8,
             "engagement_rate": 0.3,
             "caption": "x",

@@ -353,8 +353,26 @@ def _radar_neutral_pct(radar: dict) -> float:
         return 0.0
 
 
+def _fmt_comment_rate_per_1000(comment_rate: float) -> str:
+    """Creator-readable comment density — ``0.26 comment/1.000 view``.
+
+    Bug 2026-06-12: the raw ratio leaked into prose as «tỉ lệ 0.000258»,
+    which is unreadable for creators.
+    """
+    return f"{comment_rate * 1000:.2f} comment/1.000 view"
+
+
 def extract_seeding_comment_pattern_signal(ctx: dict) -> list[Signal]:
-    """§4.7 M5 — comment spam/neutral skew + thin engagement on high views."""
+    """§4.7 M5 — comment spam/neutral skew + thin engagement on high views.
+
+    Coherence guard (bug 2026-06-12): the report's boost chip renders
+    ``meta.boost_attribution`` ("Organic — không thấy dấu hiệu boost" when
+    ``organic_confident``). A seeding claim fired off a low comment ratio
+    alone contradicted that chip in the same report — so this signal now
+    requires boost suspicion (stored row attribution or the live
+    classification), and is suppressed outright when the stored attribution
+    says ``organic_confident``.
+    """
     radar = _comment_radar(ctx)
     sampled = int(radar.get("sampled") or 0)
     if sampled < 8:
@@ -369,6 +387,10 @@ def extract_seeding_comment_pattern_signal(ctx: dict) -> list[Signal]:
         return []
 
     us = _user_stats(ctx)
+    stored_attribution = str(us.get("boost_attribution") or "").strip().lower()
+    if stored_attribution == "organic_confident":
+        return []
+
     views = int(us.get("views") or 0)
     comments = int(us.get("comments") or 0)
     if views < 10_000:
@@ -391,9 +413,11 @@ def extract_seeding_comment_pattern_signal(ctx: dict) -> list[Signal]:
         percentiles=pct,
         hard_reject_enabled=False,
     )
-    low_comment_rate = comment_rate < pct.p10_comment_rate
-    boost_suspect = boost.attribution in ("suspect_low", "suspect_medium")
-    if not (low_comment_rate or boost_suspect):
+    boost_suspect = (
+        boost.attribution in ("suspect_low", "suspect_medium")
+        or stored_attribution in ("suspect_low", "suspect_medium")
+    )
+    if not boost_suspect:
         return []
 
     return [
@@ -405,7 +429,8 @@ def extract_seeding_comment_pattern_signal(ctx: dict) -> list[Signal]:
             claim=(
                 f"Có dấu hiệu seeding ảo: {sampled} comment mẫu, "
                 f"{neutral_pct:.0f}% trung tính, spam skip {spam_skipped_ratio:.0%}; "
-                f"{views:,} view với {comments} comment ({comment_rate:.3g}/view) — "
+                f"{views:,} view với {comments} comment "
+                f"({_fmt_comment_rate_per_1000(comment_rate)}) — "
                 f"không khẳng định boost chắc."
             ),
             evidence=[

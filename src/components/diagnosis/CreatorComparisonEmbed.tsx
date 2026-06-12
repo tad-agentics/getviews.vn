@@ -3,6 +3,7 @@
  */
 
 import type { CreatorComparison, CreatorComparisonVideo } from "@/lib/api-types";
+import { creatorComparisonPercentileLabel } from "@/lib/videoAdjunctSections";
 
 function fmtViews(v: number): string {
   return v >= 1_000_000
@@ -109,8 +110,10 @@ export function CreatorComparisonEmbed({ data }: { data: CreatorComparison }) {
 
       <p className="mt-2 text-[11px] text-[color:var(--gv-ink-3)]">
         Video này đang ở{" "}
-        <span className="font-medium text-[color:var(--gv-ink)]">{data.target_percentile}</span> so
-        với{" "}
+        <span className="font-medium text-[color:var(--gv-ink)]">
+          {creatorComparisonPercentileLabel(data.target_vs_median, data.target_percentile)}
+        </span>{" "}
+        so với{" "}
         <span className="font-medium text-[color:var(--gv-ink)]">
           {data.total_posts_analyzed} video
         </span>{" "}

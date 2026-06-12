@@ -26,7 +26,11 @@ def _load_normalised(name: str) -> list[dict[str, Any]]:
     return [v for aw in awemes if (v := _normalise_aweme(aw)) is not None]
 
 
-def _build_context(trajectory: str, videos: list[dict[str, Any]] | None = None) -> str:
+def _build_context(
+    trajectory: str,
+    videos: list[dict[str, Any]] | None = None,
+    next_video_concept: dict[str, Any] | None = None,
+) -> str:
     from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         compute_inflection_point,
@@ -53,6 +57,7 @@ def _build_context(trajectory: str, videos: list[dict[str, Any]] | None = None) 
         creator_match=None,
         ugc_creators=[],
         niche_benchmarks=None,
+        next_video_concept=next_video_concept,
     )
 
 
@@ -217,6 +222,33 @@ def test_context_ugc_empty_placeholder():
     ctx = _build_context("stagnant")
     assert "<<<KÊNH CÙNG NGÁCH" in ctx
     assert "Không đủ kênh cùng ngách trong kho dữ liệu" in ctx
+
+
+def _next_video_concept(peer_avg_views: int) -> dict[str, Any]:
+    return {
+        "format": "talking_head",
+        "format_label": "Nói trước camera",
+        "duration_sec": 18,
+        "rationale_struct": "x",
+        "sample_peer_handle": "peer",
+        "sample_video_url": "https://www.tiktok.com/@peer/video/1",
+        "peer_avg_views": peer_avg_views,
+        "channel_share_pct": 3.0,
+    }
+
+
+def test_context_next_video_includes_peer_avg_when_real():
+    ctx = _build_context("stagnant", next_video_concept=_next_video_concept(120_000))
+    assert "<<<NEXT VIDEO CONCEPT>>>" in ctx
+    assert "peer_avg_views:" in ctx
+
+
+def test_context_next_video_omits_peer_avg_when_zero():
+    """Bug 2026-06-12: peer_avg_views=0 reached the prompt and Gemini parroted
+    «Peer TB ~0 view» in the GỢI Ý box."""
+    ctx = _build_context("stagnant", next_video_concept=_next_video_concept(0))
+    assert "<<<NEXT VIDEO CONCEPT>>>" in ctx
+    assert "peer_avg_views" not in ctx
 
 
 # ---------------------------------------------------------------------------

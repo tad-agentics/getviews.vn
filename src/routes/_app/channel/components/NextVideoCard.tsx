@@ -54,8 +54,15 @@ export function NextVideoCard({ concept, streaming = false }: NextVideoCardProps
             <span className="gv-mono">{concept.channel_share_pct}%</span> format trên kênh
           </p>
           <p className="mt-2 text-xs leading-relaxed text-[color:var(--gv-ink-3)]">
-            {concept.rationale_struct} Peer TB{" "}
-            <span className="gv-mono">~{fmtViews(concept.peer_avg_views)}</span> view.
+            {concept.rationale_struct}
+            {/* peer_avg_views can be 0 when the peer row came from the enrich
+                fallback — "Peer TB ~0 view" is a broken claim, hide it. */}
+            {concept.peer_avg_views > 0 ? (
+              <>
+                {" "}
+                Peer TB <span className="gv-mono">~{fmtViews(concept.peer_avg_views)}</span> view.
+              </>
+            ) : null}
           </p>
           {concept.narrative ? (
             <div className="relative mt-2">

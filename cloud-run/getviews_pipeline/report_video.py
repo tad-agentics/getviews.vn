@@ -125,6 +125,26 @@ _WIN_SIGNALS = (
 )
 
 
+def target_percentile_label(target_ratio: float) -> str:
+    """Map target-views / channel-median ratio → Vietnamese percentile label.
+
+    Bug-fix (2026-06-12): the old bands labelled every ratio in [0.5, 2)
+    as "dưới mức trung bình" — a 1.3× video (ABOVE median) was rendered
+    as below-average, an inverted claim that contradicted the 1.3× number
+    shown right next to it. Bands now: <0.5 thấp nhất, 0.5–<0.8 dưới,
+    0.8–1.2 quanh, >1.2 trên, ≥5 top 10%.
+    """
+    if target_ratio >= 5:
+        return "top 10% kênh"
+    if target_ratio > 1.2:
+        return "trên mức trung bình"
+    if target_ratio >= 0.8:
+        return "quanh mức trung bình"
+    if target_ratio >= 0.5:
+        return "dưới mức trung bình"
+    return "hiệu suất thấp nhất kênh"
+
+
 async def build_creator_comparison(
     creator_handle: str,
     target_video_id: str,
@@ -248,14 +268,7 @@ async def build_creator_comparison(
     delta = round(hit_views / max(flop_views, 1))
     target_ratio = target_views / max(median_views, 1)
 
-    if target_ratio >= 5:
-        percentile = "top 10% kênh"
-    elif target_ratio >= 2:
-        percentile = "trên mức trung bình"
-    elif target_ratio >= 0.5:
-        percentile = "dưới mức trung bình"
-    else:
-        percentile = "hiệu suất thấp nhất kênh"
+    percentile = target_percentile_label(target_ratio)
 
     def _video_url(p: dict[str, Any]) -> str | None:
         vid = str(p.get("aweme_id") or p.get("id") or "")

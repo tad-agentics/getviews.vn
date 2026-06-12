@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from getviews_pipeline.enum_labels_vi import hook_type_vi
 from getviews_pipeline.signals.base import Evidence, Signal
 
 _HOOK_SPECIFICITY_MARKERS = re.compile(
@@ -90,8 +91,10 @@ def extract_hook_type_niche_mismatch_signal(ctx: dict) -> list[Signal]:
             taxonomy_ref="§3",
             salience=0.75,
             claim=(
-                f"Loại hook hiện tại ({ht}) nằm ngoài top hook đang tích lũy view "
-                f"trong ngách gần đây ({', '.join(top)}) — cân nhắc lệch / đổi công thức mở."
+                f"Loại hook hiện tại «{hook_type_vi(ht, default=ht)}» ({ht}) nằm ngoài "
+                "top hook đang tích lũy view trong ngách gần đây "
+                f"({', '.join(hook_type_vi(t, default=t) for t in top)}) — "
+                "cân nhắc lệch / đổi công thức mở."
             ),
             evidence=[
                 Evidence(
@@ -420,7 +423,7 @@ def extract_niche_hook_percentile_gap_signal(ctx: dict) -> list[Signal]:
             taxonomy_ref="§4.8.3",
             salience=0.77,
             claim=(
-                f"Hook `{ht}` chỉ ~{percentile}% corpus ngách — "
+                f"Hook «{hook_type_vi(ht, default=ht)}» ({ht}) chỉ ~{percentile}% corpus ngách — "
                 "có dấu hiệu lệch pattern hook đang tích lũy view."
             ),
             evidence=[

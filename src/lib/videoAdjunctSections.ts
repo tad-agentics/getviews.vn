@@ -40,6 +40,28 @@ export function hasContextStripContent(
   );
 }
 
+/**
+ * Derive the vs-channel-median label from the ratio itself.
+ *
+ * Bug-fix (2026-06-12): the BE used to label every ratio in [0.5, 2) as
+ * "dưới mức trung bình" — a 1.3× video (ABOVE median) rendered as
+ * below-average right next to the "1,3×" number. Deriving the label from
+ * `target_vs_median` on the FE also shields cached reports that still carry
+ * the inverted string. Bands match cloud-run `target_percentile_label`:
+ * <0.5 thấp nhất · 0.5–<0.8 dưới · 0.8–1.2 quanh · >1.2 trên · ≥5 top 10%.
+ */
+export function creatorComparisonPercentileLabel(
+  ratio: number | null | undefined,
+  fallback?: string | null,
+): string {
+  if (ratio == null || !Number.isFinite(ratio)) return fallback?.trim() ?? "";
+  if (ratio >= 5) return "top 10% kênh";
+  if (ratio > 1.2) return "trên mức trung bình";
+  if (ratio >= 0.8) return "quanh mức trung bình";
+  if (ratio >= 0.5) return "dưới mức trung bình";
+  return "hiệu suất thấp nhất kênh";
+}
+
 export function buildCreatorComparisonProse(
   data: CreatorComparison,
   metaViews: number,
@@ -51,7 +73,10 @@ export function buildCreatorComparisonProse(
     data.target_vs_median != null
       ? data.target_vs_median.toLocaleString("vi-VN", { maximumFractionDigits: 1 })
       : null;
-  const percentile = data.target_percentile?.trim();
+  const percentile = creatorComparisonPercentileLabel(
+    data.target_vs_median,
+    data.target_percentile,
+  );
   const viewsLabel = metaViews > 0 ? `${metaViews.toLocaleString("vi-VN")} view` : "lượt xem hiện tại";
   const channelTypical = "mức view thường trên kênh";
 

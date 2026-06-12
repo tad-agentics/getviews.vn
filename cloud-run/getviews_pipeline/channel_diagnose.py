@@ -1755,10 +1755,19 @@ def derive_next_video_concept(
             dur = float(v.get("duration_sec") or 18)
             break
     peer_avg = float(top.get("avg_views") or 0)
-    rationale = (
-        f"@{top.get('handle')} trung bình ~{_fmt_views_short(int(peer_avg))} với format "
-        f"{format_label_vi(peer_fmt)}; bạn chỉ có {chan_count}/{total} video cùng format (~{share*100:.0f}%)."
-    )
+    # Number-formatting guard (2026-06-12): peers from the enrich fallback can
+    # carry avg_views=0 — "trung bình ~0" / "Peer TB ~0 view" is a broken claim,
+    # so the peer-average clause only renders when the value is real.
+    if peer_avg > 0:
+        rationale = (
+            f"@{top.get('handle')} trung bình ~{_fmt_views_short(int(peer_avg))} với format "
+            f"{format_label_vi(peer_fmt)}; bạn chỉ có {chan_count}/{total} video cùng format (~{share*100:.0f}%)."
+        )
+    else:
+        rationale = (
+            f"@{top.get('handle')} đang chạy format {format_label_vi(peer_fmt)}; "
+            f"bạn chỉ có {chan_count}/{total} video cùng format (~{share*100:.0f}%)."
+        )
     return {
         "format": peer_fmt,
         "format_label": format_label_vi(peer_fmt),

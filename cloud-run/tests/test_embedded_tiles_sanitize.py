@@ -272,3 +272,77 @@ def test_fallback_tile_narrative_distinct_prose_on_duplicates() -> None:
     assert "hook mở màn" in tiles[1]["narrative_vi"]
     assert "nhịp mở" in tiles[2]["narrative_vi"]
     assert len({t["narrative_vi"] for t in tiles}) == 3
+
+
+# ---------------------------------------------------------------------------
+# 2026-06-12 — identical narrative_vi repeated ACROSS sections
+# ---------------------------------------------------------------------------
+
+
+def test_tile_narratives_distinct_across_sections() -> None:
+    """Live bug: «Được chọn vì cấu trúc format và nhịp dẫn nhất quán suốt
+    clip...» repeated on tiles in different sections — the per-section dedupe
+    restarted idx at 0, so featureless tiles in two sections regenerated the
+    exact same fallback copy."""
+    from getviews_pipeline.diagnose_parse import (
+        ensure_distinct_tile_narratives_across_report,
+    )
+
+    repeated = (
+        "Được chọn vì cấu trúc format và nhịp dẫn nhất quán suốt clip. "
+        "Đối chiếu cách mở đầu và giữ chân với clip đang phân tích."
+    )
+    sections = [
+        {
+            "section_id": "diagnosis",
+            "embedded_tiles": [
+                {"aweme_id": "111", "narrative_vi": repeated},
+            ],
+        },
+        {
+            "section_id": "niche_pattern",
+            "embedded_tiles": [
+                {"aweme_id": "222", "narrative_vi": repeated},
+                {"aweme_id": "333", "narrative_vi": repeated},
+            ],
+        },
+    ]
+    ensure_distinct_tile_narratives_across_report(sections)
+
+    narratives = [
+        t["narrative_vi"]
+        for sec in sections
+        for t in sec["embedded_tiles"]
+    ]
+    assert all(n and n.strip() for n in narratives)
+    assert len(set(narratives)) == 3, narratives
+
+
+def test_fallback_regen_never_collides_with_other_sections() -> None:
+    """Featureless tiles (no hook/format) in different sections must not land
+    on the same generic fallback — the bump retry must find a unique combo."""
+    from getviews_pipeline.diagnose_parse import (
+        ensure_distinct_tile_narratives_across_report,
+    )
+
+    sections = [
+        {"section_id": "diagnosis", "embedded_tiles": [{"aweme_id": "1", "narrative_vi": ""}]},
+        {"section_id": "diagnosis", "embedded_tiles": [{"aweme_id": "2", "narrative_vi": ""}]},
+        {"section_id": "diagnosis", "embedded_tiles": [{"aweme_id": "3", "narrative_vi": ""}]},
+    ]
+    ensure_distinct_tile_narratives_across_report(sections)
+    narratives = [sec["embedded_tiles"][0]["narrative_vi"] for sec in sections]
+    assert len(set(narratives)) == 3, narratives
+
+
+def test_three_tiles_in_one_section_never_share_narrative_even_when_gemini_repeats() -> None:
+    from getviews_pipeline.diagnose_parse import ensure_distinct_tile_narratives
+
+    same = "Tham chiếu vì clip này giữ chân ổn định hơn median ở cùng ngách."
+    tiles = [
+        {"aweme_id": "1", "narrative_vi": same},
+        {"aweme_id": "2", "narrative_vi": same},
+        {"aweme_id": "3", "narrative_vi": same},
+    ]
+    ensure_distinct_tile_narratives(tiles, "script_structure")
+    assert len({t["narrative_vi"] for t in tiles}) == 3

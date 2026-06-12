@@ -457,8 +457,10 @@ describe("VideoBody render", () => {
     expect(tiktokLinks[0]?.getAttribute("href")).toBe(
       "https://www.tiktok.com/@creatorx/video/v_hit",
     );
-    // Percentile rendering
-    expect(screen.getByText("top 35%")).toBeTruthy();
+    // Percentile derives from target_vs_median (1.4× → above median) — the
+    // BE string is only a fallback when the ratio is missing (2026-06-12
+    // inverted-label fix).
+    expect(screen.getByText("trên mức trung bình")).toBeTruthy();
     // Cohort copy "X video" is part of a larger sentence — partial match.
     expect(screen.getByText(/12 video/)).toBeTruthy();
   });

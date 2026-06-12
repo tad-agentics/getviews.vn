@@ -1237,6 +1237,7 @@ def _sanitize_diagnosis_embedded_tiles(
     """Resolve ``embedded_tiles`` from the reference pool only — drop hallucinated or off-topic ids."""
     from getviews_pipeline.diagnose_parse import (
         ensure_distinct_tile_narratives,
+        ensure_distinct_tile_narratives_across_report,
         resolve_embedded_tiles,
     )
 
@@ -1304,6 +1305,60 @@ def _sanitize_diagnosis_embedded_tiles(
         addressing_mode=addressing_mode,
     )
     _dedupe_embedded_tiles_across_sections(diagnosis_vi)
+    # Cross-section narrative dedupe — identical narrative_vi across tiles in
+    # DIFFERENT sections slipped past the per-section pass (live bug 2026-06-12:
+    # "Được chọn vì cấu trúc format..." repeated on multiple tiles).
+    if isinstance(sections, list):
+        ensure_distinct_tile_narratives_across_report(
+            sections, addressing_mode  # type: ignore[arg-type]
+        )
+
+
+# Wording the seeding/boost signals use (signals/distribution.py) — used to
+# spot a finding card duplicating the boost block's claim.
+_SEEDING_FINDING_RE = re.compile(
+    r"seeding|đẩy\s+ads|dấu\s+hiệu\s+ads|ads/seeding", re.IGNORECASE
+)
+
+
+def _dedupe_seeding_claim_surfaces(diagnosis_vi: dict[str, Any]) -> None:
+    """The seeding/ads claim feeds ONE surface — the boost_attribution block.
+
+    Live bug (2026-06-12): the same «Comment có dấu hiệu seeding» text rendered
+    twice — as a findings card AND inside the boost/nguồn-lượt-xem block. When a
+    ``boost_attribution`` section exists, findings elsewhere repeating the
+    seeding claim are dropped, and the boost section itself keeps ``findings:
+    []`` (it is not issue-based per the prompt contract).
+    """
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return
+    has_boost_section = any(
+        isinstance(s, dict) and str(s.get("section_id") or "") == "boost_attribution"
+        for s in sections
+    )
+    if not has_boost_section:
+        return
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        if str(sec.get("section_id") or "") == "boost_attribution":
+            sec["findings"] = []
+            continue
+        findings = sec.get("findings")
+        if not isinstance(findings, list):
+            continue
+        kept: list[Any] = []
+        for f in findings:
+            if isinstance(f, dict):
+                blob = " ".join(
+                    str(f.get(k) or "") for k in ("title_vi", "body_vi", "fix_vi")
+                )
+                if _SEEDING_FINDING_RE.search(blob):
+                    continue
+            kept.append(f)
+        if len(kept) != len(findings):
+            sec["findings"] = kept
 
 
 def _validate_diagnosis_vi_citations(
@@ -1347,6 +1402,7 @@ def _validate_diagnosis_vi_citations(
                     a["quote"] = None
 
     _strip_disallowed_embedded_tile_ids(diagnosis_vi, allowed_aweme)
+    _dedupe_seeding_claim_surfaces(diagnosis_vi)
     if reference_videos is not None:
         _sanitize_diagnosis_embedded_tiles(diagnosis_vi, reference_videos, allowed_aweme)
 
@@ -1406,6 +1462,16 @@ def _validate_narrative_citations(
     return narrative_vi, format_cards
 
 
+# Bug 2026-06-12: Gemini emitted literal ``**`` inside headline_vi and the FE
+# renders the headline as plain text — markdown emphasis tokens must be stripped.
+_HEADLINE_MARKDOWN_RE = re.compile(r"[*`]+")
+
+
+def _strip_headline_markdown(text: str) -> str:
+    """Remove markdown emphasis (``**``, ``*``, backticks) from a headline."""
+    return _HEADLINE_MARKDOWN_RE.sub("", text).strip()
+
+
 def _normalize_narrative_vi_dict(narrative_vi: dict[str, Any] | None) -> dict[str, Any] | None:
     """Ensure ``headline_vi`` and ``lessons`` exist for the unified video report schema."""
     if not narrative_vi:
@@ -1413,10 +1479,10 @@ def _normalize_narrative_vi_dict(narrative_vi: dict[str, Any] | None) -> dict[st
     headline = str(narrative_vi.get("headline_vi") or "").strip()
     if not headline:
         fallback = str(narrative_vi.get("ket_luan_nhanh") or "").strip()
-        narrative_vi = {
-            **narrative_vi,
-            "headline_vi": (fallback[:400] if fallback else "—"),
-        }
+        headline = fallback[:400] if fallback else "—"
+    cleaned_headline = _strip_headline_markdown(headline) or "—"
+    if cleaned_headline != narrative_vi.get("headline_vi"):
+        narrative_vi = {**narrative_vi, "headline_vi": cleaned_headline}
     lessons_raw = narrative_vi.get("lessons")
     if lessons_raw is None or not isinstance(lessons_raw, list):
         narrative_vi = {**narrative_vi, "lessons": []}

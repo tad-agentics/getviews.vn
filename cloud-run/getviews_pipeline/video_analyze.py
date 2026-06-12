@@ -1690,6 +1690,12 @@ def finalize_video_narrative_layer(
     ds_raw = meta.get("distribution_shape")
     if ds_raw:
         user_stats["distribution_shape"] = str(ds_raw)
+    # Stored boost attribution — the FE chip renders this exact value, so
+    # signals must coordinate with it (seeding signal suppressed when the
+    # chip says "Organic"; bug 2026-06-12).
+    ba_raw = meta.get("boost_attribution")
+    if ba_raw:
+        user_stats["boost_attribution"] = str(ba_raw)
     ch_ratio_hint = meta.get("target_vs_creator_median")
     try:
         ch_ratio_f = float(ch_ratio_hint) if ch_ratio_hint is not None else None

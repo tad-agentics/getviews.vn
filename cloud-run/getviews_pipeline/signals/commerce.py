@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from getviews_pipeline.enum_labels_vi import conversion_objective_vi
 from getviews_pipeline.signals.base import Evidence, Signal
 
 _CTA_OVERLAY_RE = re.compile(
@@ -151,7 +152,10 @@ def extract_conversion_objective_signal(ctx: dict) -> list[Signal]:
             section_id="commerce",
             taxonomy_ref="§0",
             salience=0.6,
-            claim=f"Mục tiêu chuyển đổi: {obj} — cần CTA rõ khi có quan hệ thương mại.",
+            claim=(
+                f"Mục tiêu chuyển đổi: {conversion_objective_vi(obj, default=obj)} "
+                f"({obj}) — cần CTA rõ khi có quan hệ thương mại."
+            ),
             evidence=[
                 Evidence(
                     type="user_analysis_field",

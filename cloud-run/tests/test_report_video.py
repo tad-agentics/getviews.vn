@@ -758,3 +758,37 @@ def test_build_video_report_does_not_clobber_meta_when_comparison_missing(
     assert out["meta"]["creator_median_views"] is None
     assert out["meta"]["target_vs_creator_median"] is None
     assert out["creator_comparison"] is None
+
+
+# ---------------------------------------------------------------------------
+# target_percentile_label — inverted-label bug (2026-06-12)
+# ---------------------------------------------------------------------------
+
+
+def test_target_percentile_label_above_median_is_not_labelled_below() -> None:
+    """Live bug: a 1.3× video (201.9K vs 151K median) rendered as
+    «dưới mức trung bình». Ratio > 1.2 must say «trên mức trung bình»."""
+    from getviews_pipeline.report_video import target_percentile_label
+
+    assert target_percentile_label(1.3) == "trên mức trung bình"
+
+
+@pytest.mark.parametrize(
+    ("ratio", "expected"),
+    [
+        (0.2, "hiệu suất thấp nhất kênh"),
+        (0.5, "dưới mức trung bình"),
+        (0.79, "dưới mức trung bình"),
+        (0.8, "quanh mức trung bình"),
+        (1.0, "quanh mức trung bình"),
+        (1.2, "quanh mức trung bình"),
+        (1.21, "trên mức trung bình"),
+        (2.5, "trên mức trung bình"),
+        (4.99, "trên mức trung bình"),
+        (5.0, "top 10% kênh"),
+    ],
+)
+def test_target_percentile_label_bands(ratio: float, expected: str) -> None:
+    from getviews_pipeline.report_video import target_percentile_label
+
+    assert target_percentile_label(ratio) == expected

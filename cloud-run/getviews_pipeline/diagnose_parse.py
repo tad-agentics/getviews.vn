@@ -262,21 +262,26 @@ def fallback_tile_narrative_vi(
 
     angles = _tile_narrative_angles(section_id, addressing_mode)
     if angles:
-        angle = angles[idx % len(angles)]
+        # Decoupled period vs the strength templates (both lists are length 3):
+        # with a plain ``idx % 3`` on both, only 3 combos exist and tiles in
+        # different sections (idx restarts) repeated the exact same fallback
+        # (live bug 2026-06-12). The ``idx // 3`` shear yields 9 distinct
+        # combos as idx grows.
+        angle = angles[(idx + idx // 3) % len(angles)]
     elif addressing_mode == "viewer_own":
-        if idx % 3 == 0:
-            angle = "Đối chiếu cách mở đầu và giữ chân với clip của bạn."
-        elif idx % 3 == 1:
-            angle = "Quan sát nhịp truyền tải và cách chốt ý để áp dụng cho video tiếp theo."
-        else:
-            angle = "Học cách họ duy trì momentum giữa clip mà không bị rời nhịp."
+        generic = [
+            "Đối chiếu cách mở đầu và giữ chân với clip của bạn.",
+            "Quan sát nhịp truyền tải và cách chốt ý để áp dụng cho video tiếp theo.",
+            "Học cách họ duy trì momentum giữa clip mà không bị rời nhịp.",
+        ]
+        angle = generic[(idx + idx // 3) % len(generic)]
     else:
-        if idx % 3 == 0:
-            angle = "Đối chiếu cách mở đầu và giữ chân với clip đang phân tích."
-        elif idx % 3 == 1:
-            angle = "Quan sát nhịp truyền tải và cách chốt ý cho lần quay tiếp theo của creator."
-        else:
-            angle = "Học cách duy trì momentum giữa clip mà không bị rời nhịp."
+        generic = [
+            "Đối chiếu cách mở đầu và giữ chân với clip đang phân tích.",
+            "Quan sát nhịp truyền tải và cách chốt ý cho lần quay tiếp theo của creator.",
+            "Học cách duy trì momentum giữa clip mà không bị rời nhịp.",
+        ]
+        angle = generic[(idx + idx // 3) % len(generic)]
 
     return f"{strength} {angle}"
 
@@ -285,18 +290,62 @@ def ensure_distinct_tile_narratives(
     tiles: list[dict[str, Any]],
     section_id: str = "",
     addressing_mode: AddressingMode = "third_party",
+    *,
+    seen: set[str] | None = None,
+    idx_offset: int = 0,
 ) -> None:
-    """Regenerate fallback copy when Gemini repeats the same ``narrative_vi`` on multiple tiles."""
-    seen: set[str] = set()
-    for idx, tile in enumerate(tiles):
+    """Regenerate fallback copy when Gemini repeats the same ``narrative_vi`` on multiple tiles.
+
+    ``seen``/``idx_offset`` let a caller thread one dedupe context across all
+    sections of a report — the per-section call alone let identical fallback
+    copy repeat across sections because ``idx`` restarted at 0 (live bug
+    2026-06-12).
+    """
+    if seen is None:
+        seen = set()
+    for local_idx, tile in enumerate(tiles):
         if not isinstance(tile, dict):
             continue
+        idx = idx_offset + local_idx
         narrative = str(tile.get("narrative_vi") or "").strip()
         if not narrative or narrative in seen or tile_narrative_needs_regen(narrative):
-            tile["narrative_vi"] = fallback_tile_narrative_vi(
-                tile, section_id, idx, addressing_mode
-            )
+            regen = fallback_tile_narrative_vi(tile, section_id, idx, addressing_mode)
+            # The fallback templates are finite — bump the rotation index until
+            # the copy is unique within this report (9 combos per section/angle).
+            bump = 0
+            while regen in seen and bump < 12:
+                bump += 1
+                regen = fallback_tile_narrative_vi(
+                    tile, section_id, idx + bump, addressing_mode
+                )
+            tile["narrative_vi"] = regen
         seen.add(str(tile.get("narrative_vi") or "").strip())
+
+
+def ensure_distinct_tile_narratives_across_report(
+    sections: list[dict[str, Any]],
+    addressing_mode: AddressingMode = "third_party",
+) -> None:
+    """Cross-section pass: no two embedded tiles in a report share ``narrative_vi``.
+
+    The per-section dedupe misses duplicates between sections (Gemini emitting
+    the same blurb in two sections, or the deterministic fallback restarting at
+    template 0 per section) — this walks every section with one shared ``seen``
+    set and a running tile index.
+    """
+    seen: set[str] = set()
+    offset = 0
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        tiles = sec.get("embedded_tiles")
+        if not isinstance(tiles, list) or not tiles:
+            continue
+        sid = str(sec.get("section_id") or "")
+        ensure_distinct_tile_narratives(
+            tiles, sid, addressing_mode, seen=seen, idx_offset=offset
+        )
+        offset += len(tiles)
 
 
 def resolve_embedded_tiles(

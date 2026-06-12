@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCreatorComparisonProse,
   buildHookAnalysisFallbackProse,
+  creatorComparisonPercentileLabel,
   hasContextStripContent,
 } from "@/lib/videoAdjunctSections";
 
@@ -34,6 +35,42 @@ describe("videoAdjunctSections", () => {
     );
     expect(text).toMatch(/8 bài/);
     expect(text).toMatch(/hit\/flop/i);
+  });
+
+  it("never labels a 1.3× video as below channel median (live bug 2026-06-12)", () => {
+    // 201.903 view vs median 151K → 1.3× — the cached BE string said
+    // "dưới mức trung bình"; the FE must derive the label from the ratio.
+    const text = buildCreatorComparisonProse(
+      {
+        creator_handle: "@a",
+        total_posts_analyzed: 9,
+        median_views: 151_000,
+        target_vs_median: 1.3,
+        target_percentile: "dưới mức trung bình", // stale inverted BE value
+        delta: 4,
+        hit: { views: 600_000 },
+        flop: { views: 150_000 },
+      } as never,
+      201_903,
+      false,
+    );
+    expect(text).toContain("trên mức trung bình");
+    expect(text).not.toContain("dưới mức trung bình");
+  });
+
+  it("derives percentile label bands from target_vs_median", () => {
+    expect(creatorComparisonPercentileLabel(0.2)).toBe("hiệu suất thấp nhất kênh");
+    expect(creatorComparisonPercentileLabel(0.5)).toBe("dưới mức trung bình");
+    expect(creatorComparisonPercentileLabel(0.79)).toBe("dưới mức trung bình");
+    expect(creatorComparisonPercentileLabel(0.8)).toBe("quanh mức trung bình");
+    expect(creatorComparisonPercentileLabel(1.0)).toBe("quanh mức trung bình");
+    expect(creatorComparisonPercentileLabel(1.2)).toBe("quanh mức trung bình");
+    expect(creatorComparisonPercentileLabel(1.3)).toBe("trên mức trung bình");
+    expect(creatorComparisonPercentileLabel(4.99)).toBe("trên mức trung bình");
+    expect(creatorComparisonPercentileLabel(5)).toBe("top 10% kênh");
+    // No ratio → fall back to the BE-provided string.
+    expect(creatorComparisonPercentileLabel(null, "top 35%")).toBe("top 35%");
+    expect(creatorComparisonPercentileLabel(undefined)).toBe("");
   });
 
   it("uses hook narrative fallback when present", () => {

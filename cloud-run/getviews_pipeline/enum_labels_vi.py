@@ -104,6 +104,25 @@ CAROUSEL_SUBFORMAT_VI: dict[str, str] = {
     "carousel": "Ảnh carousel",
 }
 
+# ``commerce_intent.conversion_objective`` (models.py _COMMERCE_OBJECTIVES)
+# plus the promotion_type values that can substitute for it in
+# extract_conversion_objective_signal.
+CONVERSION_OBJECTIVE_VI: dict[str, str] = {
+    "shop_direct": "Bán hàng TikTok Shop trực tiếp",
+    "affiliate_shopee": "Affiliate Shopee",
+    "livestream_funnel": "Kéo người xem về livestream",
+    "brand_deal": "Hợp tác nhãn hàng (booking)",
+    "koc_growth": "Xây kênh KOC",
+    "entertainment_first": "Giải trí là chính (chưa bán hàng)",
+    # promotion_type fallbacks
+    "organic": "Organic (không quảng bá)",
+    "affiliate": "Affiliate",
+    "brand_partnership": "Hợp tác nhãn hàng",
+    "own_product": "Bán sản phẩm của chính mình",
+    "ads": "Chạy quảng cáo",
+}
+
+
 # Text overlay style — surfaces in script editor + Chế độ quay.
 OVERLAY_STYLE_VI: dict[str, str] = {
     "TEXT_TITLE": "Tiêu đề lớn",
@@ -161,3 +180,7 @@ def video_tone_vi(value: str | None, *, default: str | None = None) -> str:
 
 def carousel_subformat_vi(value: str | None, *, default: str | None = None) -> str:
     return _lookup(CAROUSEL_SUBFORMAT_VI, value, default)
+
+
+def conversion_objective_vi(value: str | None, *, default: str | None = None) -> str:
+    return _lookup(CONVERSION_OBJECTIVE_VI, value, default)

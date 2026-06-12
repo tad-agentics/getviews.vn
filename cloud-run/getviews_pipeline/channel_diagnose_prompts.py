@@ -570,16 +570,20 @@ def build_channel_diagnosis_context(
         blocks.append("<<<NICHE BENCHMARK>>>\n" + "\n".join(bench_lines))
 
     if next_video_concept:
+        # peer_avg_views=0 must not reach the prompt — Gemini parroted it as
+        # "Peer TB ~0 view" in the GỢI Ý box (bug 2026-06-12).
+        _peer_avg = int(next_video_concept.get("peer_avg_views") or 0)
         nv_lines = [
             f"format: {next_video_concept.get('format')}",
             f"format_label_vn: {next_video_concept.get('format_label')}",
             f"duration_sec: {next_video_concept.get('duration_sec')}",
             f"sample_peer: @{next_video_concept.get('sample_peer_handle')}",
-            f"peer_avg_views: {_fmt_views(next_video_concept.get('peer_avg_views', 0))}",
             f"channel_share_of_format_pct: {next_video_concept.get('channel_share_pct')}",
             f"rationale_struct: {next_video_concept.get('rationale_struct')}",
             f"sample_video_url: {next_video_concept.get('sample_video_url')}",
         ]
+        if _peer_avg > 0:
+            nv_lines.insert(4, f"peer_avg_views: {_fmt_views(_peer_avg)}")
         blocks.append("<<<NEXT VIDEO CONCEPT>>>\n" + "\n".join(nv_lines))
 
     if channel_findings:
