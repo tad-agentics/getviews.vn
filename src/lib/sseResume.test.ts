@@ -57,12 +57,11 @@ describe("sseResume", () => {
   });
 
   it("round-trips save → load for a fresh entry", () => {
-    savePendingAnswerStream({ ...makeEntry(), videoMode: "flop" });
+    savePendingAnswerStream({ ...makeEntry() });
     const loaded = loadPendingAnswerStream("sess-1", EPOCH + 10_000);
     expect(loaded?.streamId).toBe("stream-abc");
     expect(loaded?.seq).toBe(2);
     expect(loaded?.creditsUsed).toBe(1);
-    expect(loaded?.videoMode).toBe("flop");
   });
 
   it("hasAnswerStreamReplayHandles is true for pending or hook seq", () => {

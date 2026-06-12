@@ -387,20 +387,16 @@ async def build_creator_comparison(
 
 
 def detect_mode_from_query(query: str) -> str | None:
-    """Pull a win/flop hint out of the user's accompanying text.
+    """Pull a win/flop **tone hint** from the user's accompanying text.
 
-    The video-as-template migration preserved the user's full message
-    as the answer-session ``initial_q``. So when a creator pastes
-    ``tại sao video này không có view + URL``, the BE can read that
-    intent directly instead of relying on the niche-cohort heuristic
-    (which gets it wrong when there's no cohort to compare against).
+    Precedence (unified flow, 2026-06-12):
+      1. Measured ``performance_tier`` (hit/average/flop/early) — always wins at
+         finalize; stored ``mode`` is tier-derived.
+      2. When tier is ``unknown`` (no cohort) — this hint is the deciding signal
+         so cohort-less flops still get flop depth.
+      3. Otherwise ``is_flop_mode`` heuristic.
 
-    Returns ``"win"``, ``"flop"``, or ``None`` (no signal or
-    contradictory signals — let ``is_flop_mode`` decide). Word
-    boundaries are conservative; novel phrasings will fall through
-    to the heuristic until we add them. Acceptable trade-off:
-    keyword-based detection is predictable + auditable, vs LLM
-    classification which is opaque + costs tokens per turn.
+    Returns ``"win"``, ``"flop"``, or ``None``.
     """
     if not query:
         return None
@@ -454,21 +450,11 @@ def build_video_report(
     if not url and not aweme_id:
         raise ValueError("Không tìm thấy link TikTok trong câu hỏi")
 
-    # Mode resolution priority:
-    #   1. Caller-supplied ``mode`` (explicit win/flop override).
-    #   2. Vietnamese keyword detection from the user's accompanying
-    #      text — when the creator says "tại sao không có view", we
-    #      respect that intent instead of letting the niche heuristic
-    #      flip it.
-    #   3. None → BE ``is_flop_mode`` heuristic decides (niche cohort
-    #      comparison + niche-less absolute thresholds).
-    resolved_mode: str | None = mode if mode in ("win", "flop") else None
-    if resolved_mode is None:
-        resolved_mode = detect_mode_from_query(query)
-        if resolved_mode is not None:
-            logger.info(
-                "[report_video] mode hint from query: %s", resolved_mode,
-            )
+    # Advisory hints only — stored mode is tier-derived at finalize.
+    query_hint = detect_mode_from_query(query)
+    if query_hint is not None:
+        logger.info("[report_video] query tone hint: %s", query_hint)
+    caller_mode: str | None = mode if mode in ("win", "flop") else None
 
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_status, step_tool_start
@@ -483,7 +469,8 @@ def build_video_report(
             video_id=aweme_id,
             tiktok_url=url,
             force_refresh=False,
-            mode=resolved_mode,  # type: ignore[arg-type]
+            mode=caller_mode,  # type: ignore[arg-type]
+            query_hint=query_hint,
             step_queue=step_queue,
             analysis_depth=analysis_depth,
             session_niche_id=session_niche_id,
@@ -511,7 +498,8 @@ def build_video_report(
             service_sb,
             user_sb,
             tiktok_url=url,
-            mode=resolved_mode,  # type: ignore[arg-type]
+            mode=caller_mode,  # type: ignore[arg-type]
+            query_hint=query_hint,
             step_queue=step_queue,
             fallback_niche_id=session_niche_id,
             user_id=user_id,

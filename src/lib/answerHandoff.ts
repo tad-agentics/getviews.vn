@@ -54,21 +54,19 @@ export function resolveVideoHandoffQuery(options: {
   return `https://www.tiktok.com/video/${vid}`;
 }
 
-/** Trends / kho video — corpus-hit win path entry. */
+/** Trends / kho video — tier decides framing on the BE. */
 export function trendsVideoHandoffPath(q: string): string {
-  return buildAnswerHandoffPath({ q, mode: "win", from: "trends" });
+  return buildAnswerHandoffPath({ q, from: "trends" });
 }
 
-/** Inherit mode from current Answer URL when drilling from evidence tiles. */
+/** Drill from evidence tiles — legacy ``?mode=`` on current URL is ignored for new entries. */
 export function inheritHandoffFromSearch(
   searchParams: URLSearchParams,
   q: string,
   from?: string,
 ): string {
-  const { mode } = parseAnswerHandoffParams(searchParams);
   return buildAnswerHandoffPath({
     q,
-    mode: mode ?? "win",
     from: from ?? searchParams.get("from") ?? undefined,
   });
 }

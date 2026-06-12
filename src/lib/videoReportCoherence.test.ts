@@ -1,17 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  effectiveVideoReportMode,
-  tierImpliesWinFraming,
-  videoReportWasModeCorrected,
-} from "./videoReportCoherence";
+import { tierImpliesWinFraming, videoReportWasModeCorrected } from "./videoReportCoherence";
 
 describe("videoReportCoherence", () => {
-  it("maps flop report mode to win when tier is hit", () => {
-    expect(effectiveVideoReportMode("flop", "hit")).toBe("win");
+  it("treats hit tier as win framing", () => {
+    expect(tierImpliesWinFraming("hit")).toBe(true);
+    expect(tierImpliesWinFraming("flop")).toBe(false);
   });
 
-  it("maps flop to win on channel breakout (average tier + ratio)", () => {
+  it("treats channel breakout (average tier + ratio) as win framing", () => {
     const meta = {
       creator: "embeireview",
       views: 406_098,
@@ -28,7 +25,6 @@ describe("videoReportCoherence", () => {
       creator_median_views: 934,
       target_vs_creator_median: 435,
     };
-    expect(effectiveVideoReportMode("flop", "average", meta)).toBe("win");
     expect(tierImpliesWinFraming("average", meta)).toBe(true);
   });
 

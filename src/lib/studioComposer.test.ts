@@ -11,13 +11,13 @@ describe("planStudioComposerSubmit", () => {
     });
   });
 
-  it("routes video flop URL to /app/answer with mode=flop", () => {
+  it("routes video URL to /app/answer without mode (tier decides framing)", () => {
     const url = "https://www.tiktok.com/@x/video/123";
-    const plan = planStudioComposerSubmit("video_flop", url);
+    const plan = planStudioComposerSubmit("video", url);
     expect(plan.kind).toBe("navigate");
     if (plan.kind === "navigate") {
       expect(plan.to).toContain("/app/answer?");
-      expect(plan.to).toContain("mode=flop");
+      expect(plan.to).not.toContain("mode=");
       expect(plan.to).not.toContain("depth=");
       expect(plan.to).toContain(encodeURIComponent(url));
     }
@@ -33,21 +33,21 @@ describe("planStudioComposerSubmit", () => {
     }
   });
 
-  it("does not attach mode=flop for generic text without TikTok URL", () => {
+  it("does not attach mode for generic text without TikTok URL", () => {
     const plan = planStudioComposerSubmit(
-      "video_flop",
+      "video",
       "Xu hướng TikTok tuần này trong ngách skincare",
     );
     expect(plan.kind).toBe("navigate");
     if (plan.kind === "navigate") {
       expect(plan.to).toContain("/app/answer?");
-      expect(plan.to).not.toContain("mode=flop");
+      expect(plan.to).not.toContain("mode=");
     }
   });
 
   it("blocks bare non-TikTok video page URL before navigation", () => {
     const plan = planStudioComposerSubmit(
-      "video_flop",
+      "video",
       "linhbeauty.vn/video/74012345678901234",
     );
     expect(plan).toEqual({
@@ -59,7 +59,7 @@ describe("planStudioComposerSubmit", () => {
 
   it("blocks YouTube URL before navigation", () => {
     const plan = planStudioComposerSubmit(
-      "video_flop",
+      "video",
       "https://www.youtube.com/watch?v=abc",
     );
     expect(plan).toEqual({
@@ -69,9 +69,9 @@ describe("planStudioComposerSubmit", () => {
     });
   });
 
-  it("routes channel intent detected on non-channel pill", () => {
+  it("routes channel intent detected on video pill", () => {
     const plan = planStudioComposerSubmit(
-      "video_flop",
+      "video",
       "Soi kênh @rival — audit đối thủ",
     );
     expect(plan).toEqual({

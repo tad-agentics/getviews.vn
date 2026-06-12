@@ -1489,6 +1489,19 @@ def finalize_video_narrative_layer(
 
     niche_name = str(meta.get("niche_label") or "")
     from getviews_pipeline.services.references import select_synthesis_references_for_video
+    from getviews_pipeline.video_report_coherence import effective_depth_tier, ref_n_for_tier
+
+    _ref_views = int(meta.get("views") or 0)
+    _ref_corpus_avg = float(niche_meta.get("avg_views") or 0.0)
+    _ref_tier_pre = classify_performance_tier_corpus(
+        _ref_views,
+        _ref_corpus_avg or None,
+        video_age_days=_video_age_days_from_meta(meta),
+    )
+    # Cohort-less flop guard — a thin-niche flop (tier=unknown but stored
+    # mode=flop) still pulls the wider flop reference set so the creator has
+    # more concrete examples to fix against.
+    _ref_depth_tier = effective_depth_tier(_ref_tier_pre, out.get("mode"))
 
     synthesis_refs, slim_refs, evidence_block = asyncio.run(
         select_synthesis_references_for_video(
@@ -1504,6 +1517,7 @@ def finalize_video_narrative_layer(
             ),
             legacy_niche_id=int(meta.get("niche_id") or 0) or None,
             live_search_fn=_live_search_references_for_finalize,
+            ref_n=ref_n_for_tier(_ref_depth_tier),
         )
     )
     out["reference_videos"] = slim_refs
@@ -1533,6 +1547,7 @@ def finalize_video_narrative_layer(
         build_video_related_questions,
         filter_structural_errors_for_tier,
         reconcile_video_mode,
+        resolve_stored_video_mode,
         should_fill_related_questions,
     )
 
@@ -1555,13 +1570,22 @@ def finalize_video_narrative_layer(
         except (TypeError, ValueError):
             pass
 
-    mode_reconciled = reconcile_video_mode(
-        str(out.get("mode") or "win"),
-        performance_tier,
-        views=views,
-        creator_median_views=cmv_finalize,
-        target_vs_creator_median=tvr_finalize,
-    )
+    _tier_lc = str(performance_tier or "unknown").lower()
+    if _tier_lc in ("hit", "flop", "average", "early"):
+        mode_reconciled = resolve_stored_video_mode(
+            performance_tier,
+            views=views,
+            creator_median_views=cmv_finalize,
+            target_vs_creator_median=tvr_finalize,
+        )
+    else:
+        mode_reconciled = reconcile_video_mode(
+            str(out.get("mode") or "win"),
+            performance_tier,
+            views=views,
+            creator_median_views=cmv_finalize,
+            target_vs_creator_median=tvr_finalize,
+        )
     if mode_reconciled != str(out.get("mode") or ""):
         logger.info(
             "[video_narrative] report mode reconciled %s -> %s (tier=%s video_id=%s)",
@@ -1988,6 +2012,7 @@ def run_video_analyze_pipeline(
     tiktok_url: str | None,
     force_refresh: bool = False,
     mode: Literal["win", "flop"] | None = None,
+    query_hint: str | None = None,
     step_queue: Any | None = None,
     analysis_depth: str | None = None,
     session_niche_id: int | None = None,
@@ -2074,23 +2099,21 @@ def run_video_analyze_pipeline(
         analysis = {}
     dur = video_duration_sec(analysis)
 
-    mode_override = mode is not None
-    bypass_cache = force_refresh or mode_override
-    if mode in ("win", "flop"):
-        mode_resolved: Literal["win", "flop"] = mode
-    else:
-        mode_resolved = "flop" if is_flop_mode(video, niche_intel) else "win"
+    bypass_cache = force_refresh
+    heuristic_mode: Literal["win", "flop"] = (
+        "flop" if is_flop_mode(video, niche_intel) else "win"
+    )
 
     from getviews_pipeline.video_report_coherence import pipeline_reconcile_mode
 
-    mode_resolved = pipeline_reconcile_mode(mode_resolved, video, niche_intel)
-
-    if mode_override:
-        logger.info(
-            "[video_analyze] mode override: bypassing diagnostics cache video_id=%s mode=%s",
-            vid,
-            mode,
-        )
+    caller_mode = mode if mode in ("win", "flop") else None
+    mode_resolved = pipeline_reconcile_mode(
+        heuristic_mode,
+        video,
+        niche_intel,
+        query_hint=query_hint,
+        caller_mode=caller_mode,
+    )
 
     bench_payload = build_niche_benchmark_payload(
         niche_intel,
@@ -2182,9 +2205,29 @@ def run_video_analyze_pipeline(
 
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
-    from getviews_pipeline.video_report_coherence import resolve_extraction_mode
+    from getviews_pipeline.video_report_coherence import (
+        effective_depth_tier,
+        infer_early_performance_tier,
+        max_findings_for_tier,
+        resolve_extraction_mode,
+    )
 
-    extraction_mode = resolve_extraction_mode(mode_resolved, video, niche_intel)
+    _views_ext = int(video.get("views") or 0)
+    _corpus_avg_ext = float((niche_intel or {}).get("avg_views") or 0) or None
+    _early_tier_ext = infer_early_performance_tier(
+        _views_ext,
+        _corpus_avg_ext,
+        creator_median_views=video.get("creator_median_views"),
+    )
+    extraction_mode = resolve_extraction_mode(
+        mode_resolved,
+        video,
+        niche_intel,
+        performance_tier=_early_tier_ext,
+    )
+    _max_findings = max_findings_for_tier(
+        effective_depth_tier(_early_tier_ext, mode_resolved)
+    )
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 
@@ -2196,6 +2239,7 @@ def run_video_analyze_pipeline(
         niche_label=gemini_niche_label,
         niche_row=niche_intel,
         retention_curve=retention_user,
+        max_findings=_max_findings,
     )
     content_format_str = str(video.get("content_format") or "")
     errors = apply_rule_based_video_errors(
@@ -2545,6 +2589,7 @@ def run_video_analyze_on_demand(
     *,
     tiktok_url: str,
     mode: Literal["win", "flop"] | None = None,
+    query_hint: str | None = None,
     step_queue: Any | None = None,
     fallback_niche_id: int | None = None,
     user_id: str | None = None,
@@ -2666,14 +2711,19 @@ def run_video_analyze_on_demand(
         "winners_sample_size": None,
     }
 
-    if mode in ("win", "flop"):
-        mode_resolved: Literal["win", "flop"] = mode
-    else:
-        mode_resolved = "flop" if is_flop_mode(video, niche_intel) else "win"
-
+    heuristic_od: Literal["win", "flop"] = (
+        "flop" if is_flop_mode(video, niche_intel) else "win"
+    )
     from getviews_pipeline.video_report_coherence import pipeline_reconcile_mode
 
-    mode_resolved = pipeline_reconcile_mode(mode_resolved, video, niche_intel)
+    caller_mode_od = mode if mode in ("win", "flop") else None
+    mode_resolved = pipeline_reconcile_mode(
+        heuristic_od,
+        video,
+        niche_intel,
+        query_hint=query_hint,
+        caller_mode=caller_mode_od,
+    )
 
     bench_payload = build_niche_benchmark_payload(
         niche_intel,
@@ -2715,9 +2765,29 @@ def run_video_analyze_on_demand(
 
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
-    from getviews_pipeline.video_report_coherence import resolve_extraction_mode
+    from getviews_pipeline.video_report_coherence import (
+        effective_depth_tier,
+        infer_early_performance_tier,
+        max_findings_for_tier,
+        resolve_extraction_mode,
+    )
 
-    extraction_mode_od = resolve_extraction_mode(mode_resolved, video, niche_intel)
+    _views_od = int(video.get("views") or 0)
+    _corpus_avg_od = float((niche_intel or {}).get("avg_views") or 0) or None
+    _early_tier_od = infer_early_performance_tier(
+        _views_od,
+        _corpus_avg_od,
+        creator_median_views=video.get("creator_median_views"),
+    )
+    extraction_mode_od = resolve_extraction_mode(
+        mode_resolved,
+        video,
+        niche_intel,
+        performance_tier=_early_tier_od,
+    )
+    _max_findings_od = max_findings_for_tier(
+        effective_depth_tier(_early_tier_od, mode_resolved)
+    )
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 
@@ -2729,6 +2799,7 @@ def run_video_analyze_on_demand(
         niche_label=gemini_niche_label,
         niche_row=niche_intel,
         retention_curve=retention_user,
+        max_findings=_max_findings_od,
     )
     content_format_str_od = str(video.get("content_format") or "")
     _caption_od = str(video.get("caption") or "").strip()

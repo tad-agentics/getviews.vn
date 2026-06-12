@@ -1408,6 +1408,7 @@ class DiagnosisInput(BaseModel):
     """Retention benchmark curve for the niche."""
     retention_user: list[dict[str, object]] | None = None
     """Modeled retention curve for this specific video."""
+    # Internal default for channel/diagnostic cores — not user-facing video entry.
     mode: Literal["win", "flop"] = "flop"
     content_format: str = ""
     retention_source: Literal["real", "modeled"] = "modeled"

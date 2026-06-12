@@ -199,7 +199,7 @@ function ReportPayloadBody({
       // ``bare`` so VideoBody owns its own framing — KPI strip + retention
       // chart + hook phases need full bleed, not the AnswerBlock card.
       return (
-        <AnswerBlock kicker="Mổ video" bare>
+        <AnswerBlock kicker="Phân tích video" bare>
           <VideoBody
             report={payload.report}
             preSynthesisData={videoStreamProgress?.preSynthesisData ?? null}

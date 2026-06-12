@@ -26,8 +26,10 @@ from getviews_pipeline.video_report_coherence import resolve_extraction_mode
 # ── resolve_extraction_mode ──────────────────────────────────────────
 
 
-def test_resolve_mode_win_passthrough() -> None:
-    assert resolve_extraction_mode("win", {"views": 10}, None) == "win"
+def test_resolve_mode_win_intent_unknown_tier_is_neutral() -> None:
+    # Unified flow: no cohort + win intent → neutral balanced prompt, not a
+    # forced win (we can't confirm a hit without measurement).
+    assert resolve_extraction_mode("win", {"views": 10}, None) == "average"
 
 
 def test_resolve_mode_measured_flop_stays_flop() -> None:
@@ -50,15 +52,15 @@ def test_resolve_mode_unknown_benchmark_respects_flop_intent() -> None:
     assert resolve_extraction_mode("flop", {"views": 100}, {"avg_views": 0}) == "flop"
 
 
-def test_resolve_mode_channel_breakout_softens() -> None:
-    # No corpus benchmark, but ≥2× the channel median upgrades the early
-    # tier to hit — the flop prompt would contradict measured performance.
+def test_resolve_mode_channel_breakout_maps_to_win() -> None:
+    # No corpus benchmark, but ≥2× the channel median upgrades the early tier
+    # to hit. Unified flow maps hit → the win (strength-led) extraction prompt.
     out = resolve_extraction_mode(
         "flop",
         {"views": 50_000, "creator_median_views": 10_000},
         None,
     )
-    assert out == "average"
+    assert out == "win"
 
 
 def test_resolve_mode_measured_corpus_flop_beats_channel_breakout() -> None:

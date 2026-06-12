@@ -117,7 +117,7 @@ function EvidenceThumbs({ ids }: { ids: string[] }) {
           type="button"
           onClick={() =>
             navigate(
-              buildAnswerHandoffPath({ q: vid, mode: "win", from: "ideas" }),
+              buildAnswerHandoffPath({ q: vid, from: "ideas" }),
             )
           }
           className="relative aspect-[9/12] w-full overflow-hidden rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-left"

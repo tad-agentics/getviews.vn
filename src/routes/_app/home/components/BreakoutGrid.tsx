@@ -35,7 +35,7 @@ export function breakoutAnalyzePath(v: Pick<BreakoutVideo, "video_id" | "tiktok_
     (handle
       ? `https://www.tiktok.com/@${handle}/video/${v.video_id}`
       : v.video_id);
-  return `/app/answer?q=${encodeURIComponent(q)}&mode=win&from=home-breakout`;
+  return `/app/answer?q=${encodeURIComponent(q)}&from=home-breakout`;
 }
 
 /** Single breakout tile with hover-to-play video preview. */

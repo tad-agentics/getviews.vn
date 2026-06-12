@@ -100,7 +100,7 @@ describe("QueryComposer (C.1.0)", () => {
         value=""
         onChange={vi.fn()}
         onSubmit={vi.fn()}
-        studioPill="video_flop"
+        studioPill="video"
         onStudioPillChange={vi.fn()}
         placeholder="Dán link video bị flop…"
       />,

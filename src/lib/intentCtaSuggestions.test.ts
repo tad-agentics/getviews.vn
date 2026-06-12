@@ -18,6 +18,11 @@ describe("intentCtaSuggestions", () => {
     expect(ids).not.toContain("video_deep");
   });
 
+  it("does not include Giờ đăng tốt on win video sessions", () => {
+    const labels = getIntentCtaSuggestions(baseCtx).map((s) => s.label);
+    expect(labels).not.toContain("Giờ đăng tốt");
+  });
+
   it("disables compare when videoQuery missing", () => {
     const row = getIntentCtaSuggestions({ ...baseCtx, videoQuery: null }).find(
       (s) => s.id === "video_compare",
@@ -34,10 +39,11 @@ describe("intentCtaSuggestions", () => {
     expect(row?.action).toBe("channel_handoff");
   });
 
-  it("omits Soi kênh rail pill on flop (header CTA in VideoBody)", () => {
+  it("omits Soi kênh rail pill on flop tier (header CTA in VideoBody)", () => {
     const ids = getIntentCtaSuggestions({
       ...baseCtx,
-      mode: "flop",
+      mode: null,
+      performanceTier: "flop",
       creatorHandle: "creatorx",
     }).map((s) => s.id);
     expect(ids).not.toContain("video_channel");

@@ -23,17 +23,24 @@ export function tierImpliesWinFraming(
   return channelBreakoutFromMeta(meta);
 }
 
-/** Align UI mode with BE tier + channel breakout when user forced flop on a strong video. */
-export function effectiveVideoReportMode(
-  reportMode: VideoAnalyzeMode | undefined,
-  performanceTier: string | undefined,
-  meta?: VideoAnalyzeMeta,
-): VideoAnalyzeMode {
-  const mode = reportMode ?? "win";
-  if (mode === "flop" && tierImpliesWinFraming(performanceTier, meta)) {
-    return "win";
-  }
-  return mode;
+export function tierIsGapHeavy(performanceTier: string | undefined): boolean {
+  return (performanceTier ?? "").toLowerCase() === "flop";
+}
+
+export function tierIsStrengthHeavy(performanceTier: string | undefined): boolean {
+  return (performanceTier ?? "").toLowerCase() === "hit";
+}
+
+export function maxFindingsForTier(performanceTier: string | undefined): number {
+  const tier = (performanceTier ?? "unknown").toLowerCase();
+  const map: Record<string, number> = {
+    hit: 3,
+    average: 4,
+    flop: 6,
+    early: 3,
+    unknown: 4,
+  };
+  return map[tier] ?? map.unknown;
 }
 
 export function videoReportWasModeCorrected(

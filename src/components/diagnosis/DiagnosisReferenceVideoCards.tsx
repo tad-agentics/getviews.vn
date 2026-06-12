@@ -164,7 +164,7 @@ function ReferenceVideoCard({
   const inner = (
     <div className={cardShellClass}>
       {narrative ? (
-        <p className="m-0 text-[13px] leading-[1.45] text-[color:var(--gv-ink)]">
+        <p className="m-0 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">
           {narrative}
         </p>
       ) : null}

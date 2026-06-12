@@ -136,10 +136,34 @@ function SectionFindingCard({
 function SectionVerdictBlock({ text }: { text: string }) {
   const { verdict, support } = splitVerdictProse(text);
   if (!verdict && !support) return null;
+
+  const proseClass = "text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]";
+
+  if (verdict && support) {
+    const supportParts = support.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+    const leadSupport = supportParts[0] ?? "";
+    const tailSupport = supportParts.slice(1).join("\n\n").trim();
+    return (
+      <div className="mt-2 space-y-1.5">
+        <p className={`m-0 ${proseClass}`}>
+          <span className="font-bold">{verdict}</span>
+          {leadSupport ? ` ${leadSupport}` : null}
+        </p>
+        {tailSupport ? (
+          <SectionProseBlocks
+            text={tailSupport}
+            wrapperClassName="space-y-1.5"
+            paragraphClassName={proseClass}
+          />
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="mt-2 space-y-1.5">
       {verdict ? (
-        <p className="m-0 text-[17px] font-bold leading-snug text-[color:var(--foreground)]">
+        <p className={`m-0 font-bold ${proseClass}`}>
           {verdict}
         </p>
       ) : null}
@@ -147,13 +171,13 @@ function SectionVerdictBlock({ text }: { text: string }) {
         <SectionProseBlocks
           text={support}
           wrapperClassName="space-y-1.5"
-          paragraphClassName="text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]"
+          paragraphClassName={proseClass}
         />
       ) : !verdict && text.trim() ? (
         <SectionProseBlocks
           text={text}
           wrapperClassName="space-y-1.5"
-          paragraphClassName="text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]"
+          paragraphClassName={proseClass}
         />
       ) : null}
     </div>

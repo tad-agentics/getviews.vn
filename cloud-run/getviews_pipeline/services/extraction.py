@@ -377,6 +377,7 @@ def extract_video_errors(
     niche_label: str,
     niche_row: dict[str, Any] | None,
     retention_curve: list[dict[str, Any]] | None = None,
+    max_findings: int = 3,
 ) -> list[dict[str, Any]]:
     """Call 1 — Gemini extracts ``VideoFlopIssue``-shaped errors (+ ``error_id``)."""
 
@@ -440,26 +441,27 @@ def extract_video_errors(
     )
     input_json = _json.dumps(input_model.model_dump(exclude_none=True), ensure_ascii=False)
 
+    cap = max(1, min(int(max_findings), 8))
     if extraction_mode == "win":
-        mode_block = """## Chế độ WIN (video đang hoạt động tốt)
+        mode_block = f"""## Chế độ WIN (video đang hoạt động tốt)
 
-- Trích xuất **0–3** vấn đề tiềm ẩn hoặc polish (sev chỉ **mid** hoặc **low**).
+- Trích xuất **0–{min(3, cap)}** vấn đề tiềm ẩn hoặc polish (sev chỉ **mid** hoặc **low**).
 - Nếu không có vấn đề đáng kể, trả `"errors": []`.
 - **Không** dùng sev **high** trừ khi có lỗi cấu trúc rõ ràng trong phân tích.
 - title: tên ngắn gọn (≤5 từ), không dùng emoji, không dùng mã lỗi."""
     elif extraction_mode == "average":
-        mode_block = """## Chế độ TRUNG BÌNH (video quanh chuẩn ngách — KHÔNG phải flop)
+        mode_block = f"""## Chế độ TRUNG BÌNH (video quanh chuẩn ngách — KHÔNG phải flop)
 
 - Đừng viết như đang mổ xẻ một video hỏng. Đây là video quanh mức chuẩn của format.
-- Trích xuất **0-3** vấn đề CÓ BẰNG CHỨNG từ phân tích khung hình / retention — sev theo đúng bằng chứng (kể cả high nếu rõ ràng).
+- Trích xuất **0-{cap}** vấn đề CÓ BẰNG CHỨNG từ phân tích khung hình / retention — sev theo đúng bằng chứng (kể cả high nếu rõ ràng).
 - Không có vấn đề rõ → trả `"errors": []`. TUYỆT ĐỐI không bịa lỗi cho đủ danh sách.
 - Mỗi mục PHẢI có ``error_id`` ổn định dạng ERR_* (vd ERR_hook_late_face).
 - title: tiếng Việt, ≤10 từ, không emoji, không mã lỗi."""
     else:
-        mode_block = """## Chế độ FLOP (video yếu so với ngách)
+        mode_block = f"""## Chế độ FLOP (video yếu so với ngách)
 
-- Trích xuất **đúng 1–3 lỗi nghiêm trọng nhất**, xếp theo độ nghiêm trọng (high → low).
-- Tối đa 3 mục — chọn lỗi có impact lớn nhất, không liệt kê tất cả.
+- Trích xuất **đúng 1–{cap} lỗi nghiêm trọng nhất**, xếp theo độ nghiêm trọng (high → low).
+- Tối đa {cap} mục — chọn lỗi có impact lớn nhất, không liệt kê tất cả.
 - Mỗi mục PHẢI có ``error_id`` ổn định dạng ERR_* (vd ERR_hook_late_face).
 - title: tiếng Việt, ≤10 từ, không emoji, không mã lỗi. Được dùng em-dash (—) để ghép hai ý trái chiều.
   Ví dụ ĐÚNG: "Không có hook — chỉ có không khí", "Sản phẩm bị lẫn bởi cảnh quay", "Im lặng hoàn toàn — không có giọng người".
@@ -546,7 +548,7 @@ Ví dụ SAI: "Thêm text overlay" (không có vị trí + không có ví dụ)
                 "fix": "Compress hook về dưới 1.5s với payoff rõ trong frame đầu.",
             }
         ]
-    return items
+    return items[:cap]
 
 
 # ── Extraction core (Phase 3.1 + 3.3) ────────────────────────────────────────

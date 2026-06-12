@@ -143,7 +143,6 @@ export type StreamArgs = {
   turnKind: AnswerTurnKind;
   /** Session row ``format`` — primary script turns bill 3 credits. */
   sessionFormat?: string | null;
-  videoMode?: "win" | "flop" | null;
   sourceEntry?: string | null;
   /** Explicit intent from CTA pill — skip free-text classify (§4.10.2). */
   intentType?: string | null;
@@ -259,7 +258,6 @@ export function useSessionStream<TPayload = unknown>(
               turnKind: args.turnKind as PendingAnswerTurnKind,
               startedAt,
               sessionFormat: args.sessionFormat ?? null,
-              videoMode: args.videoMode ?? null,
               creditsUsed: optimisticAnswerCreditsUsed(
                 args.turnKind as PendingAnswerTurnKind,
                 args.sessionFormat,
@@ -301,7 +299,6 @@ export function useSessionStream<TPayload = unknown>(
               body: JSON.stringify({
                 query: args.query,
                 kind: args.turnKind,
-                ...(args.videoMode ? { video_mode: args.videoMode } : {}),
                 ...(args.sessionFormat === "video" ? { analysis_depth: "deep" } : {}),
                 ...(args.sourceEntry ? { source_entry: args.sourceEntry } : {}),
                 ...(args.intentType ? { intent_type: args.intentType } : {}),

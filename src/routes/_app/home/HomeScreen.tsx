@@ -65,7 +65,7 @@ export default function HomeScreen() {
 
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [composerText, setComposerText] = useState("");
-  const [studioPill, setStudioPill] = useState<StudioComposerPill>("video_flop");
+  const [studioPill, setStudioPill] = useState<StudioComposerPill>("video");
   // L1.5 audit follow-up — surfaces a Vietnamese hint when the user
   // submits an unfilled paste-template chip (legacy template text in composer).
   const [placeholderHint, setPlaceholderHint] = useState<string | null>(null);

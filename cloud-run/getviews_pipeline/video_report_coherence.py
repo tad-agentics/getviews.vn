@@ -9,6 +9,44 @@ logger = logging.getLogger(__name__)
 
 VideoMode = Literal["win", "flop"]
 
+# Tier-scaled analysis depth (unified flow — flop gets more refs + findings).
+TIER_DEPTH: dict[str, dict[str, int]] = {
+    "hit": {"ref_n": 3, "max_findings": 3},
+    "average": {"ref_n": 5, "max_findings": 4},
+    "flop": {"ref_n": 7, "max_findings": 6},
+    "early": {"ref_n": 4, "max_findings": 3},
+    "unknown": {"ref_n": 5, "max_findings": 4},
+}
+
+
+def effective_depth_tier(
+    performance_tier: str | None,
+    mode_resolved: str | None,
+) -> str:
+    """Depth tier for scaling refs/findings.
+
+    Cohort-less flop guard (plan §"Breaking-change analysis"): when there is no
+    corpus to measure tier (``unknown``) but the resolved intent is ``flop`` (the
+    user's query hint / caller mode flowed through ``reconcile_video_mode``), the
+    creator still deserves full flop depth — more findings + more reference
+    videos to fix. Without this, a thin-niche flop silently gets average depth.
+    """
+    tier = str(performance_tier or "unknown").lower()
+    if tier == "unknown" and str(mode_resolved or "").lower() == "flop":
+        return "flop"
+    return tier
+
+
+def ref_n_for_tier(performance_tier: str | None) -> int:
+    tier = str(performance_tier or "unknown").lower()
+    return TIER_DEPTH.get(tier, TIER_DEPTH["unknown"])["ref_n"]
+
+
+def max_findings_for_tier(performance_tier: str | None) -> int:
+    tier = str(performance_tier or "unknown").lower()
+    return TIER_DEPTH.get(tier, TIER_DEPTH["unknown"])["max_findings"]
+
+
 # Extraction prompt modes — wider than VideoMode (the user-intent axis stays
 # binary; the *prompt* gains a balanced middle so average/unknown/early videos
 # stop getting the forced-error flop treatment).
@@ -58,6 +96,24 @@ def tier_implies_win_framing(
     )
 
 
+def resolve_stored_video_mode(
+    performance_tier: str | None,
+    *,
+    views: int = 0,
+    creator_median_views: int | float | None = None,
+    target_vs_creator_median: float | None = None,
+) -> VideoMode:
+    """Derive the stored win/flop discriminator from measured ``performance_tier``.
+
+    Channel-breakout is already folded into the refined tier upstream
+    (``refine_performance_tier`` upgrades to ``hit``), so only a measured
+    ``flop`` maps to flop framing; every other tier leads with win/neutral
+    framing. The meta kwargs are retained for call-site signature stability
+    with ``reconcile_video_mode``.
+    """
+    return "flop" if str(performance_tier or "").lower() == "flop" else "win"
+
+
 def reconcile_video_mode(
     mode: str | None,
     performance_tier: str | None,
@@ -65,17 +121,27 @@ def reconcile_video_mode(
     views: int = 0,
     creator_median_views: int | float | None = None,
     target_vs_creator_median: float | None = None,
+    query_hint: str | None = None,
+    caller_mode: str | None = None,
 ) -> VideoMode:
-    """When tier/channel contradicts user-requested flop, trust measured performance."""
-    m: VideoMode = "flop" if str(mode or "").lower() == "flop" else "win"
-    if m == "flop" and tier_implies_win_framing(
-        performance_tier,
-        views=views,
-        creator_median_views=creator_median_views,
-        target_vs_creator_median=target_vs_creator_median,
-    ):
-        return "win"
-    return m
+    """Resolve stored mode: measured tier wins; query hint decides only when tier is unknown."""
+    tier = str(performance_tier or "unknown").lower()
+    if tier in ("hit", "flop", "average", "early"):
+        return resolve_stored_video_mode(
+            performance_tier,
+            views=views,
+            creator_median_views=creator_median_views,
+            target_vs_creator_median=target_vs_creator_median,
+        )
+    if query_hint in ("win", "flop"):
+        return query_hint
+    caller = str(caller_mode or "").lower()
+    if caller in ("win", "flop"):
+        return caller  # type: ignore[return-value]
+    heuristic = str(mode or "").lower()
+    if heuristic in ("win", "flop"):
+        return heuristic  # type: ignore[return-value]
+    return "win"
 
 
 def infer_early_performance_tier(
@@ -103,32 +169,38 @@ def resolve_extraction_mode(
     mode_resolved: VideoMode,
     video: dict[str, Any],
     niche_intel: dict[str, Any] | None,
+    *,
+    performance_tier: str | None = None,
 ) -> ExtractionMode:
-    """Tier-aware error-extraction mode.
-
-    The legacy mapping was ``"win" if mode == "win" else "flop"`` — every
-    measured-average video got the flop prompt (forced 1-3 errors, fabricated
-    fallback). Soften to the balanced "average" prompt only when the benchmark
-    actively contradicts flop (tier average/early); with no benchmark at all
-    (tier unknown) the caller's flop intent stands — we have no evidence
-    against it either.
-    """
-    if mode_resolved == "win":
-        return "win"
+    """Map performance tier (or early inference) to Gemini extraction prompt mode."""
     views = int(video.get("views") or 0)
     corpus_avg = float((niche_intel or {}).get("avg_views") or 0) or None
-    tier = infer_early_performance_tier(
+    tier = str(performance_tier or "").lower() or infer_early_performance_tier(
         views,
         corpus_avg,
         creator_median_views=video.get("creator_median_views"),
     )
-    return "average" if tier in ("average", "early", "hit") else "flop"
+    if tier == "hit":
+        return "win"
+    if tier == "flop":
+        return "flop"
+    if tier in ("average", "early"):
+        return "average"
+    # unknown — no cohort to measure. Honor a resolved flop intent (cohort-less
+    # flop guard) so the creator still gets the gap-finding prompt; otherwise
+    # use the neutral balanced prompt rather than assuming a win.
+    if str(mode_resolved or "").lower() == "flop":
+        return "flop"
+    return "average"
 
 
 def pipeline_reconcile_mode(
     mode_resolved: VideoMode,
     video: dict[str, Any],
     niche_intel: dict[str, Any] | None,
+    *,
+    query_hint: str | None = None,
+    caller_mode: str | None = None,
 ) -> VideoMode:
     """Single entry for corpus + on-demand pipelines before error extraction."""
     views = int(video.get("views") or 0)
@@ -144,6 +216,8 @@ def pipeline_reconcile_mode(
         early_tier,
         views=views,
         creator_median_views=cmv,
+        query_hint=query_hint,
+        caller_mode=caller_mode,
     )
     if reconciled != mode_resolved:
         logger.info(
@@ -195,10 +269,11 @@ def filter_structural_errors_for_tier(
             views,
         )
 
+    cap = max_findings_for_tier(performance_tier)
     high = [e for e in filtered if str(e.get("sev") or "").lower() == "high"]
     if high:
-        return high[:3]
-    return filtered[:2]
+        return high[:cap]
+    return filtered[:cap]
 
 
 def should_fill_related_questions(out: dict[str, Any]) -> bool:

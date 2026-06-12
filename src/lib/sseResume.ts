@@ -67,8 +67,6 @@ export interface PendingAnswerStream {
   creditsUsed: number;
   /** Session row ``format`` — when ``creditsUsed`` is absent (legacy blob), infer billing. */
   sessionFormat?: string | null;
-  /** Video diagnosis win/flop — omitted on non-video turns. */
-  videoMode?: "win" | "flop" | null;
 }
 
 /** True when TD-4 replay can reconnect (sessionStorage or in-memory hook handles). */
@@ -146,13 +144,11 @@ export function loadPendingAnswerStream(
     "sessionFormat" in parsed && parsed.sessionFormat !== undefined
       ? parsed.sessionFormat
       : null;
-  const videoMode =
-    "videoMode" in parsed && parsed.videoMode !== undefined ? parsed.videoMode : null;
   const creditsUsed =
     typeof parsed.creditsUsed === "number"
       ? parsed.creditsUsed
       : optimisticAnswerCreditsUsed(parsed.turnKind, fmt);
-  return { ...parsed, creditsUsed, sessionFormat: fmt, videoMode };
+  return { ...parsed, creditsUsed, sessionFormat: fmt };
 }
 
 export const PENDING_ANSWER_STREAM_KEY = KEY;

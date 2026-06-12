@@ -16,6 +16,7 @@ from getviews_pipeline.video_analyze import (
 logger = logging.getLogger(__name__)
 
 MARKETING_ANALYSIS_DEPTH = "deep"
+# Internal marketing-corpus path only — not exposed on user video composer.
 MARKETING_VIDEO_MODE = "win"
 POOL_EXHAUSTED = "marketing_pool_exhausted"
 ANALYSIS_FAILED = "analysis_failed"

@@ -10,16 +10,12 @@ Flow:
     3. Else → fetch_comments_for_video → score_comments → UPDATE + return.
     4. Any failure → None. Never raises to the caller.
 
-Concurrency (BUG-09, QA audit 2026-04-22): VideoScreen fires two
-``POST /video/analyze`` calls in parallel (mode=win + mode=flop — different
-React Query cache keys). On a cold comment_radar cache both calls raced
-past the read, fetched comments from EnsembleData independently, scored
-slightly different 50-comment samples (TikTok orders newest-first, so a
-new comment arriving between the two fetches shifts membership), and each
-wrote its own radar — users saw 24/76/0 on one tab and 28/72/0 on the
-other for the same video. A per-video asyncio lock collapses the races:
-whichever call arrives first does the fetch + writeback, the second waits
-on the lock, reads the freshly-written cache, and returns identical data.
+Concurrency (BUG-09): concurrent ``finalize_video_narrative_layer`` /
+diagnostics paths for the same ``video_id`` can race on a cold
+``comment_radar`` cache — both pass the read, fetch from EnsembleData
+independently, and write different 50-comment samples. A per-video
+asyncio lock collapses the race: the first fetch + writeback wins; the
+second waits, reads the fresh cache, and returns identical data.
 """
 
 from __future__ import annotations
@@ -164,10 +160,9 @@ async def resolve_comment_radar(
             logger.info("[comment_radar_cache] cache hit (fresh) for %s", vid)
             return cached
 
-    # Serialise refetches per video_id so two concurrent callers (typical
-    # VideoScreen pattern: mode=win + mode=flop fired together) share one
-    # fetch + writeback. Whichever arrives second re-reads the cache after
-    # the lock releases and returns the freshly-written radar.
+    # Serialise refetches per video_id so concurrent answer-session turns
+    # (e.g. pre-synth + narrative-ready) share one fetch + writeback.
+    # Whichever arrives second re-reads the cache after the lock releases.
     async with _fetch_lock(vid):
         # The in-flight map is the dedupe signal that works even when the
         # DB cache read was skipped (e.g. anon client unavailable).

@@ -256,7 +256,7 @@ export default function AnswerScreen() {
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [bootstrapLoading, setBootstrapLoading] = useState(false);
-  const [studioPill, setStudioPill] = useState<StudioComposerPill>("video_flop");
+  const [studioPill, setStudioPill] = useState<StudioComposerPill>("video");
 
   const isAnswerLanding = !sessionId && !seedQ.trim();
 
@@ -418,7 +418,6 @@ export default function AnswerScreen() {
     if (!incoming || typeof incoming !== "string" || !incoming.trim()) return;
     const params = new URLSearchParams(searchParams);
     params.set("q", incoming.trim());
-    if (!params.has("mode")) params.set("mode", "win");
     navigate(`${location.pathname}?${params.toString()}`, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate, searchParams]);
 
@@ -665,7 +664,6 @@ export default function AnswerScreen() {
         query,
         turnKind,
         sessionFormat,
-        videoMode: sessionFormat === "video" ? handoff.mode ?? undefined : undefined,
         sourceEntry: "error_retry_ui",
       });
       if (!result.ok) {
@@ -721,7 +719,6 @@ export default function AnswerScreen() {
     primaryRetryQuery,
     detailQuery.data?.session,
     detailQuery.data?.turns.length,
-    handoff.mode,
     stream,
     queryClient,
     uid,
@@ -758,7 +755,6 @@ export default function AnswerScreen() {
           turnKind,
           sessionFormat: detailQuery.data?.session?.format,
           sourceEntry: opts.sourceEntry,
-          videoMode: handoff.mode ?? undefined,
         });
         if (!result.ok) {
           setError(pickAnswerErrorCode(result.error, "follow_up_failed"));
@@ -825,7 +821,6 @@ export default function AnswerScreen() {
       stream,
       queryClient,
       uid,
-      handoff.mode,
       detailQuery.data?.session?.format,
     ],
   );
@@ -897,8 +892,6 @@ export default function AnswerScreen() {
           query: seedQ,
           turnKind: "primary",
           sessionFormat: sessionFormat,
-          videoMode:
-            sessionFormat === "video" ? handoff.mode ?? undefined : undefined,
           sourceEntry: handoff.from ?? undefined,
         });
 
@@ -986,7 +979,6 @@ export default function AnswerScreen() {
           sourceEntry: "intent_cta",
           intentType: suggestion.intentType,
           ctaId: suggestion.id,
-          videoMode: handoff.mode ?? undefined,
         });
         if (!result.ok) {
           setError(pickAnswerErrorCode(result.error, "follow_up_failed"));
@@ -1049,7 +1041,6 @@ export default function AnswerScreen() {
       stream,
       queryClient,
       uid,
-      handoff.mode,
       detailQuery.data?.session?.format,
     ],
   );
@@ -1072,7 +1063,6 @@ export default function AnswerScreen() {
         navigate(
           buildAnswerHandoffPath({
             q: url,
-            mode: handoff.mode ?? "win",
             ...(handoff.from ? { from: handoff.from } : {}),
           }),
         );
@@ -1221,6 +1211,7 @@ export default function AnswerScreen() {
     return {
       format: detailQuery.data?.session?.format ?? "generic",
       mode: handoff.mode,
+      performanceTier: report?.performance_tier ?? null,
       videoQuery: resolveVideoHandoffQuery({
         seedQ,
         sessionInitialQ: detailQuery.data?.session?.initial_q,

@@ -471,10 +471,7 @@ def test_detect_mode_from_query_is_case_insensitive() -> None:
 
 
 def test_build_video_report_passes_detected_flop_mode_to_pipeline() -> None:
-    """Mode hint flows: detect_mode_from_query → build_video_report
-    forwards as ``mode="flop"`` to the pipeline. The Gemini synth
-    runs the flop branch instead of letting the niche heuristic
-    flip it (which gets it wrong when there's no cohort)."""
+    """Query tone hint flows as ``query_hint="flop"`` (not stored mode)."""
     expected = _video_response_fixture()
     pipeline_mock = MagicMock(return_value=expected)
 
@@ -489,11 +486,12 @@ def test_build_video_report_passes_detected_flop_mode_to_pipeline() -> None:
             ),
         )
 
-    assert pipeline_mock.call_args.kwargs["mode"] == "flop"
+    assert pipeline_mock.call_args.kwargs["mode"] is None
+    assert pipeline_mock.call_args.kwargs["query_hint"] == "flop"
 
 
 def test_build_video_report_passes_detected_win_mode_to_pipeline() -> None:
-    """Win-mode signal mirror of the flop case."""
+    """Win query tone hint flows as ``query_hint="win"``."""
     expected = _video_response_fixture()
     pipeline_mock = MagicMock(return_value=expected)
 
@@ -505,7 +503,8 @@ def test_build_video_report_passes_detected_win_mode_to_pipeline() -> None:
             query="vì sao video này viral https://www.tiktok.com/@x/video/1",
         )
 
-    assert pipeline_mock.call_args.kwargs["mode"] == "win"
+    assert pipeline_mock.call_args.kwargs["mode"] is None
+    assert pipeline_mock.call_args.kwargs["query_hint"] == "win"
 
 
 def test_build_video_report_explicit_mode_overrides_detection() -> None:

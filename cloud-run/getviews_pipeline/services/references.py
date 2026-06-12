@@ -133,6 +133,7 @@ async def select_synthesis_references_for_video(
     content_class_id: int | None = None,
     legacy_niche_id: int | None = None,
     live_search_fn: Any | None = None,
+    ref_n: int | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
     """Corpus pool → proximity picks → content-targeted merge → evidence block.
 
@@ -145,6 +146,8 @@ async def select_synthesis_references_for_video(
     target_id = video_id.strip()
     if not niche or not target_id:
         return [], [], ""
+
+    ref_limit = ref_n if ref_n is not None and ref_n > 0 else REF_N
 
     corpus_pool = await fetch_corpus_reference_pool(
         niche,
@@ -173,13 +176,13 @@ async def select_synthesis_references_for_video(
     pool = list(corpus_pool)
     picks: list[dict[str, Any]] = []
 
-    if len(corpus_pool) >= REF_N:
+    if len(corpus_pool) >= ref_limit:
         picks = _select_by_proximity_then_er(
             corpus_pool,
             video_desc=video_desc,
             video_hashtags=video_hashtags,
             cached_ids=cached_ids,
-            n=REF_N,
+            n=ref_limit,
             recency_days=30,
             user_subject_matter=user_subject_matter,
         )
@@ -194,7 +197,7 @@ async def select_synthesis_references_for_video(
             video_desc=video_desc,
             video_hashtags=video_hashtags,
             cached_ids=cached_ids,
-            n=REF_N,
+            n=ref_limit,
             recency_days=30,
             user_subject_matter=user_subject_matter,
         )
@@ -206,7 +209,7 @@ async def select_synthesis_references_for_video(
         video_hashtags=video_hashtags,
         niche=niche,
         cached_ids=cached_ids,
-        n=REF_N,
+        n=ref_limit,
         recency_days=30,
         user_subject_matter=user_subject_matter,
     )
@@ -214,7 +217,7 @@ async def select_synthesis_references_for_video(
     synthesis_refs: list[dict[str, Any]] = []
     slim_refs: list[dict[str, Any]] = []
 
-    corpus_picks = [p for p in picks if p.get("_from_corpus")][:REF_N]
+    corpus_picks = [p for p in picks if p.get("_from_corpus")][:ref_limit]
     if corpus_picks:
         _annotate_pick_proximity(
             corpus_picks,
@@ -224,10 +227,10 @@ async def select_synthesis_references_for_video(
         )
         synthesis_refs = [corpus_aweme_to_synthesis_ref(p) for p in corpus_picks]
         slim_refs = [_slim_reference_video(p, "corpus") for p in corpus_picks]
-        if len(corpus_picks) < REF_N:
+        if len(corpus_picks) < ref_limit:
             corpus_source = "sparse_fallback"
 
-    if len(synthesis_refs) < REF_N and live_search_fn is not None:
+    if len(synthesis_refs) < ref_limit and live_search_fn is not None:
         try:
             live_syn, live_slim = await live_search_fn(niche, target_id)
             if live_syn:
@@ -239,7 +242,7 @@ async def select_synthesis_references_for_video(
                     synthesis_refs.append(ref)
                     slim_refs.append(slim)
                     seen.add(aid)
-                    if len(synthesis_refs) >= REF_N:
+                    if len(synthesis_refs) >= ref_limit:
                         break
                 if synthesis_refs and not corpus_picks:
                     corpus_source = "live_search"

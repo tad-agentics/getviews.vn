@@ -1,4 +1,4 @@
-import { buildAnswerHandoffPath, type AnswerHandoffMode } from "./answerHandoff";
+import { buildAnswerHandoffPath } from "./answerHandoff";
 import {
   extractChannelHandleFromMessage,
   normalizeChannelHandleInput,
@@ -8,24 +8,18 @@ import { buildChannelStudioPath } from "./channelStudioHandoff";
 import { nonTikTokUrlValidationMessage } from "@/lib/tiktokUrl";
 import { planAnswerEntry } from "@/routes/_app/intent-router";
 
-export type StudioComposerPill = "video_flop" | "video_win" | "channel" | "script";
+export type StudioComposerPill = "video" | "channel" | "script";
 
 export const STUDIO_COMPOSER_PILLS: { id: StudioComposerPill; label: string }[] = [
-  { id: "video_flop", label: "Phân tích video" },
-  { id: "video_win", label: "Học video viral" },
+  { id: "video", label: "Phân tích video" },
   { id: "channel", label: "Soi kênh đối thủ" },
   { id: "script", label: "Viết kịch bản" },
 ];
 
-const TIKTOK_URL_IN_TEXT =
-  /(?:https?:\/\/)?(?:www\.)?(?:vm\.|vt\.)?tiktok\.com\b/i;
-
 export function studioComposerPlaceholder(pill: StudioComposerPill, nicheLabel: string): string {
   switch (pill) {
-    case "video_flop":
-      return `Dán link video bị flop trong ngách ${nicheLabel} để tìm lỗi…`;
-    case "video_win":
-      return `Dán link video đang lên xu hướng trong ngách ${nicheLabel} để giải mã…`;
+    case "video":
+      return `Dán link TikTok trong ngách ${nicheLabel} để phân tích…`;
     case "channel":
       return "Nhập @username hoặc dán link kênh TikTok để phân tích…";
     case "script":
@@ -36,16 +30,6 @@ export function studioComposerPlaceholder(pill: StudioComposerPill, nicheLabel: 
 export type StudioComposerSubmitPlan =
   | { kind: "navigate"; to: string }
   | { kind: "blocked"; reason: "empty" | "non_tiktok_url"; message?: string };
-
-function videoModeForPill(
-  pill: StudioComposerPill,
-  text: string,
-): AnswerHandoffMode | undefined {
-  if (!TIKTOK_URL_IN_TEXT.test(text)) return undefined;
-  if (pill === "video_flop") return "flop";
-  if (pill === "video_win") return "win";
-  return undefined;
-}
 
 export function planStudioComposerSubmit(
   pill: StudioComposerPill,
@@ -80,16 +64,11 @@ export function planStudioComposerSubmit(
     return { kind: "navigate", to: entry.to };
   }
 
-  if (pill === "script") {
-    return {
-      kind: "navigate",
-      to: buildAnswerHandoffPath({ q: trimmed, from: "composer" }),
-    };
-  }
-
-  const mode = videoModeForPill(pill, trimmed);
+  // Both "video" and "script" pills hand off the same way now — the
+  // performance tier (and any flop framing) is derived downstream, not
+  // chosen at the composer.
   return {
     kind: "navigate",
-    to: buildAnswerHandoffPath({ q: trimmed, mode, from: "composer" }),
+    to: buildAnswerHandoffPath({ q: trimmed, from: "composer" }),
   };
 }

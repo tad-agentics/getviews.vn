@@ -9,11 +9,11 @@ import {
 } from "./answerHandoff";
 
 describe("answerHandoff", () => {
-  it("builds trends win path without depth param", () => {
+  it("builds trends video path without mode or depth param", () => {
     const path = trendsVideoHandoffPath("https://www.tiktok.com/@a/video/1");
     expect(path).toContain("/app/answer?");
     expect(path).not.toContain("depth=");
-    expect(path).toContain("mode=win");
+    expect(path).not.toContain("mode=");
     expect(path).toContain("from=trends");
   });
 

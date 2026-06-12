@@ -58,6 +58,27 @@ describe("SectionFindingCard fix chip", () => {
   });
 });
 
+describe("section verdict prose", () => {
+  it("merges verdict + support into one paragraph when both are present", () => {
+    const verdict =
+      "Video đạt hiệu suất 3,06x so với mức view thường của kênh nhờ nhịp cắt nhanh, nhưng đang thiếu kết nối Người kể chuyện.";
+    const support =
+      "Việc không có tiếng nói trực tiếp khiến nội dung tutorial mất đi 35% tiềm năng giữ chân.";
+    const { container } = renderSection({
+      section_id: "diagnosis",
+      title: "Chẩn đoán",
+      text: `${verdict}\n\n${support}`,
+      findings: [],
+    } as DiagnosisSectionVi);
+    const paragraphs = container.querySelectorAll("p");
+    const merged = Array.from(paragraphs).find(
+      (p) => p.textContent?.includes(verdict) && p.textContent?.includes(support),
+    );
+    expect(merged).toBeTruthy();
+    expect(merged?.querySelector("span.font-bold")?.textContent).toBe(verdict);
+  });
+});
+
 describe("section prose markdown", () => {
   it("renders **bold** as <strong> instead of literal asterisks", () => {
     const { container } = renderSection({

@@ -459,7 +459,6 @@ describe("AnswerScreen state transitions", () => {
       startedAt: Date.now(),
       creditsUsed: 2,
       sessionFormat: "video",
-      videoMode: "win",
     });
     mockUseAnswerSessionDetail.mockImplementation((id: string | null | undefined) => ({
       data:

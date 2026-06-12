@@ -549,12 +549,12 @@ def test_force_refresh_skips_cache_hit() -> None:
 
 
 def test_run_pipeline_respects_mode_override() -> None:
-    """Heuristic would choose win; ``mode='flop'`` must run flop Gemini, not win."""
+    """Measured flop tier runs flop extraction regardless of heuristic win."""
     now_iso = datetime.now(UTC).isoformat()
     video_row = {
         "video_id": "vid-mode-override",
         "creator_handle": "creator",
-        "views": 600_000,
+        "views": 2_000,
         "likes": 2,
         "comments": 2,
         "shares": 2,
@@ -572,7 +572,8 @@ def test_run_pipeline_respects_mode_override() -> None:
         {
             "niche_id": 3,
             "sample_size": 200,
-            "organic_avg_views": 30_000,
+            "avg_views": 20_000,
+            "organic_avg_views": 20_000,
             "commerce_avg_views": 0,
             "median_er": 0.04,
             "avg_engagement_rate": 0.05,
@@ -592,18 +593,31 @@ def test_run_pipeline_respects_mode_override() -> None:
         assert kwargs.get("extraction_mode") == "flop"
         return raw
 
+    bench_row = {
+        "avg_views": 20_000,
+        "avg_retention": 0.55,
+        "avg_ctr": 0.04,
+        "sample_size": 200,
+        "winners_sample_size": 30,
+    }
     with patch(
         "getviews_pipeline.video_analyze._fetch_sidecars_sync",
         return_value=(None, None),
     ):
-        with patch("getviews_pipeline.video_analyze.extract_video_errors", side_effect=fake_extract):
-            out = run_video_analyze_pipeline(
-                service_sb,
-                user_sb,
-                video_id="vid-mode-override",
-                tiktok_url=None,
-                mode="flop",
-            )
+        with patch(
+            "getviews_pipeline.video_analyze.fetch_video_benchmark_with_axis",
+            return_value=(bench_row, "niche"),
+        ):
+            with patch(
+                "getviews_pipeline.video_analyze.extract_video_errors",
+                side_effect=fake_extract,
+            ):
+                out = run_video_analyze_pipeline(
+                    service_sb,
+                    user_sb,
+                    video_id="vid-mode-override",
+                    tiktok_url=None,
+                )
 
     assert gemini_called == ["extract"]
     assert out["mode"] == "flop"

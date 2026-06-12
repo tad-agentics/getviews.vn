@@ -9,7 +9,6 @@ export type IntentCtaId =
   | "video_script"
   | "video_compare"
   | "video_hook_variants"
-  | "video_timing"
   | "script_shoot"
   | "script_sample_video"
   | "script_save_draft"
@@ -41,7 +40,9 @@ export type IntentCtaSuggestion = {
 
 export type IntentCtaContext = {
   format: AnswerSessionFormat;
+  /** Legacy URL advisory — prefer ``performanceTier`` when report is loaded. */
   mode: AnswerHandoffMode | null;
+  performanceTier?: string | null;
   /** Resolved TikTok URL or aweme id for video-context CTAs. */
   videoQuery: string | null;
   scriptDraftId: string | null;
@@ -53,6 +54,13 @@ export type IntentCtaContext = {
 };
 
 type MatrixRow = Omit<IntentCtaSuggestion, "disabledReason">;
+
+function tierIsFlop(ctx: IntentCtaContext): boolean {
+  const tier = (ctx.performanceTier ?? "").toLowerCase();
+  if (tier === "flop") return true;
+  if (tier) return false;
+  return ctx.mode === "flop";
+}
 
 function channelCtaLabel(handle: string): string {
   const h = handle.replace(/^@/, "").trim();
@@ -68,8 +76,8 @@ function baseVideoRows(ctx: IntentCtaContext): MatrixRow[] {
       action: "append_turn",
     },
   ];
-  // Flop report already shows Soi kênh in VideoBody header — skip rail duplicate.
-  if (ctx.creatorHandle?.trim() && ctx.mode !== "flop") {
+  // Flop-tier report shows Soi kênh in VideoBody header — skip rail duplicate.
+  if (ctx.creatorHandle?.trim() && !tierIsFlop(ctx)) {
     rows.push({
       id: "video_channel",
       label: channelCtaLabel(ctx.creatorHandle),
@@ -83,18 +91,11 @@ function baseVideoRows(ctx: IntentCtaContext): MatrixRow[] {
     intentType: "compare_videos",
     action: "compare_navigate",
   });
-  if (ctx.mode === "flop") {
+  if (tierIsFlop(ctx)) {
     rows.push({
       id: "video_hook_variants",
       label: "Sửa hook — tạo biến thể",
       intentType: "hook_variants",
-      action: "append_turn",
-    });
-  } else {
-    rows.push({
-      id: "video_timing",
-      label: "Giờ đăng tốt",
-      intentType: "timing",
       action: "append_turn",
     });
   }
@@ -266,8 +267,6 @@ export function intentCtaQueryForSuggestion(
       return "Tạo kịch bản từ kết quả phân tích này";
     case "video_hook_variants":
       return "Tạo biến thể hook cho video này";
-    case "video_timing":
-      return "Giờ đăng tốt nhất cho video này";
     case "timing_calendar":
       return "Lên lịch đăng tuần này";
     case "generic_trends":

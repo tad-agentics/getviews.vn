@@ -18,7 +18,7 @@
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowRight, Copy } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
@@ -27,7 +27,6 @@ import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
-import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
 import { r2VideoPlaybackUrl } from "@/lib/r2";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
@@ -53,7 +52,9 @@ import {
 import { reconcileViewKpiWithTierRatio } from "@/lib/videoKpis";
 import { isV5Report } from "@/lib/v5-compat";
 import {
-  effectiveVideoReportMode,
+  maxFindingsForTier,
+  tierIsGapHeavy,
+  tierIsStrengthHeavy,
   tierImpliesWinFraming,
   videoReportWasModeCorrected,
 } from "@/lib/videoReportCoherence";
@@ -74,7 +75,6 @@ import type {
   NarrativeVi,
   ReferenceVideoCard,
   VideoAnalyzeMeta,
-  VideoAnalyzeMode,
   VideoReportPayload,
   VideoAnswerNarrativeReadyPayload,
   VideoAnswerPreSynthesisPayload,
@@ -180,12 +180,8 @@ export function VideoBody({
   const tierRatio: number | null | undefined = preSynth?.tier_ratio ?? report.tier_ratio;
   const tierBenchmarkN: number | null | undefined =
     preSynth?.tier_benchmark_n ?? report.tier_benchmark_n;
-  const viewMode: VideoAnalyzeMode = effectiveVideoReportMode(
-    report.mode,
-    performanceTier,
-    meta,
-  );
-  const isFlop = viewMode === "flop";
+  const gapHeavy = tierIsGapHeavy(performanceTier);
+  const strengthHeavy = tierIsStrengthHeavy(performanceTier);
   const modeCorrectedFromFlop = videoReportWasModeCorrected(
     report.mode,
     performanceTier,
@@ -209,9 +205,10 @@ export function VideoBody({
   const streamedErrs = narrativeReady?.errors;
   const reportErrs = report.structural_errors ?? report.errors ?? [];
   // Phase 4.4.2 — cap to first 3 (highest severity) per v5 contract.
+  const findingCap = maxFindingsForTier(performanceTier);
   const flopIssuesForNarrative: VideoFlopIssue[] = (
     streamedErrs && streamedErrs.length > 0 ? streamedErrs : reportErrs
-  ).slice(0, 3);
+  ).slice(0, findingCap);
   const winLessons: VideoLesson[] = (narrativeVi?.lessons ?? []).map((l) => ({
     title: l.title,
     body: l.body,
@@ -262,15 +259,16 @@ export function VideoBody({
 
   useEffect(() => {
     logUsage("video_body_load", {
-      mode: viewMode,
+      performance_tier: performanceTier ?? "unknown",
       video_id: report.video_id,
       source: report.source ?? "corpus",
     });
-  }, [viewMode, report.video_id, report.source]);
+  }, [performanceTier, report.video_id, report.source]);
 
   const diagnosisSections = useMemo(
-    () => resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, viewMode),
-    [narrativeVi, flopIssuesForNarrative, viewMode],
+    () =>
+      resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, performanceTier),
+    [narrativeVi, flopIssuesForNarrative, performanceTier],
   );
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const hasChannelPattern = sectionIds.has("channel_pattern");
@@ -279,13 +277,13 @@ export function VideoBody({
     ["hit", "average", "flop", "unknown"] as const
   ).includes(performanceTier as "hit" | "average" | "flop" | "unknown")
     ? (performanceTier as "hit" | "average" | "flop" | "unknown")
-    : isFlop
+    : gapHeavy
       ? "flop"
       : "hit";
   const creatorComparisonIntro = useMemo(() => {
     if (!report.creator_comparison || hasChannelPattern) return undefined;
-    return buildCreatorComparisonProse(report.creator_comparison, meta.views ?? 0, isFlop);
-  }, [report.creator_comparison, hasChannelPattern, meta.views, isFlop]);
+    return buildCreatorComparisonProse(report.creator_comparison, meta.views ?? 0, gapHeavy);
+  }, [report.creator_comparison, hasChannelPattern, meta.views, gapHeavy]);
   const videoSectionEmbeds = useMemo((): VideoDiagnosisSectionEmbeds => {
     const embeds: VideoDiagnosisSectionEmbeds = {};
     if (shouldShowScriptStructureBlock(report)) {
@@ -307,7 +305,7 @@ export function VideoBody({
     shouldShowBoostAttributionBlock(meta.boost_attribution, meta.reference_eligible);
 
   const goScript = () => {
-    if (isFlop) logUsage("flop_cta_click", { video_id: report.video_id });
+    if (gapHeavy) logUsage("flop_cta_click", { video_id: report.video_id });
     navigate("/app/answer", {
       state: {
         initialPrompt: buildVideoScriptHandoffPrompt(
@@ -322,7 +320,10 @@ export function VideoBody({
   const goChannelStudio = () => {
     const raw = meta.creator?.trim();
     if (!raw) return;
-    logUsage("video_to_channel", { video_id: report.video_id, mode: viewMode });
+    logUsage("video_to_channel", {
+      video_id: report.video_id,
+      performance_tier: performanceTier ?? "unknown",
+    });
     navigate(
       buildChannelStudioPath({
         handle: raw,
@@ -341,45 +342,8 @@ export function VideoBody({
     onRequestAppendTurn(q);
   };
 
-  const goWinScript = () => {
-    logUsage("video_to_script", { video_id: report.video_id, mode: "win" });
-    const topic =
-      meta.caption?.trim() ||
-      meta.title?.trim() ||
-      narrativeVi?.headline_vi?.trim() ||
-      `Video từ @${meta.creator?.trim() || "creator"}`;
-    const phases = report.hook_phases ?? [];
-    const first = phases[0];
-    const hookFromPhase = first ? first.label : null;
-    const headlineHook = narrativeVi?.headline_vi?.trim() ?? "";
-    navigate(
-      scriptPrefillFromVideo({
-        topic,
-        hook: (hookFromPhase ?? headlineHook) || null,
-        duration_sec: duration,
-      }),
-    );
-  };
-
   const overlayCaption =
     meta.caption?.trim() || meta.title?.trim() || "";
-  const hookCopyText =
-    meta.hook_phrase?.trim() ||
-    (report.hook_phases?.[0]
-      ? `${report.hook_phases[0].t_range} · ${report.hook_phases[0].label}`
-      : "") ||
-    (narrativeVi?.headline_vi ?? "");
-
-  const copyHook = async () => {
-    const text = hookCopyText;
-    if (!text.trim()) return;
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      /* clipboard denied or unavailable */
-    }
-  };
-
   const showCommentRadarTile =
     report.comment_radar != null && report.comment_radar.sampled > 0;
   const showThumbnailTile = report.thumbnail_analysis != null;
@@ -442,7 +406,7 @@ export function VideoBody({
                 </span>
               </div>
             ) : null}
-            {!isFlop && meta.is_breakout ? (
+            {!gapHeavy && meta.is_breakout ? (
               <div className="pointer-events-none absolute left-3 top-3 z-[4]">
                 <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[11px] font-bold uppercase tracking-[0.05em] text-white">
                   BREAKOUT
@@ -478,17 +442,7 @@ export function VideoBody({
             đoán flop.
           </p>
         ) : null}
-        {!isFlop ? (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Btn variant="ghost" size="sm" type="button" onClick={() => void copyHook()}>
-              <Copy className="h-3.5 w-3.5" strokeWidth={1.7} />
-              Sao chép hook
-            </Btn>
-            <Btn variant="ink" size="sm" type="button" onClick={goWinScript}>
-              Tạo kịch bản từ video này
-            </Btn>
-          </div>
-        ) : isFlop && (flopIssueCount > 0 || meta.creator?.trim()) ? (
+        {gapHeavy && (flopIssueCount > 0 || meta.creator?.trim()) ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
             {meta.creator?.trim() ? (
               <Btn variant="ghost" size="sm" type="button" onClick={goChannelStudio}>
@@ -504,29 +458,10 @@ export function VideoBody({
           </div>
         ) : null}
         <header>
-          {isFlop ? (
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <span className="gv-kicker text-[color:var(--gv-accent)]">
-                {brightEffective?.signal_type === "hook_only_problem" ||
-                (retEnd != null && retEnd >= 68)
-                  ? flopIssueCount > 0
-                    ? `CHẨN ĐOÁN · ${flopIssueCount} ĐIỂM CẦN CHỈNH · GIỮ CHÂN ĐANG TỐT`
-                    : "CHẨN ĐOÁN · GIỮ CHÂN ĐANG TỐT"
-                  : flopIssueCount > 0
-                    ? `CHẨN ĐOÁN VIDEO CỦA BẠN · ${flopIssueCount} ĐIỂM LỖI CẤU TRÚC`
-                    : "CHẨN ĐOÁN VIDEO CỦA BẠN"}
-              </span>
-              <PerformanceTierChip tier={performanceTier} ratio={tierRatio} benchmarkN={tierBenchmarkN} />
-              {meta.content_format ? (
-                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-ink-3)]">
-                  {contentFormatLabelVi(meta.content_format)}
-                </span>
-              ) : null}
-            </div>
-          ) : report.carousel_subformat_label ? (
+          {report.carousel_subformat_label ? (
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <span className="gv-kicker text-[color:var(--gv-ink-4)]">
-                MỔ CAROUSEL VIEW CAO ·{" "}
+                PHÂN TÍCH CAROUSEL ·{" "}
                 <span className="normal-case text-[color:var(--gv-ink-3)]">
                   {report.carousel_subformat_label}
                   {report.carousel_slide_count ? ` · ${report.carousel_slide_count} slides` : ""}
@@ -546,7 +481,7 @@ export function VideoBody({
           ) : (
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <span className="gv-kicker text-[color:var(--gv-ink-4)]">
-                MỔ VIDEO VIEW CAO ·{" "}
+                PHÂN TÍCH VIDEO ·{" "}
                 <span className="normal-case text-[color:var(--gv-ink-3)]">
                   {meta.niche_label ?? "—"}
                 </span>
@@ -559,18 +494,12 @@ export function VideoBody({
               ) : null}
             </div>
           )}
-          <h1
-            className={`m-0 max-w-[820px] text-[clamp(26px,3vw,36px)] text-[color:var(--gv-ink)] ${
-              isFlop
-                ? "gv-serif text-pretty font-medium leading-[1.25]"
-                : "gv-tight font-semibold leading-[1.05] tracking-tight"
-            }`}
-          >
+          <h1 className="gv-tight m-0 max-w-[820px] text-[clamp(26px,3vw,36px)] font-semibold leading-[1.05] tracking-tight text-[color:var(--gv-ink)]">
             {narrativeVi?.headline_vi?.trim() || "—"}
           </h1>
         </header>
 
-        {isFlop && viewScenariosEffective && viewScenariosEffective.length > 0 ? (
+        {gapHeavy && viewScenariosEffective && viewScenariosEffective.length > 0 ? (
           <section className="mb-4" aria-label="Mức độ cải thiện có thể kỳ vọng">
             <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-3)]">
               Mức cải thiện lượt xem (ước lượng thận trọng)
@@ -591,7 +520,7 @@ export function VideoBody({
             — chip "0.7× TB FORMAT" vs KPI "0.6× ngách" was a live bug. */}
         <KpiGrid kpis={reconcileViewKpiWithTierRatio(report.kpis, tierRatio)} />
 
-        {isFlop ? (
+        {gapHeavy ? (
           <FlopDiagnosisStrip
             meta={meta}
             nicheMeta={report.niche_meta ?? null}
@@ -635,7 +564,7 @@ export function VideoBody({
                           : sid === "hook_analysis"
                             ? buildHookAnalysisFallbackProse(
                                 report.hook_phases,
-                                isFlop,
+                                gapHeavy,
                                 narrativeVi,
                                 flopIssuesForNarrative,
                               )
@@ -776,7 +705,7 @@ export function VideoBody({
           </section>
         ) : null}
 
-        {viewMode === "win" && winLessons.length ? (
+        {strengthHeavy && winLessons.length ? (
           <section>
             <SectionMini kicker="Bài học áp dụng" title="3 điều bạn có thể copy" />
             <ul className="flex list-none flex-col gap-2.5 p-0">

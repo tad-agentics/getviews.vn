@@ -10,7 +10,7 @@ describe("breakoutAnalyzePath", () => {
     });
     expect(path).toContain(encodeURIComponent("https://www.tiktok.com/@creator/video/123"));
     expect(path).toContain("from=home-breakout");
-    expect(path).toContain("mode=win");
+    expect(path).not.toContain("mode=");
   });
 
   it("builds URL from handle when tiktok_url missing", () => {

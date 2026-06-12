@@ -291,10 +291,10 @@ describe("HomeScreen", () => {
 
   it("updates textarea placeholder when studio intent pill changes", () => {
     renderHome();
-    expect(screen.getByPlaceholderText(/flop/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/link TikTok/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Soi kênh đối thủ" }));
     expect(screen.getByPlaceholderText(/@username|kênh TikTok/i)).toBeTruthy();
-    expect(screen.queryByPlaceholderText(/flop/i)).toBeNull();
+    expect(screen.queryByPlaceholderText(/link TikTok/i)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Viết kịch bản" }));
     expect(screen.getByPlaceholderText(/kịch bản/i)).toBeTruthy();
   });

@@ -46,14 +46,12 @@ export function buildResumeAnswerStreamArgs(input: {
   } = input;
   const turnKind = pending?.turnKind ?? "primary";
   const fmt = pending?.sessionFormat ?? sessionFormat ?? null;
-  const videoMode = pending?.videoMode ?? handoff.mode ?? undefined;
   const base: StreamArgs = {
     mode: "answer_turn",
     answerSessionId: sessionId,
     query,
     turnKind,
     sessionFormat: fmt,
-    videoMode: fmt === "video" ? videoMode : undefined,
     sourceEntry: handoff.from ?? undefined,
   };
   if (pending) {

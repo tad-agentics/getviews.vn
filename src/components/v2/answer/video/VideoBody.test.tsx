@@ -69,6 +69,7 @@ function makeWinReport(overrides: Partial<VideoReportPayload> = {}): VideoReport
   return {
     video_id: "7630766288574369045",
     mode: "win",
+    performance_tier: "hit",
     meta: {
       creator: "creatorx",
       views: 250_000,
@@ -117,6 +118,7 @@ function makeFlopReport(overrides: Partial<VideoReportPayload> = {}): VideoRepor
   return {
     ...base,
     mode: "flop",
+    performance_tier: "flop",
     narrative_vi: {
       headline_vi: "Video chỉ đạt 8.4K view, dưới ngưỡng ngách — ~34K sau khi sửa hook.",
       ket_luan_nhanh: "",
@@ -191,9 +193,9 @@ describe("VideoBody render", () => {
     expect(screen.getByText("Kết luận nhanh cho win.")).toBeTruthy();
   });
 
-  it("renders MỔ VIDEO VIEW CAO kicker + niche label in win mode", () => {
+  it("renders PHÂN TÍCH VIDEO kicker + niche label in win mode", () => {
     renderInRouter(makeWinReport());
-    expect(screen.getByText(/MỔ VIDEO VIEW CAO/)).toBeTruthy();
+    expect(screen.getByText(/PHÂN TÍCH VIDEO/)).toBeTruthy();
     expect(screen.getByText("Làm đẹp")).toBeTruthy();
   });
 
@@ -220,7 +222,7 @@ describe("VideoBody render", () => {
   });
 
   it("hides the performance tier chip when performance_tier is missing", () => {
-    renderInRouter(makeWinReport());
+    renderInRouter(makeWinReport({ performance_tier: undefined }));
     expect(screen.queryByText("HIT")).toBeNull();
   });
 
@@ -249,7 +251,7 @@ describe("VideoBody render", () => {
 
   it("renders flop issues + detail/fix + script CTA (no projected views)", () => {
     renderInRouter(makeFlopReport());
-    expect(screen.getByText(/CHẨN ĐOÁN/)).toBeTruthy();
+    expect(screen.getByText(/Vấn đề cần sửa/)).toBeTruthy();
     expect(screen.getByText("Hook yếu")).toBeTruthy();
     expect(screen.getByText(/Hook không neo được attention/)).toBeTruthy();
     expect(screen.queryByText(/Dự đoán nếu áp fix chính/)).toBeNull();
@@ -345,14 +347,8 @@ describe("VideoBody render", () => {
     expect(badge.className).not.toContain("gv-kicker");
   });
 
-  it("renders the win-mode action row (Copy hook + Tạo kịch bản)", () => {
+  it("does not render win-mode hook/script CTAs at top of report", () => {
     renderInRouter(makeWinReport());
-    expect(screen.getByText(/Sao chép hook/)).toBeTruthy();
-    expect(screen.getByText(/Tạo kịch bản từ video này/)).toBeTruthy();
-  });
-
-  it("does NOT render the win-mode action row in flop mode", () => {
-    renderInRouter(makeFlopReport());
     expect(screen.queryByText(/Sao chép hook/)).toBeNull();
     expect(screen.queryByText(/Tạo kịch bản từ video này/)).toBeNull();
   });
@@ -377,7 +373,7 @@ describe("VideoBody render", () => {
         },
       }),
     );
-    expect(screen.getByText(/MỔ VIDEO VIEW CAO/)).toBeTruthy();
+    expect(screen.getByText(/PHÂN TÍCH VIDEO/)).toBeTruthy();
     expect(screen.getByText(/góc tối ưu tiếp theo/)).toBeTruthy();
     expect(screen.queryByText(/Viết lại kịch bản/)).toBeNull();
   });
@@ -403,7 +399,7 @@ describe("VideoBody render", () => {
         },
       }),
     );
-    expect(screen.getByText(/MỔ VIDEO VIEW CAO/)).toBeTruthy();
+    expect(screen.getByText(/PHÂN TÍCH VIDEO/)).toBeTruthy();
     expect(screen.getByText(/góc tối ưu tiếp theo/)).toBeTruthy();
     expect(screen.queryByText(/Viết lại kịch bản/)).toBeNull();
   });

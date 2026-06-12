@@ -2,9 +2,9 @@ import type {
   DiagnosisFinding,
   DiagnosisSectionVi,
   NarrativeVi,
-  VideoAnalyzeMode,
   VideoFlopIssue,
 } from "@/lib/api-types";
+import { maxFindingsForTier } from "@/lib/videoReportCoherence";
 
 /**
  * Single diagnosis render path: prefer `diagnosis_vi.sections` (v6).
@@ -13,7 +13,7 @@ import type {
 export function resolveDiagnosisSections(
   narrativeVi: NarrativeVi | undefined,
   flopIssues: VideoFlopIssue[],
-  mode: VideoAnalyzeMode,
+  performanceTier?: string,
 ): DiagnosisSectionVi[] {
   const fromV6 = narrativeVi?.diagnosis_vi?.sections;
   if (Array.isArray(fromV6) && fromV6.length > 0) {
@@ -27,7 +27,9 @@ export function resolveDiagnosisSections(
   if (vanDe) proseParts.push(vanDe);
   const prose = proseParts.join("\n\n");
 
-  const findings: DiagnosisFinding[] = flopIssues.slice(0, 3).map((issue) => {
+  const tierLc = (performanceTier ?? "").toLowerCase();
+  const findingCap = maxFindingsForTier(performanceTier);
+  const findings: DiagnosisFinding[] = flopIssues.slice(0, findingCap).map((issue) => {
     const narrativeItem = narrativeVi?.loi_chinh_narrative?.find(
       (n) => n.error_id === issue.error_id,
     );
@@ -43,8 +45,8 @@ export function resolveDiagnosisSections(
   if (prose || findings.length > 0) {
     sections.push({
       section_id: "diagnosis",
-      title_vi: mode === "flop" ? "Vấn đề cần sửa" : "Chẩn đoán",
-      title: mode === "flop" ? "Vấn đề cần sửa" : "Chẩn đoán",
+      title_vi: tierLc === "flop" ? "Vấn đề cần sửa" : tierLc === "hit" ? "Đang làm tốt" : "Chẩn đoán",
+      title: tierLc === "flop" ? "Vấn đề cần sửa" : tierLc === "hit" ? "Đang làm tốt" : "Chẩn đoán",
       text_vi: prose,
       text: prose,
       findings,

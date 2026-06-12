@@ -133,7 +133,7 @@ describe("ContinuationTurn payload dispatch", () => {
   });
 
   it("renders VideoBody for kind: video (bare AnswerBlock)", () => {
-    // VideoBody is wrapped in ``<AnswerBlock kicker="Mổ video" bare>``.
+    // VideoBody is wrapped in ``<AnswerBlock kicker="Phân tích video" bare>``.
     // ``bare`` mode drops the kicker chrome (matches the Pattern case
     // above), so we assert the body renders without asserting on the
     // dropped kicker text.
