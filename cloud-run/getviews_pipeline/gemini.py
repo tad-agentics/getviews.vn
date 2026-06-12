@@ -978,6 +978,13 @@ _EMBED_TILE_SECTION_IDS: frozenset[str] = frozenset(
     {"hook_analysis", "diagnosis", "niche_pattern", "script_structure"},
 )
 
+# Views floor for embedded reference tiles (live audit 2026-06-12): a 534K-view
+# analysed video was "evidenced" by 7.1K/6.6K-view peers in the hook section.
+# A candidate ref must clear max(ratio × target views, pool median views) to be
+# embeddable — but only when at least one candidate clears it (degrade to fewer
+# tiles, never to zero, when the whole pool is weak).
+_EMBED_TILE_VIEWS_FLOOR_RATIO = 0.2
+
 # Bump when embedded-tile sanitize/inject contract changes (finalize-lite repair gate).
 EMBED_CONTRACT_VERSION = 2
 
@@ -1012,6 +1019,7 @@ def repair_diagnosis_vi_embedded_tiles(
     reference_videos: list[dict[str, Any]],
     *,
     addressing_mode: str = "third_party",
+    target_views: int | None = None,
 ) -> int:
     """Re-run sanitize + fallback inject; return valid tile count after."""
     allowed = _allowed_aweme_ids(reference_videos)
@@ -1022,6 +1030,7 @@ def repair_diagnosis_vi_embedded_tiles(
         reference_videos,
         allowed,
         addressing_mode=addressing_mode,
+        target_views=target_views,
     )
     return count_valid_embedded_tiles(diagnosis_vi)
 
@@ -1041,9 +1050,70 @@ def _reference_ids_with_content_proximity(
     return out
 
 
+def _ref_views(r: dict[str, Any]) -> int:
+    """Views for a reference row — slim cards (top-level ``views``), synthesis
+    refs (``metadata.views``), or raw aweme dicts (``statistics.play_count``)."""
+    meta = r.get("metadata") if isinstance(r.get("metadata"), dict) else {}
+    stats = r.get("statistics") if isinstance(r.get("statistics"), dict) else {}
+    raw = r.get("views") or meta.get("views") or stats.get("play_count")
+    try:
+        return int(raw or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _embed_tile_views_floor(
+    reference_videos: list[dict[str, Any]],
+    target_views: int | None,
+) -> int | None:
+    """Minimum ref views for an embedded tile, or None when unknowable.
+
+    Floor = max(``_EMBED_TILE_VIEWS_FLOOR_RATIO`` × target views, pool median
+    views). The pool is the niche cohort sample, so its median proxies the
+    niche median. Returns None when the target's views are unknown (cached
+    rows without metrics) — no filtering then.
+    """
+    if not target_views or target_views <= 0:
+        return None
+    pool = sorted(v for v in (_ref_views(r) for r in reference_videos) if v > 0)
+    pool_median = pool[len(pool) // 2] if pool else 0
+    return int(max(_EMBED_TILE_VIEWS_FLOOR_RATIO * float(target_views), float(pool_median)))
+
+
+def _apply_embed_views_floor(
+    ids: set[str],
+    reference_videos: list[dict[str, Any]],
+    floor: int | None,
+) -> set[str]:
+    """Drop below-floor ids when at least one candidate clears the floor.
+
+    Degrade to fewer (stronger) tiles rather than weak ones; when NO candidate
+    clears the floor the set is returned unchanged — some in-niche evidence
+    beats none, and the floor only bites when better candidates exist.
+    """
+    if not floor or not ids:
+        return ids
+    views_by_id: dict[str, int] = {}
+    for r in reference_videos:
+        aid = str(r.get("aweme_id") or r.get("video_id") or "")
+        if aid:
+            views_by_id[aid] = max(views_by_id.get(aid, 0), _ref_views(r))
+    passing = {aid for aid in ids if views_by_id.get(aid, 0) >= floor}
+    if passing and passing != ids:
+        logger.info(
+            "[diagnosis_v6] embed views floor=%d dropped %d weak ref(s), kept %d",
+            floor,
+            len(ids) - len(passing),
+            len(passing),
+        )
+    return passing if passing else ids
+
+
 def _embed_allowed_for_tiles(
     reference_videos: list[dict[str, Any]],
     allowed_aweme: set[str],
+    *,
+    target_views: int | None = None,
 ) -> set[str]:
     """Aweme ids Gemini may resolve into ``embedded_tiles``.
 
@@ -1052,10 +1122,18 @@ def _embed_allowed_for_tiles(
     pool scores 0 (common for same-niche peers with different hooks), the pool was
     already niche-filtered in ``select_synthesis_references_for_video`` — allow the
     top ids by proximity then views so in-section evidence still renders (up to 3 per section).
+
+    ``target_views`` (when known) applies the views floor — see
+    ``_embed_tile_views_floor`` — so a 534K-view video is never "evidenced" by
+    7K-view peers while stronger candidates exist.
     """
+    floor = _embed_tile_views_floor(reference_videos, target_views)
+
     relevant = _reference_ids_with_content_proximity(reference_videos)
     if relevant:
-        return allowed_aweme & relevant
+        return _apply_embed_views_floor(
+            allowed_aweme & relevant, reference_videos, floor
+        )
 
     scored: list[tuple[int, int, str]] = []
     for r in reference_videos:
@@ -1063,12 +1141,14 @@ def _embed_allowed_for_tiles(
         if not aid or aid not in allowed_aweme:
             continue
         prox = int(r.get("content_proximity_score") or r.get("_proximity_score") or 0)
-        views = int(r.get("views") or 0)
+        views = _ref_views(r)
         scored.append((prox, views, aid))
     if not scored:
         return set()
     scored.sort(key=lambda x: (-x[0], -x[1]))
-    return {aid for _, _, aid in scored[:6]}
+    return _apply_embed_views_floor(
+        {aid for _, _, aid in scored[:6]}, reference_videos, floor
+    )
 
 
 def _collect_embedded_aweme_ids(diagnosis_vi: dict[str, Any]) -> set[str]:
@@ -1233,6 +1313,7 @@ def _sanitize_diagnosis_embedded_tiles(
     allowed_aweme: set[str],
     *,
     addressing_mode: str = "third_party",
+    target_views: int | None = None,
 ) -> None:
     """Resolve ``embedded_tiles`` from the reference pool only — drop hallucinated or off-topic ids."""
     from getviews_pipeline.diagnose_parse import (
@@ -1241,7 +1322,9 @@ def _sanitize_diagnosis_embedded_tiles(
         resolve_embedded_tiles,
     )
 
-    embed_allowed = _embed_allowed_for_tiles(reference_videos, allowed_aweme)
+    embed_allowed = _embed_allowed_for_tiles(
+        reference_videos, allowed_aweme, target_views=target_views
+    )
 
     sections = diagnosis_vi.get("sections")
     if not isinstance(sections, list):
@@ -1365,6 +1448,8 @@ def _validate_diagnosis_vi_citations(
     diagnosis_vi: dict[str, Any],
     allowed_aweme: set[str],
     reference_videos: list[dict[str, Any]] | None = None,
+    *,
+    target_views: int | None = None,
 ) -> None:
     """Mutate v6 ``diagnosis_vi`` in place: drop aweme citations outside ``allowed_aweme``.
 
@@ -1404,7 +1489,9 @@ def _validate_diagnosis_vi_citations(
     _strip_disallowed_embedded_tile_ids(diagnosis_vi, allowed_aweme)
     _dedupe_seeding_claim_surfaces(diagnosis_vi)
     if reference_videos is not None:
-        _sanitize_diagnosis_embedded_tiles(diagnosis_vi, reference_videos, allowed_aweme)
+        _sanitize_diagnosis_embedded_tiles(
+            diagnosis_vi, reference_videos, allowed_aweme, target_views=target_views
+        )
 
 
 def _validate_anchor_signal_ids(
@@ -1441,11 +1528,15 @@ def _validate_narrative_citations(
     format_cards: list[dict[str, Any]] | None,
     allowed_aweme: set[str],
     reference_videos: list[dict[str, Any]] | None = None,
+    *,
+    target_views: int | None = None,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]] | None]:
     if narrative_vi:
         diag = narrative_vi.get("diagnosis_vi")
         if isinstance(diag, dict):
-            _validate_diagnosis_vi_citations(diag, allowed_aweme, reference_videos)
+            _validate_diagnosis_vi_citations(
+                diag, allowed_aweme, reference_videos, target_views=target_views
+            )
         for item in narrative_vi.get("loi_chinh_narrative") or []:
             if not isinstance(item, dict):
                 continue
@@ -1606,6 +1697,7 @@ def _parse_diagnosis_v6_pool_response(
     *,
     allowed: set[str],
     reference_videos: list[dict[str, Any]],
+    target_views: int | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None, dict[str, Any] | None]:
     """Parse v6 section-pool Gemini text → body, narrative, format_cards, raw diagnosis_vi."""
     raw_obj, remainder = _split_diagnosis_leading_json(text)
@@ -1623,7 +1715,8 @@ def _parse_diagnosis_v6_pool_response(
             fc = raw_obj.get("format_cards")
             format_cards = fc if isinstance(fc, list) else None
             narrative_vi, format_cards = _validate_narrative_citations(
-                narrative_vi, format_cards, allowed, reference_videos
+                narrative_vi, format_cards, allowed, reference_videos,
+                target_views=target_views,
             )
             narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
             if not body.strip():
@@ -1634,7 +1727,8 @@ def _parse_diagnosis_v6_pool_response(
             narrative_vi = nv if isinstance(nv, dict) else None
             format_cards = fc if isinstance(fc, list) else None
             narrative_vi, format_cards = _validate_narrative_citations(
-                narrative_vi, format_cards, allowed, reference_videos
+                narrative_vi, format_cards, allowed, reference_videos,
+                target_views=target_views,
             )
             narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
             body = remainder.strip()
@@ -1773,6 +1867,7 @@ def _synthesize_diagnosis_v6_section_pool(
             text,
             allowed=allowed,
             reference_videos=reference_videos,
+            target_views=int(user_stats.get("views") or 0) or None,
         )
         if diag_vi:
             _validate_anchor_signal_ids(diag_vi, manifest)
@@ -1942,7 +2037,8 @@ def synthesize_diagnosis_v2(
         narrative_vi = nv if isinstance(nv, dict) else None
         format_cards = fc if isinstance(fc, list) else None
         narrative_vi, format_cards = _validate_narrative_citations(
-            narrative_vi, format_cards, allowed, reference_videos
+            narrative_vi, format_cards, allowed, reference_videos,
+            target_views=int(user_stats.get("views") or 0) or None,
         )
         narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
     body = remainder.strip()

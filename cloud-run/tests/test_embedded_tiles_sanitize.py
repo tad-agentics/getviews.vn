@@ -223,6 +223,148 @@ def test_validate_citations_invokes_tile_sanitize() -> None:
     assert "đồng hồ" in (tiles[0].get("caption_snippet") or "")
 
 
+# ---------------------------------------------------------------------------
+# 2026-06-12 — views floor on embedded reference tiles
+# (hook section cited 7.1K/6.6K-view clips against a 534K-view analysed video)
+# ---------------------------------------------------------------------------
+
+
+def _slim_v(aid: str, desc: str, *, proximity: int, views: int) -> dict:
+    out = _slim(aid, desc, proximity=proximity)
+    out["views"] = views
+    return out
+
+
+def test_views_floor_drops_weak_refs_when_stronger_exists() -> None:
+    refs = [
+        _slim_v("111", "đồng hồ A", proximity=1, views=300_000),
+        _slim_v("222", "đồng hồ B", proximity=1, views=7_100),
+        _slim_v("333", "đồng hồ C", proximity=1, views=6_600),
+    ]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "hook_analysis",
+                "embedded_tiles": [
+                    {"aweme_id": "111"},
+                    {"aweme_id": "222"},
+                    {"aweme_id": "333"},
+                ],
+            }
+        ]
+    }
+    _sanitize_diagnosis_embedded_tiles(
+        diag_vi, refs, {"111", "222", "333"}, target_views=534_000
+    )
+    tiles = diag_vi["sections"][0]["embedded_tiles"]
+    # Floor = max(0.2 × 534K, pool median 7.1K) = 106.8K → fewer tiles, not weak ones.
+    assert [t["aweme_id"] for t in tiles] == ["111"]
+
+
+def test_views_floor_uses_pool_median_when_target_is_small() -> None:
+    refs = [
+        _slim_v("111", "A", proximity=1, views=60_000),
+        _slim_v("222", "B", proximity=1, views=50_000),
+        _slim_v("333", "C", proximity=1, views=3_000),
+    ]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "diagnosis",
+                "embedded_tiles": [
+                    {"aweme_id": "111"},
+                    {"aweme_id": "222"},
+                    {"aweme_id": "333"},
+                ],
+            }
+        ]
+    }
+    # 0.2 × 10K = 2K, but pool median = 50K → the 3K ref is below the niche bar.
+    _sanitize_diagnosis_embedded_tiles(
+        diag_vi, refs, {"111", "222", "333"}, target_views=10_000
+    )
+    ids = [t["aweme_id"] for t in diag_vi["sections"][0]["embedded_tiles"]]
+    assert ids == ["111", "222"]
+
+
+def test_views_floor_keeps_pool_when_no_better_candidate() -> None:
+    refs = [
+        _slim_v("222", "B", proximity=1, views=7_100),
+        _slim_v("333", "C", proximity=1, views=6_600),
+    ]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "hook_analysis",
+                "embedded_tiles": [{"aweme_id": "222"}, {"aweme_id": "333"}],
+            }
+        ]
+    }
+    # Whole pool is weak — no better candidates exist, so nothing is dropped.
+    _sanitize_diagnosis_embedded_tiles(
+        diag_vi, refs, {"222", "333"}, target_views=534_000
+    )
+    ids = [t["aweme_id"] for t in diag_vi["sections"][0]["embedded_tiles"]]
+    assert ids == ["222", "333"]
+
+
+def test_views_floor_inactive_without_target_views() -> None:
+    refs = [
+        _slim_v("111", "A", proximity=1, views=300_000),
+        _slim_v("222", "B", proximity=1, views=7_100),
+    ]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "diagnosis",
+                "embedded_tiles": [{"aweme_id": "111"}, {"aweme_id": "222"}],
+            }
+        ]
+    }
+    _sanitize_diagnosis_embedded_tiles(diag_vi, refs, {"111", "222"})
+    ids = [t["aweme_id"] for t in diag_vi["sections"][0]["embedded_tiles"]]
+    assert ids == ["111", "222"]
+
+
+def test_inject_fallback_respects_views_floor() -> None:
+    refs = [
+        _slim_v("111", "đồng hồ A", proximity=2, views=400_000),
+        _slim_v("222", "đồng hồ B", proximity=3, views=7_000),
+        _slim_v("333", "đồng hồ C", proximity=1, views=6_000),
+    ]
+    diag_vi = {
+        "sections": [
+            {"section_id": "hook_analysis", "text_vi": "prose", "embedded_tiles": []},
+        ]
+    }
+    _sanitize_diagnosis_embedded_tiles(
+        diag_vi, refs, {"111", "222", "333"}, target_views=534_000
+    )
+    tiles = diag_vi["sections"][0]["embedded_tiles"]
+    # Fallback inject only draws from the floored pool — the 400K peer, alone.
+    assert [t["aweme_id"] for t in tiles] == ["111"]
+    assert tiles[0].get("narrative_vi")
+
+
+def test_repair_passes_target_views_through() -> None:
+    refs = [
+        _slim_v("111", "A", proximity=1, views=300_000),
+        _slim_v("222", "B", proximity=1, views=7_100),
+    ]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "diagnosis",
+                "embedded_tiles": [{"aweme_id": "111"}, {"aweme_id": "222"}],
+            }
+        ]
+    }
+    n = repair_diagnosis_vi_embedded_tiles(diag_vi, refs, target_views=534_000)
+    assert n == 1
+    ids = [t["aweme_id"] for t in diag_vi["sections"][0]["embedded_tiles"]]
+    assert ids == ["111"]
+
+
 def test_tile_narrative_needs_regen_legacy_handle_views() -> None:
     from getviews_pipeline.diagnose_parse import tile_narrative_needs_regen
 

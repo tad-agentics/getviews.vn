@@ -132,6 +132,18 @@ def test_v6_rules_contain_anti_bias_block() -> None:
     assert "tier=early" in DIAGNOSIS_V6_JSON_INSTRUCTION
 
 
+def test_v6_headline_multiplier_names_its_baseline() -> None:
+    """2026-06-12 audit: headline said «X× mức view thường» without naming the
+    baseline. The prompt must demand the comparison standard — niche-format
+    average or the channel's own normal — and forbid the bare phrasing."""
+    from getviews_pipeline.diagnose_prompts import DIAGNOSIS_V6_JSON_INSTRUCTION as v6
+
+    assert "khi nêu bội số phải nói rõ chuẩn nào" in v6
+    assert "«so với TB format ngách»" in v6
+    assert "«so với mức thường của kênh»" in v6
+    assert "không nói trống «mức view thường»" in v6
+
+
 def test_v6_user_stats_trim_carries_ratio_and_age() -> None:
     from getviews_pipeline.diagnose_prompts import build_diagnosis_v6_user_prompt
 

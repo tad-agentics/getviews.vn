@@ -218,9 +218,12 @@ export function DiagnosisSectionRenderer({
       <div className="mb-6">
         <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">{title}</h3>
         {text ? (
+          // Body prose stays in the normal text face — mono is reserved for
+          // kickers/numbers per the design system (live audit 2026-06-12:
+          // the whole GỢI Ý script rendered monospace).
           <SectionProseBlocks
             text={orderedText}
-            wrapperClassName="mt-3 space-y-1 font-mono text-[15px]"
+            wrapperClassName="mt-3 space-y-1 text-[15px]"
             paragraphClassName="whitespace-pre-wrap leading-relaxed text-[color:var(--foreground)]"
           />
         ) : concept ? (

@@ -24,6 +24,17 @@ const VideoPlayerModal = lazy(() =>
   })),
 );
 
+/**
+ * Colored fallback panels for thumb-404 — same pattern as BreakoutGrid
+ * (fix 81aa59c): when every thumbnail candidate fails, the tile keeps a
+ * deliberate avatar-palette surface instead of an empty gradient box.
+ */
+const FALLBACK_PANEL = [
+  "bg-[color:var(--gv-avatar-2)]",
+  "bg-[color:var(--gv-avatar-6)]",
+  "bg-[color:var(--gv-avatar-4)]",
+] as const;
+
 /** Adapt a diagnosis tile to the ExploreGridVideo shape the player expects. */
 function tileToPlayerVideo(tile: DiagnosisReferenceTile) {
   const vid = tile.aweme_id || tile.video_url || "";
@@ -46,9 +57,11 @@ function tileToPlayerVideo(tile: DiagnosisReferenceTile) {
 
 function ReferenceVideoCard({
   tile,
+  idx,
   onPlay,
 }: {
   tile: DiagnosisReferenceTile;
+  idx: number;
   onPlay?: () => void;
 }) {
   const href = tile.video_url || undefined;
@@ -61,7 +74,13 @@ function ReferenceVideoCard({
   const canHoverClip = Boolean(clipSrc);
 
   const [hoverClip, setHoverClip] = useState(false);
+  const [thumbFailed, setThumbFailed] = useState(false);
   const clipRef = useRef<HTMLVideoElement>(null);
+
+  const panelClass =
+    FALLBACK_PANEL[idx % FALLBACK_PANEL.length] ?? "bg-[color:var(--gv-canvas-2)]";
+  const tileSurfaceClass =
+    thumbFailed || !tile.thumbnail_url ? panelClass : "bg-[color:var(--gv-canvas)]";
 
   const startHoverClip = useCallback(() => {
     if (!canHoverClip) return;
@@ -87,7 +106,7 @@ function ReferenceVideoCard({
 
   const videoTile = (
     <div
-      className="relative w-full overflow-hidden rounded-lg bg-[color:var(--gv-canvas)]"
+      className={`relative w-full overflow-hidden rounded-lg ${tileSurfaceClass}`}
       style={{ aspectRatio: "9/16" }}
       onMouseEnter={startHoverClip}
       onMouseLeave={stopHoverClip}
@@ -113,7 +132,8 @@ function ReferenceVideoCard({
         className={`absolute inset-0 z-10 h-full w-full transition-opacity duration-200 ease-out ${
           hoverClip && canHoverClip ? "opacity-0" : "opacity-100"
         }`}
-        placeholderClassName="bg-[color:var(--gv-canvas-2)]"
+        placeholderClassName={panelClass}
+        onAllCandidatesFailed={() => setThumbFailed(true)}
       />
       <div
         className="pointer-events-none absolute inset-0 z-[15] bg-gradient-to-b from-transparent from-40% to-black/70"
@@ -225,6 +245,7 @@ export function DiagnosisReferenceVideoCards({
           <ReferenceVideoCard
             key={tile.aweme_id || tile.video_url || i}
             tile={tile}
+            idx={i}
             onPlay={tile.playback_url ? () => setPlayingIndex(i) : undefined}
           />
         ))}

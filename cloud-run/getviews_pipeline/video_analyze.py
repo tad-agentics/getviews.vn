@@ -1241,7 +1241,13 @@ def _apply_embed_tile_repair_to_out(
 
     before = int(out.get("embed_contract_version") or 0)
     addr = str(out.get("addressing_mode") or "third_party")
-    tile_n = repair_diagnosis_vi_embedded_tiles(diag, refs, addressing_mode=addr)
+    meta_views = (out.get("meta") or {}).get("views") if isinstance(out.get("meta"), dict) else None
+    tile_n = repair_diagnosis_vi_embedded_tiles(
+        diag,
+        refs,
+        addressing_mode=addr,
+        target_views=int(meta_views or 0) or None,
+    )
     out["embed_contract_version"] = EMBED_CONTRACT_VERSION
     out["response_schema_version"] = ON_DEMAND_RESPONSE_SCHEMA_VERSION
     logger.info(
@@ -1790,6 +1796,7 @@ def finalize_video_narrative_layer(
                 diag_pre,
                 slim_refs,
                 addressing_mode=str(out.get("addressing_mode") or "third_party"),
+                target_views=int(user_stats.get("views") or 0) or None,
             )
 
     if narrative_vi_out is not None:

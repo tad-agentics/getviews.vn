@@ -35,7 +35,7 @@ describe("DiagnosisReferenceVideoCards", () => {
           {
             aweme_id: "1",
             video_url: "https://tiktok.com/@a/video/1",
-            thumbnail_url: null,
+            thumbnail_url: "",
             views: 1000,
             caption_snippet: "",
             posted_at: "",
@@ -58,7 +58,7 @@ describe("DiagnosisReferenceVideoCards", () => {
           {
             aweme_id: "1",
             video_url: "https://tiktok.com/@a/video/1",
-            thumbnail_url: null,
+            thumbnail_url: "",
             views: 1000,
             caption_snippet: "",
             posted_at: "",

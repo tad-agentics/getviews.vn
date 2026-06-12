@@ -14,7 +14,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
 ```json
 {
   "diagnosis_vi": {
-    "headline_vi": "một câu ≤16 từ — verdict dứt khoát + đòn bẩy lớn nhất, gọi đúng CƠ CHẾ kèm mốc giây khi evidence có («0-3s không có người nói») — KHÔNG triệu chứng chung («hook yếu»), KHÔNG kiểu 'tốt nhưng cần tối ưu', KHÔNG dùng ** hay markdown trong headline_vi",
+    "headline_vi": "một câu ≤16 từ — verdict dứt khoát + đòn bẩy lớn nhất, gọi đúng CƠ CHẾ kèm mốc giây khi evidence có («0-3s không có người nói») — KHÔNG triệu chứng chung («hook yếu»), KHÔNG kiểu 'tốt nhưng cần tối ưu', KHÔNG dùng ** hay markdown trong headline_vi; khi nêu bội số phải nói rõ chuẩn nào — «so với TB format ngách» hoặc «so với mức thường của kênh» — không nói trống «mức view thường»",
     "sections": [
       {
         "section_id": "<id>",
