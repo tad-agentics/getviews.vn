@@ -808,6 +808,15 @@ def _normalize_str_list(raw: Any, *, max_items: int, max_len: int) -> list[str]:
 
 
 def classify_format(analysis_json: dict[str, Any], legacy_niche_id: int) -> str:
+    from getviews_pipeline.content_format_guards import guard_content_format
+
+    return guard_content_format(
+        _classify_format_core(analysis_json, legacy_niche_id),
+        analysis_json,
+    )
+
+
+def _classify_format_core(analysis_json: dict[str, Any], legacy_niche_id: int) -> str:
     """Classify a video's content format from its Gemini analysis.
 
     ━━━ TAXONOMY LOCK — READ BEFORE CHANGING ━━━
@@ -887,6 +896,13 @@ def classify_format(analysis_json: dict[str, Any], legacy_niche_id: int) -> str:
     tone = analysis_json.get("tone") or ""
     combined = f"{transcript} {topics}"
 
+    from getviews_pipeline.content_format_guards import (
+        detect_foreign_reup,
+        haul_regex_matches,
+    )
+
+    is_reup = detect_foreign_reup(analysis_json)
+
     # Wave 5+ taxonomy expansion — topic-keyword sets for the 3 new
     # non-trivial buckets (highlight uses niche + tone + scene only, no
     # topic keywords). See artifacts/docs/taxonomy-expansion.md §6.
@@ -957,12 +973,10 @@ def classify_format(analysis_json: dict[str, Any], legacy_niche_id: int) -> str:
         combined,
     ):
         return "recipe"
-    # 2026-06-13 FP audit: greedy ``mua.*về`` / ``đặt.*gửi`` spanned
-    # unrelated words between mua and về. Bound the gap (≤15 chars).
-    if re.search(
-        r"haul|đập hộp|unbox|mở hộp|\bmua\b.{0,15}\bvề\b|\bđặt\b.{0,15}\bgửi\b",
-        combined,
-    ):
+    # 2026-06-13 FP audit: greedy ``mua.*về`` bounded; 2026-06-13 reup guard:
+    # foreign-reup VN subtitles often contain ``mua về`` / ``review`` without
+    # native commerce intent — weak haul requires commerce evidence.
+    if haul_regex_matches(combined, analysis_json, is_reup=is_reup):
         return "haul"
     if re.search(
         r"review|chấm điểm|đánh giá|dùng thử|trải nghiệm|"

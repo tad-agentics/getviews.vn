@@ -58,6 +58,8 @@ export interface VideoAnalyzeMeta {
   /** Canonical content format slug (e.g. "talking_head", "voiceover_b_roll").
    * Present on v5 responses; undefined on older corpus rows. */
   content_format?: string | null;
+  /** Re-uploaded foreign footage with Vietnamese subtitles/dub (not native creator content). */
+  foreign_reup?: boolean | null;
   /** §4.7 M4 — time-series snapshots (t0 / t6h / t24h) when corpus refetch ran. */
   stats_history?: StatsHistorySnapshot[] | null;
   /** Derived from ``stats_history`` — ``spike_then_flat`` when M4 criteria match. */

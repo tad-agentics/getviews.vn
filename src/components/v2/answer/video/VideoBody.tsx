@@ -172,6 +172,9 @@ export function VideoBody({
 }) {
   const navigate = useNavigate();
   const meta = report.meta;
+  const isForeignReup =
+    meta.foreign_reup === true ||
+    (report.enrichment?.style_tags ?? []).some((t) => t.toLowerCase() === "foreign_reup");
   const duration = meta.duration_sec || 58;
   const userCurve = report.retention_curve ?? [];
   const retEnd = retentionEndPct(userCurve);
@@ -482,6 +485,11 @@ export function VideoBody({
                 </span>
               </span>
               <PerformanceTierChip tier={performanceTier} ratio={tierRatio} benchmarkN={tierBenchmarkN} />
+              {isForeignReup ? (
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)]/12 px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-accent)]">
+                  Reup nước ngoài
+                </span>
+              ) : null}
               {meta.content_format ? (
                 <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-ink-3)]">
                   {contentFormatLabelVi(meta.content_format)}
@@ -497,6 +505,11 @@ export function VideoBody({
                 </span>
               </span>
               <PerformanceTierChip tier={performanceTier} ratio={tierRatio} benchmarkN={tierBenchmarkN} />
+              {isForeignReup ? (
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)]/12 px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-accent)]">
+                  Reup nước ngoài
+                </span>
+              ) : null}
               {meta.content_format ? (
                 <span className="gv-mono rounded-[3px] bg-[color:var(--gv-canvas-2)] px-[7px] py-[3px] text-[11px] tracking-[0.04em] text-[color:var(--gv-ink-3)]">
                   {contentFormatLabelVi(meta.content_format)}

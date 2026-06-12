@@ -86,6 +86,7 @@ export const STYLE_TAG_VI: Record<string, string> = {
   fast_cuts: "Cắt cảnh nhanh",
   cinematic: "Quay điện ảnh",
   screen_recording: "Quay màn hình",
+  foreign_reup: "Reup nước ngoài",
 };
 
 /** ``VideoAnalysis.tone`` — mirrors ``enum_labels_vi.VIDEO_TONE_VI``. */

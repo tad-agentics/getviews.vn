@@ -200,12 +200,15 @@ def test_tutorial_bare_cach_filler_is_not_tutorial() -> None:
 
 
 def test_haul_bounded_mua_ve_and_long_gap_regression() -> None:
-    assert classify_format(_analysis("Mình mua về nhà thử ngay"), 3) == "haul"
+    # Weak ``mua…về`` without commerce evidence is no longer haul (reup FP fix).
+    assert classify_format(_analysis("Mình mua về nhà thử ngay"), 3) != "haul"
     long_gap = _analysis(
         "Mua nhiều đồ trên Shopee tuần trước, hôm nay mới về quê mới nhận được",
     )
     assert classify_format(long_gap, legacy_niche_id=3) != "haul"
-    assert classify_format(_analysis("Đặt hàng gửi về cho mẹ"), 3) == "haul"
+    shopee_haul = _analysis("Đặt hàng Shopee gửi về cho mẹ")
+    shopee_haul["commerce_intent"] = {"product_price_tier": "under_150k"}
+    assert classify_format(shopee_haul, 3) == "haul"
 
 
 def test_falls_through_to_other_for_no_markers() -> None:

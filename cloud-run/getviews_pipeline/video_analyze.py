@@ -818,6 +818,22 @@ def _response_from_diagnostics_row(
         else ((None, None), (None, None))
     )
 
+    from getviews_pipeline.content_format_guards import (
+        detect_foreign_reup,
+        refresh_video_content_format,
+    )
+
+    if nid_kpi and analysis:
+        refresh_video_content_format(video, analysis, nid_kpi)
+    foreign_reup = detect_foreign_reup(analysis)
+    content_format_emit: str | None = str(video.get("content_format") or "").strip() or None
+    content_class_id_emit: int | None = None
+    if video.get("content_class_id") is not None:
+        try:
+            content_class_id_emit = int(video["content_class_id"])
+        except (TypeError, ValueError):
+            content_class_id_emit = None
+
     out = {
         "video_id": video["video_id"],
         "mode": mode,
@@ -860,10 +876,9 @@ def _response_from_diagnostics_row(
             "is_breakout": float(video.get("breakout_multiplier") or 0.0) >= 1.5,
             "stats_history": video.get("stats_history"),
             "distribution_shape": video.get("distribution_shape"),
-            "content_format": str(video.get("content_format") or "").strip() or None,
-            "content_class_id": int(video["content_class_id"])
-            if video.get("content_class_id") is not None
-            else None,
+            "content_format": content_format_emit,
+            "foreign_reup": foreign_reup,
+            "content_class_id": content_class_id_emit,
             "boost_attribution": video.get("boost_attribution"),
             "reference_eligible": video.get("reference_eligible"),
         },
@@ -2060,21 +2075,27 @@ def run_video_analyze_pipeline(
         if session_niche_id and int(session_niche_id) > 0
         else corpus_niche_id
     )
-    # A.2.3 — prefer content_class_intelligence when the corpus row carries
-    # content_class_id (PR2-backfilled or freshly classified at ingest) AND
-    # the bucket has enough samples. Falls back to niche_intelligence
-    # transparently. ``benchmark_axis`` flows into VideoNicheMeta so the
-    # FE can label "based on N similar-format videos" vs niche-wide.
-    content_class_id = video.get("content_class_id")
-    if video.get("content_format") and niche_id:
+    from getviews_pipeline.content_format_guards import (
+        coerce_analysis_dict,
+        refresh_video_content_format,
+    )
+
+    analysis = coerce_analysis_dict(video.get("analysis_json"))
+    # Re-classify BEFORE benchmark fetch so cohort + meta.content_class_id
+    # match the guarded content_format (fixes stale haul→highlight rows).
+    if niche_id and analysis:
+        refresh_video_content_format(video, analysis, niche_id)
+    elif video.get("content_format") and niche_id:
         from getviews_pipeline.corpus_ingest import _content_class_for
 
-        if content_class_id is None or (
+        content_class_id_fb = video.get("content_class_id")
+        if content_class_id_fb is None or (
             session_niche_id and int(session_niche_id) > 0 and niche_id != corpus_niche_id
         ):
-            content_class_id = _content_class_for(niche_id, video.get("content_format"))
-    if content_class_id is not None:
-        video["content_class_id"] = content_class_id
+            content_class_id_fb = _content_class_for(niche_id, video.get("content_format"))
+        if content_class_id_fb is not None:
+            video["content_class_id"] = content_class_id_fb
+    content_class_id = video.get("content_class_id")
     creator_tier = str(video.get("creator_tier") or "").strip() or None
     niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
         user_sb,
@@ -2098,15 +2119,6 @@ def run_video_analyze_pipeline(
         "sample_size": 0,
         "winners_sample_size": None,
     }
-    if isinstance(video.get("analysis_json"), str):
-        try:
-            analysis = json.loads(video["analysis_json"])
-        except json.JSONDecodeError:
-            analysis = {}
-    else:
-        analysis = video.get("analysis_json") or {}
-    if not isinstance(analysis, dict):
-        analysis = {}
     dur = video_duration_sec(analysis)
 
     bypass_cache = force_refresh
@@ -2690,13 +2702,12 @@ def run_video_analyze_on_demand(
     # (video not yet in corpus) can also benefit from sharper benchmarks.
     # classify_format does the format detection; _content_class_for maps
     # (niche × format) to a content_class.
-    from getviews_pipeline.corpus_ingest import _content_class_for, classify_format
-    _on_demand_format = classify_format(analysis, niche_id) if niche_id else None
-    content_class_id = _content_class_for(niche_id, _on_demand_format) if niche_id else None
-    # Propagate so _response_from_diagnostics_row + reference pool can scope by class.
-    video["content_format"] = _on_demand_format or ""
-    if content_class_id is not None:
-        video["content_class_id"] = content_class_id
+    from getviews_pipeline.content_format_guards import refresh_video_content_format
+
+    _on_demand_format = (
+        refresh_video_content_format(video, analysis, niche_id) if niche_id else None
+    )
+    content_class_id = video.get("content_class_id")
     od_creator_tier = str(video.get("creator_tier") or "").strip() or None
     niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
         user_sb,

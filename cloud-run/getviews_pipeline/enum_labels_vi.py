@@ -146,6 +146,7 @@ STYLE_TAG_VI: dict[str, str] = {
     "fast_cuts": "Cắt cảnh nhanh",
     "cinematic": "Quay điện ảnh",
     "screen_recording": "Quay màn hình",
+    "foreign_reup": "Reup nước ngoài",
 }
 
 
