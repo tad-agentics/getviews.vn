@@ -127,7 +127,7 @@ def extract_dialect_persona_consistency_signal(ctx: dict) -> list[Signal]:
             salience=0.6,
             claim=(
                 "Giọng/địa phương lộ rõ trong hook trong khi persona đang là chuyên gia/mentor — "
-                "có thể là điểm mạnh hoặc lệch kỳ vọng 'neutral expert'."
+                "có thể là điểm mạnh hoặc lệch kỳ vọng 'chuyên gia trung lập'."
             ),
             evidence=[
                 Evidence(

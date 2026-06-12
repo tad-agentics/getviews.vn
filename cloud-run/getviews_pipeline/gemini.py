@@ -62,7 +62,7 @@ from getviews_pipeline.prompts import (
     build_voice_domain_system_instruction,
 )
 from getviews_pipeline.vietnamese_slang import merge_lexicon_slang_into_video_analysis_dict
-from getviews_pipeline.voice_copy import humanize_narrative_vi_dict
+from getviews_pipeline.voice_copy import humanize_narrative_vi_dict, humanize_stats_prose
 
 logger = logging.getLogger(__name__)
 
@@ -1032,7 +1032,34 @@ def repair_diagnosis_vi_embedded_tiles(
         addressing_mode=addressing_mode,
         target_views=target_views,
     )
+    # Reference-tile narratives are resolved/injected here in finalize — AFTER
+    # the synthesis-time humanize pass (_normalize_narrative_vi_dict) — so the
+    # tile copy must be re-sanitized or English jargon (median, bookmark,
+    # archetype…) leaks onto the reference cards.
+    _humanize_embedded_tile_narratives(diagnosis_vi)
     return count_valid_embedded_tiles(diagnosis_vi)
+
+
+def _humanize_embedded_tile_narratives(diagnosis_vi: dict[str, Any] | None) -> None:
+    """Apply voice_copy jargon/enum sanitization to every embedded-tile narrative."""
+    if not isinstance(diagnosis_vi, dict):
+        return
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        tiles = sec.get("embedded_tiles")
+        if not isinstance(tiles, list):
+            continue
+        for t in tiles:
+            if not isinstance(t, dict):
+                continue
+            for key in ("narrative_vi", "narrative"):
+                val = t.get(key)
+                if isinstance(val, str) and val.strip():
+                    t[key] = humanize_stats_prose(val)
 
 
 def _reference_ids_with_content_proximity(

@@ -78,6 +78,30 @@ def test_sanitize_keeps_corpus_pool_tile_when_proximity_zero() -> None:
     assert tiles[0]["aweme_id"] == "111"
 
 
+def test_repair_humanizes_reference_tile_narrative() -> None:
+    refs = [_slim("111", "đồng hồ dây da", proximity=3, source="corpus")]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "niche_pattern",
+                "embedded_tiles": [
+                    {
+                        "aweme_id": "111",
+                        "narrative_vi": "Copy archetype expert: text overlay sớm để tăng bookmark vượt median.",
+                    }
+                ],
+            }
+        ]
+    }
+    repair_diagnosis_vi_embedded_tiles(diag_vi, refs)
+    narrative = diag_vi["sections"][0]["embedded_tiles"][0]["narrative_vi"]
+    lowered = narrative.lower()
+    for banned in ("archetype", "expert", "text overlay", "bookmark", "median"):
+        assert banned not in lowered, f"{banned!r} leaked on reference tile: {narrative!r}"
+    assert "hình mẫu" in narrative
+    assert "chuyên gia" in narrative
+
+
 def test_inject_fallback_tile_when_gemini_omits_embedded_tiles() -> None:
     from getviews_pipeline.gemini import _inject_fallback_embedded_tiles
 

@@ -27,6 +27,26 @@ _ABOVE_MEDIAN_RE = re.compile(r"trên\s+(?:median|trung vị)", re.IGNORECASE)
 _MEDIAN_RE = re.compile(r"\bmedian\b", re.IGNORECASE)
 _TRUNG_VI_RE = re.compile(r"trung vị", re.IGNORECASE)
 
+# English jargon + raw enum codes that the synthesis still echoes despite the
+# voice_guide steering block. Mirrors getviews_pipeline/voice_guide.py — keep
+# in sync. Whole-word, case-insensitive; multi-word phrases listed before the
+# single words they contain so the longer match wins.
+_JARGON_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bpattern[\s_-]?interrupt\b", re.IGNORECASE), "ngắt nhịp"),
+    (re.compile(r"\boverlay checklist\b", re.IGNORECASE), "danh sách bước trên màn hình"),
+    (re.compile(r"\btext[\s_-]?overlay\b", re.IGNORECASE), "chữ trên màn hình"),
+    (re.compile(r"\bface[\s_-]?enter\b", re.IGNORECASE), "khuôn mặt xuất hiện"),
+    (re.compile(r"\bentertainment[\s_-]?first\b", re.IGNORECASE), "giải trí là chính"),
+    (re.compile(r"\bdead[\s_-]?air\b", re.IGNORECASE), "khoảng lặng"),
+    (re.compile(r"\bjump[\s_-]?cut\b", re.IGNORECASE), "cắt giật"),
+    (re.compile(r"\barchetypes?\b", re.IGNORECASE), "hình mẫu"),
+    (re.compile(r"\bbookmarks?\b", re.IGNORECASE), "lưu"),
+    (re.compile(r"\bexperts?\b", re.IGNORECASE), "chuyên gia"),
+    (re.compile(r"\btutorials?\b", re.IGNORECASE), "hướng dẫn"),
+    (re.compile(r"\bheatmaps?\b", re.IGNORECASE), "bản đồ nhiệt"),
+    (re.compile(r"\bcorpus\b", re.IGNORECASE), "kho video"),
+)
+
 
 def humanize_stats_prose(text: str) -> str:
     """Replace percentile / median jargon in user-facing diagnosis prose."""
@@ -50,6 +70,8 @@ def humanize_stats_prose(text: str) -> str:
     out = _ABOVE_MEDIAN_RE.sub(f"trên {_GENERIC_MEDIAN}", out)
     out = _MEDIAN_RE.sub(_GENERIC_MEDIAN, out)
     out = _TRUNG_VI_RE.sub(_GENERIC_MEDIAN, out)
+    for pattern, replacement in _JARGON_SUBS:
+        out = pattern.sub(replacement, out)
     return out
 
 

@@ -275,7 +275,7 @@ def extract_creator_type_consistency_signal(ctx: dict) -> list[Signal]:
                     location="user_analysis.commerce_intent+content_context",
                 )
             ],
-            suggested_fix="Thống nhất persona: expert/KOS versus giải trí thuần.",
+            suggested_fix="Thống nhất vai người lên hình: chuyên gia/KOS so với giải trí thuần.",
         )
     ]
 

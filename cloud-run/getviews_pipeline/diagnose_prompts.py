@@ -4,7 +4,13 @@ import json
 from typing import Any
 
 from getviews_pipeline.diagnose_sections import default_section_title
+from getviews_pipeline.enum_labels_vi import hook_timeline_event_vi, overlay_style_vi
 from getviews_pipeline.signals.base import Signal
+
+
+def _humanize_code(value: str) -> str:
+    """``close_up`` → ``close up`` — readable fallback for unmapped enum codes."""
+    return " ".join(str(value or "").replace("_", " ").replace("-", " ").split())
 
 DIAGNOSIS_V6_JSON_INSTRUCTION = """
 Sau phần hướng dẫn, bạn nhận DIAGNOSTIC_CONTEXT (JSON) + SECTIONS_TO_EMIT + SIGNAL_MANIFEST.
@@ -207,7 +213,11 @@ def build_user_evidence_digest(user_analysis: dict[str, Any]) -> dict[str, Any]:
         for ev in timeline[:6]:
             if not isinstance(ev, dict):
                 continue
-            label = str(ev.get("event") or ev.get("type") or "?")
+            # Translate the raw event enum (face_enter, text_overlay…) to its
+            # Vietnamese label here — the synthesis is told to cite this digest
+            # verbatim, so a raw code leaks straight into the report prose.
+            label_raw = str(ev.get("event") or ev.get("type") or "?")
+            label = hook_timeline_event_vi(label_raw, default=_humanize_code(label_raw))
             t = ev.get("t") if ev.get("t") is not None else ev.get("at_s")
             try:
                 steps.append(f"{label} {float(t):.1f}s")
@@ -228,9 +238,19 @@ def build_user_evidence_digest(user_analysis: dict[str, Any]) -> dict[str, Any]:
                 span = f"{float(t0):.1f}–{float(t1):.1f}s"
             except (TypeError, ValueError):
                 span = "?"
-            dims = "/".join(
-                str(sc.get(k)) for k in ("framing", "pace", "overlay_style") if sc.get(k)
-            )
+            # overlay_style has a Vietnamese map; framing/pace are humanized
+            # (underscores → spaces) so no raw enum code reaches the prose.
+            dim_parts: list[str] = []
+            for k in ("framing", "pace", "overlay_style"):
+                v = sc.get(k)
+                if not v:
+                    continue
+                dim_parts.append(
+                    overlay_style_vi(str(v), default=_humanize_code(str(v)))
+                    if k == "overlay_style"
+                    else _humanize_code(str(v))
+                )
+            dims = "/".join(dim_parts)
             desc = str(sc.get("description") or "")[:60]
             scene_lines.append(f"{span} {dims}: {desc}".strip())
         if scene_lines:

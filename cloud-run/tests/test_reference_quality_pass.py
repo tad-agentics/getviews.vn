@@ -115,9 +115,15 @@ def test_digest_compresses_scenes_transcript_and_timeline() -> None:
         "sound_layering": "voice+nhạc nền nhẹ",
     }
     d = build_user_evidence_digest(analysis)
-    assert d["hook_timeline"] == "face_enter 0.2s → first_word 0.5s → text_overlay 0.9s"
+    # Hook-timeline events + overlay_style are translated to Vietnamese here so
+    # the cited digest never feeds raw enum codes into the report prose.
+    assert d["hook_timeline"] == (
+        "Khuôn mặt xuất hiện 0.2s → Lời thoại đầu 0.5s → Chữ hiện lên màn hình 0.9s"
+    )
+    assert "face_enter" not in d["hook_timeline"]
+    assert "text_overlay" not in d["hook_timeline"]
     assert len(d["scene_pattern"]) == 2
-    assert d["scene_pattern"][0].startswith("0.0–2.5s close_up/fast/bold_center")
+    assert d["scene_pattern"][0].startswith("0.0–2.5s close up/fast/Chữ in đậm ở giữa")
     assert d["transcript_opening"].endswith("…")
     assert "voiceover_chính" in d["audio_character"]
 

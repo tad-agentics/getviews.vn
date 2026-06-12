@@ -153,7 +153,7 @@ def extract_save_trigger_weak_signal(ctx: dict) -> list[Signal]:
             salience=0.61,
             claim=(
                 f"Video hit tier `{fmt or 'saveable'}` nhưng thiếu trigger lưu rõ "
-                "(checklist/deal/recipe) — bỏ lỡ bookmark intent."
+                "(danh sách bước/khuyến mãi/công thức) — bỏ lỡ ý định lưu video."
             ),
             evidence=[
                 Evidence(
@@ -162,7 +162,7 @@ def extract_save_trigger_weak_signal(ctx: dict) -> list[Signal]:
                     location="user_analysis.save_trigger_type+content_format",
                 )
             ],
-            suggested_fix="Thêm overlay checklist hoặc CTA “lưu lại công thức” trước beat cuối.",
+            suggested_fix="Thêm danh sách bước trên màn hình hoặc CTA “lưu lại công thức” trước beat cuối.",
         )
     ]
 
