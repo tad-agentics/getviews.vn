@@ -18,9 +18,15 @@ function erPct(row: StatsHistorySnapshot): string {
 export function StatsHistoryStrip({
   history,
   distributionShape,
+  interpretationProse,
+  variant = "standalone",
 }: {
   history: StatsHistorySnapshot[] | null | undefined;
   distributionShape?: string | null;
+  /** Diễn giải đi kèm các mốc view/ER — luôn nằm trong cùng khối với strip. */
+  interpretationProse?: string | null;
+  /** ``embed`` — nested inside metadata section; parent owns the block title. */
+  variant?: "standalone" | "embed";
 }) {
   const rows = (history ?? []).filter(
     (r) => r && typeof r.views === "number" && r.phase,
@@ -35,19 +41,26 @@ export function StatsHistoryStrip({
 
   const spikeFlat = distributionShape === "spike_then_flat";
 
+  const shellClass =
+    variant === "embed"
+      ? "rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
+      : "mb-4 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4";
+
   return (
-    <section
-      className="mb-4 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
-      aria-label="Diễn biến lượt xem theo thời gian"
-    >
-      <p className="gv-kicker mb-2 text-[color:var(--gv-ink-3)]">
-        Diễn biến sau đăng
+    <section className={shellClass} aria-label="Diễn biến lượt xem theo thời gian">
+      <p className="gv-mono gv-kicker mb-2 text-[11px] tracking-[0.18em] text-[color:var(--gv-ink-3)]">
+        DIỄN BIẾN SAU ĐĂNG
         {spikeFlat ? (
           <span className="ml-2 rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 text-[color:var(--gv-accent-deep)]">
             Tăng vọt rồi đi ngang
           </span>
         ) : null}
       </p>
+      {interpretationProse ? (
+        <p className="mb-3 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">
+          {interpretationProse}
+        </p>
+      ) : null}
       <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-3">
         {ordered.map((row) => (
           <div

@@ -5,10 +5,25 @@ import {
   buildHookAnalysisFallbackProse,
   creatorComparisonPercentileLabel,
   hasContextStripContent,
+  shouldShowMetadataBlock,
   shouldShowScriptStructureBlock,
 } from "@/lib/videoAdjunctSections";
 
 describe("videoAdjunctSections", () => {
+  it("shows metadata block when stats_history has two snapshots", () => {
+    expect(
+      shouldShowMetadataBlock(
+        {
+          stats_history: [
+            { at: "a", phase: "t0", views: 100, likes: 1, comments: 0, shares: 0 },
+            { at: "b", phase: "t6h", views: 500, likes: 5, comments: 1, shares: 0 },
+          ],
+        } as never,
+        null,
+      ),
+    ).toBe(true);
+  });
+
   it("detects context strip payload", () => {
     expect(
       hasContextStripContent(

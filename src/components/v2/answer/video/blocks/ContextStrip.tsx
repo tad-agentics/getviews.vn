@@ -12,10 +12,13 @@ const PROMOTION_LABEL_VI: Record<NonNullable<VideoEnrichment["promotion_type"]>,
 export function ContextStrip({
   meta,
   enrichment,
+  introProse,
   variant = "standalone",
 }: {
   meta: VideoAnalyzeMeta;
   enrichment?: VideoEnrichment | null;
+  /** Diễn giải đi kèm các chỉ số bối cảnh — luôn nằm trong cùng khối với strip. */
+  introProse?: string | null;
   /** ``embed`` — parent section already shows the block title. */
   variant?: "standalone" | "embed";
 }) {
@@ -29,7 +32,9 @@ export function ContextStrip({
   const showPromotion = promotion !== "organic";
   const toneLabel = enrichment?.tone ? videoToneVi(enrichment.tone) : "";
 
+  const intro = introProse?.trim() ?? "";
   if (
+    !intro &&
     !hasRatio &&
     !audience &&
     painPoints.length === 0 &&
@@ -42,7 +47,7 @@ export function ContextStrip({
 
   return (
     <section
-      aria-label="Bối cảnh phân tích"
+      aria-label="Chỉ số bối cảnh video"
       className={
         variant === "embed"
           ? "rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4"
@@ -51,7 +56,12 @@ export function ContextStrip({
     >
       {variant === "standalone" ? (
         <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-3)]">
-          BỐI CẢNH PHÂN TÍCH
+          CHỈ SỐ BỐI CẢNH
+        </p>
+      ) : null}
+      {intro ? (
+        <p className="mb-3 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">
+          {intro}
         </p>
       ) : null}
       <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-2">

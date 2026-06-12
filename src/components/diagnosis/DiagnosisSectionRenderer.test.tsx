@@ -199,7 +199,7 @@ describe("video structure strength-gap layout", () => {
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
   });
 
-  it("renders analyzed-clip evidence for adjunct script_structure when findings are empty", () => {
+  it("renders adjunct script_structure fallback prose without segment timeline", () => {
     render(
       <DiagnosisSectionRenderer
         section={{
@@ -209,17 +209,11 @@ describe("video structure strength-gap layout", () => {
           findings: [],
         }}
         referenceVideos={[]}
-        videoEmbeds={{
-          scriptStructure: {
-            segments: [{ name: "Hook", pct: 12, color_key: "hook" }],
-            durationSec: 28,
-          },
-        }}
         fallbackProse="8 nhịp kịch bản trong 28 giây."
       />,
     );
-    expect(screen.getByText("BẰNG CHỨNG TRONG CLIP")).toBeTruthy();
     expect(screen.getByText(/8 nhịp kịch bản/)).toBeTruthy();
+    expect(screen.queryByText("BẰNG CHỨNG TRONG CLIP")).toBeNull();
   });
 });
 

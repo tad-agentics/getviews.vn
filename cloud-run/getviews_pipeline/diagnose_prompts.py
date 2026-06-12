@@ -55,7 +55,7 @@ Quy tắc:
 - VERDICT-FIRST: câu đầu mỗi section là kết luận in đậm — đọc các câu đậm xuyên suốt bài là hiểu toàn bộ. Phần còn lại chỉ chứng minh + fix + reference.
 - ĐƠN VỊ CHÍNH là FINDINGS + REFERENCE, KHÔNG phải prose. Khi phân vân giữa viết thêm 1 đoạn giải thích và đưa thêm 1 finding/1 reference tile → luôn chọn finding/reference. Prose chỉ là 1 câu verdict dẫn vào.
 - DẠY VIỆC CẦN LÀM > chẩn đoán. Nén chẩn đoán còn 1 câu; dồn không gian cho fix cụ thể, reference video, và script clip tiếp theo.
-- Chỉ tạo các section có trong SECTIONS_TO_EMIT, đúng thứ tự đó. KHÔNG tạo section timing/giờ đăng/distribution dù có data — giờ đăng không phải yếu tố xếp hạng.
+- Chỉ tạo các section có trong SECTIONS_TO_EMIT, đúng thứ tự đó. KHÔNG tạo section riêng cho timing/giờ đăng. Khi `user_stats_trim.stats_history` có ≥2 mốc (t0/t6h/t24h), diễn giải trong section `metadata`: view/ER tăng hay đứng, `distribution_shape=spike_then_flat` nghĩa gì, tốt/chưa tốt và 1 fix cụ thể — không chỉ liệt kê số.
 
 FINDINGS (đơn vị hiển thị chính của section issue-based):
 - Section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure, commerce): 2-3 findings — đây là phần creator đọc kỹ nhất. Mỗi finding: title_vi (≤10 từ, "Vấn đề — hậu quả"), body_vi (1 câu + số liệu), fix_vi (1 hành động copy-paste: hook template, con số, thao tác cụ thể — KHÔNG "cải thiện hook").
@@ -340,6 +340,7 @@ def build_diagnosis_v6_user_prompt(
                 # Anti-bias context: the LLM sees the ratio that generates the
                 # tier (and the video's age) — not just the label.
                 "views_vs_avg_ratio", "video_age_days",
+                "stats_history", "distribution_shape",
             )
             if k in user_stats
         },

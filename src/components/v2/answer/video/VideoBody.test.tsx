@@ -35,9 +35,6 @@ vi.mock("@/components/SectionMini", () => ({
     <div data-testid={`mini-${kicker}`}>{title}</div>
   ),
 }));
-vi.mock("@/components/v2/Timeline", () => ({
-  Timeline: () => <div data-testid="timeline" />,
-}));
 vi.mock("@/components/v2/HookPhaseCard", () => ({
   HookPhaseGrid: () => <div data-testid="hook-phase-grid" />,
 }));
@@ -557,7 +554,7 @@ describe("VideoBody render", () => {
         },
       }),
     );
-    expect(screen.getByText("Bối cảnh phân tích")).toBeTruthy();
+    expect(screen.getByText("Phân tích bối cảnh & diễn biến")).toBeTruthy();
     expect(screen.getByText(/GIỌNG ĐIỆU/)).toBeTruthy();
     expect(screen.getByText("Giải trí")).toBeTruthy();
   });
@@ -754,11 +751,11 @@ describe("VideoBody render", () => {
         meta: { ...makeWinReport().meta, duration_sec: 28 },
       }),
     );
-    expect(screen.getByTestId("timeline")).toBeTruthy();
     expect(screen.getByText(/8 nhịp kịch bản/)).toBeTruthy();
+    expect(screen.queryByText("BẰNG CHỨNG TRONG CLIP")).toBeNull();
   });
 
-  it("renders StatsHistoryStrip when diagnosis sections exist", () => {
+  it("renders stats history inside metadata block when diagnosis sections exist", () => {
     const base = makeWinReport();
     renderInRouter(
       makeWinReport({
@@ -767,6 +764,7 @@ describe("VideoBody render", () => {
           stats_history: [
             { at: "a", phase: "t0", views: 1000, likes: 50, comments: 10, shares: 5 },
             { at: "b", phase: "t6h", views: 5000, likes: 80, comments: 12, shares: 4 },
+            { at: "c", phase: "t24h", views: 5100, likes: 82, comments: 12, shares: 4 },
           ],
           distribution_shape: "spike_then_flat",
         },
@@ -782,12 +780,14 @@ describe("VideoBody render", () => {
         },
       }),
     );
+    expect(screen.getByText("Phân tích bối cảnh & diễn biến")).toBeTruthy();
     expect(screen.getByLabelText("Diễn biến lượt xem theo thời gian")).toBeTruthy();
     expect(screen.getByText(/Tăng vọt rồi đi ngang/)).toBeTruthy();
+    expect(screen.getByText(/Chưa tốt/)).toBeTruthy();
     expect(screen.getByText("1.0K")).toBeTruthy();
   });
 
-  it("renders StatsHistoryStrip fallback when distribution section is absent", () => {
+  it("renders stats history in metadata adjunct when distribution section is absent", () => {
     const base = makeWinReport();
     renderInRouter(
       makeWinReport({
@@ -810,6 +810,7 @@ describe("VideoBody render", () => {
         },
       }),
     );
+    expect(screen.getByText("Phân tích bối cảnh & diễn biến")).toBeTruthy();
     expect(screen.getByLabelText("Diễn biến lượt xem theo thời gian")).toBeTruthy();
     expect(screen.getByText("2.0K")).toBeTruthy();
   });

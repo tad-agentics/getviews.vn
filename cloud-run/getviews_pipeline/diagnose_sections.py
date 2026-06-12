@@ -136,6 +136,17 @@ def _has_metadata_context(ctx: dict) -> bool:
     us = ctx.get("user_stats") or {}
     if isinstance(us, dict) and us.get("creator_median_views") not in (None, "", 0):
         return True
+    sh = us.get("stats_history") if isinstance(us, dict) else None
+    if isinstance(sh, list):
+        valid = [
+            item
+            for item in sh
+            if isinstance(item, dict)
+            and item.get("phase")
+            and isinstance(item.get("views"), (int, float))
+        ]
+        if len(valid) >= 2:
+            return True
     return False
 
 
@@ -289,10 +300,10 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("commerce", "average"): "Kêu gọi hành động",
     ("commerce", "flop"): "Kêu gọi hành động",
     ("commerce", "unknown"): "Kêu gọi hành động",
-    ("metadata", "hit"): "Bối cảnh phân tích",
-    ("metadata", "average"): "Bối cảnh phân tích",
-    ("metadata", "flop"): "Bối cảnh phân tích",
-    ("metadata", "unknown"): "Bối cảnh phân tích",
+    ("metadata", "hit"): "Phân tích bối cảnh & diễn biến",
+    ("metadata", "average"): "Phân tích bối cảnh & diễn biến",
+    ("metadata", "flop"): "Phân tích bối cảnh & diễn biến",
+    ("metadata", "unknown"): "Phân tích bối cảnh & diễn biến",
     ("editing", "hit"): "Màu sắc và chữ trên hình",
     ("editing", "average"): "Màu sắc và chữ trên hình",
     ("editing", "flop"): "Màu sắc và chữ trên hình",

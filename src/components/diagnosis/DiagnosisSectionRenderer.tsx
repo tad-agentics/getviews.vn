@@ -34,10 +34,67 @@ import {
   ChannelProofBlock,
 } from "@/components/v2/answer/video/blocks/ChannelProofBlock";
 import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
-import { Timeline } from "@/components/v2/Timeline";
+import { StatsHistoryStrip } from "@/components/v2/answer/video/blocks/StatsHistoryStrip";
+import {
+  hasStatsHistorySnapshots,
+  resolveMetadataStripProse,
+  STATS_PROSE_IN_SECTION_RE,
+} from "@/lib/statsHistoryProse";
+import { hasContextStripContent } from "@/lib/videoAdjunctSections";
 import { DiagnosisReferenceVideoCards } from "@/components/diagnosis/DiagnosisReferenceVideoCards";
 import { NextVideoCard, NextVideoCardEmpty } from "@/routes/_app/channel/components/NextVideoCard";
-import type { VideoAnalyzeMeta, VideoEnrichment, VideoSegment } from "@/lib/api-types";
+import type {
+  VideoAnalyzeMeta,
+  VideoEnrichment,
+} from "@/lib/api-types";
+
+function MetadataContextEmbed({
+  meta,
+  enrichment,
+  sectionText,
+  fallbackProse,
+}: {
+  meta: VideoAnalyzeMeta;
+  enrichment?: VideoEnrichment | null;
+  sectionText: string;
+  fallbackProse?: string;
+}) {
+  const hasContextGrid = hasContextStripContent(meta, enrichment);
+  const { contextProse: resolvedContext, statsProse } = resolveMetadataStripProse({
+    sectionText,
+    fallbackProse: hasContextGrid ? fallbackProse : undefined,
+    meta,
+  });
+  const sectionOnly = sectionText.trim();
+  const contextProse = hasContextGrid
+    ? resolvedContext
+    : sectionOnly && !STATS_PROSE_IN_SECTION_RE.test(sectionOnly)
+      ? sectionOnly
+      : undefined;
+  const showStats = hasStatsHistorySnapshots(meta.stats_history);
+  const showContext = hasContextGrid || Boolean(contextProse);
+
+  return (
+    <div className="mt-4 flex flex-col gap-3">
+      {showContext ? (
+        <ContextStrip
+          meta={meta}
+          enrichment={enrichment}
+          introProse={contextProse}
+          variant="embed"
+        />
+      ) : null}
+      {showStats ? (
+        <StatsHistoryStrip
+          variant="embed"
+          history={meta.stats_history}
+          distributionShape={meta.distribution_shape}
+          interpretationProse={statsProse}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 function sectionTitle(s: DiagnosisSectionVi): string {
   const raw = (s.title_vi || s.title || "").trim();
@@ -155,7 +212,6 @@ function StrengthGapSectionLayout({
   gapKicker,
   bridgeTopic,
   analyzedClip,
-  analyzedClipEvidence,
 }: {
   sectionId: string;
   title: string;
@@ -166,8 +222,6 @@ function StrengthGapSectionLayout({
   bridgeTopic: ReferenceBridgeTopic;
   /** Per-finding deep-link context into the analyzed clip (strengths cite own clip). */
   analyzedClip?: AnalyzedClipContext | null;
-  /** Timeline / segments from the video under analysis — not peer corpus clips. */
-  analyzedClipEvidence?: React.ReactNode;
 }) {
   const { strengths, gaps, observations } = partitionFindingsByChip(findings);
   const gapLinkedTiles = resolvePeerReferenceTiles(
@@ -180,7 +234,6 @@ function StrengthGapSectionLayout({
     gapLinkedTiles.length > 0
       ? formatReferenceBridgeProse(gaps, gapLinkedTiles.length, bridgeTopic)
       : "";
-  const hasAnyFinding = strengths.length + gaps.length + observations.length > 0;
   let findingRank = 0;
 
   return (
@@ -207,7 +260,6 @@ function StrengthGapSectionLayout({
               );
             })}
           </div>
-          {analyzedClipEvidence ? <div className="mt-3">{analyzedClipEvidence}</div> : null}
         </div>
       ) : null}
       {gaps.length > 0 ? (
@@ -221,9 +273,6 @@ function StrengthGapSectionLayout({
               return <SectionFindingCard key={`g-${i}`} rank={findingRank} finding={f} />;
             })}
           </div>
-          {strengths.length === 0 && analyzedClipEvidence ? (
-            <div className="mt-3">{analyzedClipEvidence}</div>
-          ) : null}
         </div>
       ) : null}
       {observations.length > 0 ? (
@@ -258,9 +307,6 @@ function StrengthGapSectionLayout({
           embedded
           showLabel={!refBridge}
         />
-      ) : null}
-      {!hasAnyFinding && analyzedClipEvidence ? (
-        <div className="mt-4">{analyzedClipEvidence}</div>
       ) : null}
     </div>
   );
@@ -327,7 +373,6 @@ export interface ChannelPatternEmbedProps {
 }
 
 export interface VideoDiagnosisSectionEmbeds {
-  scriptStructure?: { segments: VideoSegment[]; durationSec: number };
   metadata?: { meta: VideoAnalyzeMeta; enrichment?: VideoEnrichment | null };
   /** Analyzed clip context for per-finding "Xem đoạn này" deep-links. */
   analyzedClip?: AnalyzedClipContext | null;
@@ -363,7 +408,11 @@ export function DiagnosisSectionRenderer({
     (f) => f.title_vi || f.body_vi || f.fix_vi,
   );
   const peerTiles = resolvePeerReferenceTiles(sid, referenceTiles, findings);
-  const rawText = sectionText(section) || (fallbackProse ?? "").trim();
+  const sectionOnlyText = sectionText(section);
+  const rawText =
+    sid === "metadata"
+      ? sectionOnlyText
+      : sectionOnlyText || (fallbackProse ?? "").trim();
   const text =
     peerTiles.length > 0 ? stripSectionProseForEmbeddedRefs(rawText) : rawText;
 
@@ -419,21 +468,6 @@ export function DiagnosisSectionRenderer({
         partitioned.observations.length > 0));
 
   if (useStrengthGapLayout) {
-    // Only the structure block owns the segment Timeline; hook/diagnosis cite
-    // the analyzed clip per-finding via FindingEvidenceClip instead.
-    const analyzedClipEvidence =
-      isVideoStructureSection && videoEmbeds?.scriptStructure ? (
-        <>
-          <p className="gv-mono m-0 mb-2 text-[11px] gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
-            BẰNG CHỨNG TRONG CLIP
-          </p>
-          <Timeline
-            segments={videoEmbeds.scriptStructure.segments}
-            durationSec={videoEmbeds.scriptStructure.durationSec}
-          />
-        </>
-      ) : undefined;
-
     return (
       <StrengthGapSectionLayout
         sectionId={sid}
@@ -444,7 +478,6 @@ export function DiagnosisSectionRenderer({
         gapKicker={isVideoStructureSection || isHookSection ? "THIẾU SÓT" : "KHOẢNG TRỐNG"}
         bridgeTopic={isVideoStructureSection ? "structure" : "general"}
         analyzedClip={videoEmbeds?.analyzedClip}
-        analyzedClipEvidence={analyzedClipEvidence}
       />
     );
   }
@@ -464,7 +497,7 @@ export function DiagnosisSectionRenderer({
           ))}
         </div>
       ) : null}
-      {text ? <SectionVerdictBlock text={text} /> : null}
+      {text && sid !== "metadata" ? <SectionVerdictBlock text={text} /> : null}
       {sid === "channel_pattern" && creatorComparison ? (
         <CreatorComparisonEmbed data={creatorComparison} />
       ) : null}
@@ -488,22 +521,13 @@ export function DiagnosisSectionRenderer({
       {peerTiles.length > 0 ? (
         <DiagnosisReferenceVideoCards tiles={peerTiles} embedded showLabel={false} />
       ) : null}
-      {sid === "script_structure" && videoEmbeds?.scriptStructure ? (
-        <div className="mt-4">
-          <Timeline
-            segments={videoEmbeds.scriptStructure.segments}
-            durationSec={videoEmbeds.scriptStructure.durationSec}
-          />
-        </div>
-      ) : null}
       {sid === "metadata" && videoEmbeds?.metadata ? (
-        <div className="mt-4">
-          <ContextStrip
-            meta={videoEmbeds.metadata.meta}
-            enrichment={videoEmbeds.metadata.enrichment}
-            variant="embed"
-          />
-        </div>
+        <MetadataContextEmbed
+          meta={videoEmbeds.metadata.meta}
+          enrichment={videoEmbeds.metadata.enrichment}
+          sectionText={sectionOnlyText}
+          fallbackProse={fallbackProse}
+        />
       ) : null}
     </div>
   );

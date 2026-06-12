@@ -1,4 +1,5 @@
 import { formatDiagnosisSectionTitle } from "@/lib/formatters";
+import { hasStatsHistorySnapshots } from "@/lib/statsHistoryProse";
 import { VIDEO_STRUCTURE_SECTION_TITLE } from "@/lib/mergeVideoStructureSections";
 import type {
   CreatorComparison,
@@ -135,7 +136,7 @@ export function buildMetadataFallbackProse(meta: VideoAnalyzeMeta): string {
   const niche = meta.niche_label?.trim();
   const posted = meta.date_posted?.trim();
   const parts = [
-    "Các chỉ số so với kênh, giọng điệu và đối tượng nhắm giúp đặt video trong bối cảnh sáng tạo — không chỉ nhìn view tuyệt đối.",
+    "Các chỉ số so với kênh, giọng điệu và đối tượng nhắm giúp đặt video trong bối cảnh — không chỉ nhìn view tuyệt đối.",
   ];
   if (niche) parts.push(`Ngách phân tích: ${niche}.`);
   if (posted) parts.push(`Đăng ${posted}.`);
@@ -164,10 +165,10 @@ export function adjunctSectionTitle(
       unknown: "Giải mã hook",
     },
     metadata: {
-      hit: "Bối cảnh phân tích",
-      average: "Bối cảnh phân tích",
-      flop: "Bối cảnh phân tích",
-      unknown: "Bối cảnh phân tích",
+      hit: "Phân tích bối cảnh & diễn biến",
+      average: "Phân tích bối cảnh & diễn biến",
+      flop: "Phân tích bối cảnh & diễn biến",
+      unknown: "Phân tích bối cảnh & diễn biến",
     },
   };
   const tier = performanceTier in defaults.script_structure ? performanceTier : "unknown";
@@ -194,5 +195,8 @@ export function shouldShowMetadataBlock(
   meta: VideoAnalyzeMeta,
   enrichment?: VideoEnrichment | null,
 ): boolean {
-  return hasContextStripContent(meta, enrichment);
+  return (
+    hasContextStripContent(meta, enrichment) ||
+    hasStatsHistorySnapshots(meta.stats_history)
+  );
 }

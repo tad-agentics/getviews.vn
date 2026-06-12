@@ -36,7 +36,6 @@ import {
 } from "@/components/diagnosis/DiagnosisSectionRenderer";
 import { CreatorComparisonCard } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopDiagnosisStrip } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
-import { StatsHistoryStrip } from "@/components/v2/answer/video/blocks/StatsHistoryStrip";
 import { BoostAttributionBlock } from "@/components/v2/answer/video/blocks/BoostAttributionBlock";
 import { CarouselIntelStrip } from "@/components/v2/answer/video/blocks/CarouselIntelStrip";
 import { shouldShowBoostAttributionBlock } from "@/lib/boostAttributionLabels";
@@ -292,12 +291,6 @@ export function VideoBody({
   }, [report.creator_comparison, hasChannelPattern, meta.views, gapHeavy]);
   const videoSectionEmbeds = useMemo((): VideoDiagnosisSectionEmbeds => {
     const embeds: VideoDiagnosisSectionEmbeds = {};
-    if (shouldShowScriptStructureBlock(report)) {
-      embeds.scriptStructure = {
-        segments: report.segments!,
-        durationSec: duration,
-      };
-    }
     if (shouldShowMetadataBlock(meta, report.enrichment)) {
       embeds.metadata = { meta, enrichment: report.enrichment };
     }
@@ -310,8 +303,6 @@ export function VideoBody({
     }
     return embeds;
   }, [report, meta, duration]);
-  const showStatsHistory = (meta.stats_history?.length ?? 0) >= 2;
-  const showStatsHistoryStrip = showStatsHistory;
   const showCarouselIntel = (report.carousel_intel?.slides?.length ?? 0) > 0;
   const showBoostFallback =
     !hasBoostAttribution &&
@@ -607,13 +598,6 @@ export function VideoBody({
               );
             })}
           </div>
-        ) : null}
-
-        {diagnosisSections.length > 0 && showStatsHistoryStrip ? (
-          <StatsHistoryStrip
-            history={meta.stats_history}
-            distributionShape={meta.distribution_shape}
-          />
         ) : null}
 
         {showBoostFallback ? (
