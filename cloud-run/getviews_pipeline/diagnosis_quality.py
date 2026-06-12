@@ -9,9 +9,19 @@ from getviews_pipeline.diagnose_parse import approximate_word_count_vi
 # Aligned with diagnose_prompts.py section.text cap (≤90 từ, 2026-06-12).
 DIAGNOSIS_V6_SECTION_MAX_WORDS = 90
 DIAGNOSIS_V6_SECTION_SOFT_MAX = 95
+DIAGNOSIS_V6_SCRIPT_STRUCTURE_MAX_WORDS = 100
+DIAGNOSIS_V6_SCRIPT_STRUCTURE_SOFT_MAX = 105
 DIAGNOSIS_V6_TOTAL_TARGET_MAX = 450
 DIAGNOSIS_V6_TOTAL_RETRY_MAX = 480
 DIAGNOSIS_V6_NEXT_VIDEO_MAX_WORDS = 150
+
+
+def _section_text_soft_max(section_id: str) -> int:
+    if section_id == "script_structure":
+        return DIAGNOSIS_V6_SCRIPT_STRUCTURE_SOFT_MAX
+    if section_id == "next_video":
+        return DIAGNOSIS_V6_NEXT_VIDEO_MAX_WORDS
+    return DIAGNOSIS_V6_SECTION_SOFT_MAX
 
 
 def _section_prose_words(section: dict[str, Any]) -> int:
@@ -62,10 +72,7 @@ def diagnosis_v6_word_budget_exceeded(diagnosis_vi: dict[str, Any] | None) -> bo
             continue
         sid = str(s.get("section_id") or "")
         text_w = approximate_word_count_vi(str(s.get("text") or ""))
-        if sid == "next_video":
-            if text_w > DIAGNOSIS_V6_NEXT_VIDEO_MAX_WORDS:
-                return True
-        elif text_w > DIAGNOSIS_V6_SECTION_SOFT_MAX:
+        if text_w > _section_text_soft_max(sid):
             return True
 
     return False
@@ -118,10 +125,7 @@ def score_diagnosis_output_v6(
             continue
         sid = str(s.get("section_id") or "")
         text_w = approximate_word_count_vi(str(s.get("text") or ""))
-        if sid == "next_video":
-            brevity_checks.append(text_w <= DIAGNOSIS_V6_NEXT_VIDEO_MAX_WORDS)
-        else:
-            brevity_checks.append(text_w <= DIAGNOSIS_V6_SECTION_SOFT_MAX)
+        brevity_checks.append(text_w <= _section_text_soft_max(sid))
 
     section_brevity_ok_ratio = (
         sum(1 for ok in brevity_checks if ok) / len(brevity_checks) if brevity_checks else 0.0

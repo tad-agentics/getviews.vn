@@ -50,7 +50,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
 Quy tắc:
 
 ĐỘ DÀI & CẤU TRÚC (ưu tiên cao nhất — audience là creator, đọc lướt trên mobile):
-- TỔNG báo cáo ~350-450 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu chứng minh (≤90 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 5 câu prose.
+- TỔNG báo cáo ~350-450 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu chứng minh (≤90 từ; script_structure ≤100 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 5 câu prose.
 - VERDICT-FIRST: câu đầu mỗi section là kết luận in đậm — đọc các câu đậm xuyên suốt bài là hiểu toàn bộ. Phần còn lại chỉ chứng minh + fix + reference.
 - ĐƠN VỊ CHÍNH là FINDINGS + REFERENCE, KHÔNG phải prose. Khi phân vân giữa viết thêm 1 đoạn giải thích và đưa thêm 1 finding/1 reference tile → luôn chọn finding/reference. Prose chỉ là 1 câu verdict dẫn vào.
 - DẠY VIỆC CẦN LÀM > chẩn đoán. Nén chẩn đoán còn 1 câu; dồn không gian cho fix cụ thể, reference video, và script clip tiếp theo.
@@ -104,7 +104,7 @@ KHÁCH QUAN VỚI PERFORMANCE_TIER (chống bias kết quả):
 DIAGNOSIS_V6_SHORTEN_RETRY_APPEND = """
 BẮT BUỘC RÚT GỌN (lần 2): Bản trước quá dài. Trả lại JSON đầy đủ cùng schema.
 - TỔNG ≤450 từ (mọi section.text + findings).
-- Mỗi section.text (trừ next_video): ≤90 từ — 1 verdict **in đậm** + tối đa 4 câu chứng minh.
+- Mỗi section.text (trừ next_video): ≤90 từ — 1 verdict **in đậm** + tối đa 4 câu chứng minh (script_structure ≤100 từ).
 - Giữ đủ findings (2-3/issue section) và embedded_tiles; cắt prose thừa, KHÔNG bỏ fix_vi.
 - next_video: giữ bullet script • Hook → Beat → CTA, gọn hơn nếu cần.
 """
@@ -442,10 +442,42 @@ def build_diagnosis_v6_user_prompt(
             "\n- Dệt 1-2 câu trong section.text dẫn sang thẻ video tham chiếu (thumbnail); "
             "không lặp nguyên văn narrative_vi trên thẻ."
         )
+    video_structure_note = ""
+    has_script_structure = "script_structure" in sections_to_emit
+    has_sound = "sound" in sections_to_emit
+    if has_script_structure:
+        merge_hint = " (UI gộp sound vào «Phân tích cấu trúc Video» sau hook)" if has_sound else ""
+        video_structure_note = (
+            f"\n\nSECTION script_structure{merge_hint}:"
+            "\n- section.text: ưu tiên ≤100 từ (1 verdict **in đậm** + tối đa 4 câu "
+            "về nhịp cắt, âm thanh/nhạc, dòng cảnh, dead air). Đoạn dẫn nhập — đọc xong hiểu "
+            "cấu trúc clip đang mạnh/yếu thế nào."
+            "\n- findings: đúng 1 điểm mạnh (fix_vi «Tiếp tục»/«Giữ»/«Duy trì») + "
+            "1-2 thiếu sót về nhịp/cảnh/âm (fix_vi hành động copy-paste). UI tách ĐIỂM MẠNH / THIẾU SÓT."
+            "\n- embedded_tiles: 1-3 tile gắn trực tiếp từng thiếu sót — narrative_vi "
+            "nêu peer xử lý nhịp/âm/cảnh tốt hơn («để sửa dead air, clip này xen cận mỗi 2s…»). "
+            "KHÔNG «Được chọn vì format» chung chung."
+            "\n- Dệt 1-2 câu cuối section.text dẫn sang thẻ tham chiếu (nhịp/cảnh cụ thể); "
+            "không lặp nguyên văn narrative_vi trên thẻ."
+        )
+        if has_sound:
+            video_structure_note += (
+                "\n- sound (cùng emit): tối đa 1 finding về âm thanh; section.text **trống** — "
+                "âm thanh gộp vào findings/tiles của block cấu trúc trên UI."
+            )
+    elif has_sound:
+        video_structure_note = (
+            "\n\nSECTION sound (chỉ sound trong SECTIONS_TO_EMIT — UI gộp thành "
+            "«Phân tích cấu trúc Video», KHÔNG tạo script_structure):"
+            "\n- findings: tối đa 1 về âm thanh (fix_vi cụ thể, copy-paste)."
+            "\n- section.text: **trống**."
+            "\n- embedded_tiles: 0-1 tile gắn thiếu sót âm thanh nếu có peer phù hợp."
+        )
     blocks.append(
         "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu "
-        "chứng minh (≤90 từ). Tổng báo cáo ~350-450 từ. Ưu tiên fix + reference video hơn giải "
-        "thích dài. KHÔNG tạo section timing/giờ đăng. Mỗi câu phải advance argument."
+        "chứng minh (≤90 từ; script_structure ≤100 từ). Tổng báo cáo ~350-450 từ. Ưu tiên fix + "
+        "reference video hơn giải thích dài. KHÔNG tạo section timing/giờ đăng. Mỗi câu phải "
+        "advance argument."
         "\n\nQUY TẮC ĐỘ SÂU (bắt buộc):"
         "\n- GIỮ NGUYÊN danh sách section trong SECTIONS_TO_EMIT — USER_EVIDENCE_DIGEST "
         "dùng để LÀM SÂU các nhận định sẵn có, KHÔNG mở chủ đề/section mới."
@@ -459,10 +491,11 @@ def build_diagnosis_v6_user_prompt(
         "mốc thời gian, hoặc tên video/creator cụ thể — câu không có bằng chứng thì cắt."
         "\n- CẤM câu đệm: 'có thể thấy rằng', 'nhìn chung', 'điều này cho thấy', "
         "'một điều đáng chú ý là'. Verdict trước, bằng chứng ngay sau."
-        "\n- Nhịp đúng (≤90 từ): '**Hình mẫu X đang kéo view tốt** so với chuẩn ngách. "
-        "ASMR + trắc nghiệm tạo tò mò. Vượt 1,8× mức view thường kênh. "
+        "\n- Nhịp đúng (≤90 từ; script_structure ≤100): '**Hình mẫu X đang kéo view tốt** so với "
+        "chuẩn ngách. ASMR + trắc nghiệm tạo tò mò. Vượt 1,8× mức view thường kênh. "
         "Hai clip tham chiếu dưới minh họa cách xử lý hook và nhịp.'"
         + tier_note
         + strength_gap_note
+        + video_structure_note
     )
     return "".join(blocks)

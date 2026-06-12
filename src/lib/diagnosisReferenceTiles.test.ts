@@ -200,6 +200,22 @@ describe("buildGapLinkedTileNarrative", () => {
     expect(text).toContain("mở bằng câu hỏi cụ thể");
     expect(text).toContain("Áp dụng:");
   });
+
+  it("uses structure-specific peer fallback when tile narrative is thin", () => {
+    const text = buildGapLinkedTileNarrative(
+      {
+        video_url: "",
+        thumbnail_url: "",
+        views: 1,
+        caption_snippet: "",
+        posted_at: "",
+      },
+      { title_vi: "Dead air giữa clip", fix_vi: "Xen cận mỗi 2s." },
+      "structure",
+    );
+    expect(text).toContain("«Dead air giữa clip»");
+    expect(text).toMatch(/xen cận|nhịp cắt|dead air/i);
+  });
 });
 
 describe("formatReferenceBridgeProse", () => {
@@ -210,6 +226,16 @@ describe("formatReferenceBridgeProse", () => {
         1,
       ),
     ).toContain("«Hook thiếu điểm nhạy»");
+  });
+
+  it("uses structure-specific wording for video structure block", () => {
+    const text = formatReferenceBridgeProse(
+      [{ title_vi: "Dead air giữa clip" }],
+      1,
+      "structure",
+    );
+    expect(text).toContain("thiếu sót");
+    expect(text).toContain("nhịp/cảnh/âm");
   });
 });
 

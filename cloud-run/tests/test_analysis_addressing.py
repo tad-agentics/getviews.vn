@@ -80,6 +80,51 @@ def test_v6_prompt_includes_addressing_mode_in_ctx() -> None:
     assert "ĐỐI TƯỢNG ĐỌC" in prompt
 
 
+def test_v6_prompt_includes_video_structure_note_when_script_structure_emits() -> None:
+    prompt = build_diagnosis_v6_user_prompt(
+        sections_to_emit=["hook_analysis", "script_structure", "sound"],
+        manifest_for_llm={},
+        ctx={},
+        content_format="tutorial",
+        niche_name="skincare",
+        corpus_size=100,
+        reference_videos=[],
+        user_analysis={},
+        user_stats={"views": 1000},
+        performance_tier="average",
+        channel_context=None,
+        errors=None,
+        wants_directions=False,
+    )
+    assert "SECTION script_structure" in prompt
+    assert "≤100 từ" in prompt
+    assert "THIẾU SÓT" in prompt
+    assert "sound (cùng emit)" in prompt
+    assert "section.text **trống**" in prompt
+    assert "script_structure ≤100 từ" in prompt
+
+
+def test_v6_prompt_sound_only_video_structure_note() -> None:
+    prompt = build_diagnosis_v6_user_prompt(
+        sections_to_emit=["diagnosis", "sound"],
+        manifest_for_llm={},
+        ctx={},
+        content_format="tutorial",
+        niche_name="skincare",
+        corpus_size=100,
+        reference_videos=[],
+        user_analysis={},
+        user_stats={"views": 1000},
+        performance_tier="average",
+        channel_context=None,
+        errors=None,
+        wants_directions=False,
+    )
+    assert "SECTION sound (chỉ sound trong SECTIONS_TO_EMIT" in prompt
+    assert "KHÔNG tạo script_structure" in prompt
+    assert "SECTION script_structure" not in prompt
+
+
 def test_v6_prompt_average_diagnosis_has_no_short_prose_cap() -> None:
     prompt = build_diagnosis_v6_user_prompt(
         sections_to_emit=["diagnosis"],

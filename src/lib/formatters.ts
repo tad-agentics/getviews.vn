@@ -3,6 +3,8 @@
  * Vietnamese locale: dot separators for numbers, VND formatting
  */
 
+import { VIDEO_STRUCTURE_SECTION_TITLE } from "@/lib/mergeVideoStructureSections";
+
 /** Format view count: 1.2M, 45K, 3.5K */
 export function formatViews(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
@@ -103,6 +105,7 @@ export function formatBreakoutVI(ratio: number): string {
 /** Legacy BE titles → current product copy (cached diagnoses may still emit old strings). */
 const DIAGNOSIS_SECTION_TITLE_ALIASES: Record<string, string> = {
   "cơ chế chạy đúng": "Đang làm tốt",
+  "dòng thời gian · cấu trúc video": VIDEO_STRUCTURE_SECTION_TITLE,
 };
 
 /**

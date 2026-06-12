@@ -672,6 +672,78 @@ describe("VideoBody render", () => {
     expect(screen.getAllByText("Phân tích hook")).toHaveLength(1);
   });
 
+  it("merges sound and script_structure into strength-gap block after hook_analysis", () => {
+    const { container } = renderInRouter(
+      makeWinReport({
+        reference_videos: [
+          {
+            aweme_id: "222",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 200_000,
+            engagement_rate: null,
+            author_handle: "@struct",
+            thumbnail_url: "https://t/2.jpg",
+            tiktok_url: "https://tiktok.com/@struct/video/222",
+            source: "corpus",
+          },
+        ],
+        narrative_vi: {
+          ...makeWinReport().narrative_vi!,
+          _schema_version: "v6",
+          diagnosis_vi: {
+            headline_vi: "H",
+            sections: [
+              { section_id: "hook_analysis", title_vi: "Phân tích hook", text_vi: "Hook." },
+              {
+                section_id: "sound",
+                title_vi: "Âm thanh và nhịp điệu",
+                text_vi: "Sound prose không hiển thị.",
+                findings: [{ title_vi: "Hook im lặng", fix_vi: "Voiceover giây 0." }],
+              },
+              {
+                section_id: "script_structure",
+                title_vi: "Dòng thời gian · Cấu trúc video",
+                text_vi: "Cấu trúc prose.",
+                findings: [
+                  {
+                    title_vi: "Nhịp cắt nhanh",
+                    fix_vi: "Tiếp tục giữ nhịp 1,2s/cảnh.",
+                  },
+                  {
+                    title_vi: "Dead air giữa clip",
+                    fix_vi: "Xen cận mỗi 2s.",
+                  },
+                ],
+                embedded_tiles: [
+                  {
+                    aweme_id: "222",
+                    narrative_vi: "Xen cận sản phẩm mỗi 2s — không để cảnh tĩnh quá 1,5s.",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+    );
+    expect(screen.getByText("Phân tích cấu trúc Video")).toBeTruthy();
+    expect(screen.queryByText("Âm thanh và nhịp điệu")).toBeNull();
+    expect(screen.queryByText(/Dòng thời gian · Cấu trúc video/)).toBeNull();
+    expect(screen.queryByText("Sound prose không hiển thị.")).toBeNull();
+    expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
+    expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
+    expect(screen.getByText(/thiếu sót «Dead air giữa clip»/)).toBeTruthy();
+    expect(screen.getByText("Cấu trúc prose.")).toBeTruthy();
+    expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
+    const headings = screen.getAllByRole("heading", { level: 3 });
+    const titles = headings.map((h) => h.textContent ?? "");
+    expect(titles.indexOf("Phân tích hook")).toBeLessThan(
+      titles.indexOf("Phân tích cấu trúc Video"),
+    );
+  });
+
   it("renders script_structure adjunct with fallback prose when segments exist", () => {
     renderInRouter(
       makeWinReport({

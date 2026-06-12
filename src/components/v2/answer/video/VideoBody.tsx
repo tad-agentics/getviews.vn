@@ -40,6 +40,7 @@ import { StatsHistoryStrip } from "@/components/v2/answer/video/blocks/StatsHist
 import { BoostAttributionBlock } from "@/components/v2/answer/video/blocks/BoostAttributionBlock";
 import { CarouselIntelStrip } from "@/components/v2/answer/video/blocks/CarouselIntelStrip";
 import { shouldShowBoostAttributionBlock } from "@/lib/boostAttributionLabels";
+import { mergeVideoStructureSections } from "@/lib/mergeVideoStructureSections";
 import { resolveDiagnosisSections } from "@/lib/resolveDiagnosisSections";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
 import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/PerformanceTierChip";
@@ -267,7 +268,9 @@ export function VideoBody({
 
   const diagnosisSections = useMemo(
     () =>
-      resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, performanceTier),
+      mergeVideoStructureSections(
+        resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, performanceTier),
+      ),
     [narrativeVi, flopIssuesForNarrative, performanceTier],
   );
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));

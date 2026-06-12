@@ -133,6 +133,58 @@ describe("diagnosis strength-gap layout", () => {
   });
 });
 
+describe("video structure strength-gap layout", () => {
+  it("renders ĐIỂM MẠNH / THIẾU SÓT, bridge prose, and gap-linked reference cards", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "script_structure",
+          title_vi: "Phân tích cấu trúc Video",
+          text_vi:
+            "**Nhịp cắt 1,2s/cảnh** giữ chân ổn nhưng dead air ở giữa làm rớt retention. Âm ASMR đủ texture. Hai đoạn tĩnh liên tiếp 4s. Clip tham chiếu dưới minh họa cách xen cận đúng nhịp.",
+          findings: [
+            {
+              title_vi: "Nhịp cắt nhanh",
+              body_vi: "1,2s/cảnh — nhanh hơn median ngách.",
+              fix_vi: "Tiếp tục giữ nhịp cắt 1,2s/cảnh.",
+            },
+            {
+              title_vi: "Dead air giữa clip",
+              body_vi: "4s tĩnh ở 8-12s.",
+              fix_vi: "Xen cận hoặc text overlay mỗi 2s.",
+            },
+          ],
+          embedded_tiles: [
+            {
+              aweme_id: "222",
+              narrative_vi: "Xen cận sản phẩm mỗi 2s — không để cảnh tĩnh quá 1,5s.",
+            },
+          ],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "222",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 200_000,
+            engagement_rate: null,
+            author_handle: "@struct",
+            thumbnail_url: "https://t/2.jpg",
+            tiktok_url: "https://tiktok.com/@struct/video/222",
+            source: "corpus",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
+    expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
+    expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
+    expect(screen.getByText(/thiếu sót «Dead air giữa clip»/)).toBeTruthy();
+    expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
+  });
+});
+
 describe("section verdict prose", () => {
   it("merges verdict + support into one paragraph when both are present", () => {
     const verdict =

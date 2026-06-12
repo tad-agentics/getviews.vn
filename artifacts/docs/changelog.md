@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-06-12 — Phân tích cấu trúc Video (gộp sound + script)
+
+- **FE:** Gộp `sound` + `script_structure` thành một block «Phân tích cấu trúc Video» sau hook — layout ĐIỂM MẠNH / THIẾU SÓT, bridge prose, reference tiles gắn gap, Timeline; prose chỉ từ `script_structure`; dedup tiles + cap findings.
+- **BE:** `video_structure_note` trong v6 prompt (prose ≤100 từ, 1 mạnh + 1–2 thiếu sót, tiles gắn gap); `sound` findings-only khi cùng emit; nhánh sound-only không yêu cầu `script_structure`; word-budget soft cap 105 cho `script_structure`.
+
 ## 2026-06-12 — Video answer UX (sticky thumb + inline ref tiles)
 
 - **VideoBody:** BREAKOUT badge `text-white` (no `gv-kicker` gray); sticky thumb hover-plays R2 clip instead of center Play → TikTok.

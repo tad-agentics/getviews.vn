@@ -1,4 +1,5 @@
 import { formatDiagnosisSectionTitle } from "@/lib/formatters";
+import { VIDEO_STRUCTURE_SECTION_TITLE } from "@/lib/mergeVideoStructureSections";
 import type {
   CreatorComparison,
   DiagnosisSectionVi,
@@ -151,10 +152,10 @@ export function adjunctSectionTitle(
 
   const defaults: Record<string, Record<string, string>> = {
     script_structure: {
-      hit: "Dòng thời gian · Cấu trúc video",
-      average: "Dòng thời gian · Cấu trúc video",
-      flop: "Dòng thời gian · Cấu trúc video",
-      unknown: "Dòng thời gian · Cấu trúc video",
+      hit: VIDEO_STRUCTURE_SECTION_TITLE,
+      average: VIDEO_STRUCTURE_SECTION_TITLE,
+      flop: VIDEO_STRUCTURE_SECTION_TITLE,
+      unknown: VIDEO_STRUCTURE_SECTION_TITLE,
     },
     hook_analysis: {
       hit: "Giải mã hook · 3 giây đầu vì sao người xem dừng",

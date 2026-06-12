@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { VIDEO_STRUCTURE_SECTION_TITLE } from "@/lib/mergeVideoStructureSections";
 import {
   calendarDaysAgoInVn,
   formatDiagnosisSectionTitle,
@@ -23,6 +24,12 @@ describe("formatDiagnosisSectionTitle", () => {
     );
     expect(formatDiagnosisSectionTitle("Video này so với kênh bạn")).toBe(
       "Video này so với kênh bạn",
+    );
+  });
+
+  it("aliases legacy script_structure title to unified block name", () => {
+    expect(formatDiagnosisSectionTitle("Dòng thời gian · Cấu trúc video")).toBe(
+      VIDEO_STRUCTURE_SECTION_TITLE,
     );
   });
 });
