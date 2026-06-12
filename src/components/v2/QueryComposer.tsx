@@ -39,7 +39,7 @@ function intentPillClass(active: boolean): string {
   const base =
     "inline-flex min-h-[36px] shrink-0 items-center rounded-full border px-3 text-xs transition-colors duration-[120ms]";
   return active
-    ? `${base} border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] font-semibold text-[color:var(--gv-accent-deep)]`
+    ? `${base} border-[color:var(--gv-accent)] bg-[color:var(--gv-accent)] font-semibold text-white`
     : `${base} border-[var(--gv-rule)] bg-[var(--gv-paper)] font-medium text-[var(--gv-ink-3)] hover:border-[var(--gv-ink-4)] hover:text-[var(--gv-ink)]`;
 }
 
