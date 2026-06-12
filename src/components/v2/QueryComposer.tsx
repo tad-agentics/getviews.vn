@@ -36,9 +36,11 @@ const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)]";
 
 function intentPillClass(active: boolean): string {
+  const base =
+    "inline-flex min-h-[36px] shrink-0 items-center rounded-full border px-3 text-xs transition-colors duration-[120ms]";
   return active
-    ? "inline-flex min-h-[36px] shrink-0 items-center rounded-full border border-[var(--gv-ink)] bg-[var(--gv-canvas-2)] px-3 text-xs font-medium text-[var(--gv-ink)]"
-    : "inline-flex min-h-[36px] shrink-0 items-center rounded-full border border-[var(--gv-rule)] bg-[var(--gv-paper)] px-3 text-xs text-[var(--gv-ink-3)] hover:border-[var(--gv-ink-4)] hover:text-[var(--gv-ink)]";
+    ? `${base} border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] font-semibold text-[color:var(--gv-accent-deep)]`
+    : `${base} border-[var(--gv-rule)] bg-[var(--gv-paper)] font-medium text-[var(--gv-ink-3)] hover:border-[var(--gv-ink-4)] hover:text-[var(--gv-ink)]`;
 }
 
 export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>(
