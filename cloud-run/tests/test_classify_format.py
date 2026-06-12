@@ -132,6 +132,30 @@ def test_existing_patterns_still_route_correctly() -> None:
     ) == "comparison"
 
 
+def test_mukbang_greedy_an_cung_false_positive_fixed() -> None:
+    """Regression (live row 7647501335624961298): a cushion-review video must NOT
+    be tagged mukbang. The old greedy `ăn.*cùng` matched the bigram "ăn" (inside
+    other words) spanning to a far-away "cuối cùng"."""
+    cushion_review = _analysis(
+        "So sánh các dòng cushion của Fwee nên mua dòng nào hơn? Màu mình đang "
+        "dùng là màu 00. Em này có texture mỏng nhẹ, che phủ kém nhất. Hợp với "
+        "da ít khuyết điểm. Vẫn kiệt đến giọt cuối cùng.",
+        topics=["makeup", "cushion", "review", "beauty"],
+    )
+    assert classify_format(cushion_review, legacy_niche_id=2) != "mukbang"
+
+
+def test_mukbang_genuine_phrases_still_match() -> None:
+    """Tightened regex must keep real mukbang phrasing."""
+    assert classify_format(_analysis("Hôm nay mình ăn cùng mọi người nhé"), 4) == "mukbang"
+    assert classify_format(_analysis("Mời cả nhà ăn món bún đậu"), 4) == "mukbang"
+    assert classify_format(_analysis("ăn cơm cùng mình nha"), 4) == "mukbang"
+    # "ăn" inside another word + distant "cùng" must NOT match.
+    assert classify_format(
+        _analysis("Lăn kem chống nắng đều tay, kết quả cuối cùng rất ưng"), 2,
+    ) != "mukbang"
+
+
 def test_falls_through_to_other_for_no_markers() -> None:
     """News clips with no regex markers should still fall through."""
     analysis = _analysis(

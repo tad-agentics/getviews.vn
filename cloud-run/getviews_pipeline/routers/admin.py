@@ -515,6 +515,14 @@ class AdminTriggerRefreshBody(StrictBody):
     views_floor: int | None = None   # defaults to REFRESH_VIEWS_FLOOR (1000)
 
 
+class AdminTriggerReclassifyFormatBody(StrictBody):
+    """content_format reclassify — defaults to the 'other'/NULL catch-up tail.
+
+    Set ``source_format`` to a specific bucket (e.g. 'mukbang') to re-audit that
+    bucket against the current classify_format."""
+    source_format: str = "other"
+
+
 class AdminTriggerR2JanitorBody(StrictBody):
     """R2 storage janitor — defaults to dry-run for safety."""
     dry_run: bool = True
@@ -762,15 +770,23 @@ async def _admin_run_post_processing(body: AdminTriggerPostProcessingBody) -> di
     )
 
 
-async def _admin_run_reclassify_format() -> dict[str, Any]:
-    """Manual kick of /batch/reclassify-format — regex-only catch-up on
-    rows stuck in content_format='other'/NULL."""
+async def _admin_run_reclassify_format(source_format: str = "other") -> dict[str, Any]:
+    """Manual kick of /batch/reclassify-format — regex-only catch-up.
+
+    ``source_format="other"`` (default) heals the ``other``/NULL tail. Passing a
+    specific bucket (e.g. ``"mukbang"``) re-audits that bucket against the current
+    ``classify_format`` — used to repair the 2026-06-13 greedy `ăn.*cùng` mukbang
+    false positives."""
     from getviews_pipeline.content_format_reclassify import (
         run_content_format_reclassify,
     )
     from getviews_pipeline.supabase_client import get_service_client
 
-    return await run_sync(run_content_format_reclassify, client=get_service_client())
+    return await run_sync(
+        run_content_format_reclassify,
+        client=get_service_client(),
+        source_format=source_format,
+    )
 
 
 async def _admin_run_r2_janitor(*, dry_run: bool = True) -> dict[str, Any]:
@@ -1730,12 +1746,13 @@ async def admin_trigger_post_processing(
 
 @router.post("/admin/trigger/reclassify_format")
 async def admin_trigger_reclassify_format(
-    _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
+    body: AdminTriggerReclassifyFormatBody = AdminTriggerReclassifyFormatBody(),
     admin: dict[str, Any] = Depends(require_admin),
 ) -> JSONResponse:
     return await _run_trigger_with_audit(
         user_id=admin["user_id"], action="trigger.reclassify_format",
-        params={}, runner=_admin_run_reclassify_format,
+        params={"source_format": body.source_format},
+        runner=lambda: _admin_run_reclassify_format(body.source_format),
     )
 
 

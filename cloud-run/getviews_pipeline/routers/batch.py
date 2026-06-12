@@ -486,15 +486,21 @@ async def batch_refresh(
     return JSONResponse({"ok": True, **result})
 
 
+class BatchReclassifyFormatRequest(StrictBody):
+    """Optional bucket to re-audit (default ``other``/NULL catch-up tail)."""
+    source_format: str = "other"
+
+
 @router.post("/batch/reclassify-format")
 async def batch_reclassify_format(
-    request: Request,
+    body: BatchReclassifyFormatRequest = BatchReclassifyFormatRequest(),
     _caller: dict | None = Depends(require_batch_caller),
 ) -> JSONResponse:
     """One-shot: re-run classify_format on rows stuck in ``other``/NULL.
 
     Axis 2 catch-up (state-of-corpus.md). Zero Gemini cost — pure regex
     pass on cached analysis_json. Safe to re-run; idempotent.
+    Pass ``source_format`` (e.g. ``mukbang``) to re-audit a specific bucket.
     Protected by require_batch_caller.
     """
     from getviews_pipeline.batch_observability import record_job_run
@@ -504,12 +510,19 @@ async def batch_reclassify_format(
     from getviews_pipeline.runtime import run_sync
     from getviews_pipeline.supabase_client import get_service_client
 
-    logger.info("POST /batch/reclassify-format triggered")
+    logger.info(
+        "POST /batch/reclassify-format triggered source_format=%s",
+        body.source_format,
+    )
     client = get_service_client()
 
     async with record_job_run(client, "batch/reclassify-format") as obs_summary:
         try:
-            result = await run_sync(run_content_format_reclassify, client=client)
+            result = await run_sync(
+                run_content_format_reclassify,
+                client=client,
+                source_format=body.source_format,
+            )
         except Exception as exc:
             logger.exception("Batch reclassify-format failed: %s", exc)
             raise HTTPException(status_code=500, detail=str(exc)) from exc

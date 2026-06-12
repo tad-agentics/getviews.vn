@@ -34,17 +34,24 @@ SCAN_PAGE_SIZE = 500
 def _select_other_rows(
     client: Any,
     *,
+    source_format: str = "other",
     page_size: int = SCAN_PAGE_SIZE,
     last_created_at: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Fetch one page of 'other' / NULL rows, oldest first."""
-    q = (
-        client.table("video_corpus")
-        .select("video_id, ingest_loop_niche_id, content_format, analysis_json, created_at")
-        .or_("content_format.eq.other,content_format.is.null")
-        .order("created_at", desc=False)
-        .limit(page_size)
+    """Fetch one page of rows to re-classify, oldest first.
+
+    ``source_format="other"`` (default) scans the ``other`` / NULL catch-up tail.
+    Any other value re-audits that exact bucket (e.g. ``"mukbang"`` to repair the
+    2026-06-13 greedy-regex false positives).
+    """
+    q = client.table("video_corpus").select(
+        "video_id, ingest_loop_niche_id, content_format, analysis_json, created_at"
     )
+    if source_format == "other":
+        q = q.or_("content_format.eq.other,content_format.is.null")
+    else:
+        q = q.eq("content_format", source_format)
+    q = q.order("created_at", desc=False).limit(page_size)
     if last_created_at is not None:
         q = q.gt("created_at", last_created_at)
     return (q.execute()).data or []
@@ -54,6 +61,7 @@ def run_content_format_reclassify(
     *,
     client: Any | None = None,
     page_size: int = SCAN_PAGE_SIZE,
+    source_format: str = "other",
 ) -> dict[str, Any]:
     """Scan ``video_corpus`` for ``other``/NULL rows and re-classify.
 
@@ -77,6 +85,7 @@ def run_content_format_reclassify(
     while True:
         rows = _select_other_rows(
             client,
+            source_format=source_format,
             page_size=page_size,
             last_created_at=last_created_at,
         )
@@ -89,7 +98,12 @@ def run_content_format_reclassify(
             niche_id = int(row.get("ingest_loop_niche_id") or 0)
             new_format = classify_format(analysis_json, niche_id)
 
-            if new_format == "other" or new_format == row.get("content_format"):
+            # Unchanged → nothing to write. When scanning the 'other'/NULL tail we
+            # also skip rows that re-classify back to 'other' (no improvement). When
+            # re-auditing a specific bucket (e.g. mukbang false positives) a corrected
+            # row may legitimately land in 'other', so that write is allowed.
+            unchanged = new_format == row.get("content_format")
+            if unchanged or (source_format == "other" and new_format == "other"):
                 still_other += 1
                 continue
 

@@ -925,7 +925,13 @@ def classify_format(analysis_json: dict[str, Any], legacy_niche_id: int) -> str:
         transcript.strip()[:100],
     )
 
-    if re.search(r"mukbang|ăn.*cùng|mời.*ăn|eating|asmr", combined):
+    # 2026-06-13 false-positive fix: the old greedy `ăn.*cùng` / `mời.*ăn`
+    # matched the bigram "ăn" (inside lăn/chăn/khăn… — no word boundary) spanning
+    # the ENTIRE transcript to a far-away "cùng" (almost always "cuối cùng" =
+    # "finally"). A cushion-review video (`7647501335624961298`, niche=làm đẹp)
+    # was tagged mukbang this way. Anchor "ăn" on a word boundary and bound the
+    # gap so only the genuine phrases "ăn cùng" / "mời … ăn" fire.
+    if re.search(r"mukbang|eating|asmr|\băn\b[^.]{0,10}\bcùng\b|\bmời\b[^.]{0,15}\băn\b", combined):
         return "mukbang"
     if legacy_niche_id == 4 and len(scenes) >= 10 and tone == "entertaining":
         return "mukbang"

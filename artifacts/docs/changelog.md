@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-06-13 — Fix mukbang false-positive (greedy `ăn.*cùng`) + bucket re-audit
+
+- **Lý do:** Video review cushion (`7647501335624961298`, niche làm đẹp) bị gắn `content_format="mukbang"`. Regex `classify_format` cũ `ăn.*cùng|mời.*ăn` tham lam + không neo biên từ — khớp bigram "ăn" trong từ khác (lăn/chăn…) nhảy xuyên transcript tới "cuối **cùng**". Quy mô: 1428 row mukbang, 984 ngoài niche ẩm thực.
+- **BE (`corpus_ingest.py`):** Neo `\băn\b` + giới hạn khoảng cách `[^.]{0,10}\bcùng\b` / `\bmời\b[^.]{0,15}\băn\b`. Giữ "ăn cùng mình", "mời cả nhà ăn"; loại false-positive.
+- **BE backfill (`content_format_reclassify.py` + `routers/admin.py` + `routers/batch.py`):** `run_content_format_reclassify(source_format=...)` — re-audit bucket cụ thể bằng chính `classify_format`. Trigger: `POST /batch/reclassify-format {"source_format":"mukbang"}` hoặc admin trigger tương đương.
+- **Tests:** `test_classify_format.py`, `test_content_format_reclassify.py`. pytest + ruff xanh.
+
 ## 2026-06-13 — Block cấu trúc luôn xuất hiện cho video (fix mukbang thiếu block)
 
 - **Lý do:** Video hit nhiều signal ngữ cảnh (mukbang 15s) mất block «Phân tích cấu trúc Video» — `script_structure` không có signal nào fire (3 signal đều cần điều kiện không thỏa: affiliate phases / livestream funnel / duration ≥25s) nên `_max_salience=0` và thua trận tranh slot dưới `DEEP_SECTION_CAP=7`. Đây là lỗi SELECTION + CAP, không phải nới salience.

@@ -147,6 +147,72 @@ def test_reclassify_paginates_until_exhausted() -> None:
     assert sum(result["by_bucket"].values()) == 3
 
 
+def _build_client_eq(pages: list[list[dict[str, Any]]]) -> MagicMock:
+    """Mock the bucket-scoped scan (``.eq`` filter) used by source_format!='other'."""
+    client = MagicMock()
+    select_chain = MagicMock()
+    limit_call = (
+        select_chain.eq.return_value
+        .order.return_value
+        .limit.return_value
+    )
+    gt_call = limit_call.gt.return_value
+    limit_call.execute.side_effect = [MagicMock(data=p) for p in pages]
+    gt_call.execute.side_effect = [MagicMock(data=p) for p in pages[1:]]
+    client.table.return_value.select.return_value = select_chain
+    client.table.return_value.update.return_value.eq.return_value.execute.return_value = (
+        MagicMock(data=[])
+    )
+    return client
+
+
+def test_reclassify_mukbang_reaudit_repairs_false_positive() -> None:
+    """source_format='mukbang' re-audits the bucket: a cushion-review row
+    mistagged mukbang flips to its real bucket; a genuine mukbang stays."""
+    page = [
+        {
+            "video_id": "cushion-001",
+            "ingest_loop_niche_id": 2,
+            "content_format": "mukbang",
+            "created_at": "2026-06-01T00:00:00Z",
+            "analysis_json": {
+                "audio_transcript": (
+                    "So sánh các dòng cushion của Fwee nên mua dòng nào. "
+                    "Vẫn kiệt đến giọt cuối cùng."
+                ),
+                "topics": ["makeup", "cushion", "review"],
+                "scenes": [],
+                "tone": "conversational",
+            },
+        },
+        {
+            "video_id": "real-mukbang-002",
+            "ingest_loop_niche_id": 4,
+            "content_format": "mukbang",
+            "created_at": "2026-06-01T00:00:01Z",
+            "analysis_json": {
+                "audio_transcript": "Hôm nay mình ăn cùng mọi người nhé",
+                "topics": ["food"],
+                "scenes": [],
+                "tone": "entertaining",
+            },
+        },
+    ]
+    client = _build_client_eq([page, []])
+
+    result = run_content_format_reclassify(
+        client=client, page_size=500, source_format="mukbang",
+    )
+
+    assert result["scanned"] == 2
+    # The cushion row flips off mukbang; the genuine mukbang is unchanged.
+    assert result["reclassified"] == 1
+    assert "mukbang" not in result["by_bucket"]
+    assert client.table.return_value.update.call_count == 1
+    eq_call = client.table.return_value.update.return_value.eq.call_args
+    assert eq_call.args == ("video_id", "cushion-001")
+
+
 def test_reclassify_update_failure_counts_as_error() -> None:
     """A single row's UPDATE failing must not abort the scan."""
     page = [
