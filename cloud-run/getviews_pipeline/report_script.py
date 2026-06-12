@@ -211,18 +211,18 @@ Hook mở: {hook}
 
 Trả về JSON:
 - headline_vi: một câu headline (≤20 từ) — nêu góc quay rõ ràng
-- ket_luan_nhanh: 1-2 câu CHỨNG MINH format này không phải đoán — nếu cảnh nào có
-  "ref: @handle (X view)" thì nêu thẳng: "Format này đã được @handle chứng minh (X view)."
-- diagnosis_vi.sections: đúng 3 section theo thứ tự:
-  1) section_id "hook_analysis" — title_vi + text_vi (phân tích hook 0-3s; nếu Cảnh 1
-     có ref: so sánh trực tiếp với cách creator đó mở — "mirror cách @handle mở")
-  2) section_id "script_structure" — title_vi + text_vi (dòng chảy 6 cảnh; cảnh nào
-     có ref thì gắn 1 mệnh đề ngắn nêu creator + view làm bằng chứng cho nhịp/khung đó)
-  3) section_id "next_video" — title_vi + text_vi (video tiếp theo nên quay gì)
+- ket_luan_nhanh: 1-2 câu tóm tắt cấu trúc (hook + nhịp + góc quay). KHÔNG cite @handle
+  hay view — UI hiển thị clip corpus riêng.
+- diagnosis_vi.sections: đúng 3 section theo thứ tự (text_vi ngắn, mỗi section ≤3 câu;
+  KHÔNG cite @handle/view — tránh trùng clip strip):
+  1) section_id "hook_analysis" — insight hook 0-3s (nhịp, góc, cảm xúc mở đầu)
+  2) section_id "script_structure" — dòng chảy các cảnh (xen cận/b-roll/overlay)
+  3) section_id "next_video" — ý tưởng video tiếp theo (section duy nhất FE highlight)
 
-Kỷ luật câu: câu ngắn, mỗi câu một ý, mỗi câu mang số hoặc tên creator cụ thể; CẤM câu
-đệm ("có thể thấy rằng", "nhìn chung"). Cite số cụ thể khi có; không dùng từ cấm
-(bí mật, công thức vàng, triệu view); không mở bằng "Chào bạn"."""
+Kỷ luật câu: câu ngắn, mỗi câu một ý; dùng số nhịp/thời lượng khi có. KHÔNG cite @handle
+hay lượt view trong ket_luan_nhanh hay sections — clip corpus hiển thị riêng trên UI.
+CẤM câu đệm ("có thể thấy rằng", "nhìn chung"); không dùng từ cấm (bí mật, công thức vàng,
+triệu view); không mở bằng "Chào bạn". hook_analysis và script_structure: tối đa 1-2 câu mỗi section."""
 
     cfg = types.GenerateContentConfig(
         temperature=0.35,

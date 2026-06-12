@@ -23,6 +23,8 @@ export type SceneIntelligencePanelProps = {
   sceneSampleSize?: number | null;
   /** Positive integer → anchors the "Trong N video thắng" copy; falls back to generic phrasing. */
   overlayCorpusCount?: number | null;
+  /** Hide CLIP THAM KHẢO row when parent already shows a global corpus strip. */
+  hideReferenceClips?: boolean;
 };
 
 const CLIP_FALLBACK_BG = [
@@ -38,6 +40,7 @@ export function SceneIntelligencePanel({
   referenceClips,
   sceneSampleSize = null,
   overlayCorpusCount = null,
+  hideReferenceClips = false,
 }: SceneIntelligencePanelProps) {
   const [searchParams] = useSearchParams();
   const span = shot.t1 - shot.t0;
@@ -110,6 +113,7 @@ export function SceneIntelligencePanel({
         ) : null}
       </div>
 
+      {!hideReferenceClips ? (
       <div className="rounded-none border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3.5">
         <div className="gv-mono gv-uc mb-2.5 text-[11px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
           CLIP THAM KHẢO
@@ -162,6 +166,7 @@ export function SceneIntelligencePanel({
             : "3 scene cùng mục đích từ video thắng tuần này (đang chờ dữ liệu)."}
         </p>
       </div>
+      ) : null}
     </div>
   );
 }

@@ -14,6 +14,10 @@ describe("humanizeStatsProse", () => {
     expect(out).toContain("mức cao trong ngách (top 25%)");
     expect(out).not.toMatch(/\bp75\b/i);
   });
+
+  it("compacts raw view counts in prose", () => {
+    expect(humanizeStatsProse("Video @a đạt 27.461 view trong tuần.")).toContain("27.5K view");
+  });
 });
 
 describe("splitVerdictProse", () => {

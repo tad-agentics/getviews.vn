@@ -42,6 +42,13 @@ export function r2ThumbnailUrl(
   return `${base}/thumbnails/${videoId}.${ext}`;
 }
 
+/** Permanent R2 hosted MP4 for hover preview (may 404 if clip not banked yet). */
+export function r2VideoPlaybackUrl(videoId: string): string | null {
+  const base = r2PublicBase();
+  if (!base || !videoId) return null;
+  return `${base}/videos/${videoId}.mp4`;
+}
+
 /**
  * Ordered ``<img src>`` candidates for corpus rows: R2 WebP first (360w,
  * ~15–45 KB), then DB ``thumbnail_url`` (CDN or legacy R2 png), then

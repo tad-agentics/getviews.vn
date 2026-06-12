@@ -906,6 +906,18 @@ def r2_public_thumbnail_url(video_id: str) -> str | None:
     return f"{R2_PUBLIC_URL.rstrip('/')}/thumbnails/{video_id}{_THUMB_EXT}"
 
 
+def r2_public_video_url(video_id: str) -> str | None:
+    """Permanent public URL for ``videos/{video_id}.mp4`` (may 404 if not banked yet).
+
+    Only needs a public base — independent of write credentials, since this URL is
+    used for read-side hover previews, not uploads.
+    """
+    base = (R2_VIDEO_PUBLIC_URL or R2_PUBLIC_URL or "").rstrip("/")
+    if not base or not video_id:
+        return None
+    return f"{base}/videos/{video_id}.mp4"
+
+
 def is_r2_pub_thumbnail_db_url(url: str | None) -> bool:
     """True when ``url`` points at our R2 pub bucket (any ext under ``thumbnails/``)."""
     if not url or not str(url).strip():

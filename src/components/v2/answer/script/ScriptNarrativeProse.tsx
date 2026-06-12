@@ -7,14 +7,20 @@ function handleHref(handleToken: string): string {
   return `https://www.tiktok.com/@${handle}`;
 }
 
-export function ScriptNarrativeProse({ text }: { text: string }) {
+export function ScriptNarrativeProse({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
   const normalized = humanizeStatsProse(text.trim());
   if (!normalized) return null;
 
   const paragraphs = normalized.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
 
   return (
-    <div className="mt-2 space-y-2">
+    <div className={className ?? "mt-2 space-y-2"}>
       {paragraphs.map((para, pi) => {
         const parts = para.split(HANDLE_IN_PROSE);
         return (

@@ -66,6 +66,8 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from getviews_pipeline.r2 import r2_public_video_url
+
 logger = logging.getLogger(__name__)
 
 # ── Scoring weights ─────────────────────────────────────────────────
@@ -145,6 +147,7 @@ class ShotReference:
     views: int | None = None
     match_signals: list[str] = field(default_factory=list)
     match_label: str = ""
+    playback_url: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -405,6 +408,7 @@ def pick_shot_references(
             score=score,
             match_signals=signals,
             match_label=_match_label_vn(signals),
+            playback_url=r2_public_video_url(str(vid)),
         ))
 
     scored.sort(key=lambda r: (-r.score, _tiebreaker_key(r)))

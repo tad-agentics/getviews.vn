@@ -9,6 +9,7 @@ import {
   isStableR2ThumbnailUrl,
   r2FrameUrl,
   r2ThumbnailUrl,
+  r2VideoPlaybackUrl,
 } from "./r2";
 
 describe("r2 thumbnail helpers", () => {
@@ -17,6 +18,7 @@ describe("r2 thumbnail helpers", () => {
     expect(r2ThumbnailUrl("123", "webp")).toBe("https://media.getviews.vn/thumbnails/123.webp");
     expect(r2ThumbnailUrl("123", "png")).toBe("https://media.getviews.vn/thumbnails/123.png");
     expect(r2ThumbnailUrl("123", "jpg")).toBe("https://media.getviews.vn/thumbnails/123.jpg");
+    expect(r2VideoPlaybackUrl("123")).toBe("https://media.getviews.vn/videos/123.mp4");
   });
 
   it("orders corpus candidates: webp first, then DB URL, then legacy R2", () => {

@@ -2,22 +2,15 @@ import type { DiagnosisReferenceTile } from "@/lib/diagnosisReferenceTiles";
 import type {
   DiagnosisSectionVi,
   ReferenceVideoCard,
-  ScriptShotCardData,
   ScriptShotReferenceData,
 } from "@/lib/api-types";
+import { r2VideoPlaybackUrl } from "@/lib/r2";
 
-/** Stable script section titles (ignore noisy Gemini variants). */
-export const SCRIPT_NARRATIVE_SECTION_TITLES: Record<string, string> = {
-  hook_analysis: "Hook 0–3 giây",
-  script_structure: "Cấu trúc 6 cảnh",
-  next_video: "Video tiếp theo",
-};
-
-export function scriptNarrativeSectionTitle(section: DiagnosisSectionVi): string {
-  const sid = String(section.section_id ?? "").trim();
-  const mapped = SCRIPT_NARRATIVE_SECTION_TITLES[sid];
-  if (mapped) return mapped;
-  return (section.title_vi || section.title || sid).trim();
+/** Legacy narrative sections — only ``next_video`` is surfaced in script answer UI. */
+export function scriptNextVideoText(sections: DiagnosisSectionVi[]): string | null {
+  const row = sections.find((s) => String(s.section_id ?? "").trim() === "next_video");
+  const text = (row?.text_vi || row?.text || "").trim();
+  return text || null;
 }
 
 function tiktokUrlForRef(ref: ScriptShotReferenceData): string | null {
@@ -31,6 +24,20 @@ function tiktokUrlForRef(ref: ScriptShotReferenceData): string | null {
     .trim();
   if (handle) return `https://www.tiktok.com/@${handle}/video/${id}`;
   return `https://www.tiktok.com/video/${id}`;
+}
+
+function scriptRefPlaybackUrl(ref: ScriptShotReferenceData): string | null {
+  const explicit =
+    typeof ref.playback_url === "string"
+      ? ref.playback_url.trim()
+      : typeof ref.video_url === "string"
+        ? ref.video_url.trim()
+        : "";
+  if (explicit && explicit.includes("/videos/") && !explicit.includes("tiktokcdn")) {
+    return explicit;
+  }
+  const vid = String(ref.video_id ?? "").trim();
+  return r2VideoPlaybackUrl(vid);
 }
 
 export function scriptRefToReferenceCard(
@@ -51,6 +58,7 @@ export function scriptRefToReferenceCard(
     thumbnail_url: ref.thumbnail_url ?? null,
     tiktok_url,
     source: "corpus",
+    playback_url: scriptRefPlaybackUrl(ref),
   };
 }
 
@@ -71,40 +79,6 @@ export function scriptRefToDiagnosisTile(
     narrative_vi: desc || undefined,
     author_handle: card.author_handle,
     hook_type: null,
-    playback_url: null,
+    playback_url: card.playback_url ?? null,
   };
-}
-
-function dedupeRefs(refs: ScriptShotReferenceData[]): ScriptShotReferenceData[] {
-  const seen = new Set<string>();
-  const out: ScriptShotReferenceData[] = [];
-  for (const ref of refs) {
-    const id = String(ref.video_id ?? "").trim();
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    out.push(ref);
-  }
-  return out;
-}
-
-/** Map script narrative section → up to 3 reference clips from shot matcher output. */
-export function scriptSectionReferenceTiles(
-  sectionId: string,
-  shots: ScriptShotCardData[],
-): DiagnosisReferenceTile[] {
-  const sid = sectionId.trim();
-  let pool: ScriptShotReferenceData[] = [];
-
-  if (sid === "hook_analysis") {
-    pool = shots[0]?.references ?? [];
-  } else if (sid === "script_structure") {
-    pool = dedupeRefs(shots.slice(1).flatMap((s) => s.references ?? []));
-  } else if (sid === "next_video") {
-    pool = shots[5]?.references ?? shots.at(-1)?.references ?? [];
-  }
-
-  return dedupeRefs(pool)
-    .slice(0, 3)
-    .map(scriptRefToDiagnosisTile)
-    .filter((t): t is DiagnosisReferenceTile => t !== null);
 }

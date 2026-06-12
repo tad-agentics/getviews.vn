@@ -1,43 +1,28 @@
 /**
  * Phase C — 6-shot script report inside answer sessions (Studio).
- * Wave 2 — narrative-first: headline → sections → shot rail.
- * F7 — scene intelligence panel when nightly ``scene_intelligence`` matches shot type.
+ * Narrative IA (2026-06): verdict header → corpus evidence → next video → shot rail.
  */
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Video } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Btn } from "@/components/v2/Btn";
-import { SceneIntelligencePanel } from "@/components/v2/SceneIntelligencePanel";
-import { ShotReferenceStrip } from "@/components/v2/ShotReferenceStrip";
 import { useSceneIntelligence } from "@/hooks/useSceneIntelligence";
-import type {
-  ScriptFormatProof,
-  ScriptReportPayload,
-  ScriptVoLineData,
-} from "@/lib/api-types";
-import { formatViews } from "@/lib/formatters";
+import type { ScriptFormatProof, ScriptReportPayload } from "@/lib/api-types";
+import { allScriptCorpusTiles } from "@/lib/scriptCorpusEvidence";
 import { scriptEditorFallbacks } from "@/lib/scriptEditorFallbacks";
 import {
   mergeSceneIntelIntoShots,
-  referenceClipsFromEditorShot,
   reportShotsToEditorShots,
   sceneRowForShot,
 } from "@/lib/scriptEditorMerge";
-import { ScriptActionsBar } from "./ScriptActionsBar";
-import { ScriptNarrativeSections } from "./ScriptNarrativeSections";
+import { scriptNextVideoText } from "@/lib/scriptNarrativeRefs";
+import { formatViews } from "@/lib/formatters";
 
-function formatVoStamp(t: ScriptVoLineData["t"], fallback: number): string {
-  if (typeof t === "number" && Number.isFinite(t)) {
-    return `${t.toFixed(1)}s`;
-  }
-  if (typeof t === "string" && t.includes(":")) {
-    return t;
-  }
-  if (typeof t === "string" && t.trim()) {
-    return t.trim();
-  }
-  return `${fallback.toFixed(1)}s`;
-}
+import { ScriptActionsBar } from "./ScriptActionsBar";
+import { ScriptAnswerHeader } from "./ScriptAnswerHeader";
+import { ScriptAnswerShotDetail } from "./ScriptAnswerShotDetail";
+import { ScriptAnswerShotRail } from "./ScriptAnswerShotRail";
+import { ScriptCorpusEvidenceStrip } from "./ScriptCorpusEvidenceStrip";
+import { ScriptNextVideoCallout } from "./ScriptNextVideoCallout";
+import { ScriptShotNavigator } from "./ScriptShotNavigator";
 
 function formatProofLine(proof: ScriptFormatProof): string | null {
   if (proof.kind === "hook_line" && proof.phrase) {
@@ -63,7 +48,6 @@ export function ScriptBody({
 }: {
   report: ScriptReportPayload;
   sessionId?: string | null;
-  /** Session or profile niche — drives free ``GET /script/scene-intelligence``. */
   nicheId?: number | null;
   onOpenShoot?: (draftId: string) => void;
 }) {
@@ -85,59 +69,42 @@ export function ScriptBody({
   const sceneRow = activeEditorShot
     ? sceneRowForShot(sceneIntel?.scenes, activeEditorShot.intelSceneType)
     : undefined;
-  const showScenePanel = Boolean(sceneRow && activeEditorShot);
 
-  const narrative = report.narrative_vi;
-  const headline = narrative?.headline_vi?.trim() || report.hook;
   const sections = useMemo(
-    () => narrative?.diagnosis_vi?.sections ?? [],
-    [narrative?.diagnosis_vi?.sections],
+    () => report.narrative_vi?.diagnosis_vi?.sections ?? [],
+    [report.narrative_vi?.diagnosis_vi?.sections],
+  );
+  const corpusTiles = useMemo(() => allScriptCorpusTiles(shots), [shots]);
+  const nextVideoText = useMemo(() => scriptNextVideoText(sections), [sections]);
+
+  const goPrev = useCallback(() => setIdx((v) => Math.max(0, v - 1)), []);
+  const goNext = useCallback(
+    () => setIdx((v) => Math.min(shots.length - 1, v + 1)),
+    [shots.length],
   );
 
-  const pills = [report.niche_label?.trim(), `${report.duration}s`, report.tone].filter(
-    Boolean,
-  ) as string[];
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goPrev();
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goNext();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goPrev, goNext]);
 
   return (
     <div className="space-y-6 text-sm text-[color:var(--gv-ink-2)]">
-      <header className="space-y-3">
-        <p className="gv-kicker text-[color:var(--gv-ink-3)]">
-          KỊCH BẢN · {report.tone} · {report.duration} giây
-        </p>
-        <p
-          className="gv-tight m-0 text-[clamp(1.125rem,2.5vi+0.35rem,1.65rem)] font-medium leading-tight text-[color:var(--gv-ink)]"
-          style={{ fontFamily: "var(--gv-font-display)", textWrap: "balance" }}
-        >
-          {headline}
-        </p>
-        {narrative?.ket_luan_nhanh ? (
-          <p className="m-0 text-[14px] leading-relaxed text-[color:var(--gv-ink-2)]">
-            {narrative.ket_luan_nhanh}
-          </p>
-        ) : null}
-        {pills.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {pills.map((p) => (
-              <span
-                key={p}
-                className="gv-mono rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[11px] text-[color:var(--gv-ink-3)]"
-              >
-                {p}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
-          <span className="font-medium text-[color:var(--gv-ink-2)]">Chủ đề:</span> {report.topic}
-        </p>
-        <p className="gv-mono m-0 text-[11px] text-[color:var(--gv-ink-3)]">
-          Hook xuất hiện sau ~{Math.round(report.hook_delay_ms / 100) / 10}s
-        </p>
-      </header>
+      <ScriptAnswerHeader report={report} hasCorpusStrip={corpusTiles.length > 0} />
 
-      {sections.length > 0 ? (
-        <ScriptNarrativeSections sections={sections} shots={shots} />
-      ) : null}
+      {corpusTiles.length > 0 ? <ScriptCorpusEvidenceStrip tiles={corpusTiles} /> : null}
 
       {report.format_rationale?.text_vi ? (
         <section className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
@@ -166,152 +133,51 @@ export function ScriptBody({
         </section>
       ) : null}
 
-      {shot ? (
-        <section className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
-          <p className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]">
-            6 cảnh · chi tiết từng shot
-          </p>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <p className="gv-mono m-0 text-[11px] font-semibold gv-kicker tracking-wide text-[color:var(--gv-accent)]">
-              Cảnh {safeIdx + 1} / {shots.length}
-            </p>
-            <span className="gv-mono rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[11px] text-[color:var(--gv-ink-3)]">
-              {shot.t0 ?? 0}s – {shot.t1 ?? 0}s
-            </span>
+      {nextVideoText ? <ScriptNextVideoCallout text={nextVideoText} /> : null}
+
+      {shot && activeEditorShot ? (
+        <section
+          aria-labelledby="script-shot-panel-title"
+          className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4"
+        >
+          <div className="mb-4 space-y-3">
+            <div className="space-y-1">
+              <h3
+                id="script-shot-panel-title"
+                className="gv-mono m-0 text-[11px] font-semibold gv-kicker tracking-[0.12em] text-[color:var(--gv-ink-3)]"
+              >
+                {shots.length} cảnh · hướng dẫn quay
+              </h3>
+              <p className="m-0 text-[13px] leading-snug text-[color:var(--gv-ink-3)]">
+                Chọn từng cảnh để xem lời thoại, góc máy và clip tham chiếu — dùng ← → trên bàn phím.
+              </p>
+            </div>
+            <ScriptShotNavigator
+              index={safeIdx}
+              total={shots.length}
+              onPrev={goPrev}
+              onNext={goNext}
+            />
+            <ScriptAnswerShotRail shots={shots} activeIndex={safeIdx} onSelect={setIdx} />
           </div>
 
-          <dl className="m-0 space-y-3">
-            <div>
-              <dt className="gv-mono mb-0.5 flex items-center gap-1 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-4)]">
-                <Video className="h-3 w-3" strokeWidth={2} aria-hidden />
-                Máy quay
-              </dt>
-              <dd className="m-0 text-sm leading-snug text-[color:var(--gv-ink)]">{shot.cam}</dd>
-            </div>
-            <div>
-              <dt className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-4)]">
-                Hình ảnh
-              </dt>
-              <dd className="m-0 text-sm leading-snug">{shot.viz}</dd>
-            </div>
-            <div>
-              <dt className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-4)]">
-                Giọng / nhân vật
-              </dt>
-              <dd className="m-0 text-sm leading-snug">{shot.voice}</dd>
-            </div>
-            <div>
-              <dt className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-4)]">
-                Chữ trên màn hình
-              </dt>
-              <dd className="m-0 rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-1.5 text-[12px] font-medium">
-                {shot.overlay}
-              </dd>
-            </div>
-            {shot.reason_vi ? (
-              <div>
-                <dt className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-4)]">
-                  Vì sao cảnh này
-                </dt>
-                <dd className="m-0 text-[12px] leading-snug text-[color:var(--gv-ink-3)]">
-                  {shot.reason_vi}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
+          <ScriptAnswerShotDetail
+            shot={shot}
+            shotIndex={safeIdx}
+            shotCount={shots.length}
+            editorShot={activeEditorShot}
+            sceneRow={sceneRow}
+            suppressPerShotRefs={corpusTiles.length > 0}
+            hideSceneReferenceClips={corpusTiles.length > 0}
+          />
 
-          {shot.vo && shot.vo.length > 0 ? (
-            <div className="mt-5 border-t border-[color:var(--gv-rule)] pt-4">
-              <p className="gv-mono mb-2 text-[11px] gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
-                Lời thoại
-              </p>
-              <ul className="m-0 list-none space-y-2 p-0">
-                {shot.vo.map((line, i) => (
-                  <li
-                    key={`${safeIdx}-${i}-${line.text.slice(0, 12)}`}
-                    className="flex flex-wrap gap-x-2 gap-y-1 text-sm leading-snug"
-                  >
-                    <span className="gv-mono shrink-0 text-[11px] text-[color:var(--gv-ink-4)]">
-                      {formatVoStamp(line.t, Number(shot.t0 ?? 0) + i * 0.5)}
-                    </span>
-                    <span className="text-[color:var(--gv-ink)]">“{line.text}”</span>
-                    {line.cue ? (
-                      <span className="gv-mono rounded border border-dashed border-[color:var(--gv-rule)] px-1.5 py-0.5 text-[11px] text-[color:var(--gv-ink-3)]">
-                        {line.cue}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {activeEditorShot && activeEditorShot.references.length > 0 && !showScenePanel ? (
-            <div className="-mx-4 mt-5">
-              <ShotReferenceStrip refs={activeEditorShot.references} density="block" />
-            </div>
-          ) : null}
-
-          {showScenePanel && activeEditorShot && sceneRow ? (
-            <div className="mt-5 border-t border-[color:var(--gv-rule)] pt-4">
-              <SceneIntelligencePanel
-                shot={activeEditorShot}
-                shotIndex={safeIdx}
-                overlaySamples={sceneRow.overlay_samples ?? []}
-                referenceClips={referenceClipsFromEditorShot(activeEditorShot).map((clip) => ({
-                  video_id: clip.video_id,
-                  thumbnail_url: clip.thumbnail_url,
-                  creator_handle: clip.handle,
-                  label: clip.label,
-                  duration_sec: clip.duration_sec,
-                }))}
-                sceneSampleSize={sceneRow.sample_size}
-                overlayCorpusCount={sceneRow.sample_size}
-              />
-            </div>
-          ) : null}
-
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-[color:var(--gv-rule)] pt-4">
-            <Btn
-              variant="ghost"
-              size="sm"
-              type="button"
-              className="min-h-[44px] gap-1"
-              disabled={safeIdx <= 0}
-              onClick={() => setIdx((v) => Math.max(0, v - 1))}
-            >
-              <ChevronLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
-              Cảnh trước
-            </Btn>
-            <div className="flex gap-1">
-              {shots.map((_, i) => (
-                <button
-                  // eslint-disable-next-line react/no-array-index-key -- fixed 6 shots
-                  key={i}
-                  type="button"
-                  aria-label={`Cảnh ${i + 1}`}
-                  aria-current={i === safeIdx ? "step" : undefined}
-                  className={
-                    "h-2 w-2 rounded-full " +
-                    (i === safeIdx
-                      ? "bg-[color:var(--gv-ink)]"
-                      : "bg-[color:var(--gv-rule)]")
-                  }
-                  onClick={() => setIdx(i)}
-                />
-              ))}
-            </div>
-            <Btn
-              variant="ghost"
-              size="sm"
-              type="button"
-              className="min-h-[44px] gap-1"
-              disabled={safeIdx >= shots.length - 1}
-              onClick={() => setIdx((v) => Math.min(shots.length - 1, v + 1))}
-            >
-              Cảnh tiếp
-              <ChevronRight className="h-4 w-4" strokeWidth={2} aria-hidden />
-            </Btn>
+          <div className="mt-6 border-t border-[color:var(--gv-rule)] pt-4">
+            <ScriptShotNavigator
+              index={safeIdx}
+              total={shots.length}
+              onPrev={goPrev}
+              onNext={goNext}
+            />
           </div>
         </section>
       ) : null}

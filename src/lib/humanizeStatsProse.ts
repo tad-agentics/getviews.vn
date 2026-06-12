@@ -1,5 +1,7 @@
 /** Replace stats jargon (median, p75, …) in diagnosis prose for creator-facing copy. */
 
+import { formatViews } from "@/lib/formatters";
+
 const CHANNEL_MEDIAN = "mức view thường trên kênh";
 const NICHE_MEDIAN = "mức view thường trong ngách";
 const GENERIC_MEDIAN = "mức view thường";
@@ -31,6 +33,11 @@ export function humanizeStatsProse(text: string): string {
   for (const [pattern, replacement] of REPLACEMENTS) {
     out = out.replace(pattern, replacement);
   }
+  out = out.replace(/(\d[\d.,]+)\s*view\b/gi, (_, raw: string) => {
+    const n = Number(String(raw).replace(/[.,]/g, ""));
+    if (!Number.isFinite(n) || n <= 0) return `${raw} view`;
+    return `${formatViews(n)} view`;
+  });
   return out;
 }
 
