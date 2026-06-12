@@ -156,6 +156,58 @@ def test_mukbang_genuine_phrases_still_match() -> None:
     ) != "mukbang"
 
 
+# ── Phase 1 FP audit (2026-06-13): recipe / tutorial / haul ──────────
+
+
+def test_recipe_hap_substring_in_thap_is_not_recipe() -> None:
+    """Bare ``hấp`` used to match inside ``thấp`` and ``hấp thu``."""
+    skincare = _analysis(
+        "Độ che phủ thấp xuống, hấp thu kém so với bản pro",
+        topics=["skincare", "cushion"],
+    )
+    assert classify_format(skincare, legacy_niche_id=2) != "recipe"
+    finance = _analysis("Lãi suất thấp hơn ngân hàng cạnh tranh", topics=["finance"])
+    assert classify_format(finance, legacy_niche_id=15) != "recipe"
+
+
+def test_recipe_genuine_cooking_verbs_still_match() -> None:
+    assert classify_format(_analysis("Hôm nay mình hấp cá thơm lắm"), 4) == "recipe"
+    assert classify_format(_analysis("Công thức chiên gà giòn"), 4) == "recipe"
+    assert classify_format(_analysis("Bước 1 nấu nước sôi"), 4) == "recipe"
+
+
+def test_cushion_review_not_mukbang_or_recipe() -> None:
+    """Live row 7647501335624961298 — comparison/review cushion video."""
+    cushion_review = _analysis(
+        "So sánh các dòng cushion của Fwee nên mua dòng nào hơn? Màu mình đang "
+        "dùng là màu 00. Em này có texture mỏng nhẹ, che phủ kém nhất. Hợp với "
+        "da ít khuyết điểm. Vẫn kiệt đến giọt cuối cùng.",
+        topics=["makeup", "cushion", "review", "beauty"],
+    )
+    assert classify_format(cushion_review, legacy_niche_id=2) == "review"
+    assert classify_format(cushion_review, legacy_niche_id=2) != "mukbang"
+    assert classify_format(cushion_review, legacy_niche_id=2) != "recipe"
+
+
+def test_tutorial_bare_cach_filler_is_not_tutorial() -> None:
+    """Bare ``cách`` in temporal filler must not flip to tutorial."""
+    vlogish = _analysis("Cách đây 3 tháng mình mới bắt đầu làm content")
+    assert classify_format(vlogish, legacy_niche_id=11) != "tutorial"
+    assert classify_format(
+        _analysis("Hướng dẫn cách dùng thì hiện tại hoàn thành", topics=["grammar"]),
+        11,
+    ) == "tutorial"
+
+
+def test_haul_bounded_mua_ve_and_long_gap_regression() -> None:
+    assert classify_format(_analysis("Mình mua về nhà thử ngay"), 3) == "haul"
+    long_gap = _analysis(
+        "Mua nhiều đồ trên Shopee tuần trước, hôm nay mới về quê mới nhận được",
+    )
+    assert classify_format(long_gap, legacy_niche_id=3) != "haul"
+    assert classify_format(_analysis("Đặt hàng gửi về cho mẹ"), 3) == "haul"
+
+
 def test_falls_through_to_other_for_no_markers() -> None:
     """News clips with no regex markers should still fall through."""
     analysis = _analysis(

@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-06-13 — Phase 1 `content_format` FP audit (recipe / tutorial / haul regex)
+
+- **Lý do:** Audit corpus 9.322 row (2026-06-13) — sau backfill mukbang, ~354 row rơi vào `recipe` vì bare `hấp` khớp substring trong `thấp` / `hấp thu`; ~45% bucket `tutorial` từ bare `cách`; ~58% bucket `haul` từ greedy `mua.*về` / `đặt.*gửi`.
+- **BE (`corpus_ingest.py`):** Recipe — neo `\bnấu\b` / `\bchiên\b` / …; chỉ cho `hấp` trong cụm nấu (`hấp cá`, `hấp gà`, …). Tutorial — bỏ bare `cách`, giữ `cách làm` / `cách để` + `hướng dẫn` / `mẹo` / `bước`. Haul — `\bmua\b.{0,15}\bvề\b` và `\bđặt\b.{0,15}\bgửi\b`.
+- **Golden + tests:** +10 item `content_format_golden.json`; regression `test_classify_format.py` (cushion review, thấp/hấp thu, haul gap). pytest 65 + ruff xanh.
+- **Backfill (batch):** `POST /batch/reclassify-format` lần lượt `recipe` → `tutorial` → `haul`, sau đó `post-processing`.
+
 ## 2026-06-13 — Fix mukbang false-positive (greedy `ăn.*cùng`) + bucket re-audit
 
 - **Lý do:** Video review cushion (`7647501335624961298`, niche làm đẹp) bị gắn `content_format="mukbang"`. Regex `classify_format` cũ `ăn.*cùng|mời.*ăn` tham lam + không neo biên từ — khớp bigram "ăn" trong từ khác (lăn/chăn…) nhảy xuyên transcript tới "cuối **cùng**". Quy mô: 1428 row mukbang, 984 ngoài niche ẩm thực.

@@ -945,12 +945,24 @@ def classify_format(analysis_json: dict[str, Any], legacy_niche_id: int) -> str:
     # "review" vocabulary inside gaming commentary.
     if legacy_niche_id == 17 or gameplay_topic_re.search(combined):
         return "gameplay"
+    # 2026-06-13 FP audit: bare ``hấp`` matched the substring inside
+    # ``thấp`` (low) and ``hấp thu`` (absorb) — ~320 skincare/finance
+    # rows mis-tagged recipe. Anchor cooking verbs; only allow steaming
+    # ``hấp`` in explicit dish phrases (hấp cá, hấp gà, …).
     if has_speech and re.search(
-        r"công thức|recipe|nấu|cách làm|nguyên liệu|ướp|xào|chiên|nướng|hấp",
+        r"công thức|\brecipe\b|\bcách làm\b|nguyên liệu|"
+        r"\bnấu\b|\bướp\b|\bxào\b|\bchiên\b|\bnướng\b|"
+        r"\bhấp cá\b|\bhấp gà\b|\bhấp tôm\b|\bhấp bí\b|\bhấp rau\b|\bhấp xôi\b|"
+        r"\bhấp luôn\b|\bhấp chín\b",
         combined,
     ):
         return "recipe"
-    if re.search(r"haul|đập hộp|unbox|mở hộp|mua.*về|đặt.*gửi", combined):
+    # 2026-06-13 FP audit: greedy ``mua.*về`` / ``đặt.*gửi`` spanned
+    # unrelated words between mua and về. Bound the gap (≤15 chars).
+    if re.search(
+        r"haul|đập hộp|unbox|mở hộp|\bmua\b.{0,15}\bvề\b|\bđặt\b.{0,15}\bgửi\b",
+        combined,
+    ):
         return "haul"
     if re.search(
         r"review|chấm điểm|đánh giá|dùng thử|trải nghiệm|"
@@ -958,8 +970,11 @@ def classify_format(analysis_json: dict[str, Any], legacy_niche_id: int) -> str:
         combined,
     ):
         return "review"
+    # 2026-06-13 FP audit: bare ``cách`` (~45% of tutorial bucket) matched
+    # conversational filler (``cách đây``, ``cách ly``). Require how-to
+    # phrases ``cách làm`` / ``cách để`` instead of the bare token.
     if has_speech and re.search(
-        r"cách|hướng dẫn|tutorial|mẹo|bước|step|tips|"
+        r"cách làm|cách để|hướng dẫn|tutorial|mẹo|bước|step|tips|"
         r"xác minh|đăng ký|thủ tục|quyết toán|bí quyết",
         combined,
     ):

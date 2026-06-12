@@ -2,7 +2,7 @@
   "_metadata": {
     "name": "content_format_v1",
     "created": "2026-05-09",
-    "last_expanded": "2026-05-13",
+    "last_expanded": "2026-06-13",
     "purpose": "Hand-curated golden set for classify_format regression testing. Expanded 2026-05-13 (Wave 5+) 27→48 items: per-bucket coverage grew ~2× on the under-represented buckets (haul, faceless, before_after, storytelling, outfit_transition, review, tutorial, recipe). Expansion deliberately chose items the classifier already routes correctly; a separate diagnostic batch lands the known-miss rows that expose current classifier gaps.",
     "labeling_rubric": [
       "Gold labels were assigned by reading the transcript + topics; do not trust the live DB's content_format value — it has known noise (crime news tagged mukbang, cat videos tagged recipe, etc.).",
@@ -818,6 +818,126 @@
         "tone": "entertaining"
       },
       "notes": "Wave 5+ highlight (synthetic) — Aspirational lifestyle/celebrity reaction. Niche=6 + entertaining tone + English music-only marker. Tests English-transcript music-only path."
+    },
+    {
+      "video_id": "gold-fp-cushion-review-001",
+      "niche_id": 2,
+      "gold_label": "review",
+      "analysis_json": {
+        "audio_transcript": "So sánh các dòng cushion của Fwee nên mua dòng nào hơn? Em này che phủ kém nhất, hợp da ít khuyết điểm. Vẫn kiệt đến giọt cuối cùng.",
+        "topics": ["makeup", "cushion", "review", "beauty"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}],
+        "tone": "conversational"
+      },
+      "notes": "2026-06-13 FP audit — live row 7647501335624961298 shape. Must NOT be mukbang (ăn…cùng) or recipe (hấp inside thấp/hấp thu)."
+    },
+    {
+      "video_id": "gold-fp-skincare-thap-001",
+      "niche_id": 2,
+      "gold_label": "other",
+      "analysis_json": {
+        "audio_transcript": "Độ che phủ thấp xuống, hấp thu kém so với bản pro",
+        "topics": ["skincare", "cushion"],
+        "scenes": [{"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "2026-06-13 FP audit — old bare ``hấp`` regex mis-tagged recipe. No review/comparison markers → other."
+    },
+    {
+      "video_id": "gold-fp-finance-thap-001",
+      "niche_id": 15,
+      "gold_label": "other",
+      "analysis_json": {
+        "audio_transcript": "Lãi suất thấp hơn ngân hàng cạnh tranh trong năm nay",
+        "topics": ["finance", "interest rates"],
+        "scenes": [{"type": "face_to_camera"}],
+        "tone": "authoritative"
+      },
+      "notes": "2026-06-13 FP audit — ``thấp`` must not trigger recipe via ``hấp`` substring."
+    },
+    {
+      "video_id": "gold-fp-recipe-hap-ca-001",
+      "niche_id": 4,
+      "gold_label": "recipe",
+      "analysis_json": {
+        "audio_transcript": "Hôm nay mình hấp cá thơm lắm, nguyên liệu chỉ cần gừng và hành",
+        "topics": ["ẩm thực", "hấp cá"],
+        "scenes": [{"type": "action"}, {"type": "action"}],
+        "tone": "conversational"
+      },
+      "notes": "2026-06-13 FP audit — positive ``hấp cá`` steaming phrase must still route recipe."
+    },
+    {
+      "video_id": "gold-fp-tutorial-cach-day-001",
+      "niche_id": 11,
+      "gold_label": "other",
+      "analysis_json": {
+        "audio_transcript": "Cách đây 3 tháng mình mới bắt đầu làm content TikTok",
+        "topics": ["creator journey"],
+        "scenes": [{"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "2026-06-13 FP audit — bare ``cách`` temporal filler must NOT become tutorial."
+    },
+    {
+      "video_id": "gold-fp-tutorial-huong-dan-001",
+      "niche_id": 11,
+      "gold_label": "tutorial",
+      "analysis_json": {
+        "audio_transcript": "Hướng dẫn các bước chỉnh phụ đề TikTok cho video tiếng Việt",
+        "topics": ["content tips"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}],
+        "tone": "educational"
+      },
+      "notes": "2026-06-13 FP audit — ``hướng dẫn`` + ``bước`` still tutorial; ``cách làm`` alone routes recipe (higher priority)."
+    },
+    {
+      "video_id": "gold-fp-haul-mua-ve-001",
+      "niche_id": 3,
+      "gold_label": "haul",
+      "analysis_json": {
+        "audio_transcript": "Mình mua về nhà thử ngay, đồ Shopee đặt tuần trước",
+        "topics": ["shopping", "haul"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}],
+        "tone": "entertaining"
+      },
+      "notes": "2026-06-13 FP audit — bounded ``mua…về`` (≤15 chars) genuine haul."
+    },
+    {
+      "video_id": "gold-fp-haul-long-gap-001",
+      "niche_id": 3,
+      "gold_label": "other",
+      "analysis_json": {
+        "audio_transcript": "Mua nhiều đồ trên Shopee tuần trước, hôm nay mới về quê mới nhận được",
+        "topics": ["daily life"],
+        "scenes": [{"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "2026-06-13 FP audit — greedy ``mua.*về`` false positive; gap too long for haul regex → other."
+    },
+    {
+      "video_id": "gold-fp-haul-dat-gui-001",
+      "niche_id": 3,
+      "gold_label": "haul",
+      "analysis_json": {
+        "audio_transcript": "Đặt hàng online gửi về cho mẹ thử",
+        "topics": ["shopping"],
+        "scenes": [{"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "2026-06-13 FP audit — bounded ``đặt…gửi`` within 15 chars."
+    },
+    {
+      "video_id": "gold-fp-mukbang-an-cung-001",
+      "niche_id": 4,
+      "gold_label": "mukbang",
+      "analysis_json": {
+        "audio_transcript": "Hôm nay mình ăn cùng mọi người nhé, mời cả nhà",
+        "topics": ["mukbang", "food"],
+        "scenes": [{"type": "action"}],
+        "tone": "entertaining"
+      },
+      "notes": "2026-06-13 FP audit — genuine ``ăn cùng`` after mukbang regex tighten."
     }
   ]
 }
