@@ -9,6 +9,10 @@ export function CreatorComparisonCard({
   data: CreatorComparison;
   introProse?: string;
 }) {
+  // Runtime payloads can miss hit/flop (thin channel sample) even though the
+  // type marks them required — a heading + boilerplate with no comparison
+  // cells is worse than nothing (live audit 2026-06-12).
+  if (!data?.hit || !data?.flop) return null;
   const intro = introProse?.trim();
   return (
     <div className="mb-6" aria-label="So sánh trong kênh">

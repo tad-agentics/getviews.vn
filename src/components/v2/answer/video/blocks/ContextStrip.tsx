@@ -1,5 +1,5 @@
 import type { VideoAnalyzeMeta, VideoEnrichment } from "@/lib/api-types";
-import { videoToneVi } from "@/lib/constants/enum-labels-vi";
+import { styleTagVi, videoToneVi } from "@/lib/constants/enum-labels-vi";
 import { formatViews } from "@/lib/formatters";
 
 const PROMOTION_LABEL_VI: Record<NonNullable<VideoEnrichment["promotion_type"]>, string> = {
@@ -109,12 +109,15 @@ export function ContextStrip({
                   {PROMOTION_LABEL_VI[promotion]}
                 </span>
               ) : null}
+              {/* Live audit 2026-06-12: raw enums (product_showcase, lifestyle_b_roll,
+                  text_overlay_heavy) leaked into the chips — map to Vietnamese,
+                  humanize unmapped codes. */}
               {styleTags.slice(0, 5).map((tag) => (
                 <span
                   key={tag}
                   className="rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-2 py-0.5 text-[11px] text-[color:var(--gv-ink-2)]"
                 >
-                  {tag}
+                  {styleTagVi(tag)}
                 </span>
               ))}
             </div>

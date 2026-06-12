@@ -6,9 +6,32 @@
  * Bullet blocks render as <ul>/<li>; prose blocks render as <p>.
  */
 
+import type { ReactNode } from "react";
+
 import { humanizeStatsProse } from "@/lib/humanizeStatsProse";
 
 const BULLET_RE = /^[•\-*]\s+|^\d+[.)]\s+/;
+
+/**
+ * Render inline ``**bold**`` markdown as <strong> — Gemini emits emphasis
+ * tokens inside section prose (next_video script bullets, verdict support
+ * sentences) and the live audit (2026-06-12) caught literal ``**...**``
+ * on the report. Unmatched ``**`` stays literal.
+ */
+export function renderInlineBold(text: string): ReactNode {
+  if (!text.includes("**")) return text;
+  const parts = text.split(/\*\*([^*]+)\*\*/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <strong key={i} className="font-semibold">
+        {part}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+}
 
 type Block =
   | { type: "paragraph"; text: string }
@@ -95,7 +118,7 @@ export function SectionProseBlocks({
                     className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--gv-accent)]"
                     aria-hidden
                   />
-                  {item}
+                  <span>{renderInlineBold(item)}</span>
                 </li>
               ))}
             </ul>
@@ -103,7 +126,7 @@ export function SectionProseBlocks({
         }
         return (
           <p key={i} className={paragraphClassName}>
-            {block.text}
+            {renderInlineBold(block.text)}
           </p>
         );
       })}

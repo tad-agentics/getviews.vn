@@ -123,6 +123,32 @@ CONVERSION_OBJECTIVE_VI: dict[str, str] = {
 }
 
 
+# Enrichment ``style_tags`` — production-style chips ("KIỂU SẢN XUẤT").
+# Open vocabulary from Gemini; mirrors src/lib/constants/enum-labels-vi.ts
+# STYLE_TAG_VI (live audit 2026-06-12: product_showcase / lifestyle_b_roll /
+# text_overlay_heavy rendered raw on the report).
+STYLE_TAG_VI: dict[str, str] = {
+    "product_showcase": "Trưng bày sản phẩm",
+    "lifestyle_b_roll": "B-roll đời thường",
+    "text_overlay_heavy": "Nhiều chữ trên màn hình",
+    "talking_head": "Nói trước camera",
+    "voiceover": "Lồng tiếng",
+    "voiceover_b_roll": "Lồng tiếng + B-roll",
+    "asmr": "ASMR",
+    "unboxing": "Đập hộp",
+    "before_after": "Trước — sau",
+    "tutorial": "Hướng dẫn từng bước",
+    "pov": "POV",
+    "street_interview": "Phỏng vấn đường phố",
+    "skit": "Tiểu phẩm",
+    "vlog": "Vlog",
+    "green_screen": "Phông xanh",
+    "fast_cuts": "Cắt cảnh nhanh",
+    "cinematic": "Quay điện ảnh",
+    "screen_recording": "Quay màn hình",
+}
+
+
 # Text overlay style — surfaces in script editor + Chế độ quay.
 OVERLAY_STYLE_VI: dict[str, str] = {
     "TEXT_TITLE": "Tiêu đề lớn",
@@ -184,3 +210,9 @@ def carousel_subformat_vi(value: str | None, *, default: str | None = None) -> s
 
 def conversion_objective_vi(value: str | None, *, default: str | None = None) -> str:
     return _lookup(CONVERSION_OBJECTIVE_VI, value, default)
+
+
+def style_tag_vi(value: str | None, *, default: str | None = None) -> str:
+    """Mapped Vietnamese, else humanized (underscores → spaces) — never the raw enum."""
+    humanized = " ".join(str(value or "").replace("_", " ").replace("-", " ").split())
+    return _lookup(STYLE_TAG_VI, value, default if default is not None else humanized)

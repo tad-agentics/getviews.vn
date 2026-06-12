@@ -35,6 +35,32 @@ function atHandle(raw: string | null | undefined): string {
   return s.startsWith("@") ? s : `@${s}`;
 }
 
+/**
+ * True when {@link ChannelProofBlock} will actually render cells —
+ * mirrors its render conditions so callers can hide their section
+ * heading/intro instead of showing boilerplate over an empty block
+ * (live audit 2026-06-12: "Video này so với kênh bạn" rendered only its
+ * explainer paragraph).
+ */
+export function channelProofBlockHasData(
+  channelContext: ChannelContext | null | undefined,
+): boolean {
+  if (!channelContext?.available) return false;
+  const pf = channelContext.per_format_views as Record<string, unknown> | null | undefined;
+  return Boolean(pf) && Object.keys(pf as Record<string, unknown>).length >= 2;
+}
+
+/** Legacy (v4) twin of {@link channelProofBlockHasData} — needs at least one comparison video. */
+export function channelContextLegacyHasData(
+  channelContext: ChannelContext | null | undefined,
+): boolean {
+  if (!channelContext?.available) return false;
+  return (
+    (channelContext.top_videos?.length ?? 0) > 0 ||
+    (channelContext.bottom_videos?.length ?? 0) > 0
+  );
+}
+
 /** Single data cell — shows a format label + view range */
 function FormatRangeCell({
   formatKey,

@@ -16,7 +16,9 @@ import {
   buildDiagnosisReferenceTiles,
   stripSectionProseForEmbeddedRefs,
 } from "@/lib/diagnosisReferenceTiles";
+import { fixChipMeta } from "@/lib/findingFixChip";
 import { splitVerdictProse } from "@/lib/humanizeStatsProse";
+import { sortScriptBulletsByTimestamp } from "@/lib/nextVideoScript";
 import { CreatorComparisonEmbed } from "@/components/diagnosis/CreatorComparisonEmbed";
 import {
   ChannelContextLegacy,
@@ -99,12 +101,32 @@ function SectionFindingCard({
           </p>
         ) : null}
         {fix_vi ? (
-          <span className="mt-2 inline-flex max-w-full rounded-full border border-[color:var(--gv-accent)]/30 bg-[color:var(--gv-accent)]/8 px-3 py-1.5 text-[13px] leading-snug text-[color:var(--gv-ink)]">
-            <span className="gv-mono mr-1.5 shrink-0 font-semibold text-[color:var(--gv-accent)]">
-              Sửa
-            </span>
-            <span>{fix_vi}</span>
-          </span>
+          // Keep-advice ("Tiếp tục…", "Giữ…", "Nhân bản…", "Duy trì…") gets a
+          // positive "Giữ" chip — "Sửa: Tiếp tục sử dụng…" was a live bug
+          // (2026-06-12 audit).
+          (() => {
+            const chip = fixChipMeta(fix_vi);
+            return (
+              <span
+                className={`mt-2 inline-flex max-w-full rounded-full border px-3 py-1.5 text-[13px] leading-snug text-[color:var(--gv-ink)] ${
+                  chip.positive
+                    ? "border-[color:var(--gv-pos)]/30 bg-[color:var(--gv-pos)]/8"
+                    : "border-[color:var(--gv-accent)]/30 bg-[color:var(--gv-accent)]/8"
+                }`}
+              >
+                <span
+                  className={`gv-mono mr-1.5 shrink-0 font-semibold ${
+                    chip.positive
+                      ? "text-[color:var(--gv-pos)]"
+                      : "text-[color:var(--gv-accent)]"
+                  }`}
+                >
+                  {chip.label}
+                </span>
+                <span>{fix_vi}</span>
+              </span>
+            );
+          })()
         ) : null}
       </div>
     </div>
@@ -189,12 +211,15 @@ export function DiagnosisSectionRenderer({
         : null;
     const concept = looseNextVideoConcept(nvRaw);
     const hasShotScript = text.includes("•") || /Hook\s*\(/i.test(text);
+    // Belt-and-braces: the prompt demands chronological bullets, but a
+    // shuffled script still renders in order when lines carry "(Ns-Ms)".
+    const orderedText = text ? sortScriptBulletsByTimestamp(text) : text;
     return (
       <div className="mb-6">
         <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">{title}</h3>
         {text ? (
           <SectionProseBlocks
-            text={text}
+            text={orderedText}
             wrapperClassName="mt-3 space-y-1 font-mono text-[15px]"
             paragraphClassName="whitespace-pre-wrap leading-relaxed text-[color:var(--foreground)]"
           />

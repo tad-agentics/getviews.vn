@@ -58,6 +58,36 @@ export const HOOK_TIMELINE_EVENT_VI: Record<string, string> = {
   reveal: "Khoảnh khắc chốt hạ",
 };
 
+/**
+ * ``VideoEnrichment.style_tags`` — production-style chips in "KIỂU SẢN
+ * XUẤT" (ContextStrip). Open vocabulary from Gemini enrichment, so this
+ * map covers the recurring codes (live audit 2026-06-12 caught
+ * ``product_showcase`` / ``lifestyle_b_roll`` / ``text_overlay_heavy``
+ * rendering raw); anything unmapped falls back to humanized text
+ * (underscores → spaces) via {@link styleTagVi} — never the raw enum.
+ * Mirrors ``enum_labels_vi.STYLE_TAG_VI``.
+ */
+export const STYLE_TAG_VI: Record<string, string> = {
+  product_showcase: "Trưng bày sản phẩm",
+  lifestyle_b_roll: "B-roll đời thường",
+  text_overlay_heavy: "Nhiều chữ trên màn hình",
+  talking_head: "Nói trước camera",
+  voiceover: "Lồng tiếng",
+  voiceover_b_roll: "Lồng tiếng + B-roll",
+  asmr: "ASMR",
+  unboxing: "Đập hộp",
+  before_after: "Trước — sau",
+  tutorial: "Hướng dẫn từng bước",
+  pov: "POV",
+  street_interview: "Phỏng vấn đường phố",
+  skit: "Tiểu phẩm",
+  vlog: "Vlog",
+  green_screen: "Phông xanh",
+  fast_cuts: "Cắt cảnh nhanh",
+  cinematic: "Quay điện ảnh",
+  screen_recording: "Quay màn hình",
+};
+
 /** ``VideoAnalysis.tone`` — mirrors ``enum_labels_vi.VIDEO_TONE_VI``. */
 export const VIDEO_TONE_VI: Record<string, string> = {
   educational: "Giáo dục",
@@ -101,3 +131,15 @@ export const hookTimelineEventVi = (v: string | null | undefined, fallback?: str
 
 export const videoToneVi = (v: string | null | undefined, fallback?: string) =>
   lookup(VIDEO_TONE_VI, v, fallback);
+
+/** ``product_showcase`` → ``product showcase`` — readable fallback for open-vocabulary enums. */
+export function humanizeEnumCode(v: string | null | undefined): string {
+  return String(v ?? "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Style-tag chip label — mapped Vietnamese, else humanized (never the raw enum). */
+export const styleTagVi = (v: string | null | undefined) =>
+  lookup(STYLE_TAG_VI, v, humanizeEnumCode(v));

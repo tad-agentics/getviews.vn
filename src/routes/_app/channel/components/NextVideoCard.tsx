@@ -18,6 +18,15 @@ interface NextVideoCardProps {
 
 export function NextVideoCard({ concept, streaming = false }: NextVideoCardProps) {
   const href = concept.sample_video_url?.startsWith("http") ? concept.sample_video_url : undefined;
+  // channel_share_pct is 0 when the concept came without channel data (the
+  // answer-session v6 path fabricates the field) — "gap 0% format trên kênh"
+  // is a broken claim, hide the clause (live audit 2026-06-12).
+  const gapPct =
+    typeof concept.channel_share_pct === "number" &&
+    Number.isFinite(concept.channel_share_pct) &&
+    concept.channel_share_pct > 0
+      ? concept.channel_share_pct
+      : null;
 
   return (
     <div className="mt-3 overflow-hidden rounded-xl border border-[color:var(--gv-accent)]/35 bg-[color-mix(in_srgb,var(--gv-accent)_8%,var(--gv-paper))]">
@@ -50,8 +59,13 @@ export function NextVideoCard({ concept, streaming = false }: NextVideoCardProps
             Gợi ý video tiếp theo
           </p>
           <p className="mt-1 text-sm font-semibold text-[color:var(--gv-ink)]">
-            {concept.format_label} · ~{concept.duration_sec}s · gap{" "}
-            <span className="gv-mono">{concept.channel_share_pct}%</span> format trên kênh
+            {concept.format_label} · ~{concept.duration_sec}s
+            {gapPct !== null ? (
+              <>
+                {" "}
+                · gap <span className="gv-mono">{gapPct}%</span> format trên kênh
+              </>
+            ) : null}
           </p>
           <p className="mt-2 text-xs leading-relaxed text-[color:var(--gv-ink-3)]">
             {concept.rationale_struct}

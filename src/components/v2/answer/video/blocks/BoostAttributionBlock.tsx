@@ -3,6 +3,7 @@ import {
   boostAttributionLabel,
   shouldShowBoostAttributionBlock,
 } from "@/lib/boostAttributionLabels";
+import { fixChipMeta } from "@/lib/findingFixChip";
 
 export function BoostAttributionBlock({
   attribution,
@@ -69,7 +70,15 @@ export function BoostAttributionBlock({
               ) : null}
               {f.fix_vi ? (
                 <p className="mt-1 text-[color:var(--gv-ink-3)]">
-                  <span className="gv-mono font-semibold text-[color:var(--gv-accent)]">Sửa: </span>
+                  <span
+                    className={`gv-mono font-semibold ${
+                      fixChipMeta(f.fix_vi).positive
+                        ? "text-[color:var(--gv-pos)]"
+                        : "text-[color:var(--gv-accent)]"
+                    }`}
+                  >
+                    {fixChipMeta(f.fix_vi).label}:{" "}
+                  </span>
                   {f.fix_vi}
                 </p>
               ) : null}

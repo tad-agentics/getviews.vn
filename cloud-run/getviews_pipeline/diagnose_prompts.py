@@ -77,6 +77,8 @@ CHANNEL_PATTERN (Ref-style: kênh tự chứng minh):
 NEXT_VIDEO (script copy-paste được, KHÔNG concept trừu tượng):
 - next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" }; findings: [].
 - text của section = script theo cảnh, mỗi dòng 1 bullet •: "• Hook (0-1s): [câu copy-paste]" → "• Beat 2: ..." → "• Beat 3: ..." → "• CTA: ...". Creator phải quay được ngay mà không cần nghĩ thêm.
+- Bullets PHẢI theo thứ tự thời gian: Hook → Beat 1 → Beat 2 → CTA cuối cùng — mốc giây tăng dần, KHÔNG đảo Beat/CTA lên trước Hook.
+- KHÔNG dán video_id/aweme_id thô (chuỗi 15-19 chữ số) vào prose hay reason_vi — nhắc video tham chiếu bằng format + view («video talking_head 1.2M view», kèm @handle nếu có).
 - GIỮ / ĐỔI (chống lặp + chống đập đi xây lại): reason_vi nêu 1 điều GIỮ từ video đang phân tích (có bằng chứng chạy được) và 1 điều ĐỔI then chốt — nối đúng tên archetype đã đặt ở diagnosis.
 - Beat script bám NHỊP của đúng 1 video trong REFERENCE_EVIDENCE (reason_vi nói rõ học nhịp video nào, vì sao) — học cấu trúc đã thắng, không sáng tác từ con số 0.
 

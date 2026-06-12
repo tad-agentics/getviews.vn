@@ -46,7 +46,10 @@ import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/Perform
 import {
   ChannelProofBlock,
   ChannelContextLegacy,
+  channelProofBlockHasData,
+  channelContextLegacyHasData,
 } from "@/components/v2/answer/video/blocks/ChannelProofBlock";
+import { reconcileViewKpiWithTierRatio } from "@/lib/videoKpis";
 import { isV5Report } from "@/lib/v5-compat";
 import {
   effectiveVideoReportMode,
@@ -554,7 +557,10 @@ export function VideoBody({
           </section>
         ) : null}
 
-        <KpiGrid kpis={report.kpis} />
+        {/* One source of truth for the view ratio: tier_ratio (the chip's
+            number) overrides the KPI's own niche computation when present
+            — chip "0.7× TB FORMAT" vs KPI "0.6× ngách" was a live bug. */}
+        <KpiGrid kpis={reconcileViewKpiWithTierRatio(report.kpis, tierRatio)} />
 
         {isFlop ? (
           <FlopDiagnosisStrip
@@ -649,10 +655,16 @@ export function VideoBody({
 
         {/* Standalone channel block: shown when channel data is available but
             channel_pattern didn't emit as a v6 section (sample_size < 2).
-            Add a brief intro so the cards aren't orphaned without context. */}
+            Add a brief intro so the cards aren't orphaned without context.
+            Hidden entirely when the proof block itself would render nothing —
+            a heading + boilerplate explainer with no comparison data was a
+            live bug (2026-06-12 audit). */}
         {channelEffective?.available &&
         !hasChannelPattern &&
-        !report.creator_comparison ? (
+        !report.creator_comparison &&
+        (isV5
+          ? channelProofBlockHasData(channelEffective)
+          : channelContextLegacyHasData(channelEffective)) ? (
           <div className="mb-6">
             <h3 className="mb-2 text-base font-bold leading-snug text-[color:var(--foreground)]">
               Video này so với kênh bạn

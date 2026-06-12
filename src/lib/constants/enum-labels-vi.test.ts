@@ -10,8 +10,10 @@ import { describe, expect, it } from "vitest";
 import {
   firstFrameVi,
   hookTimelineEventVi,
+  humanizeEnumCode,
   overlayStyleVi,
   sceneTypeVi,
+  styleTagVi,
   videoToneVi,
 } from "./enum-labels-vi";
 
@@ -73,5 +75,35 @@ describe("hookTimelineEventVi", () => {
 describe("videoToneVi", () => {
   it("translates educational", () => {
     expect(videoToneVi("educational")).toBe("Giáo dục");
+  });
+});
+
+describe("styleTagVi", () => {
+  // The exact raw enums the 2026-06-12 live audit caught in "KIỂU SẢN XUẤT".
+  it.each([
+    ["product_showcase", "Trưng bày sản phẩm"],
+    ["lifestyle_b_roll", "B-roll đời thường"],
+    ["text_overlay_heavy", "Nhiều chữ trên màn hình"],
+    ["talking_head", "Nói trước camera"],
+    ["fast_cuts", "Cắt cảnh nhanh"],
+  ])("translates %s → %s", (raw, vi) => {
+    expect(styleTagVi(raw)).toBe(vi);
+  });
+
+  it("falls back to humanized text (underscores → spaces) for unmapped codes", () => {
+    expect(styleTagVi("dramatic_zoom_ins")).toBe("dramatic zoom ins");
+    expect(styleTagVi("studio-lighting")).toBe("studio lighting");
+  });
+
+  it("returns empty string for null/undefined", () => {
+    expect(styleTagVi(null)).toBe("");
+    expect(styleTagVi(undefined)).toBe("");
+  });
+});
+
+describe("humanizeEnumCode", () => {
+  it("replaces underscores/hyphens with single spaces", () => {
+    expect(humanizeEnumCode("text_overlay__heavy")).toBe("text overlay heavy");
+    expect(humanizeEnumCode(null)).toBe("");
   });
 });

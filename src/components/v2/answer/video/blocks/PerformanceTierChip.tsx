@@ -11,12 +11,9 @@
  * BE values come from classify_performance_tier_corpus + refine_performance_tier.
  */
 
-const MIN_BENCHMARK_N = 10;
+import { formatTierRatio as formatRatio } from "@/lib/videoKpis";
 
-function formatRatio(ratio: number): string {
-  if (ratio >= 10) return `${Math.round(ratio)}×`;
-  return `${ratio.toFixed(1)}×`;
-}
+const MIN_BENCHMARK_N = 10;
 
 export function PerformanceTierChip({
   tier,

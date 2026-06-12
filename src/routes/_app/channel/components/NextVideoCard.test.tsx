@@ -55,4 +55,25 @@ describe("NextVideoCard", () => {
     );
     expect(screen.queryByText(/Peer TB/)).toBeNull();
   });
+
+  it("shows the gap clause when channel_share_pct is real", () => {
+    render(<NextVideoCard concept={makeConcept()} />);
+    expect(screen.getByText(/gap/)).toBeTruthy();
+    expect(screen.getByText("3%")).toBeTruthy();
+  });
+
+  it("hides the gap clause when channel_share_pct is 0 (v6 answer-session path)", () => {
+    render(<NextVideoCard concept={makeConcept({ channel_share_pct: 0 })} />);
+    expect(screen.queryByText(/gap/)).toBeNull();
+    expect(screen.queryByText(/format trên kênh/)).toBeNull();
+  });
+
+  it("hides the gap clause when channel_share_pct is null at runtime", () => {
+    render(
+      <NextVideoCard
+        concept={makeConcept({ channel_share_pct: null as unknown as number })}
+      />,
+    );
+    expect(screen.queryByText(/gap/)).toBeNull();
+  });
 });

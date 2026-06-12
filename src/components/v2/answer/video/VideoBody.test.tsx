@@ -41,7 +41,10 @@ vi.mock("@/components/v2/HookPhaseCard", () => ({
   HookPhaseGrid: () => <div data-testid="hook-phase-grid" />,
 }));
 vi.mock("@/components/v2/KpiGrid", () => ({
-  KpiGrid: () => <div data-testid="kpi-grid" />,
+  // Render deltas so tests can assert the tier_ratio ↔ KPI reconciliation.
+  KpiGrid: ({ kpis }: { kpis: { label: string; delta: string }[] }) => (
+    <div data-testid="kpi-grid">{kpis.map((k) => `${k.label}:${k.delta}`).join("|")}</div>
+  ),
 }));
 vi.mock("@/components/ui/collapsible", () => ({
   Collapsible: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -563,7 +566,13 @@ describe("VideoBody render", () => {
     expect(screen.getByText("phụ nữ 25–34 vùng đô thị")).toBeTruthy();
     expect(screen.getByText("da dầu mụn ẩn")).toBeTruthy();
     expect(screen.getByText("Đặt hàng nhãn")).toBeTruthy();
-    expect(screen.getByText("talking_head")).toBeTruthy();
+    // Style tags render through the Vietnamese label map — never raw enums
+    // (live audit 2026-06-12).
+    expect(screen.getByText("Nói trước camera")).toBeTruthy();
+    expect(screen.getByText("POV")).toBeTruthy();
+    expect(screen.getByText("Cắt cảnh nhanh")).toBeTruthy();
+    expect(screen.queryByText("talking_head")).toBeNull();
+    expect(screen.queryByText("fast_cuts")).toBeNull();
   });
 
   it("hides promotion chip when promotion_type is organic but still shows style tags", () => {
@@ -579,7 +588,7 @@ describe("VideoBody render", () => {
     );
     // No promotion-type chip — `Tự sản xuất` shouldn't render for organic.
     expect(screen.queryByText("Tự sản xuất")).toBeNull();
-    expect(screen.getByText("talking_head")).toBeTruthy();
+    expect(screen.getByText("Nói trước camera")).toBeTruthy();
   });
 
   it("shows minh chứng fallback when comparison videos have no TikTok URL", () => {
@@ -752,6 +761,106 @@ describe("VideoBody render", () => {
     expect(screen.getByLabelText("Phân loại nguồn lượt xem")).toBeTruthy();
     expect(screen.getByText(/Loại khỏi nhóm tham chiếu tự nhiên/)).toBeTruthy();
     expect(screen.getAllByText("View spike").length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ── tier_ratio ↔ VIEW KPI single source of truth (audit 2026-06-12) ──
+
+  it("overrides the VIEW KPI delta with tier_ratio so chip and KPI agree", () => {
+    renderInRouter(
+      makeFlopReport({
+        performance_tier: "flop",
+        tier_ratio: 0.7,
+        tier_benchmark_n: 40,
+        kpis: [
+          { label: "VIEW", value: "64K", delta: "0.6× ngách" },
+          { label: "SHARE", value: "120", delta: "lan toả" },
+        ],
+      }),
+    );
+    const grid = screen.getByTestId("kpi-grid");
+    expect(grid.textContent).toContain("VIEW:0.7× TB format");
+    expect(grid.textContent).toContain("SHARE:lan toả");
+    // The chip shows the same number.
+    expect(screen.getByText("0.7× TB FORMAT")).toBeTruthy();
+  });
+
+  it("keeps the BE VIEW delta when tier_ratio is absent", () => {
+    renderInRouter(
+      makeFlopReport({
+        kpis: [{ label: "VIEW", value: "64K", delta: "0.6× ngách" }],
+      }),
+    );
+    expect(screen.getByTestId("kpi-grid").textContent).toContain("VIEW:0.6× ngách");
+  });
+
+  // ── "Video này so với kênh bạn" hidden without comparison data ──
+
+  it("hides the standalone channel section when v5 channel context has no per-format data", () => {
+    renderInRouter(
+      makeFlopReport({
+        _schema_version: "v5",
+        channel_context: { available: true, sample_size: 1 },
+      } as Partial<VideoReportPayload>),
+    );
+    expect(screen.queryByText("Video này so với kênh bạn")).toBeNull();
+  });
+
+  it("shows the standalone channel section when v5 per_format_views has ≥2 formats", () => {
+    renderInRouter(
+      makeFlopReport({
+        _schema_version: "v5",
+        channel_context: {
+          available: true,
+          sample_size: 12,
+          median_views: 40_000,
+          per_format_views: {
+            talking_head: {
+              n: 6,
+              avg_views: 80_000,
+              median_views: 70_000,
+              min_views: 20_000,
+              max_views: 150_000,
+            },
+            voiceover: {
+              n: 4,
+              avg_views: 30_000,
+              median_views: 25_000,
+              min_views: 10_000,
+              max_views: 60_000,
+            },
+          },
+        },
+      } as Partial<VideoReportPayload>),
+    );
+    expect(screen.getByText("Video này so với kênh bạn")).toBeTruthy();
+  });
+
+  it("hides the legacy channel section when there are no top/bottom videos", () => {
+    renderInRouter(
+      makeFlopReport({
+        channel_context: { available: true, sample_size: 1, top_videos: [], bottom_videos: [] },
+      }),
+    );
+    expect(screen.queryByText("Video này so với kênh bạn")).toBeNull();
+  });
+
+  it("hides CreatorComparisonCard when the payload misses hit/flop cells", () => {
+    renderInRouter(
+      makeFlopReport({
+        creator_comparison: {
+          creator_handle: "@creatorx",
+          total_posts_analyzed: 2,
+          median_views: 0,
+          target_percentile: "",
+          target_vs_median: 0,
+          delta: 0,
+          hit: null,
+          flop: null,
+        } as unknown as VideoReportPayload["creator_comparison"],
+      }),
+    );
+    expect(screen.queryByText("Video này so với kênh bạn")).toBeNull();
+    expect(screen.queryByText(/So sánh trong kênh/)).toBeNull();
   });
 
   it("renders CarouselIntelStrip when carousel_intel present", () => {
