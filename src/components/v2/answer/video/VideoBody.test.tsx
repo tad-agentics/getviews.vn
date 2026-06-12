@@ -22,6 +22,7 @@ vi.mock("@/lib/env", () => ({
     VITE_SUPABASE_URL: "https://test.supabase.co",
     VITE_SUPABASE_PUBLISHABLE_KEY: "test-key",
     VITE_CLOUD_RUN_API_URL: "https://cloud-run.test",
+    VITE_R2_PUBLIC_URL: "https://r2.test",
   },
 }));
 
@@ -322,13 +323,26 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/Chưa có nhóm đối chiếu/)).toBeTruthy();
   });
 
-  it("renders the TikTok play-button overlay link when creator + video_id present", () => {
-    renderInRouter(makeWinReport());
-    const link = screen.getByLabelText("Mở video trên TikTok") as HTMLAnchorElement;
-    expect(link).toBeTruthy();
-    expect(link.getAttribute("href")).toBe(
-      "https://www.tiktok.com/@creatorx/video/7630766288574369045",
+  it("renders hover preview video when R2 clip is available", () => {
+    const { container } = renderInRouter(makeWinReport());
+    const video = container.querySelector("video");
+    expect(video).toBeTruthy();
+    expect((video as HTMLVideoElement).muted).toBe(true);
+    expect(screen.queryByLabelText("Mở video trên TikTok")).toBeNull();
+  });
+
+  it("renders BREAKOUT badge with white text on accent (no gv-kicker gray)", () => {
+    renderInRouter(
+      makeWinReport({
+        meta: {
+          ...makeWinReport().meta,
+          is_breakout: true,
+        },
+      }),
     );
+    const badge = screen.getByText("BREAKOUT");
+    expect(badge.className).toContain("text-white");
+    expect(badge.className).not.toContain("gv-kicker");
   });
 
   it("renders the win-mode action row (Copy hook + Tạo kịch bản)", () => {

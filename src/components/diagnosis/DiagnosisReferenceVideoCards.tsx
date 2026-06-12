@@ -189,7 +189,7 @@ export function DiagnosisReferenceVideoCards({
   label?: string;
   /** When false, omit the kicker above the grid (parent supplies section chrome). */
   showLabel?: boolean;
-  /** When true, omit outer border/spacing — for nesting inside a bordered parent. */
+  /** Inline in a parent section — no kicker/border chrome; spacing via ``mt-4`` when label hidden. */
   embedded?: boolean;
 }) {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
@@ -209,13 +209,11 @@ export function DiagnosisReferenceVideoCards({
 
   return (
     <div
-      className={
-        embedded ? undefined : "mt-4 border-t border-[color:var(--gv-rule)] pt-4"
-      }
+      className={embedded && showLabel ? undefined : "mt-4"}
       aria-label={showLabel ? undefined : label || "Video tham chiếu"}
     >
       {showLabel && label ? (
-        <p className="mb-3 text-[11px] font-medium gv-kicker tracking-wide text-[color:var(--gv-ink-3)]">
+        <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-3)]">
           {label}
         </p>
       ) : null}

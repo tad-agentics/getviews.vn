@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-06-12 — Video answer UX (sticky thumb + inline ref tiles)
+
+- **VideoBody:** BREAKOUT badge `text-white` (no `gv-kicker` gray); sticky thumb hover-plays R2 clip instead of center Play → TikTok.
+- **DiagnosisReferenceVideoCards:** reference grid inline in section body — no kicker / `border-t` chrome.
+
 ## 2026-06-11 — Lightreel analysis upgrades (prompts, de-bias, P3, salience)
 
 - **Channel memo:** archetype labels + pattern-lock rule + causal verdict + next_video anti-repeat; `<<<RECENT CONTENT AUDIT>>>` (deterministic feature counts, zero new Gemini calls); `ugc_vs_channel` brand-UGC section (ED keyword search, `BRAND_UGC_SEARCH_ENABLED` default off).

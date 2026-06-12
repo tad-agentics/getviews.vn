@@ -173,9 +173,7 @@ export function ScriptAnswerShotDetail({
           />
         </div>
       ) : !suppressPerShotRefs && refTiles.length > 0 ? (
-        <div className="border-t border-[color:var(--gv-rule)] pt-4">
-          <DiagnosisReferenceVideoCards tiles={refTiles} embedded showLabel={false} />
-        </div>
+        <DiagnosisReferenceVideoCards tiles={refTiles} embedded showLabel={false} />
       ) : null}
     </div>
   );

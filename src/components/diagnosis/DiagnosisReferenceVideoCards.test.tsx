@@ -27,4 +27,27 @@ describe("DiagnosisReferenceVideoCards", () => {
     expect(screen.getByText(/34\.2K view/)).toBeTruthy();
     expect(screen.getByText("@nahoang5477")).toBeTruthy();
   });
+
+  it("omits the kicker when showLabel is false (inline in parent section)", () => {
+    render(
+      <DiagnosisReferenceVideoCards
+        tiles={[
+          {
+            aweme_id: "1",
+            video_url: "https://tiktok.com/@a/video/1",
+            thumbnail_url: null,
+            views: 1000,
+            caption_snippet: "",
+            posted_at: "",
+            narrative_vi: "Được chọn vì cấu trúc format và nhịp dẫn nhất quán suốt clip.",
+            author_handle: "creator",
+          },
+        ]}
+        embedded
+        showLabel={false}
+      />,
+    );
+    expect(screen.queryByText("Video tham chiếu")).toBeNull();
+    expect(screen.getByText(/nhịp dẫn nhất quán/)).toBeTruthy();
+  });
 });

@@ -275,10 +275,7 @@ export function DiagnosisSectionRenderer({
         )
       ) : null}
       {referenceTiles.length > 0 ? (
-        <DiagnosisReferenceVideoCards
-          tiles={referenceTiles}
-          label={sid === "niche_pattern" ? "Top ngách — sao chép cách này" : "Video tham chiếu"}
-        />
+        <DiagnosisReferenceVideoCards tiles={referenceTiles} embedded showLabel={false} />
       ) : null}
       {sid === "script_structure" && videoEmbeds?.scriptStructure ? (
         <div className="mt-4">

@@ -16,9 +16,9 @@
  * doesn't render in production yet. PR-3 flips routing so the
  * ``video_diagnosis`` intent lands here and ``/app/video`` is removed.
  */
-import { Fragment, useEffect, useMemo } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowRight, Copy, Play } from "lucide-react";
+import { ArrowRight, Copy } from "lucide-react";
 
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
@@ -29,6 +29,7 @@ import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
+import { r2VideoPlaybackUrl } from "@/lib/r2";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
 import {
   DiagnosisSectionRenderer,
@@ -234,6 +235,31 @@ export function VideoBody({
     return `https://www.tiktok.com/video/${report.video_id}`;
   }, [meta.creator, report.video_id]);
 
+  const clipSrc = r2VideoPlaybackUrl(report.video_id) ?? "";
+  const canHoverClip = Boolean(clipSrc);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+
+  const handlePreviewEnter = useCallback(() => {
+    if (!canHoverClip) return;
+    const el = previewVideoRef.current;
+    if (!el) return;
+    if (!el.getAttribute("src")) {
+      el.src = clipSrc;
+      el.load();
+    }
+    el.currentTime = 0;
+    void el.play().then(() => setPreviewPlaying(true)).catch(() => {});
+  }, [canHoverClip, clipSrc]);
+
+  const handlePreviewLeave = useCallback(() => {
+    const el = previewVideoRef.current;
+    if (!el) return;
+    el.pause();
+    el.currentTime = 0;
+    setPreviewPlaying(false);
+  }, []);
+
   useEffect(() => {
     logUsage("video_body_load", {
       mode: viewMode,
@@ -385,43 +411,46 @@ export function VideoBody({
         */}
         <div className="w-full min-w-0 shrink-0 space-y-3 self-start min-[900px]:sticky min-[900px]:top-20 lg:top-24">
           <div
-            className="relative aspect-[9/16] w-full max-[899px]:max-h-[56vh] shrink-0 overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
-            style={{
-              backgroundImage: meta.thumbnail_url ? `url(${meta.thumbnail_url})` : undefined,
-              backgroundColor: "var(--gv-canvas-2)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
+            className="relative aspect-[9/16] w-full max-[899px]:max-h-[56vh] shrink-0 overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)] bg-[color:var(--gv-canvas-2)]"
+            onMouseEnter={handlePreviewEnter}
+            onMouseLeave={handlePreviewLeave}
           >
+            {canHoverClip ? (
+              <video
+                ref={previewVideoRef}
+                muted
+                loop
+                playsInline
+                preload="none"
+                className={`pointer-events-none absolute inset-0 z-[1] h-full w-full object-cover transition-opacity duration-300 ${previewPlaying ? "opacity-100" : "opacity-0"}`}
+                aria-hidden
+              />
+            ) : null}
+            <div
+              className={`pointer-events-none absolute inset-0 z-[2] transition-opacity duration-300 ${previewPlaying && canHoverClip ? "opacity-0" : "opacity-100"}`}
+              style={{
+                backgroundImage: meta.thumbnail_url ? `url(${meta.thumbnail_url})` : undefined,
+                backgroundColor: "var(--gv-canvas-2)",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            />
             {!meta.thumbnail_url ? (
-              <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-3">
+              <div className="pointer-events-none absolute inset-0 z-[3] flex items-center justify-center px-3">
                 <span className="gv-mono text-center text-[11px] font-medium gv-kicker tracking-wide text-[color:var(--gv-ink-4)]">
                   Chưa có ảnh bìa
                 </span>
               </div>
             ) : null}
             {!isFlop && meta.is_breakout ? (
-              <div className="pointer-events-none absolute left-3 top-3 z-[1]">
-                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[11px] font-bold gv-kicker tracking-[0.05em] text-[color:var(--gv-paper)]">
+              <div className="pointer-events-none absolute left-3 top-3 z-[4]">
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[11px] font-bold uppercase tracking-[0.05em] text-white">
                   BREAKOUT
                 </span>
               </div>
             ) : null}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[color:color-mix(in_srgb,var(--gv-ink)_55%,transparent)]" />
-            {tiktokWatchUrl ? (
-              <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center">
-                <a
-                  href={tiktokWatchUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color:color-mix(in_srgb,var(--gv-paper)_24%,transparent)] text-[color:var(--gv-paper)] outline-none ring-offset-2 backdrop-blur-sm transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
-                  aria-label="Mở video trên TikTok"
-                >
-                  <Play className="ml-0.5 h-7 w-7" strokeWidth={1.35} aria-hidden />
-                </a>
-              </div>
-            ) : null}
-            <div className="pointer-events-none absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
+            <div className="pointer-events-none absolute inset-0 z-[4] bg-gradient-to-b from-transparent via-transparent to-[color:color-mix(in_srgb,var(--gv-ink)_55%,transparent)]" />
+            <div className="pointer-events-none absolute bottom-4 left-3.5 right-3.5 z-[4] text-[color:var(--gv-paper)]">
               <div className="gv-kicker opacity-90">
                 {meta.creator?.trim() ? atHandle(meta.creator) : "Kênh chưa xác định"} ·{" "}
                 {Math.round(duration)}s
