@@ -50,4 +50,28 @@ describe("DiagnosisReferenceVideoCards", () => {
     expect(screen.queryByText("Video tham chiếu")).toBeNull();
     expect(screen.getByText(/nhịp dẫn nhất quán/)).toBeTruthy();
   });
+
+  it("wraps each tile in a bordered card shell", () => {
+    const { container } = render(
+      <DiagnosisReferenceVideoCards
+        tiles={[
+          {
+            aweme_id: "1",
+            video_url: "https://tiktok.com/@a/video/1",
+            thumbnail_url: null,
+            views: 1000,
+            caption_snippet: "",
+            posted_at: "",
+            narrative_vi: "Được chọn vì cấu trúc format và nhịp dẫn nhất quán suốt clip.",
+            author_handle: "creator",
+          },
+        ]}
+        embedded
+        showLabel={false}
+      />,
+    );
+    const shell = container.querySelector(".rounded-xl.border");
+    expect(shell).toBeTruthy();
+    expect(shell?.className).toContain("bg-[color:var(--gv-canvas-2)]");
+  });
 });

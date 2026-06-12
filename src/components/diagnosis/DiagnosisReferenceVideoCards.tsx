@@ -87,7 +87,7 @@ function ReferenceVideoCard({
 
   const videoTile = (
     <div
-      className="relative w-full overflow-hidden rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]"
+      className="relative w-full overflow-hidden rounded-lg bg-[color:var(--gv-canvas)]"
       style={{ aspectRatio: "9/16" }}
       onMouseEnter={startHoverClip}
       onMouseLeave={stopHoverClip}
@@ -138,8 +138,11 @@ function ReferenceVideoCard({
     </div>
   );
 
+  const cardShellClass =
+    "flex h-full flex-col gap-2.5 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-3 transition-colors duration-[120ms] group-hover:border-[color:var(--gv-ink)]";
+
   const inner = (
-    <div className="flex flex-col gap-2">
+    <div className={cardShellClass}>
       {narrative ? (
         <p className="m-0 text-[13px] leading-[1.45] text-[color:var(--gv-ink)]">
           {narrative}
@@ -154,7 +157,7 @@ function ReferenceVideoCard({
       <button
         type="button"
         onClick={onPlay}
-        className="block w-full min-w-0 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
+        className="group block h-full w-full min-w-0 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
         aria-label={tileLabel}
       >
         {inner}
@@ -168,7 +171,7 @@ function ReferenceVideoCard({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="block w-full min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
+        className="group block h-full w-full min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
         aria-label={tileLabel}
       >
         {inner}
@@ -176,7 +179,7 @@ function ReferenceVideoCard({
     );
   }
 
-  return <div className="w-full min-w-0">{inner}</div>;
+  return <div className="h-full w-full min-w-0">{inner}</div>;
 }
 
 export function DiagnosisReferenceVideoCards({
