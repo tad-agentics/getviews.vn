@@ -878,7 +878,11 @@ def _response_from_diagnostics_row(
             cohort_share_p25_pct=share_p25,
             cohort_share_p75_pct=share_p75,
         ),
-        "segments": diag.get("segments") or [],
+        # Corpus-sourced diagnostics rows (written by the batch indexer) don't
+        # persist the display-only segment breakdown — recompute from the stored
+        # analysis so the structure block never replays empty. decompose_segments
+        # always yields a fallback timeline, so this is never empty for a video.
+        "segments": diag.get("segments") or decompose_segments(analysis),
         "hook_phases": diag.get("hook_phases") or [],
         "hook_timeline": _normalise_hook_timeline(hook.get("hook_timeline")),
         "errors": diag.get("flop_issues") or [],

@@ -1,5 +1,14 @@
 # Changelog — GetViews.vn
 
+## 2026-06-13 — Block cấu trúc luôn xuất hiện cho video (fix mukbang thiếu block)
+
+- **Lý do:** Video hit nhiều signal ngữ cảnh (mukbang 15s) mất block «Phân tích cấu trúc Video» — `script_structure` không có signal nào fire (3 signal đều cần điều kiện không thỏa: affiliate phases / livestream funnel / duration ≥25s) nên `_max_salience=0` và thua trận tranh slot dưới `DEEP_SECTION_CAP=7`. Đây là lỗi SELECTION + CAP, không phải nới salience.
+- **BE selection (`diagnose_sections.py`):** `_applies_script_structure` ép emit khi video (không phải carousel) có `scenes` timeline — không phụ thuộc manifest signal. Carousel (`slides`) loại trừ.
+- **BE cap (`diagnose_sections.py`):** `_RESERVED_ANATOMY = ("script_structure",)` — anatomy sống sót cap, đẩy section ngữ cảnh salience thấp nhất ra, giữ vị trí display.
+- **BE replay (`video_analyze.py`):** `segments` rỗng từ row corpus-sourced → `diag.get("segments") or decompose_segments(analysis)` (luôn có fallback timeline, không bao giờ rỗng cho video).
+- **FE lưới an toàn (`videoAdjunctSections.ts`):** `shouldShowScriptStructureBlock` hiện block khi có `segments` HOẶC video non-carousel có `duration_sec > 0` (giúp session cũ hiện block từ fallback prose, không cần re-analyze).
+- **Tests:** cap reserve + selection (scenes/carousel) BE; duration-based FE. pytest 63 + ruff + typecheck + vitest xanh.
+
 ## 2026-06-12 — Phân tích cấu trúc Video (gộp sound + script)
 
 - **FE:** Gộp `sound` + `script_structure` thành một block «Phân tích cấu trúc Video» sau hook — layout ĐIỂM MẠNH / THIẾU SÓT, bridge prose, reference tiles gắn gap, Timeline; prose chỉ từ `script_structure`; dedup tiles + cap findings.

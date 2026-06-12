@@ -176,7 +176,13 @@ export function adjunctSectionTitle(
 }
 
 export function shouldShowScriptStructureBlock(report: VideoReportPayload): boolean {
-  return (report.segments?.length ?? 0) > 0;
+  if ((report.segments?.length ?? 0) > 0) return true;
+  // Safety net for legacy/corpus-replayed payloads with no stored segments: a
+  // real (non-carousel) video with a known duration still gets a structure
+  // block — the adjunct renderer derives prose from duration alone.
+  const fmt = (report.meta?.content_format ?? "").toLowerCase();
+  if (fmt.includes("carousel")) return false;
+  return (report.meta?.duration_sec ?? 0) > 0;
 }
 
 /** Hook phase cards + 0–3s timeline removed from UI — hook value lives in v6 findings/prose. */

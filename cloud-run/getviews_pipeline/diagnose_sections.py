@@ -192,8 +192,30 @@ def _has_structural_arc(ctx: dict) -> bool:
     return isinstance(beats, list) and len(beats) > 0
 
 
+def _video_has_scene_timeline(ctx: dict) -> bool:
+    """A real (non-carousel) video with a scene timeline always warrants a structure block.
+
+    The structure section renders the segment breakdown + script prose even when no
+    `script_structure` *signal* fired (e.g. a short mukbang has no affiliate-phase /
+    livestream-funnel / zero-value-stretch gap). Carousels use ``slides`` not ``scenes``
+    and get their own handling, so they are excluded.
+    """
+    fmt = str(ctx.get("content_format") or "").strip().lower()
+    if "carousel" in fmt:
+        return False
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return False
+    if ua.get("slides"):
+        return False
+    scenes = ua.get("scenes")
+    return isinstance(scenes, list) and len(scenes) >= 1
+
+
 def _applies_script_structure(ctx: dict, manifest: Manifest) -> bool:
     if _has_structural_arc(ctx):
+        return True
+    if _video_has_scene_timeline(ctx):
         return True
     return _has_gate(manifest, "script_structure", ctx)
 
@@ -321,6 +343,14 @@ _REDESIGN_PRIORITY_ORDER: tuple[str, ...] = (
 )
 DEEP_SECTION_CAP = 7
 
+# Core "anatomy" sections that must survive the cap even when context sections
+# (channel/commerce/boost) carry higher signal salience. After basic/deep tiers
+# were removed (2026-06-11) a paid report is a single "full" report — the video
+# structure breakdown is part of that promise, not a salience-negotiable extra.
+# These count toward the cap (they displace the weakest contested section) but
+# keep their natural display-order position.
+_RESERVED_ANATOMY: tuple[str, ...] = ("script_structure",)
+
 
 def _section_display_order() -> dict[str, int]:
     return {spec.section_id.value: spec.display_order for spec in SECTION_POOL}
@@ -337,6 +367,11 @@ def _reorder_and_cap_sections(
     by each section's strongest signal (max salience), not by static display
     order — a 0.9-salience persona section no longer loses to a barely-gated
     0.5 metadata section. Survivors still render in display order.
+
+    2026-06-13: ``_RESERVED_ANATOMY`` sections are protected from the cap — they
+    keep their display slot and displace the lowest-salience contested section
+    instead of being dropped (a mukbang's structure block was lost to
+    channel/commerce/boost despite being core to the report).
     """
     pri = [s for s in _REDESIGN_PRIORITY_ORDER if s in sections]
     rest = [s for s in sections if s not in _REDESIGN_PRIORITY_ORDER]
@@ -346,21 +381,27 @@ def _reorder_and_cap_sections(
     if len(out) <= DEEP_SECTION_CAP:
         return out
     pri_set = frozenset(_REDESIGN_PRIORITY_ORDER)
+    reserved_set = frozenset(_RESERVED_ANATOMY)
     priority = [s for s in out if s in pri_set]
-    other = [s for s in out if s not in pri_set]
-    slots = max(0, DEEP_SECTION_CAP - len(priority))
-    if manifest is not None and slots < len(other):
+    reserved = [s for s in out if s in reserved_set]
+    contested = [s for s in out if s not in pri_set and s not in reserved_set]
+    slots = max(0, DEEP_SECTION_CAP - len(priority) - len(reserved))
+    if manifest is not None and slots < len(contested):
 
         def _max_salience(sid: str) -> float:
             return max((s.salience for s in manifest.get(sid, [])), default=0.0)
 
         keep = set(
-            sorted(other, key=lambda sid: (-_max_salience(sid), order_map.get(sid, 999)))[:slots]
+            sorted(
+                contested, key=lambda sid: (-_max_salience(sid), order_map.get(sid, 999))
+            )[:slots]
         )
-        other = [s for s in other if s in keep]  # display order preserved
+        contested = [s for s in contested if s in keep]
     else:
-        other = other[:slots]
-    return priority + other
+        contested = contested[:slots]
+    # Reserved anatomy rejoins the non-priority tail in display order.
+    tail = sorted(reserved + contested, key=lambda s: order_map.get(s, 999))
+    return priority + tail
 
 
 def _select_sections_full(manifest: Manifest, ctx: dict) -> list[str]:

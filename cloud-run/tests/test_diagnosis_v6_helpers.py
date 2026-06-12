@@ -108,6 +108,47 @@ def test_select_sections_includes_hook_analysis_when_vision_hook_present() -> No
     assert "hook_analysis" in out
 
 
+def test_select_sections_emits_script_structure_for_video_with_scenes() -> None:
+    """A real video with a scene timeline but no script_structure *signal*
+    (e.g. a 15s mukbang) still emits the structure section."""
+    ctx = build_diagnosis_ctx(
+        user_analysis={
+            "promotion_type": "organic",
+            "scenes": [
+                {"start": 0.0, "end": 5.0, "subject": "face"},
+                {"start": 5.0, "end": 15.0, "subject": "food"},
+            ],
+        },
+        user_stats={"caption": "mukbang", "views": 1_000_000, "video_id": "1"},
+        reference_videos=[],
+        channel_context=None,
+        performance_tier="hit",
+        content_format="mukbang",
+    )
+    manifest = build_signal_manifest(ctx)
+    assert not manifest.get("script_structure"), "fixture should have no script signal"
+    out = select_sections_to_emit(manifest, ctx)
+    assert "script_structure" in out
+
+
+def test_select_sections_skips_script_structure_for_carousel() -> None:
+    """Carousels use slides, not a video timeline — no forced structure block."""
+    ctx = build_diagnosis_ctx(
+        user_analysis={
+            "promotion_type": "organic",
+            "slides": [{"index": 0}, {"index": 1}],
+        },
+        user_stats={"caption": "carousel", "views": 1000, "video_id": "2"},
+        reference_videos=[],
+        channel_context=None,
+        performance_tier="average",
+        content_format="carousel",
+    )
+    manifest = build_signal_manifest(ctx)
+    out = select_sections_to_emit(manifest, ctx)
+    assert "script_structure" not in out
+
+
 def test_v6_section_body_and_narrative() -> None:
     diag = {
         "headline_vi": "Hook yếu so với mẫu.",

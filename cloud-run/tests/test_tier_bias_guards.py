@@ -279,6 +279,39 @@ def test_section_cap_keeps_highest_salience_not_display_order() -> None:
     assert "metadata" in legacy and "persona" not in legacy
 
 
+def test_section_cap_reserves_script_structure_over_context_sections() -> None:
+    """Anatomy (script_structure) survives the cap even with zero signal salience,
+    displacing the weakest context section (mukbang regression — the structure
+    block was lost to channel/commerce/boost)."""
+    from getviews_pipeline.diagnose_sections import _reorder_and_cap_sections
+    from getviews_pipeline.signals.base import Signal
+
+    def sig(sid: str, sal: float) -> Signal:
+        return Signal(id=f"{sid}_s", section_id=sid, taxonomy_ref="t",
+                      salience=sal, claim="c")
+
+    # 4 priority present + 3 high-salience context + script_structure (no signals).
+    sections = [
+        "diagnosis", "hook_analysis", "niche_pattern", "next_video",
+        "channel_pattern", "commerce", "boost_attribution", "script_structure",
+    ]
+    manifest = {
+        "channel_pattern": [sig("channel_pattern", 0.85)],
+        "commerce": [sig("commerce", 0.76)],
+        "boost_attribution": [sig("boost_attribution", 0.84)],
+        # script_structure intentionally has no signals → _max_salience 0.0
+    }
+    out = _reorder_and_cap_sections(sections, manifest=manifest)
+    assert len(out) == 7
+    assert "script_structure" in out, "reserved anatomy must survive the cap"
+    # The lowest-salience context section (commerce 0.76) is displaced instead.
+    assert "commerce" not in out
+    assert "channel_pattern" in out and "boost_attribution" in out
+    # Reserved section keeps its display-order position (after channel, before boost).
+    assert out.index("channel_pattern") < out.index("script_structure")
+    assert out.index("script_structure") < out.index("boost_attribution")
+
+
 def test_v6_salience_semantics_and_orphan_sections_classified() -> None:
     from getviews_pipeline.diagnose_prompts import DIAGNOSIS_V6_JSON_INSTRUCTION as v6
 

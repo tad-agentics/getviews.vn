@@ -5,6 +5,7 @@ import {
   buildHookAnalysisFallbackProse,
   creatorComparisonPercentileLabel,
   hasContextStripContent,
+  shouldShowScriptStructureBlock,
 } from "@/lib/videoAdjunctSections";
 
 describe("videoAdjunctSections", () => {
@@ -71,6 +72,31 @@ describe("videoAdjunctSections", () => {
     // No ratio → fall back to the BE-provided string.
     expect(creatorComparisonPercentileLabel(null, "top 35%")).toBe("top 35%");
     expect(creatorComparisonPercentileLabel(undefined)).toBe("");
+  });
+
+  it("shows structure block from segments, or from duration when segments empty", () => {
+    // Primary: stored segments present.
+    expect(
+      shouldShowScriptStructureBlock({ segments: [{ name: "x" }], meta: {} } as never),
+    ).toBe(true);
+    // Legacy/corpus replay: no segments but a real video with duration.
+    expect(
+      shouldShowScriptStructureBlock({
+        segments: [],
+        meta: { duration_sec: 15, content_format: "mukbang" },
+      } as never),
+    ).toBe(true);
+    // Carousel: never a video-structure block.
+    expect(
+      shouldShowScriptStructureBlock({
+        segments: [],
+        meta: { duration_sec: 0, content_format: "carousel" },
+      } as never),
+    ).toBe(false);
+    // No segments, no duration → nothing to show.
+    expect(
+      shouldShowScriptStructureBlock({ segments: [], meta: { duration_sec: 0 } } as never),
+    ).toBe(false);
   });
 
   it("uses hook narrative fallback when present", () => {
