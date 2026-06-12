@@ -329,7 +329,6 @@ def _section_display_order() -> dict[str, int]:
 def _reorder_and_cap_sections(
     sections: list[str],
     *,
-    depth: str,
     manifest: Manifest | None = None,
 ) -> list[str]:
     """Put diagnosis → niche_pattern → next_video first; cap deep at DEEP_SECTION_CAP.
@@ -344,7 +343,7 @@ def _reorder_and_cap_sections(
     order_map = _section_display_order()
     rest.sort(key=lambda s: order_map.get(s, 999))
     out = pri + rest
-    if depth != "deep" or len(out) <= DEEP_SECTION_CAP:
+    if len(out) <= DEEP_SECTION_CAP:
         return out
     pri_set = frozenset(_REDESIGN_PRIORITY_ORDER)
     priority = [s for s in out if s in pri_set]
@@ -387,21 +386,19 @@ def _select_sections_full(manifest: Manifest, ctx: dict) -> list[str]:
     return out
 
 
-def _ctx_with_emit_threshold(ctx: dict, *, depth: str) -> dict:
+def _ctx_with_emit_threshold(ctx: dict) -> dict:
     gated = dict(ctx)
-    gated[_CTX_SECTION_EMIT_THRESHOLD] = section_emit_threshold(depth=depth)
+    gated[_CTX_SECTION_EMIT_THRESHOLD] = section_emit_threshold()
     return gated
 
 
 def select_sections_to_emit(
     manifest: Manifest,
     ctx: dict,
-    *,
-    depth: str = "deep",
 ) -> list[str]:
     """Return section_id strings in display order (compliance forced after diagnosis)."""
-    full = _select_sections_full(manifest, _ctx_with_emit_threshold(ctx, depth=depth))
-    return _reorder_and_cap_sections(full, depth=depth, manifest=manifest)
+    full = _select_sections_full(manifest, _ctx_with_emit_threshold(ctx))
+    return _reorder_and_cap_sections(full, manifest=manifest)
 
 
 def section_ids_ordered() -> list[str]:

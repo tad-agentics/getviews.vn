@@ -149,9 +149,9 @@ def _sample_contexts() -> list[dict]:
     return profiles
 
 
-def _mean_signals_per_emitted_section(ctx: dict, *, depth: str) -> float:
+def _mean_signals_per_emitted_section(ctx: dict) -> float:
     manifest = build_signal_manifest(ctx)
-    sections = select_sections_to_emit(manifest, ctx, depth=depth)
+    sections = select_sections_to_emit(manifest, ctx)
     trimmed = manifest_for_prompt(manifest)
     if not sections:
         return 0.0
@@ -164,7 +164,7 @@ def test_section_486_ten_video_deep_signal_density() -> None:
     contexts = _sample_contexts()
     assert len(contexts) == 10
 
-    deep_means = [_mean_signals_per_emitted_section(ctx, depth="deep") for ctx in contexts]
+    deep_means = [_mean_signals_per_emitted_section(ctx) for ctx in contexts]
     avg_deep = statistics.mean(deep_means)
 
     assert avg_deep >= 2.0, f"deep avg {avg_deep:.2f} < 2.0"

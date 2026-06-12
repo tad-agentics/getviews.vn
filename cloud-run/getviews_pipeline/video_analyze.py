@@ -1759,7 +1759,6 @@ def finalize_video_narrative_layer(
                 else None
             ),
             niche_posting_context_block="",
-            analysis_depth=depth,
             comment_radar=(
                 out.get("comment_radar") if isinstance(out.get("comment_radar"), dict) else None
             ),

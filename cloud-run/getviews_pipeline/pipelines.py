@@ -2116,7 +2116,6 @@ async def run_video_diagnosis(
                 reference_evidence_block=evidence_block,
                 creator_format_history_block=creator_format_history_block_v,
                 niche_posting_context_block="",
-                analysis_depth="deep",
             )
             if format_cards_out and niche_id:
                 format_cards_out = enrich_format_cards_from_corpus(

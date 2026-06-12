@@ -144,7 +144,7 @@ def test_douyin_signals_and_section_gate() -> None:
     sigs = extract_douyin_signals(ctx)
     assert len(sigs) == 2
     manifest = build_signal_manifest(ctx)
-    out = select_sections_to_emit(manifest, ctx, depth="deep")
+    out = select_sections_to_emit(manifest, ctx)
     assert "douyin_origin" in out
     trailing = next(s for s in sigs if s.id == "douyin_origin_peer")
     assert trailing.salience == DOUYIN_SECTION_MIN_SALIENCE

@@ -1538,7 +1538,6 @@ def _synthesize_diagnosis_v6_section_pool(
     creator_format_history_block: str,
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
-    analysis_depth: str = "deep",
     comment_radar: dict[str, Any] | None = None,
     addressing_mode: str = "third_party",
     video_creator_handle: str | None = None,
@@ -1564,7 +1563,6 @@ def _synthesize_diagnosis_v6_section_pool(
     )
 
     allowed = _allowed_aweme_ids(reference_videos)
-    depth = "deep"
     ctx_dict = build_diagnosis_ctx(
         user_analysis=user_analysis,
         user_stats=user_stats,
@@ -1577,13 +1575,12 @@ def _synthesize_diagnosis_v6_section_pool(
         niche_name=niche_name,
         corpus_size=corpus_size,
         comment_radar=comment_radar,
-        analysis_depth=depth,
     )
     manifest = build_signal_manifest(ctx_dict)
-    sections_ordered = select_sections_to_emit(manifest, ctx_dict, depth=depth)
+    sections_ordered = select_sections_to_emit(manifest, ctx_dict)
     log_manifest_telemetry(
         manifest_telemetry(manifest, sections_to_emit=sections_ordered),
-        depth=depth,
+        depth="deep",
         video_id=str(user_stats.get("video_id") or "") or None,
     )
     manifest_trim = manifest_for_prompt(manifest)
@@ -1713,7 +1710,6 @@ def synthesize_diagnosis_v2(
     creator_format_history_block: str = "",
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
-    analysis_depth: str = "deep",
     comment_radar: dict[str, Any] | None = None,
     addressing_mode: str = "third_party",
     video_creator_handle: str | None = None,
@@ -1741,7 +1737,6 @@ def synthesize_diagnosis_v2(
             creator_format_history_block=creator_format_history_block,
             cross_format_signal=cross_format_signal,
             niche_posting_context_block=niche_posting_context_block,
-            analysis_depth=analysis_depth,
             comment_radar=comment_radar,
             addressing_mode=addressing_mode,
             video_creator_handle=video_creator_handle,

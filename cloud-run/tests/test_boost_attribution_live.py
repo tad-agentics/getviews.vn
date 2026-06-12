@@ -53,5 +53,5 @@ def test_boost_attribution_in_deep_sections():
         },
     )
     manifest = build_signal_manifest(ctx)
-    deep = select_sections_to_emit(manifest, ctx, depth="deep")
+    deep = select_sections_to_emit(manifest, ctx)
     assert "boost_attribution" in deep

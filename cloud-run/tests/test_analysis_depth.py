@@ -58,7 +58,7 @@ def test_deep_depth_emits_commerce() -> None:
         performance_tier="average",
     )
     manifest = build_signal_manifest(ctx)
-    sections = select_sections_to_emit(manifest, ctx, depth="deep")
+    sections = select_sections_to_emit(manifest, ctx)
     assert "commerce" in sections
 
 
@@ -107,7 +107,7 @@ def test_select_sections_default_is_deep() -> None:
     )
     manifest = build_signal_manifest(ctx)
     default_sections = select_sections_to_emit(manifest, ctx)
-    deep_sections = select_sections_to_emit(manifest, ctx, depth="deep")
+    deep_sections = select_sections_to_emit(manifest, ctx)
     assert default_sections == deep_sections
     assert "commerce" in default_sections
 
@@ -173,18 +173,14 @@ def test_append_turn_deduct_credits_atomic(monkeypatch) -> None:
 
 
 def test_section_emit_threshold_deep() -> None:
-    assert section_emit_threshold(depth="deep") == 0.45
+    assert section_emit_threshold() == 0.45
 
 
 def test_deep_relax_salience_can_be_disabled(monkeypatch) -> None:
     from getviews_pipeline import settings as settings_mod
 
     monkeypatch.setattr(settings_mod.settings, "getviews_deep_relax_salience", False)
-    assert section_emit_threshold(depth="deep") == 0.5
-
-
-def test_deep_relax_salience_lowers_threshold_only_for_deep() -> None:
-    assert section_emit_threshold(depth="deep") == 0.45
+    assert section_emit_threshold() == 0.5
 
 
 def test_deep_relax_salience_emits_borderline_metadata_section(monkeypatch) -> None:
@@ -209,9 +205,9 @@ def test_deep_relax_salience_emits_borderline_metadata_section(monkeypatch) -> N
             )
         ]
     }
-    assert "metadata" in select_sections_to_emit(manifest, ctx, depth="deep")
+    assert "metadata" in select_sections_to_emit(manifest, ctx)
     monkeypatch.setattr(settings_mod.settings, "getviews_deep_relax_salience", False)
-    assert "metadata" not in select_sections_to_emit(manifest, ctx, depth="deep")
+    assert "metadata" not in select_sections_to_emit(manifest, ctx)
 
 
 def test_normalize_source_entry_allowlist() -> None:

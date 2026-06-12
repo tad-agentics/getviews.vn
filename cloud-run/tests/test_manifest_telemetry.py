@@ -76,7 +76,7 @@ def _rich_commerce_ctx() -> dict:
 def test_manifest_telemetry_counts_signals_and_empty_sections() -> None:
     ctx = _rich_commerce_ctx()
     manifest = build_signal_manifest(ctx)
-    deep_sections = select_sections_to_emit(manifest, ctx, depth="deep")
+    deep_sections = select_sections_to_emit(manifest, ctx)
     telemetry = manifest_telemetry(manifest, sections_to_emit=deep_sections)
 
     assert telemetry["signal_count"] >= 5
@@ -92,7 +92,7 @@ def test_manifest_telemetry_counts_signals_and_empty_sections() -> None:
 def test_rich_fixture_deep_emits_commerce_and_hook_sections() -> None:
     ctx = _rich_commerce_ctx()
     manifest = build_signal_manifest(ctx)
-    deep = select_sections_to_emit(manifest, ctx, depth="deep")
+    deep = select_sections_to_emit(manifest, ctx)
 
     assert "hook_analysis" in deep
     assert "diagnosis" in deep

@@ -66,9 +66,7 @@ def build_diagnosis_ctx(
     niche_name: str = "",
     corpus_size: int = 0,
     comment_radar: dict | None = None,
-    analysis_depth: str = "deep",
 ) -> dict:
-    depth = "deep"
     return {
         "user_analysis": user_analysis,
         "user_stats": user_stats,
@@ -81,7 +79,6 @@ def build_diagnosis_ctx(
         "niche_name": niche_name,
         "corpus_size": corpus_size,
         "comment_radar": comment_radar if isinstance(comment_radar, dict) else None,
-        "analysis_depth": depth,
     }
 
 

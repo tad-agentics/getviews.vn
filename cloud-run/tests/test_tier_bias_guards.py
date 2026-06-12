@@ -251,13 +251,13 @@ def test_section_cap_keeps_highest_salience_not_display_order() -> None:
         "sound": [sig("sound", 0.62)],
         "persona": [sig("persona", 0.90)],     # highest salience, last display_order
     }
-    out = _reorder_and_cap_sections(sections, depth="deep", manifest=manifest)
+    out = _reorder_and_cap_sections(sections, manifest=manifest)
     assert len(out) == 7
     # persona (0.90) and sound (0.62) win the two slots; metadata/editing drop.
     assert "persona" in out and "sound" in out
     assert "metadata" not in out and "editing" not in out
     # Legacy fallback without a manifest keeps the old display-order slice.
-    legacy = _reorder_and_cap_sections(sections, depth="deep")
+    legacy = _reorder_and_cap_sections(sections)
     assert "metadata" in legacy and "persona" not in legacy
 
 

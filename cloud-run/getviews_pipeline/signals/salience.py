@@ -5,10 +5,8 @@ SECTION_EMIT_THRESHOLD_DEEP_RELAXED = 0.45
 MAX_SIGNALS_PER_SECTION_DEEP = 5
 
 
-def section_emit_threshold(*, depth: str = "deep") -> float:
-    """Default section gate (0.5); deep may relax to 0.45 when env flag is on (§4.3)."""
-    if depth != "deep":
-        return SECTION_EMIT_THRESHOLD
+def section_emit_threshold() -> float:
+    """Section gate: 0.45 when the relax env flag is on (§4.3), else 0.5."""
     from getviews_pipeline.settings import settings
 
     if settings.getviews_deep_relax_salience:
