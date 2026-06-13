@@ -16,6 +16,7 @@ import {
   type AnswerDetailCache,
 } from "@/hooks/useAnswerSessionQueries";
 import { useSessionStream } from "@/hooks/useSessionStream";
+import { computeComposerVisibility } from "./composerVisibility";
 import { env } from "@/lib/env";
 import { analysisErrorCopy, answerStreamErrorCopy } from "@/lib/errorMessages";
 import { createAnswerSession } from "@/lib/answerApi";
@@ -360,19 +361,18 @@ export default function AnswerScreen() {
 
   const turnCount = turns.length;
 
-  const streamInFlight =
-    streamStatus === "streaming" ||
-    (streamStatus === "done" && turnCount === 0);
-
-  const loading =
-    bootstrapLoading ||
-    streamInFlight ||
-    (Boolean(sessionId) && detailQuery.isLoading && !detailQuery.data);
+  // Hide start/follow-up composer while bootstrap or SSE is in flight (turn not
+  // persisted yet). Predicate extracted to ./composerVisibility for unit coverage.
+  const { streamInFlight, loading, showStartComposer } = computeComposerVisibility({
+    streamStatus,
+    turnCount,
+    bootstrapLoading,
+    hasSessionId: Boolean(sessionId),
+    detailLoading: detailQuery.isLoading,
+    hasDetailData: Boolean(detailQuery.data),
+  });
 
   const researchStage = useResearchStage(loading);
-
-  /** Hide start/follow-up composer while bootstrap or SSE is in flight (turn not persisted yet). */
-  const showStartComposer = turnCount === 0 && !loading;
 
   const hasReplayHandles = useMemo(() => {
     if (!sessionId) return false;

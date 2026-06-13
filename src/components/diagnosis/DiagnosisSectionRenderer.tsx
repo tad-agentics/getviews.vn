@@ -258,7 +258,7 @@ function StrengthGapSectionLayout({
               findingRank += 1;
               return (
                 <SectionFindingCard
-                  key={`s-${i}`}
+                  key={`s-${f.title_vi ?? i}`}
                   rank={findingRank}
                   finding={f}
                   analyzedClip={analyzedClip}
@@ -278,7 +278,7 @@ function StrengthGapSectionLayout({
               findingRank += 1;
               const pairedTile = inlineGapRefs ? gapLinkedTiles[i] : undefined;
               return (
-                <div key={`g-${i}`} className="flex flex-col gap-3">
+                <div key={`g-${f.title_vi ?? i}`} className="flex flex-col gap-3">
                   <SectionFindingCard rank={findingRank} finding={f} />
                   {pairedTile ? (
                     <>
@@ -312,7 +312,7 @@ function StrengthGapSectionLayout({
               findingRank += 1;
               return (
                 <SectionFindingCard
-                  key={`o-${i}`}
+                  key={`o-${f.title_vi ?? i}`}
                   rank={findingRank}
                   finding={f}
                   analyzedClip={analyzedClip}

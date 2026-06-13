@@ -144,3 +144,69 @@ describe("VideoPlayerModal keyboard a11y", () => {
     expect(screen.getByRole("button", { name: "Bật tiếng" })).toBeTruthy();
   });
 });
+
+describe("VideoPlayerModal startSec deep-link seek", () => {
+  let seekValues: number[];
+
+  beforeEach(() => {
+    seekValues = [];
+    // Capture currentTime writes — jsdom's media element has no real timeline.
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      configurable: true,
+      get: () => seekValues[seekValues.length - 1] ?? 0,
+      set: (v: number) => {
+        seekValues.push(v);
+      },
+    });
+  });
+
+  afterEach(() => {
+    delete (HTMLMediaElement.prototype as { currentTime?: unknown }).currentTime;
+  });
+
+  function videoEl(container: HTMLElement): HTMLVideoElement {
+    const el = container.querySelector("video");
+    if (!el) throw new Error("no <video> rendered");
+    return el;
+  }
+
+  it("seeks the analyzed clip to startSec once metadata loads", () => {
+    const a = mkVideo("a");
+    const { container } = render(
+      <VideoPlayerModal video={a} allVideos={[a]} startSec={4} onClose={vi.fn()} />,
+    );
+    fireEvent.loadedMetadata(videoEl(container));
+    expect(seekValues).toEqual([4]);
+  });
+
+  it("does not seek when startSec is omitted", () => {
+    const a = mkVideo("a");
+    const { container } = render(
+      <VideoPlayerModal video={a} allVideos={[a]} onClose={vi.fn()} />,
+    );
+    fireEvent.loadedMetadata(videoEl(container));
+    expect(seekValues).toEqual([]);
+  });
+
+  it("ignores a non-positive startSec", () => {
+    const a = mkVideo("a");
+    const { container } = render(
+      <VideoPlayerModal video={a} allVideos={[a]} startSec={0} onClose={vi.fn()} />,
+    );
+    fireEvent.loadedMetadata(videoEl(container));
+    expect(seekValues).toEqual([]);
+  });
+
+  it("does not re-seek after navigating to a sibling clip", () => {
+    const a = mkVideo("a");
+    const b = mkVideo("b");
+    const { container } = render(
+      <VideoPlayerModal video={a} allVideos={[a, b]} startSec={4} onClose={vi.fn()} />,
+    );
+    // Seek guard keys on selected.id === video.id; navigating away disarms it.
+    fireEvent.keyDown(document, { key: "ArrowDown" });
+    seekValues.length = 0;
+    fireEvent.loadedMetadata(videoEl(container));
+    expect(seekValues).toEqual([]);
+  });
+});
