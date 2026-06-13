@@ -358,7 +358,11 @@ export default function AnswerScreen() {
     return formatRelativeSinceVi(new Date(), d);
   }, [turns]);
 
-  const streamInFlight = streamStatus === "streaming";
+  const turnCount = turns.length;
+
+  const streamInFlight =
+    streamStatus === "streaming" ||
+    (streamStatus === "done" && turnCount === 0);
 
   const loading =
     bootstrapLoading ||
@@ -366,7 +370,6 @@ export default function AnswerScreen() {
     (Boolean(sessionId) && detailQuery.isLoading && !detailQuery.data);
 
   const researchStage = useResearchStage(loading);
-  const turnCount = turns.length;
 
   /** Hide start/follow-up composer while bootstrap or SSE is in flight (turn not persisted yet). */
   const showStartComposer = turnCount === 0 && !loading;
@@ -849,11 +852,15 @@ export default function AnswerScreen() {
     if (sessionId || !seedQ.trim() || !CLOUD || !user) return;
     const submittedQ = seedQ.trim();
     const bootstrapKey = bootstrapDedupeKey(submittedQ);
-    if (bootstrapInFlightRef.current === bootstrapKey) return;
+    if (bootstrapInFlightRef.current === bootstrapKey) {
+      // Strict Mode remount: async bootstrap still running — keep composer hidden.
+      setBootstrapLoading(true);
+      return;
+    }
     bootstrapInFlightRef.current = bootstrapKey;
+    setBootstrapLoading(true);
 
     void (async () => {
-      setBootstrapLoading(true);
       setError(null);
       try {
         const entry = planAnswerEntry(seedQ, false);

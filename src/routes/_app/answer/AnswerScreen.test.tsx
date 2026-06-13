@@ -300,6 +300,37 @@ describe("AnswerScreen state transitions", () => {
     expect(screen.queryByTestId("follow-up-composer")).toBeNull();
   });
 
+  it("hides start composer on ?q= bootstrap before session id lands", () => {
+    mockStreamStatus = "streaming";
+    mockStream.mockReturnValue(new Promise(() => {}));
+    mockCreateAnswerSession.mockResolvedValue({
+      id: "new-sess",
+      user_id: "user-1",
+      title: null,
+      initial_q: "https://www.tiktok.com/@a/video/1",
+      intent_type: "video_diagnosis",
+      format: "video",
+      niche_id: null,
+    });
+    renderScreen("/app/answer?q=https://www.tiktok.com/@a/video/1");
+    expect(screen.queryByTestId("follow-up-composer")).toBeNull();
+  });
+
+  it("hides start composer while stream is done but turn not persisted yet", () => {
+    mockStreamStatus = "done";
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: {
+        session: makeSession({ id: "sess-done", initial_q: "https://tiktok.com/@a/video/1" }),
+        turns: [],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderScreen("/app/answer?session=sess-done");
+    expect(screen.queryByTestId("follow-up-composer")).toBeNull();
+  });
+
   it("renders each turn via the ContinuationTurn dispatcher when detail has turns", () => {
     mockUseAnswerSessionDetail.mockReturnValue({
       data: {
