@@ -1,23 +1,13 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 
 import {
+  evidenceCaptionLabel,
   evidenceRangeLabel,
   FindingEvidenceClip,
+  resolveStartSec,
   type AnalyzedClipContext,
 } from "./FindingEvidenceClip";
-
-// The modal lazy-imports motion + a <video> element; stub it so the test asserts
-// the deep-link contract (open + startSec) without dragging in playback.
-vi.mock("@/components/explore/VideoPlayerModal", () => ({
-  VideoPlayerModal: ({ startSec, onClose }: { startSec?: number; onClose: () => void }) => (
-    <div data-testid="player" data-start-sec={startSec}>
-      <button type="button" onClick={onClose}>
-        close
-      </button>
-    </div>
-  ),
-}));
 
 const clip: AnalyzedClipContext = {
   videoId: "aweme-1",
@@ -46,6 +36,20 @@ describe("evidenceRangeLabel", () => {
   });
 });
 
+describe("evidenceCaptionLabel", () => {
+  it("joins range and moment with a middle dot", () => {
+    expect(
+      evidenceCaptionLabel({ start_sec: 0, end_sec: 3, label_vi: "mặt vào khung" }),
+    ).toBe("0–3s · mặt vào khung");
+  });
+});
+
+describe("resolveStartSec", () => {
+  it("derives a start two seconds before end when only end_sec is present", () => {
+    expect(resolveStartSec({ end_sec: 9 })).toBe(7);
+  });
+});
+
 describe("FindingEvidenceClip", () => {
   it("renders nothing without a clip URL", () => {
     const { container } = render(
@@ -69,32 +73,25 @@ describe("FindingEvidenceClip", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("labels the button with the range and the moment", () => {
-    render(
+  it("renders an inline video with caption for range + moment", () => {
+    const { container } = render(
       <FindingEvidenceClip
         evidenceRef={{ start_sec: 0, end_sec: 3, label_vi: "mặt vào khung" }}
         clip={clip}
       />,
     );
-    expect(
-      screen.getByRole("button", { name: /Xem 0–3s trong clip · mặt vào khung/ }),
-    ).toBeTruthy();
+    const video = container.querySelector("video");
+    expect(video).toBeTruthy();
+    expect(video?.getAttribute("src")).toBe(clip.clipUrl);
+    expect(video?.getAttribute("data-start-sec")).toBe("0");
+    expect(screen.getByText("0–3s · mặt vào khung")).toBeTruthy();
   });
 
-  it("opens the player seeked to the resolved start on click", async () => {
-    render(
-      <FindingEvidenceClip evidenceRef={{ start_sec: 4, end_sec: 9 }} clip={clip} />,
+  it("seeks to the resolved start when only end_sec is present", () => {
+    const { container } = render(
+      <FindingEvidenceClip evidenceRef={{ end_sec: 9 }} clip={clip} />,
     );
-    expect(screen.queryByTestId("player")).toBeNull();
-    fireEvent.click(screen.getByRole("button"));
-    const player = await screen.findByTestId("player");
-    expect(player.getAttribute("data-start-sec")).toBe("4");
-  });
-
-  it("derives a start two seconds before end when only end_sec is present", async () => {
-    render(<FindingEvidenceClip evidenceRef={{ end_sec: 9 }} clip={clip} />);
-    fireEvent.click(screen.getByRole("button"));
-    const player = await screen.findByTestId("player");
-    expect(player.getAttribute("data-start-sec")).toBe("7");
+    const video = container.querySelector("video");
+    expect(video?.getAttribute("data-start-sec")).toBe("7");
   });
 });

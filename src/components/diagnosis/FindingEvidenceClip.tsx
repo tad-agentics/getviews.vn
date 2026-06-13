@@ -1,13 +1,5 @@
-import { lazy, Suspense, useState } from "react";
-import { Play } from "lucide-react";
-import type { ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FindingEvidenceRef } from "@/lib/api-types";
-
-const VideoPlayerModal = lazy(() =>
-  import("@/components/explore/VideoPlayerModal").then((m) => ({
-    default: m.VideoPlayerModal,
-  })),
-);
 
 /** Context needed to deep-link a finding to a moment in the analyzed clip. */
 export interface AnalyzedClipContext {
@@ -46,8 +38,18 @@ export function evidenceRangeLabel(ref: FindingEvidenceRef): string {
   return "";
 }
 
+/** Caption under the inline clip — range + optional moment label. */
+export function evidenceCaptionLabel(ref: FindingEvidenceRef): string {
+  const rangeLabel = evidenceRangeLabel(ref);
+  const moment = ref.label_vi?.trim();
+  if (rangeLabel && moment) return `${rangeLabel} · ${moment}`;
+  if (rangeLabel) return rangeLabel;
+  if (moment) return moment;
+  return "Đoạn trong clip";
+}
+
 /** Returns the playable start time, or null when the ref has no usable timestamp. */
-function resolveStartSec(ref: FindingEvidenceRef): number | null {
+export function resolveStartSec(ref: FindingEvidenceRef): number | null {
   if (ref.start_sec != null && Number.isFinite(ref.start_sec) && ref.start_sec >= 0) {
     return ref.start_sec;
   }
@@ -57,10 +59,15 @@ function resolveStartSec(ref: FindingEvidenceRef): number | null {
   return null;
 }
 
+function resolveEndSec(ref: FindingEvidenceRef, startSec: number): number | null {
+  const end = ref.end_sec;
+  if (end == null || !Number.isFinite(end) || end <= startSec) return null;
+  return end;
+}
+
 /**
- * "▶ Xem N–Ms trong clip" — plays the analyzed video's own R2 clip seeked to
- * the moment that proves a finding. Renders nothing when there is no clip URL
- * or no usable timestamp (so strengths still degrade to text-only cards).
+ * Inline 9:16 clip from the analyzed video, seeked to the moment that proves a
+ * finding. Renders nothing when there is no clip URL or no usable timestamp.
  */
 export function FindingEvidenceClip({
   evidenceRef,
@@ -69,54 +76,111 @@ export function FindingEvidenceClip({
   evidenceRef: FindingEvidenceRef | null | undefined;
   clip: AnalyzedClipContext | null | undefined;
 }) {
-  const [open, setOpen] = useState(false);
-
   if (!evidenceRef || !clip?.clipUrl) return null;
   const startSec = resolveStartSec(evidenceRef);
   if (startSec == null) return null;
 
-  const rangeLabel = evidenceRangeLabel(evidenceRef);
-  const moment = evidenceRef.label_vi?.trim();
-  const buttonLabel = rangeLabel
-    ? `Xem ${rangeLabel} trong clip${moment ? ` · ${moment}` : ""}`
-    : "Xem đoạn này trong clip";
+  return (
+    <FindingEvidenceClipPlayer
+      clipUrl={clip.clipUrl}
+      startSec={startSec}
+      endSec={resolveEndSec(evidenceRef, startSec)}
+      caption={evidenceCaptionLabel(evidenceRef)}
+    />
+  );
+}
 
-  const playerVideo: ExploreGridVideo = {
-    id: clip.videoId,
-    video_id: clip.videoId,
-    views: "",
-    time: "",
-    img: "",
-    text: moment ?? "",
-    handle: "",
-    caption: moment ?? "",
-    likes: "",
-    comments: "",
-    shares: "",
-    videoUrl: clip.clipUrl,
-    tiktok_url: null,
-  };
+function FindingEvidenceClipPlayer({
+  clipUrl,
+  startSec,
+  endSec,
+  caption,
+}: {
+  clipUrl: string;
+  startSec: number;
+  endSec: number | null;
+  caption: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    setAutoplayBlocked(false);
+    const applySeek = () => {
+      try {
+        el.currentTime = startSec;
+      } catch {
+        // metadata not ready
+      }
+    };
+    el.addEventListener("loadedmetadata", applySeek, { once: true });
+    const playResult = el.play();
+    if (playResult && typeof playResult.catch === "function") {
+      void playResult.catch(() => setAutoplayBlocked(true));
+    }
+    return () => el.removeEventListener("loadedmetadata", applySeek);
+  }, [clipUrl, startSec]);
+
+  useEffect(() => {
+    if (endSec == null) return;
+    const el = videoRef.current;
+    if (!el) return;
+    const onTimeUpdate = () => {
+      if (el.currentTime >= endSec) {
+        try {
+          el.currentTime = startSec;
+        } catch {
+          // ignore
+        }
+      }
+    };
+    el.addEventListener("timeupdate", onTimeUpdate);
+    return () => el.removeEventListener("timeupdate", onTimeUpdate);
+  }, [clipUrl, startSec, endSec]);
+
+  const handlePlayClick = useCallback(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const playResult = el.play();
+    if (playResult && typeof playResult.then === "function") {
+      void playResult.then(() => setAutoplayBlocked(false));
+    } else {
+      setAutoplayBlocked(false);
+    }
+  }, []);
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="mt-2 inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[color:var(--gv-pos)]/30 bg-[color:var(--gv-pos)]/8 px-3 py-1.5 text-[13px] font-medium text-[color:var(--gv-ink)] transition-colors hover:border-[color:var(--gv-pos)]/55"
+    <figure className="mt-3 max-w-[168px]">
+      <div
+        className="relative overflow-hidden rounded-lg border border-[color:var(--gv-rule)] bg-black"
+        style={{ aspectRatio: "9/16" }}
       >
-        <Play className="h-3.5 w-3.5 shrink-0 text-[color:var(--gv-pos)]" fill="currentColor" />
-        <span>{buttonLabel}</span>
-      </button>
-      {open ? (
-        <Suspense fallback={null}>
-          <VideoPlayerModal
-            video={playerVideo}
-            allVideos={[playerVideo]}
-            startSec={startSec}
-            onClose={() => setOpen(false)}
-          />
-        </Suspense>
-      ) : null}
-    </>
+        <video
+          ref={videoRef}
+          src={clipUrl}
+          muted
+          loop={endSec == null}
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover"
+          aria-label={caption}
+          data-start-sec={startSec}
+        />
+        {autoplayBlocked ? (
+          <button
+            type="button"
+            onClick={handlePlayClick}
+            className="absolute inset-0 flex min-h-[44px] items-center justify-center bg-black/45 px-3 text-[13px] font-medium text-white"
+          >
+            Nhấn để phát
+          </button>
+        ) : null}
+      </div>
+      <figcaption className="mt-1.5 gv-mono text-[11px] leading-snug text-[color:var(--gv-ink-2)]">
+        {caption}
+      </figcaption>
+    </figure>
   );
 }

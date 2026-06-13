@@ -586,8 +586,8 @@ describe("finding without fix_vi → QUAN SÁT, no peer (#2)", () => {
   });
 });
 
-describe("per-finding analyzed-clip evidence button (#3)", () => {
-  it("shows 'Xem ...' button for a strength with evidence_ref + clip url", () => {
+describe("per-finding analyzed-clip evidence inline video (#3)", () => {
+  it("shows inline clip for a strength with evidence_ref + clip url", () => {
     render(
       <DiagnosisSectionRenderer
         section={{
@@ -608,10 +608,11 @@ describe("per-finding analyzed-clip evidence button (#3)", () => {
         }}
       />,
     );
-    expect(screen.getByText(/Xem 0–3s trong clip · mặt vào khung/)).toBeTruthy();
+    expect(screen.getByText(/0–3s · mặt vào khung/)).toBeTruthy();
+    expect(document.querySelector("video[src='https://r2.test/videos/999.mp4']")).toBeTruthy();
   });
 
-  it("hides the button when the analyzed clip url is missing", () => {
+  it("hides the inline clip when the analyzed clip url is missing", () => {
     render(
       <DiagnosisSectionRenderer
         section={{
@@ -632,7 +633,7 @@ describe("per-finding analyzed-clip evidence button (#3)", () => {
         }}
       />,
     );
-    expect(screen.queryByText(/Xem .* trong clip/)).toBeNull();
+    expect(document.querySelector("video")).toBeNull();
   });
 });
 
