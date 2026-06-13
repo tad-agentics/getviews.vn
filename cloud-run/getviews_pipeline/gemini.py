@@ -975,7 +975,16 @@ def _split_diagnosis_leading_json(full_text: str) -> tuple[dict[str, Any] | None
 
 _EMBEDDED_TILE_MIN_PROXIMITY = 1
 _EMBED_TILE_SECTION_IDS: frozenset[str] = frozenset(
-    {"hook_analysis", "diagnosis", "niche_pattern", "script_structure"},
+    {
+        "hook_analysis",
+        "diagnosis",
+        "niche_pattern",
+        "script_structure",
+        "editing",
+        "sound",
+        "persona",
+        "commerce",
+    },
 )
 
 # Views floor for embedded reference tiles (live audit 2026-06-12): a 534K-view
@@ -988,11 +997,19 @@ _EMBED_TILE_VIEWS_FLOOR_RATIO = 0.2
 # Sections where peer tiles attach to corrective findings only — skip fallback
 # inject when the section has no gap findings (strengths-only diagnosis).
 _GAP_AWARE_EMBED_SECTIONS: frozenset[str] = frozenset(
-    {"diagnosis", "hook_analysis", "script_structure"},
+    {
+        "diagnosis",
+        "hook_analysis",
+        "script_structure",
+        "editing",
+        "sound",
+        "persona",
+        "commerce",
+    },
 )
 
 # Bump when embedded-tile sanitize/inject contract changes (finalize-lite repair gate).
-EMBED_CONTRACT_VERSION = 3
+EMBED_CONTRACT_VERSION = 4
 
 
 def _valid_embedded_tile(t: dict[str, Any]) -> bool:
@@ -1313,7 +1330,15 @@ def _inject_fallback_embedded_tiles(
     # Gap-aware sections first so hook/script get peers before diagnosis consumes
     # the pool on strength-only hit reports (2026-06-13 hook ref audit).
     injection_plan: list[tuple[str, int]] = []
-    for sid in ("hook_analysis", "script_structure", "diagnosis"):
+    for sid in (
+        "hook_analysis",
+        "script_structure",
+        "editing",
+        "sound",
+        "persona",
+        "commerce",
+        "diagnosis",
+    ):
         if sid not in _EMBED_TILE_SECTION_IDS:
             continue
         sec = by_sid.get(sid)

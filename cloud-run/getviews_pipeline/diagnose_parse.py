@@ -156,6 +156,26 @@ _SECTION_TILE_NARRATIVE_ANGLE_THIRD: dict[str, list[str]] = {
         "Tham khảo mạch kịch bản và phân bổ thời lượng.",
         "Học nhịp dựng và nhạc nền cho lần quay tiếp theo.",
     ],
+    "editing": [
+        "So màu, chữ overlay và hậu kỳ với clip đang phân tích.",
+        "Quan sát contrast chữ-nền và vị trí overlay giữa các cảnh.",
+        "Đối chiếu LUT/filter và nhịp hiện chữ trên hình.",
+    ],
+    "sound": [
+        "So layering nhạc, VO và hiệu ứng âm với clip đang phân tích.",
+        "Quan sát cân bằng nhạc trending và lời thoại.",
+        "Đối chiếu nhịp vào thoại và nhạc nền.",
+    ],
+    "persona": [
+        "So giọng, register và độ chân thực on-camera.",
+        "Quan sát cách kể trải nghiệm cá nhân mà vẫn giữ nhịp.",
+        "Đối chiếu energy và persona trước camera.",
+    ],
+    "commerce": [
+        "So CTA giọng, caption và link với clip đang phân tích.",
+        "Quan sát thời điểm kêu mua/lưu trong ngách.",
+        "Đối chiếu câu chốt cuối clip.",
+    ],
 }
 
 

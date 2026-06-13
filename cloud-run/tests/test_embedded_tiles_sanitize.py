@@ -173,7 +173,31 @@ def test_repair_diagnosis_vi_embedded_tiles_injects_when_empty() -> None:
 
 
 def test_embed_contract_version_constant() -> None:
-    assert EMBED_CONTRACT_VERSION >= 3
+    assert EMBED_CONTRACT_VERSION >= 4
+
+
+def test_inject_fallback_fills_editing_gap_section() -> None:
+    from getviews_pipeline.gemini import _inject_fallback_embedded_tiles
+
+    refs = [
+        _slim("111", "A", proximity=3, source="corpus"),
+        _slim("222", "B", proximity=2, source="corpus"),
+    ]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "editing",
+                "embedded_tiles": [],
+                "findings": [
+                    {"title_vi": "Chữ nhỏ", "fix_vi": "Tăng font overlay lên 48px."},
+                ],
+            },
+        ]
+    }
+    _inject_fallback_embedded_tiles(diag_vi, refs, {"111", "222"})
+    tiles = diag_vi["sections"][0]["embedded_tiles"]
+    assert len(tiles) == 1
+    assert tiles[0]["aweme_id"] == "111"
 
 
 def test_is_positive_fix_vi_matches_fe_keep_verbs() -> None:

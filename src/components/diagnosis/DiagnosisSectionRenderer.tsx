@@ -23,6 +23,7 @@ import type {
 } from "@/lib/api-types";
 import {
   buildDiagnosisReferenceTiles,
+  enrichReferenceTilesForGaps,
   fallbackNichePatternReferenceTiles,
   formatNichePatternBridgeProse,
   formatReferenceBridgeProse,
@@ -356,6 +357,32 @@ function StructureTimelineEmbed({
   );
 }
 
+function resolveStructureAxisPeerTiles(
+  axisFindings: DiagnosisFinding[],
+  axisSection: DiagnosisSectionVi,
+  referenceVideos: ReferenceVideoCard[],
+  evidenceAnchors: DiagnosisEvidenceAnchorVi[] | undefined,
+  analyzedContentFormat: string | null | undefined,
+): DiagnosisReferenceTile[] {
+  const built = buildDiagnosisReferenceTiles(axisSection, referenceVideos, evidenceAnchors);
+  const linked = resolvePeerReferenceTiles(
+    "script_structure",
+    built,
+    axisFindings,
+    "structure",
+    true,
+  );
+  if (linked.length > 0) return linked;
+  const { gaps } = partitionFindingsByChip(axisFindings);
+  if (!gaps.length || !referenceVideos.length) return [];
+  const fallback = fallbackNichePatternReferenceTiles(
+    referenceVideos,
+    gaps.length,
+    analyzedContentFormat,
+  );
+  return enrichReferenceTilesForGaps(fallback, gaps, "structure", true);
+}
+
 function VideoStructureAxesLayout({
   title,
   axes,
@@ -363,6 +390,7 @@ function VideoStructureAxesLayout({
   evidenceAnchors,
   analyzedClip,
   structureTimeline,
+  analyzedContentFormat,
 }: {
   title: string;
   axes: VideoStructureAxisBlock[];
@@ -370,6 +398,7 @@ function VideoStructureAxesLayout({
   evidenceAnchors?: DiagnosisEvidenceAnchorVi[];
   analyzedClip?: AnalyzedClipContext | null;
   structureTimeline?: { segments: VideoSegment[]; durationSec: number };
+  analyzedContentFormat?: string | null;
 }) {
   const hasRhythmAxis = axes.some((axis) => axis.axis_id === "rhythm");
   return (
@@ -384,14 +413,16 @@ function VideoStructureAxesLayout({
           embedded_tiles: axis.embedded_tiles,
           findings: axis.findings,
         };
-        const axisTiles = buildDiagnosisReferenceTiles(
-          axisSection,
-          referenceVideos,
-          evidenceAnchors,
-        );
         const axisText = humanizeStatsProse((axis.text_vi || axis.text || "").trim());
         const axisFindings = (axis.findings ?? []).filter(
           (f) => f.title_vi || f.body_vi || f.fix_vi,
+        );
+        const axisTiles = resolveStructureAxisPeerTiles(
+          axisFindings,
+          axisSection,
+          referenceVideos,
+          evidenceAnchors,
+          analyzedContentFormat,
         );
         return (
           <div key={axis.axis_id} className="mt-5 border-t border-[color:var(--gv-rule)] pt-4 first:mt-3 first:border-t-0 first:pt-0">
@@ -587,6 +618,7 @@ export function DiagnosisSectionRenderer({
         evidenceAnchors={evidenceAnchors}
         analyzedClip={videoEmbeds?.analyzedClip}
         structureTimeline={videoEmbeds?.structureTimeline}
+        analyzedContentFormat={analyzedContentFormat}
       />
     );
   }

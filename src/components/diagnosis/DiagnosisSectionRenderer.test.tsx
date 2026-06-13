@@ -260,6 +260,42 @@ describe("video structure strength-gap layout", () => {
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
   });
 
+  it("falls back to corpus peers under structure axis gaps when embedded_tiles are empty", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "script_structure",
+          title_vi: "Phân tích cấu trúc Video",
+          structure_axes: [
+            {
+              axis_id: "editing",
+              title_vi: "Hậu kỳ & hình",
+              text_vi: "Overlay mờ giữa clip.",
+              findings: [{ title_vi: "Chữ nhỏ", fix_vi: "Tăng font overlay lên 48px." }],
+            },
+          ],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "999",
+            desc: "Peer overlay rõ",
+            hook_type: null,
+            content_format: "outfit_transition",
+            views: 180_000,
+            engagement_rate: null,
+            author_handle: "@peer",
+            thumbnail_url: "https://t/9.jpg",
+            tiktok_url: "https://tiktok.com/@peer/video/999",
+            source: "corpus",
+          },
+        ]}
+        analyzedContentFormat="outfit_transition"
+      />,
+    );
+    expect(screen.getByText(/Thiếu sót «Chữ nhỏ»/)).toBeTruthy();
+    expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
+  });
+
   it("renders flat strength-gap layout when structure_axes absent (legacy cache)", () => {
     const { container } = render(
       <DiagnosisSectionRenderer
