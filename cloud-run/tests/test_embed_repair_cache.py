@@ -34,7 +34,17 @@ def _poisoned_cached_response() -> dict:
             "diagnosis_vi": {
                 "headline_vi": "Tiêu đề",
                 "sections": [
-                    {"section_id": "diagnosis", "text_vi": "Nội dung", "embedded_tiles": []},
+                    {
+                        "section_id": "diagnosis",
+                        "text_vi": "Nội dung",
+                        "embedded_tiles": [],
+                        "findings": [
+                            {
+                                "title_vi": "Hook yếu",
+                                "fix_vi": "Mở bằng câu hỏi đảo 0–1s.",
+                            },
+                        ],
+                    },
                 ],
             },
         },
@@ -44,6 +54,28 @@ def _poisoned_cached_response() -> dict:
 def test_response_needs_embed_tile_repair_when_refs_but_no_tiles() -> None:
     out = _poisoned_cached_response()
     assert _response_needs_embed_tile_repair(out) is True
+
+
+def test_response_needs_embed_tile_repair_when_hook_gaps_missing_tiles() -> None:
+    out = _poisoned_cached_response()
+    out["embed_contract_version"] = 2
+    out["narrative_vi"]["diagnosis_vi"]["sections"] = [
+        {
+            "section_id": "diagnosis",
+            "embedded_tiles": [{"aweme_id": "111"}],
+            "findings": [{"title_vi": "Ok", "fix_vi": "Tiếp tục giữ nhịp."}],
+        },
+        {
+            "section_id": "hook_analysis",
+            "embedded_tiles": [],
+            "findings": [
+                {"title_vi": "Overlay trễ", "fix_vi": "Đưa text về 0,5s."},
+            ],
+        },
+    ]
+    assert _response_needs_embed_tile_repair(out) is True
+    out["embed_contract_version"] = EMBED_CONTRACT_VERSION
+    assert _response_needs_embed_tile_repair(out) is False
 
 
 def test_apply_embed_tile_repair_injects_tiles() -> None:

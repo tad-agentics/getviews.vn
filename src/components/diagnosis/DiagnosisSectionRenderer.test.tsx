@@ -249,9 +249,89 @@ describe("hook_analysis strength-gap layout (#1)", () => {
     );
     expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
     expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
-    expect(screen.getByText(/Để khắc phục «Overlay trễ»/)).toBeTruthy();
-    // Peer card present (one gap), but only one — strength must not pull peers.
+    expect(screen.getByText(/cách mở 3 giây đầu trong ngách xử lý điểm này/)).toBeTruthy();
+    // Peer card inline under the gap (one gap → one tile).
     expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(1);
+  });
+
+  it("renders one inline reference tile per hook gap when two gaps exist", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "hook_analysis",
+          title_vi: "Phân tích hook",
+          text_vi: "**Hook đơn lớp** thiếu text overlay sớm và lời thoại mute-safe.",
+          findings: [
+            { title_vi: "Overlay trễ", fix_vi: "Đưa text overlay về 0,5s." },
+            { title_vi: "Thiếu lời thoại", fix_vi: "Thêm voice-over mở đầu 0–2s." },
+          ],
+          embedded_tiles: [
+            { aweme_id: "333", narrative_vi: "Peer mở text 0,4s." },
+            { aweme_id: "444", narrative_vi: "Peer có voice-over ngay 0,2s." },
+          ],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "333",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 120_000,
+            engagement_rate: null,
+            author_handle: "@hook",
+            thumbnail_url: "https://t/3.jpg",
+            tiktok_url: "https://tiktok.com/@hook/video/333",
+            source: "corpus",
+          },
+          {
+            aweme_id: "444",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 98_000,
+            engagement_rate: null,
+            author_handle: "@hook2",
+            thumbnail_url: "https://t/4.jpg",
+            tiktok_url: "https://tiktok.com/@hook2/video/444",
+            source: "corpus",
+          },
+        ]}
+      />,
+    );
+    expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(2);
+    expect(screen.getAllByText(/cách mở 3 giây đầu trong ngách/).length).toBe(2);
+  });
+
+  it("shows empty-state copy when a hook gap has no paired peer tile", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "hook_analysis",
+          title_vi: "Phân tích hook",
+          text_vi: "**Hook mỏng** cần thêm lớp text.",
+          findings: [
+            { title_vi: "Overlay trễ", fix_vi: "Đưa text overlay về 0,5s." },
+            { title_vi: "Thiếu voice", fix_vi: "Thêm voice-over mở đầu 0–2s." },
+          ],
+          embedded_tiles: [{ aweme_id: "333", narrative_vi: "Peer mở text 0,4s." }],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "333",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 120_000,
+            engagement_rate: null,
+            author_handle: "@hook",
+            thumbnail_url: "https://t/3.jpg",
+            tiktok_url: "https://tiktok.com/@hook/video/333",
+            source: "corpus",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText(/Chưa có clip tham chiếu trong ngách/)).toBeTruthy();
   });
 });
 

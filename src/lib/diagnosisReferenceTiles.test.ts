@@ -321,6 +321,17 @@ describe("resolvePeerReferenceTiles", () => {
       ),
     ).toHaveLength(1);
   });
+
+  it("caps peer tiles to gap count in gap-only sections", () => {
+    const extra = { ...tile, aweme_id: "222", narrative_vi: "Peer 2." };
+    const out = resolvePeerReferenceTiles(
+      "hook_analysis",
+      [tile, extra],
+      [{ title_vi: "Overlay trễ", fix_vi: "Đưa text về 0,5s." }],
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].aweme_id).toBe("111");
+  });
 });
 
 describe("referenceTileNarrative", () => {

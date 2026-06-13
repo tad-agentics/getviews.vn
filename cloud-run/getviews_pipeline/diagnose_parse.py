@@ -61,6 +61,36 @@ def parse_diagnosis_sections_markdown(narrative: str) -> list[dict[str, Any]]:
 
 _MAX_EMBEDDED_TILES_PER_SECTION = 3
 
+# Mirror FE ``fixChipMeta`` — \b is unreliable after Vietnamese letters in JS;
+# same explicit boundary lookahead on the Python side.
+_KEEP_FIX_VI_RE = re.compile(
+    r"^\s*(?:tiếp tục|giữ|nhân bản|duy trì)(?=[\s,.:;!—–-]|$)",
+    re.IGNORECASE,
+)
+
+
+def is_positive_fix_vi(fix_vi: str | None) -> bool:
+    """True when ``fix_vi`` is keep-advice («Tiếp tục»/«Giữ»/…), not corrective."""
+    if not fix_vi or not str(fix_vi).strip():
+        return False
+    return bool(_KEEP_FIX_VI_RE.match(str(fix_vi).strip()))
+
+
+def count_gap_findings(sec: dict[str, Any]) -> int:
+    """Corrective findings with actionable ``fix_vi`` (excludes keep-advice)."""
+    findings = sec.get("findings")
+    if not isinstance(findings, list):
+        return 0
+    n = 0
+    for f in findings:
+        if not isinstance(f, dict):
+            continue
+        fix = str(f.get("fix_vi") or "").strip()
+        if not fix or is_positive_fix_vi(fix):
+            continue
+        n += 1
+    return n
+
 
 def _format_views_compact_vi(n: int) -> str:
     if n >= 1_000_000:

@@ -1141,8 +1141,12 @@ def _build_narrative_cache_update(
 
 
 def _response_needs_embed_tile_repair(out: dict[str, Any]) -> bool:
-    """True when synthesis pool exists but v6 sections lack displayable embedded tiles."""
-    from getviews_pipeline.gemini import EMBED_CONTRACT_VERSION, count_valid_embedded_tiles
+    """True when synthesis pool exists but v6 sections lack gap-aligned embedded tiles."""
+    from getviews_pipeline.gemini import (
+        EMBED_CONTRACT_VERSION,
+        count_valid_embedded_tiles,
+        gap_sections_missing_peer_tiles,
+    )
 
     if int(out.get("embed_contract_version") or 0) >= EMBED_CONTRACT_VERSION:
         return False
@@ -1155,7 +1159,9 @@ def _response_needs_embed_tile_repair(out: dict[str, Any]) -> bool:
     diag = narrative.get("diagnosis_vi")
     if not isinstance(diag, dict):
         return False
-    return count_valid_embedded_tiles(diag) == 0
+    if count_valid_embedded_tiles(diag) == 0:
+        return True
+    return gap_sections_missing_peer_tiles(diag)
 
 
 async def _refetch_synthesis_reference_videos(

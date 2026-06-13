@@ -151,21 +151,29 @@ function referenceFallbackNarrative(
   if (hookPhrase && formatPhrase) {
     return topic === "structure"
       ? `xen cận đều và giữ nhịp cắt chặt hơn clip đang phân tích nhờ ${hookPhrase} và ${formatPhrase}.`
-      : `giữ nhịp mở và giữ chân tốt hơn mức view thường trong ngách nhờ ${hookPhrase} và ${formatPhrase}.`;
+      : topic === "hook"
+        ? `mở 3 giây đầu rõ hơn clip đang phân tích nhờ ${hookPhrase} và ${formatPhrase}.`
+        : `giữ nhịp mở và giữ chân tốt hơn mức view thường trong ngách nhờ ${hookPhrase} và ${formatPhrase}.`;
   }
   if (hookPhrase) {
     return topic === "structure"
       ? `giữ nhịp cắt và âm nền ổn định suốt clip nhờ ${hookPhrase} ngay khung mở.`
-      : `giữ chân ổn định suốt clip nhờ ${hookPhrase} ngay khung mở.`;
+      : topic === "hook"
+        ? `xử lý 3 giây đầu rõ hơn clip đang phân tích nhờ ${hookPhrase} ngay khung mở.`
+        : `giữ chân ổn định suốt clip nhờ ${hookPhrase} ngay khung mở.`;
   }
   if (formatPhrase) {
     return topic === "structure"
       ? `phân bổ cảnh và nhịp dẫn rõ hơn clip đang phân tích nhờ ${formatPhrase}.`
-      : `giữ nhịp dẫn ổn định suốt clip nhờ ${formatPhrase}.`;
+      : topic === "hook"
+        ? `mở đầu mute-safe và dẫn ý rõ hơn clip đang phân tích nhờ ${formatPhrase}.`
+        : `giữ nhịp dẫn ổn định suốt clip nhờ ${formatPhrase}.`;
   }
   return topic === "structure"
     ? "xen cận đều và tránh dead air — đối chiếu nhịp cắt, cảnh và âm thanh với clip của bạn."
-    : "giữ chân ổn định suốt clip — đối chiếu cách mở đầu, nhịp dẫn và chốt với clip của bạn.";
+    : topic === "hook"
+      ? "mở 3 giây đầu rõ và giữ chân tốt hơn — đối chiếu text overlay, lời thoại và visual layering với clip của bạn."
+      : "giữ chân ổn định suốt clip — đối chiếu cách mở đầu, nhịp dẫn và chốt với clip của bạn.";
 }
 
 const GENERIC_REF_LEAD_RE =
@@ -213,7 +221,7 @@ export function partitionFindingsByChip(findings: DiagnosisFinding[]): {
   return { strengths, gaps, observations };
 }
 
-export type ReferenceBridgeTopic = "general" | "structure";
+export type ReferenceBridgeTopic = "general" | "structure" | "hook";
 
 /** Lead-in prose before reference cards — ties gaps to peer examples. */
 export function formatReferenceBridgeProse(
@@ -229,6 +237,11 @@ export function formatReferenceBridgeProse(
         ? "Clip tham chiếu dưới minh họa cách creator trong ngách xử lý nhịp, cảnh và âm thanh — đối chiếu với dòng thời gian video của bạn."
         : `${tileCount} clip dưới minh họa cách creator trong ngách xử lý từng thiếu sót về nhịp/cảnh/âm — đối chiếu với dòng thời gian video của bạn.`;
     }
+    if (topic === "hook") {
+      return tileCount === 1
+        ? "Clip tham chiếu dưới minh họa cách creator trong ngách xử lý 3 giây đầu — đối chiếu text overlay, lời thoại và visual layering với video của bạn."
+        : `${tileCount} clip dưới minh họa cách creator trong ngách xử lý từng thiếu sót hook — đối chiếu 3 giây mở đầu với video của bạn.`;
+    }
     return tileCount === 1
       ? "Clip tham chiếu dưới minh họa cách creator trong ngách xử lý điểm cần cải thiện — đối chiếu cách mở đầu và giữ nhịp với video của bạn."
       : `${tileCount} clip dưới minh họa cách creator trong ngách xử lý từng điểm cần cải thiện — đối chiếu cách mở đầu và giữ nhịp với video của bạn.`;
@@ -237,11 +250,17 @@ export function formatReferenceBridgeProse(
     if (topic === "structure") {
       return `Để khắc phục thiếu sót «${titles[0]}», xem clip tham chiếu dưới — creator trong ngách đã xử lý nhịp/cảnh/âm đúng điểm này như thế nào.`;
     }
+    if (topic === "hook") {
+      return `Để khắc phục «${titles[0]}», xem clip tham chiếu dưới — creator trong ngách đã xử lý 3 giây đầu đúng điểm này như thế nào.`;
+    }
     return `Để khắc phục «${titles[0]}», xem clip tham chiếu dưới — creator trong ngách đã xử lý đúng điểm này như thế nào.`;
   }
   const listed = titles.map((t) => `«${t}»`).join(", ");
   if (topic === "structure") {
     return `${tileCount} clip dưới là ví dụ trong ngách cho thiếu sót ${listed} — mỗi clip gắn một hướng sửa nhịp/cảnh cụ thể.`;
+  }
+  if (topic === "hook") {
+    return `${tileCount} clip dưới là ví dụ trong ngách cho thiếu sót hook ${listed} — mỗi clip gắn một hướng sửa 3 giây đầu cụ thể.`;
   }
   return `${tileCount} clip dưới là ví dụ trong ngách cho ${listed} — mỗi clip gắn với một hướng sửa cụ thể.`;
 }
@@ -282,7 +301,9 @@ export function buildGapLinkedTileNarrative(
   const compareFallback =
     topic === "structure"
       ? "đối chiếu nhịp cắt, cảnh và âm thanh của clip này với video của bạn"
-      : "đối chiếu cách clip này mở đầu và giữ nhịp so với video của bạn";
+      : topic === "hook"
+        ? "đối chiếu cách clip này mở 3 giây đầu (text overlay, lời thoại, visual) với video của bạn"
+        : "đối chiếu cách clip này mở đầu và giữ nhịp so với video của bạn";
 
   const core = peerLesson
     ? `Để xử lý «${gapTitle}», clip này ${sentenceCaseVi(peerLesson.replace(/\.$/, ""))}.`
@@ -327,7 +348,27 @@ export function resolvePeerReferenceTiles(
   }
   const { gaps } = partitionFindingsByChip(findings);
   if (!gaps.length) return [];
-  return enrichReferenceTilesForGaps(tiles, gaps, topic);
+  return enrichReferenceTilesForGaps(tiles.slice(0, gaps.length), gaps, topic);
+}
+
+/** Shown under an inline gap card when the synthesis pool has no peer for that gap. */
+export const GAP_PEER_MISSING_VI =
+  "Chưa có clip tham chiếu trong ngách cho thiếu sót này.";
+
+/** Lead-in copy before a single inline reference tile under one gap card. */
+export function formatSingleGapBridgeProse(
+  gapTitle: string,
+  topic: ReferenceBridgeTopic = "general",
+): string {
+  const title = gapTitle.trim();
+  if (!title) return "";
+  if (topic === "structure") {
+    return `Để khắc phục thiếu sót «${title}», xem clip tham chiếu — creator trong ngách đã xử lý nhịp/cảnh/âm đúng điểm này.`;
+  }
+  if (topic === "hook") {
+    return `Để khắc phục «${title}», xem clip tham chiếu — cách mở 3 giây đầu trong ngách xử lý điểm này.`;
+  }
+  return `Để khắc phục «${title}», xem clip tham chiếu — creator trong ngách đã xử lý đúng điểm này.`;
 }
 
 export function referenceTileNarrative(tile: DiagnosisReferenceTile): string {

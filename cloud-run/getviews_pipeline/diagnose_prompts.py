@@ -450,6 +450,22 @@ def build_diagnosis_v6_user_prompt(
             "\n- Dệt 1-2 câu trong section.text dẫn sang thẻ video tham chiếu (thumbnail); "
             "không lặp nguyên văn narrative_vi trên thẻ."
         )
+    hook_analysis_note = ""
+    if "hook_analysis" in sections_to_emit:
+        hook_analysis_note = (
+            "\n\nSECTION hook_analysis («Phân tích hook»):"
+            "\n- section.text: ưu tiên ≤90 từ (1 verdict **in đậm** + tối đa 4 câu "
+            "về 3 giây đầu: loại hook, text overlay, lời thoại, visual layering, mute-safe). "
+            "Mật độ prose tương đương block «Đang làm tốt» — đọc xong hiểu hook mạnh/yếu thế nào."
+            "\n- findings: đúng 1 điểm mạnh (fix_vi «Tiếp tục»/«Giữ»/«Duy trì») + "
+            "1-2 thiếu sót hook (fix_vi hành động copy-paste, có mốc giây). UI tách ĐIỂM MẠNH / THIẾU SÓT."
+            "\n- Mỗi thiếu sót BẮT BUỘC có fix_vi riêng — KHÔNG ghi critique hook chỉ trong section.text."
+            "\n- embedded_tiles: đúng 1 tile cho mỗi thiếu sót (tối đa 3) — narrative_vi "
+            "nêu peer xử lý 3 giây đầu tốt hơn («để sửa overlay trễ, clip này hiện text 0,4s…»). "
+            "KHÔNG «Được chọn vì format» chung chung."
+            "\n- Dệt 1-2 câu cuối section.text dẫn sang thẻ tham chiếu (hook cụ thể); "
+            "không lặp nguyên văn narrative_vi trên thẻ."
+        )
     video_structure_note = ""
     has_script_structure = "script_structure" in sections_to_emit
     has_sound = "sound" in sections_to_emit
@@ -504,6 +520,7 @@ def build_diagnosis_v6_user_prompt(
         "Hai clip tham chiếu dưới minh họa cách xử lý hook và nhịp.'"
         + tier_note
         + strength_gap_note
+        + hook_analysis_note
         + video_structure_note
     )
     return "".join(blocks)

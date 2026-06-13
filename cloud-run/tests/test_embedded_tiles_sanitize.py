@@ -35,6 +35,9 @@ def test_sanitize_drops_off_topic_embedded_tiles() -> None:
                 "section_id": "diagnosis",
                 "text_vi": "prose",
                 "embedded_tiles": [{"aweme_id": "222"}],
+                "findings": [
+                    {"title_vi": "Hook chung chung", "fix_vi": "Mở bằng câu hỏi đảo 0–1s."},
+                ],
             }
         ]
     }
@@ -112,7 +115,16 @@ def test_inject_fallback_tile_when_gemini_omits_embedded_tiles() -> None:
     ]
     diag_vi = {
         "sections": [
-            {"section_id": "hook_analysis", "text_vi": "prose", "embedded_tiles": []},
+            {
+                "section_id": "hook_analysis",
+                "text_vi": "prose",
+                "embedded_tiles": [],
+                "findings": [
+                    {"title_vi": "Gap A", "fix_vi": "Sửa A."},
+                    {"title_vi": "Gap B", "fix_vi": "Sửa B."},
+                    {"title_vi": "Gap C", "fix_vi": "Sửa C."},
+                ],
+            },
         ]
     }
     _inject_fallback_embedded_tiles(diag_vi, refs, {"111", "222", "333"})
@@ -145,7 +157,14 @@ def test_repair_diagnosis_vi_embedded_tiles_injects_when_empty() -> None:
     refs = [_slim("111", "đồng hồ nam luxury", proximity=1)]
     diag_vi = {
         "sections": [
-            {"section_id": "diagnosis", "text_vi": "prose", "embedded_tiles": []},
+            {
+                "section_id": "diagnosis",
+                "text_vi": "prose",
+                "embedded_tiles": [],
+                "findings": [
+                    {"title_vi": "Hook chung chung", "fix_vi": "Mở bằng câu hỏi đảo 0–1s."},
+                ],
+            },
         ]
     }
     n = repair_diagnosis_vi_embedded_tiles(diag_vi, refs)
@@ -154,7 +173,48 @@ def test_repair_diagnosis_vi_embedded_tiles_injects_when_empty() -> None:
 
 
 def test_embed_contract_version_constant() -> None:
-    assert EMBED_CONTRACT_VERSION >= 2
+    assert EMBED_CONTRACT_VERSION >= 3
+
+
+def test_is_positive_fix_vi_matches_fe_keep_verbs() -> None:
+    from getviews_pipeline.diagnose_parse import count_gap_findings, is_positive_fix_vi
+
+    assert is_positive_fix_vi("Tiếp tục giữ phong cách thật.")
+    assert is_positive_fix_vi("Giữ nhịp cắt nhanh.")
+    assert not is_positive_fix_vi("Giữa chân sản phẩm 0–2s.")
+    assert not is_positive_fix_vi("Mở bằng câu hỏi đảo 0–1s.")
+
+    sec = {
+        "findings": [
+            {"title_vi": "Pos", "fix_vi": "Giữ nhịp."},
+            {"title_vi": "Gap", "fix_vi": "Giữa chân sản phẩm 0–2s."},
+        ]
+    }
+    assert count_gap_findings(sec) == 1
+
+
+def test_gap_sections_missing_peer_tiles() -> None:
+    from getviews_pipeline.gemini import gap_sections_missing_peer_tiles
+
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "hook_analysis",
+                "embedded_tiles": [],
+                "findings": [
+                    {"title_vi": "A", "fix_vi": "Sửa A."},
+                    {"title_vi": "B", "fix_vi": "Sửa B."},
+                ],
+            },
+        ]
+    }
+    assert gap_sections_missing_peer_tiles(diag_vi) is True
+    diag_vi["sections"][0]["embedded_tiles"] = [{"aweme_id": "111", "video_url": "https://x"}]
+    assert gap_sections_missing_peer_tiles(diag_vi) is True
+    diag_vi["sections"][0]["embedded_tiles"].append(
+        {"aweme_id": "222", "video_url": "https://y"},
+    )
+    assert gap_sections_missing_peer_tiles(diag_vi) is False
 
 
 def test_sanitize_dedupes_duplicate_aweme_in_one_section() -> None:
@@ -215,8 +275,21 @@ def test_inject_fallback_rotates_peers_across_empty_sections() -> None:
     ]
     diag_vi = {
         "sections": [
-            {"section_id": "diagnosis", "embedded_tiles": []},
-            {"section_id": "hook_analysis", "embedded_tiles": []},
+            {
+                "section_id": "diagnosis",
+                "embedded_tiles": [],
+                "findings": [
+                    {"title_vi": "Giữ nhịp", "fix_vi": "Tiếp tục cắt nhanh."},
+                ],
+            },
+            {
+                "section_id": "hook_analysis",
+                "embedded_tiles": [],
+                "findings": [
+                    {"title_vi": "Overlay trễ", "fix_vi": "Đưa text về 0,5s."},
+                    {"title_vi": "Thiếu voice", "fix_vi": "Thêm lời thoại 0–2s."},
+                ],
+            },
         ]
     }
     _inject_fallback_embedded_tiles(diag_vi, refs, {"111", "222", "333", "444"})
@@ -225,10 +298,29 @@ def test_inject_fallback_rotates_peers_across_empty_sections() -> None:
     _dedupe_embedded_tiles_across_sections(diag_vi)
     diag_ids = [t["aweme_id"] for t in diag_vi["sections"][0]["embedded_tiles"]]
     hook_ids = [t["aweme_id"] for t in diag_vi["sections"][1]["embedded_tiles"]]
-    assert len(diag_ids) == 3
-    assert len(hook_ids) == 1
+    assert diag_ids == []
+    assert len(hook_ids) == 2
     assert not set(diag_ids) & set(hook_ids)
-    assert set(diag_ids) | set(hook_ids) <= {"111", "222", "333", "444"}
+    assert set(hook_ids) <= {"111", "222", "333", "444"}
+
+
+def test_inject_fallback_skips_strength_only_diagnosis() -> None:
+    from getviews_pipeline.gemini import _inject_fallback_embedded_tiles
+
+    refs = [_slim("111", "A", proximity=3, source="corpus")]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "diagnosis",
+                "embedded_tiles": [],
+                "findings": [
+                    {"title_vi": "Giữ nhịp", "fix_vi": "Tiếp tục cắt nhanh."},
+                ],
+            },
+        ]
+    }
+    _inject_fallback_embedded_tiles(diag_vi, refs, {"111"})
+    assert diag_vi["sections"][0]["embedded_tiles"] == []
 
 
 def test_validate_citations_invokes_tile_sanitize() -> None:
@@ -358,7 +450,14 @@ def test_inject_fallback_respects_views_floor() -> None:
     ]
     diag_vi = {
         "sections": [
-            {"section_id": "hook_analysis", "text_vi": "prose", "embedded_tiles": []},
+            {
+                "section_id": "hook_analysis",
+                "text_vi": "prose",
+                "embedded_tiles": [],
+                "findings": [
+                    {"title_vi": "Overlay trễ", "fix_vi": "Đưa text về 0,5s."},
+                ],
+            },
         ]
     }
     _sanitize_diagnosis_embedded_tiles(

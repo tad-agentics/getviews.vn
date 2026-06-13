@@ -985,8 +985,35 @@ _EMBED_TILE_SECTION_IDS: frozenset[str] = frozenset(
 # tiles, never to zero, when the whole pool is weak).
 _EMBED_TILE_VIEWS_FLOOR_RATIO = 0.2
 
+# Sections where peer tiles attach to corrective findings only — skip fallback
+# inject when the section has no gap findings (strengths-only diagnosis).
+_GAP_AWARE_EMBED_SECTIONS: frozenset[str] = frozenset(
+    {"diagnosis", "hook_analysis", "script_structure"},
+)
+
 # Bump when embedded-tile sanitize/inject contract changes (finalize-lite repair gate).
-EMBED_CONTRACT_VERSION = 2
+EMBED_CONTRACT_VERSION = 3
+
+
+def _valid_embedded_tile(t: dict[str, Any]) -> bool:
+    aid = str(t.get("aweme_id") or t.get("video_id") or "")
+    if not aid:
+        return False
+    return bool(
+        t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet")
+    )
+
+
+def count_valid_section_embedded_tiles(sec: dict[str, Any]) -> int:
+    """Valid embedded tiles in one v6 section."""
+    tiles = sec.get("embedded_tiles")
+    if not isinstance(tiles, list):
+        return 0
+    n = 0
+    for t in tiles:
+        if isinstance(t, dict) and _valid_embedded_tile(t):
+            n += 1
+    return n
 
 
 def count_valid_embedded_tiles(diagnosis_vi: dict[str, Any] | None) -> int:
@@ -998,20 +1025,34 @@ def count_valid_embedded_tiles(diagnosis_vi: dict[str, Any] | None) -> int:
         return 0
     total = 0
     for sec in sections:
+        if isinstance(sec, dict):
+            total += count_valid_section_embedded_tiles(sec)
+    return total
+
+
+def gap_sections_missing_peer_tiles(diagnosis_vi: dict[str, Any]) -> bool:
+    """True when a gap-aware section has corrective findings but too few peer tiles."""
+    from getviews_pipeline.diagnose_parse import (
+        _MAX_EMBEDDED_TILES_PER_SECTION,
+        count_gap_findings,
+    )
+
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return False
+    for sec in sections:
         if not isinstance(sec, dict):
             continue
-        tiles = sec.get("embedded_tiles")
-        if not isinstance(tiles, list):
+        sid = str(sec.get("section_id") or "")
+        if sid not in _GAP_AWARE_EMBED_SECTIONS:
             continue
-        for t in tiles:
-            if not isinstance(t, dict):
-                continue
-            aid = str(t.get("aweme_id") or t.get("video_id") or "")
-            if not aid:
-                continue
-            if t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"):
-                total += 1
-    return total
+        gap_n = count_gap_findings(sec)
+        if gap_n <= 0:
+            continue
+        want = min(gap_n, _MAX_EMBEDDED_TILES_PER_SECTION)
+        if count_valid_section_embedded_tiles(sec) < want:
+            return True
+    return False
 
 
 def repair_diagnosis_vi_embedded_tiles(
@@ -1269,12 +1310,10 @@ def _inject_fallback_embedded_tiles(
 
     used_aweme = _collect_embedded_aweme_ids(diagnosis_vi)
 
-    for sid in (
-        "diagnosis",
-        "hook_analysis",
-        "niche_pattern",
-        "script_structure",
-    ):
+    # Gap-aware sections first so hook/script get peers before diagnosis consumes
+    # the pool on strength-only hit reports (2026-06-13 hook ref audit).
+    injection_plan: list[tuple[str, int]] = []
+    for sid in ("hook_analysis", "script_structure", "diagnosis"):
         if sid not in _EMBED_TILE_SECTION_IDS:
             continue
         sec = by_sid.get(sid)
@@ -1283,9 +1322,31 @@ def _inject_fallback_embedded_tiles(
         existing = sec.get("embedded_tiles")
         if isinstance(existing, list) and existing:
             continue
-        batch = [aid for aid in ranked if aid not in used_aweme][
-            :_MAX_EMBEDDED_TILES_PER_SECTION
-        ]
+        from getviews_pipeline.diagnose_parse import count_gap_findings
+
+        gap_n = count_gap_findings(sec)
+        if sid in _GAP_AWARE_EMBED_SECTIONS and gap_n <= 0:
+            continue
+        want = (
+            min(gap_n, _MAX_EMBEDDED_TILES_PER_SECTION)
+            if sid in _GAP_AWARE_EMBED_SECTIONS
+            else _MAX_EMBEDDED_TILES_PER_SECTION
+        )
+        if want <= 0:
+            continue
+        injection_plan.append((sid, want))
+
+    if "niche_pattern" in by_sid:
+        sec = by_sid["niche_pattern"]
+        existing = sec.get("embedded_tiles")
+        if not (isinstance(existing, list) and existing):
+            injection_plan.append(("niche_pattern", _MAX_EMBEDDED_TILES_PER_SECTION))
+
+    for sid, want_n in injection_plan:
+        sec = by_sid.get(sid)
+        if not sec:
+            continue
+        batch = [aid for aid in ranked if aid not in used_aweme][:want_n]
         if not batch:
             continue
         resolved = resolve_embedded_tiles(
@@ -1308,7 +1369,7 @@ def _inject_fallback_embedded_tiles(
                 )
         if resolved:
             ensure_distinct_tile_narratives(resolved, sid, addressing_mode)  # type: ignore[arg-type]
-            sec["embedded_tiles"] = resolved[:_MAX_EMBEDDED_TILES_PER_SECTION]
+            sec["embedded_tiles"] = resolved[:want_n]
 
 
 def _strip_disallowed_embedded_tile_ids(

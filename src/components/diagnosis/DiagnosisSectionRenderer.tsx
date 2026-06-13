@@ -15,6 +15,8 @@ import type {
 import {
   buildDiagnosisReferenceTiles,
   formatReferenceBridgeProse,
+  formatSingleGapBridgeProse,
+  GAP_PEER_MISSING_VI,
   partitionFindingsByChip,
   resolvePeerReferenceTiles,
   stripSectionProseForEmbeddedRefs,
@@ -211,6 +213,7 @@ function StrengthGapSectionLayout({
   referenceTiles,
   gapKicker,
   bridgeTopic,
+  inlineGapRefs = false,
   analyzedClip,
 }: {
   sectionId: string;
@@ -220,7 +223,8 @@ function StrengthGapSectionLayout({
   referenceTiles: DiagnosisReferenceTile[];
   gapKicker: "KHOẢNG TRỐNG" | "THIẾU SÓT";
   bridgeTopic: ReferenceBridgeTopic;
-  /** Per-finding deep-link context into the analyzed clip (strengths cite own clip). */
+  /** Pair each gap finding with its reference tile directly under the card. */
+  inlineGapRefs?: boolean;
   analyzedClip?: AnalyzedClipContext | null;
 }) {
   const { strengths, gaps, observations } = partitionFindingsByChip(findings);
@@ -231,7 +235,7 @@ function StrengthGapSectionLayout({
     bridgeTopic,
   );
   const refBridge =
-    gapLinkedTiles.length > 0
+    !inlineGapRefs && gapLinkedTiles.length > 0
       ? formatReferenceBridgeProse(gaps, gapLinkedTiles.length, bridgeTopic)
       : "";
   let findingRank = 0;
@@ -270,7 +274,28 @@ function StrengthGapSectionLayout({
           <div className="flex flex-col gap-3">
             {gaps.map((f, i) => {
               findingRank += 1;
-              return <SectionFindingCard key={`g-${i}`} rank={findingRank} finding={f} />;
+              const pairedTile = inlineGapRefs ? gapLinkedTiles[i] : undefined;
+              return (
+                <div key={`g-${i}`} className="flex flex-col gap-3">
+                  <SectionFindingCard rank={findingRank} finding={f} />
+                  {pairedTile ? (
+                    <>
+                      <p className="m-0 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">
+                        {formatSingleGapBridgeProse(f.title_vi ?? "", bridgeTopic)}
+                      </p>
+                      <DiagnosisReferenceVideoCards
+                        tiles={[pairedTile]}
+                        embedded
+                        showLabel={false}
+                      />
+                    </>
+                  ) : (
+                    <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
+                      {GAP_PEER_MISSING_VI}
+                    </p>
+                  )}
+                </div>
+              );
             })}
           </div>
         </div>
@@ -300,7 +325,7 @@ function StrengthGapSectionLayout({
           {refBridge}
         </p>
       ) : null}
-      {gapLinkedTiles.length > 0 ? (
+      {!inlineGapRefs && gapLinkedTiles.length > 0 ? (
         <DiagnosisReferenceVideoCards
           tiles={gapLinkedTiles}
           label="VÍ DỤ TRONG NGÁCH"
@@ -476,7 +501,10 @@ export function DiagnosisSectionRenderer({
         findings={findings}
         referenceTiles={referenceTiles}
         gapKicker={isVideoStructureSection || isHookSection ? "THIẾU SÓT" : "KHOẢNG TRỐNG"}
-        bridgeTopic={isVideoStructureSection ? "structure" : "general"}
+        bridgeTopic={
+          isVideoStructureSection ? "structure" : isHookSection ? "hook" : "general"
+        }
+        inlineGapRefs={isVideoStructureSection || isHookSection}
         analyzedClip={videoEmbeds?.analyzedClip}
       />
     );
