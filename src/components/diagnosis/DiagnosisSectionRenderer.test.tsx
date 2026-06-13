@@ -6,7 +6,7 @@
  */
 import React from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import type { DiagnosisSectionVi } from "@/lib/api-types";
 import { INFORMATIVE_STRUCTURE_SEGMENTS } from "@/lib/testFixtures/informativeStructureSegments";
@@ -93,6 +93,32 @@ describe("diagnosis strength-gap layout", () => {
     expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
     expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
     expect(container.querySelector("a[href*='tiktok.com']")).toBeNull();
+  });
+
+  it("collapses and expands the section body when the title trigger is clicked", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "diagnosis",
+          title_vi: "Đang làm tốt",
+          text_vi: "Video breakout.",
+          findings: [
+            {
+              title_vi: "Hook mạnh",
+              fix_vi: "Tiếp tục giữ hook câu hỏi.",
+            },
+          ],
+        }}
+        referenceVideos={[]}
+      />,
+    );
+    const trigger = screen.getByRole("button", { name: /Đang làm tốt/i });
+    expect(trigger.getAttribute("data-state")).toBe("open");
+    expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("data-state")).toBe("closed");
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("data-state")).toBe("open");
   });
 
   it("renders strength/gap subsections, bridge prose, and gap-linked reference cards", () => {

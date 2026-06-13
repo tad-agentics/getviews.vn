@@ -2,8 +2,14 @@
  * One `diagnosis_vi.sections[]` block — verdict-first, findings as hero (redesign 2026-05).
  */
 import type { ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 
 import { SectionProseBlocks } from "@/components/SectionProseBlocks";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { formatDiagnosisSectionTitle } from "@/lib/formatters";
 import { Timeline } from "@/components/v2/Timeline";
 import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
@@ -237,13 +243,8 @@ function StrengthGapSectionLayout({
       : "";
   let findingRank = 0;
 
-  return (
-    <div className={compact ? "mt-0" : "mb-6"}>
-      {!compact && title ? (
-        <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">
-          {title}
-        </h3>
-      ) : null}
+  const body = (
+    <>
       {!compact && structureTimeline ? (
         <StructureTimelineEmbed timeline={structureTimeline} />
       ) : null}
@@ -336,6 +337,36 @@ function StrengthGapSectionLayout({
           showLabel={!refBridge}
         />
       ) : null}
+    </>
+  );
+
+  if (!compact && title) {
+    return (
+      <Collapsible defaultOpen className="mb-6">
+        <CollapsibleTrigger className="flex w-full min-h-[44px] items-center justify-between gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]/40 [&[data-state=open]>svg]:rotate-180">
+          <span className="text-base font-bold leading-snug text-[color:var(--foreground)]">
+            {title}
+          </span>
+          <ChevronDown
+            className="h-4 w-4 shrink-0 text-[color:var(--gv-ink-3)] transition-transform duration-200"
+            aria-hidden
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+          <div className="pt-1">{body}</div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+
+  return (
+    <div className={compact ? "mt-0" : "mb-6"}>
+      {!compact && title ? (
+        <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">
+          {title}
+        </h3>
+      ) : null}
+      {body}
     </div>
   );
 }
