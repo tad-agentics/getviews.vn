@@ -13,6 +13,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { DiagnosisSectionVi } from "@/lib/api-types";
 
 import { DiagnosisSectionRenderer } from "./DiagnosisSectionRenderer";
+import { humanizeStatsProse } from "@/lib/humanizeStatsProse";
 
 afterEach(cleanup);
 
@@ -149,7 +150,120 @@ describe("diagnosis strength-gap layout", () => {
 });
 
 describe("video structure strength-gap layout", () => {
-  it("renders ĐIỂM MẠNH / THIẾU SÓT, bridge prose, and gap-linked reference cards", () => {
+  it("renders four-axis layout with editing kicker and eight-beat timeline under rhythm", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "script_structure",
+          title_vi: "Phân tích cấu trúc Video",
+          structure_axes: [
+            {
+              axis_id: "rhythm",
+              title_vi: "Nhịp & cắt",
+              text_vi: "**Nhịp cắt 1,2s/cảnh** giữ chân ổn.",
+              findings: [
+                {
+                  title_vi: "Nhịp cắt nhanh",
+                  fix_vi: "Tiếp tục giữ nhịp cắt 1,2s/cảnh.",
+                },
+              ],
+            },
+            {
+              axis_id: "editing",
+              title_vi: "Hậu kỳ & hình",
+              text_vi: "Chữ overlay mờ ở giữa clip.",
+              findings: [{ title_vi: "Chữ nhỏ", fix_vi: "Tăng font overlay lên 48px." }],
+            },
+          ],
+        }}
+        referenceVideos={[]}
+        videoEmbeds={{
+          structureTimeline: {
+            durationSec: 28,
+            segments: [
+              { name: "Hook", pct: 12, color_key: "hook" },
+              { name: "Body", pct: 88, color_key: "body" },
+            ],
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText("Hậu kỳ & hình")).toBeTruthy();
+    expect(screen.getByLabelText("Dòng thời gian cấu trúc video")).toBeTruthy();
+    expect(container.querySelectorAll('[aria-label="Dòng thời gian cấu trúc video"]')).toHaveLength(
+      1,
+    );
+  });
+
+  it("renders three-axis layout with per-axis kickers and gap-linked peers", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "script_structure",
+          title_vi: "Phân tích cấu trúc Video",
+          structure_axes: [
+            {
+              axis_id: "rhythm",
+              title_vi: "Nhịp & cắt",
+              text_vi:
+                "**Nhịp cắt 1,2s/cảnh** giữ chân ổn nhưng dead air ở giữa làm rớt retention.",
+              findings: [
+                {
+                  title_vi: "Nhịp cắt nhanh",
+                  body_vi: "1,2s/cảnh — nhanh hơn median ngách.",
+                  fix_vi: "Tiếp tục giữ nhịp cắt 1,2s/cảnh.",
+                },
+                {
+                  title_vi: "Dead air giữa clip",
+                  body_vi: "4s tĩnh ở 8-12s.",
+                  fix_vi: "Xen cận hoặc text overlay mỗi 2s.",
+                },
+              ],
+              embedded_tiles: [
+                {
+                  aweme_id: "222",
+                  narrative_vi: "Xen cận sản phẩm mỗi 2s — không để cảnh tĩnh quá 1,5s.",
+                },
+              ],
+            },
+            {
+              axis_id: "sound",
+              title_vi: "Âm thanh",
+              text_vi: "Voiceover rõ nhưng nhạc nền lấn át lời ở giữa clip.",
+              findings: [
+                {
+                  title_vi: "Nhạc lấn lời",
+                  fix_vi: "Hạ BGM 30% khi có lời thoại.",
+                },
+              ],
+            },
+          ],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "222",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 200_000,
+            engagement_rate: null,
+            author_handle: "@struct",
+            thumbnail_url: "https://t/2.jpg",
+            tiktok_url: "https://tiktok.com/@struct/video/222",
+            source: "corpus",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("Nhịp & cắt")).toBeTruthy();
+    expect(screen.getByText("Âm thanh")).toBeTruthy();
+    expect(screen.getAllByText("ĐIỂM MẠNH").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("THIẾU SÓT").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/thiếu sót «Dead air giữa clip»/)).toBeTruthy();
+    expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
+  });
+
+  it("renders flat strength-gap layout when structure_axes absent (legacy cache)", () => {
     const { container } = render(
       <DiagnosisSectionRenderer
         section={{
@@ -190,10 +304,20 @@ describe("video structure strength-gap layout", () => {
             source: "corpus",
           },
         ]}
+        videoEmbeds={{
+          structureTimeline: {
+            durationSec: 28,
+            segments: [
+              { name: "Hook", pct: 12, color_key: "hook" },
+              { name: "Body", pct: 88, color_key: "body" },
+            ],
+          },
+        }}
       />,
     );
     expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
     expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
+    expect(screen.getByLabelText("Dòng thời gian cấu trúc video")).toBeTruthy();
     expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
     expect(screen.getByText(/thiếu sót «Dead air giữa clip»/)).toBeTruthy();
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
@@ -423,16 +547,17 @@ describe("section verdict prose", () => {
     const verdict =
       "Video đạt hiệu suất 3,06x so với mức view thường của kênh nhờ nhịp cắt nhanh, nhưng đang thiếu kết nối Người kể chuyện.";
     const support =
-      "Việc không có tiếng nói trực tiếp khiến nội dung tutorial mất đi 35% tiềm năng giữ chân.";
+      "Việc không có tiếng nói trực tiếp khiến nội dung review mất đi 35% tiềm năng giữ chân.";
     const { container } = renderSection({
       section_id: "diagnosis",
       title: "Chẩn đoán",
       text: `${verdict}\n\n${support}`,
       findings: [],
     } as DiagnosisSectionVi);
+    const humanizedSupport = humanizeStatsProse(support);
     const paragraphs = container.querySelectorAll("p");
     const merged = Array.from(paragraphs).find(
-      (p) => p.textContent?.includes(verdict) && p.textContent?.includes(support),
+      (p) => p.textContent?.includes(verdict) && p.textContent?.includes(humanizedSupport),
     );
     expect(merged).toBeTruthy();
     expect(merged?.querySelector("span.font-bold")?.textContent).toBe(verdict);

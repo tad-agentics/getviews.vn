@@ -182,6 +182,16 @@ def _video_has_audible_sound_track(ctx: dict) -> bool:
     role = str(ua.get("audio_track_role") or "").strip().lower()
     if role and role != "silent":
         return True
+    transcript = str(ua.get("audio_transcript") or "").strip()
+    if len(transcript) >= 20:
+        return True
+    tags = {str(t).strip().lower() for t in (ua.get("style_tags") or []) if t}
+    if len(transcript) >= 8 and (
+        "voiceover_only" in tags
+        or "talking_head" in tags
+        or ua.get("has_human_speaking_to_camera") is True
+    ):
+        return True
     return False
 
 
@@ -360,7 +370,7 @@ DEEP_SECTION_CAP = 7
 # structure breakdown is part of that promise, not a salience-negotiable extra.
 # These count toward the cap (they displace the weakest contested section) but
 # keep their natural display-order position.
-_RESERVED_ANATOMY: tuple[str, ...] = ("script_structure",)
+_RESERVED_ANATOMY: tuple[str, ...] = ("script_structure", "editing", "sound", "persona")
 
 
 def _section_display_order() -> dict[str, int]:

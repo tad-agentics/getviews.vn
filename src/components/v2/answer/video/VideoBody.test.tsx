@@ -728,10 +728,13 @@ describe("VideoBody render", () => {
     expect(screen.getByText("Phân tích cấu trúc Video")).toBeTruthy();
     expect(screen.queryByText("Âm thanh và nhịp điệu")).toBeNull();
     expect(screen.queryByText(/Dòng thời gian · Cấu trúc video/)).toBeNull();
-    expect(screen.queryByText("Sound prose không hiển thị.")).toBeNull();
-    expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
-    expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
-    expect(screen.getByText(/thiếu sót «Dead air giữa clip»/)).toBeTruthy();
+    expect(screen.getByText("Nhịp & cắt")).toBeTruthy();
+    expect(screen.getByText("Âm thanh")).toBeTruthy();
+    expect(screen.getByText("Sound prose không hiển thị.")).toBeTruthy();
+    expect(screen.getAllByText("ĐIỂM MẠNH").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("THIẾU SÓT").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Hook im lặng")).toBeTruthy();
+    expect(screen.getByText(/khoảng lặng giữa clip/)).toBeTruthy();
     expect(screen.getByText("Cấu trúc prose.")).toBeTruthy();
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
     const headings = screen.getAllByRole("heading", { level: 3 });
@@ -741,7 +744,51 @@ describe("VideoBody render", () => {
     );
   });
 
-  it("renders script_structure adjunct with fallback prose when segments exist", () => {
+  it("merges persona into structure block alongside sound and script_structure", () => {
+    renderInRouter(
+      makeWinReport({
+        narrative_vi: {
+          ...makeWinReport().narrative_vi!,
+          _schema_version: "v6",
+          diagnosis_vi: {
+            headline_vi: "H",
+            sections: [
+              { section_id: "hook_analysis", title_vi: "Phân tích hook", text_vi: "Hook." },
+              {
+                section_id: "script_structure",
+                title_vi: "Dòng thời gian · Cấu trúc video",
+                text_vi: "Cấu trúc prose.",
+                findings: [{ title_vi: "Dead air giữa clip", fix_vi: "Xen cận mỗi 2s." }],
+              },
+              {
+                section_id: "sound",
+                title_vi: "Âm thanh và nhịp điệu",
+                findings: [{ title_vi: "Hook im lặng", fix_vi: "Voiceover giây 0." }],
+              },
+              {
+                section_id: "persona",
+                title_vi: "Phong cách và nhân vật",
+                text_vi: "Giọng thiếu va chạm.",
+                findings: [
+                  {
+                    title_vi: "Thiếu tính chân thực",
+                    fix_vi: "Thêm chi tiết tiêu cực nhỏ.",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+    );
+    expect(screen.getByText("Phân tích cấu trúc Video")).toBeTruthy();
+    expect(screen.queryByText("Phong cách và nhân vật")).toBeNull();
+    expect(screen.getByText("Giọng & persona")).toBeTruthy();
+    expect(screen.getByText("Thiếu tính chân thực")).toBeTruthy();
+    expect(screen.getByText(/Giọng thiếu va chạm/)).toBeTruthy();
+  });
+
+  it("renders script_structure adjunct with fallback prose and timeline when segments exist", () => {
     renderInRouter(
       makeWinReport({
         segments: [
@@ -752,6 +799,7 @@ describe("VideoBody render", () => {
       }),
     );
     expect(screen.getByText(/8 nhịp kịch bản/)).toBeTruthy();
+    expect(screen.getByLabelText("Dòng thời gian cấu trúc video")).toBeTruthy();
     expect(screen.queryByText("BẰNG CHỨNG TRONG CLIP")).toBeNull();
   });
 

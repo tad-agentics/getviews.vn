@@ -155,3 +155,31 @@ def test_sound_section_emits_via_manifest() -> None:
     )
     sections = select_sections_to_emit(manifest, ctx)
     assert "sound" in sections
+
+
+def test_sound_section_emits_from_voiceover_transcript_without_sound_id() -> None:
+    manifest = {
+        "sound": [
+            Signal(
+                id="sound_no_audio_hook_window",
+                section_id="sound",
+                taxonomy_ref="§6",
+                salience=0.6,
+                claim="test",
+                evidence=[],
+            ),
+        ],
+    }
+    ctx = build_diagnosis_ctx(
+        user_analysis={
+            "audio_transcript": "Hôm nay mình review chi tiết em serum này cho chị em.",
+            "style_tags": ["voiceover_only", "talking_head"],
+            "has_human_speaking_to_camera": True,
+        },
+        user_stats={},
+        reference_videos=[],
+        channel_context=None,
+        performance_tier="average",
+    )
+    sections = select_sections_to_emit(manifest, ctx)
+    assert "sound" in sections

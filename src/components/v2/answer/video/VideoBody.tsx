@@ -299,6 +299,9 @@ export function VideoBody({
         durationSec: duration,
       };
     }
+    if ((report.segments?.length ?? 0) > 0 && duration > 0) {
+      embeds.structureTimeline = { segments: report.segments, durationSec: duration };
+    }
     return embeds;
   }, [report, meta, duration]);
   const showCarouselIntel = (report.carousel_intel?.slides?.length ?? 0) > 0;

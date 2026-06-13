@@ -1923,6 +1923,10 @@ def _synthesize_diagnosis_v6_section_pool(
         diagnosis_v6_word_counts,
         score_diagnosis_output_v6,
     )
+    from getviews_pipeline.structure_axis_contract import (
+        build_structure_axis_retry_append,
+        structure_axis_contract_violations,
+    )
     from getviews_pipeline.signals.registry import (
         build_diagnosis_ctx,
         build_signal_manifest,
@@ -1994,10 +1998,9 @@ def _synthesize_diagnosis_v6_section_pool(
     format_cards: list[dict[str, Any]] | None = None
     diag_vi: dict[str, Any] | None = None
 
-    for attempt in range(2):
-        attempt_prompt = (
-            prompt if attempt == 0 else prompt + DIAGNOSIS_V6_SHORTEN_RETRY_APPEND
-        )
+    retry_append = ""
+    for attempt in range(3):
+        attempt_prompt = prompt + retry_append if retry_append else prompt
         response = _generate_content_models(
             [attempt_prompt],
             primary_model=model,
@@ -2034,20 +2037,40 @@ def _synthesize_diagnosis_v6_section_pool(
                 _persisted_diag if isinstance(_persisted_diag, dict) else diag_vi,
                 _clip_duration,
             )
-        if attempt == 0 and diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi):
+        if attempt >= 2:
+            if diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi):
+                wc = diagnosis_v6_word_counts(diag_vi)
+                logger.warning(
+                    "[diagnosis_v6] word budget still exceeded after retries total=%s",
+                    wc.get("total"),
+                )
+            axis_v = structure_axis_contract_violations(diag_vi, sections_ordered)
+            if axis_v:
+                logger.warning(
+                    "[diagnosis_v6] structure axis contract still violated after retries: %s",
+                    axis_v,
+                )
+            break
+
+        axis_violations = structure_axis_contract_violations(diag_vi, sections_ordered)
+        word_exceeded = bool(diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi))
+        if not axis_violations and not word_exceeded:
+            break
+
+        retry_append = ""
+        if axis_violations:
+            logger.info(
+                "[diagnosis_v6] structure axis contract violated — retry: %s",
+                axis_violations,
+            )
+            retry_append += build_structure_axis_retry_append(axis_violations)
+        elif word_exceeded:
             wc = diagnosis_v6_word_counts(diag_vi)
             logger.info(
                 "[diagnosis_v6] word budget exceeded total=%s — shorten retry",
                 wc.get("total"),
             )
-            continue
-        if attempt == 1 and diag_vi and diagnosis_v6_word_budget_exceeded(diag_vi):
-            wc = diagnosis_v6_word_counts(diag_vi)
-            logger.warning(
-                "[diagnosis_v6] word budget still exceeded after shorten retry total=%s",
-                wc.get("total"),
-            )
-        break
+            retry_append += DIAGNOSIS_V6_SHORTEN_RETRY_APPEND
 
     if diag_vi:
         q = score_diagnosis_output_v6(diag_vi, section_ids_expected=sections_ordered)

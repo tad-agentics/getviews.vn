@@ -1,7 +1,11 @@
 /** Replace stats jargon (median, p75, …) in diagnosis prose for creator-facing copy. */
 
 import { HOOK_NAMES_VI } from "@/lib/constants/hook-names-vi";
-import { HOOK_TIMELINE_EVENT_VI, STYLE_TAG_VI } from "@/lib/constants/enum-labels-vi";
+import {
+  CONVERSION_OBJECTIVE_VI,
+  HOOK_TIMELINE_EVENT_VI,
+  STYLE_TAG_VI,
+} from "@/lib/constants/enum-labels-vi";
 import { formatViews } from "@/lib/formatters";
 
 const CHANNEL_MEDIAN = "mức view thường trên kênh";
@@ -56,12 +60,20 @@ const JARGON_REPLACEMENTS: ReadonlyArray<[RegExp, string]> = [
   [/\bnegative[\s_-]?markers?\b/gi, "dấu hiệu tiêu cực"],
   [/\b(?:audio[\s_-]?)?transcript\b/gi, "lời thoại"],
   [/\bcuriousity[\s_-]?gap\b/gi, "Tạo khoảng trống tò mò"],
+  [/\bcompletion[\s_-]?rates?\b/gi, "tỷ lệ xem hết"],
 ];
+
+function collapseJargonDuplicates(text: string): string {
+  return text
+    .replace(/ngắt nhịp\s*\(\s*ngắt nhịp\s*\)/gi, "ngắt nhịp")
+    .replace(/\(\s*ngắt nhịp\s*\)\s*\(\s*ngắt nhịp\s*\)/gi, "(ngắt nhịp)");
+}
 
 const ENUM_PROSE_VI: Record<string, string> = {
   ...HOOK_NAMES_VI,
   ...STYLE_TAG_VI,
   ...HOOK_TIMELINE_EVENT_VI,
+  ...CONVERSION_OBJECTIVE_VI,
 };
 
 function substituteEnumCodesInProse(text: string): string {
@@ -89,7 +101,7 @@ export function humanizeStatsProse(text: string): string {
     if (!Number.isFinite(n) || n <= 0) return `${raw} view`;
     return `${formatViews(n)} view`;
   });
-  return substituteEnumCodesInProse(out);
+  return collapseJargonDuplicates(substituteEnumCodesInProse(out));
 }
 
 /** Split v6 section text into bold verdict + optional support sentences (redesign 2026-05). */

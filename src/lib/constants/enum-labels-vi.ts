@@ -89,6 +89,21 @@ export const STYLE_TAG_VI: Record<string, string> = {
   foreign_reup: "Reup nước ngoài",
 };
 
+/** ``commerce_intent.conversion_objective`` — mirrors ``enum_labels_vi.CONVERSION_OBJECTIVE_VI``. */
+export const CONVERSION_OBJECTIVE_VI: Record<string, string> = {
+  shop_direct: "Bán hàng TikTok Shop trực tiếp",
+  affiliate_shopee: "Affiliate Shopee",
+  livestream_funnel: "Kéo người xem về livestream",
+  brand_deal: "Hợp tác nhãn hàng (booking)",
+  koc_growth: "Xây kênh KOC",
+  entertainment_first: "Giải trí là chính (chưa bán hàng)",
+  organic: "Organic (không quảng bá)",
+  affiliate: "Affiliate",
+  brand_partnership: "Hợp tác nhãn hàng",
+  own_product: "Bán sản phẩm của chính mình",
+  ads: "Chạy quảng cáo",
+};
+
 /** ``VideoAnalysis.tone`` — mirrors ``enum_labels_vi.VIDEO_TONE_VI``. */
 export const VIDEO_TONE_VI: Record<string, string> = {
   educational: "Giáo dục",

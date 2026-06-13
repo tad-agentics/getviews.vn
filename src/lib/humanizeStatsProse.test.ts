@@ -33,6 +33,16 @@ describe("humanizeStatsProse", () => {
     expect(out.toLowerCase()).toContain("tạo khoảng trống tò mò");
     expect(out.toLowerCase()).toContain("lời thoại");
   });
+
+  it("replaces completion rate and collapses duplicate ngắt nhịp", () => {
+    const out = humanizeStatsProse(
+      "Thiếu ngắt nhịp (pattern interrupt) ở giây 5 — completion rate thấp hơn chuẩn.",
+    );
+    expect(out.toLowerCase()).not.toContain("completion rate");
+    expect(out.toLowerCase()).not.toContain("pattern interrupt");
+    expect(out.toLowerCase()).toContain("tỷ lệ xem hết");
+    expect(out).toBe("Thiếu ngắt nhịp ở giây 5 — tỷ lệ xem hết thấp hơn chuẩn.");
+  });
 });
 
 describe("splitVerdictProse", () => {

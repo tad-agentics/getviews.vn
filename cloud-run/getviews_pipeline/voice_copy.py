@@ -83,7 +83,20 @@ _JARGON_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bnegative[\s_-]?markers?\b", re.IGNORECASE), "dấu hiệu tiêu cực"),
     (re.compile(r"\b(?:audio[\s_-]?)?transcript\b", re.IGNORECASE), "lời thoại"),
     (re.compile(r"\bcuriousity[\s_-]?gap\b", re.IGNORECASE), "Tạo khoảng trống tò mò"),
+    (re.compile(r"\bcompletion[\s_-]?rates?\b", re.IGNORECASE), "tỷ lệ xem hết"),
 )
+
+
+def _collapse_jargon_duplicates(text: str) -> str:
+    """Remove redundant parentheticals after jargon → Vietnamese substitution."""
+    text = re.sub(r"ngắt nhịp\s*\(\s*ngắt nhịp\s*\)", "ngắt nhịp", text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"\(\s*ngắt nhịp\s*\)\s*\(\s*ngắt nhịp\s*\)",
+        "(ngắt nhịp)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text
 
 
 def _substitute_enum_codes_in_prose(text: str) -> str:
@@ -141,7 +154,8 @@ def humanize_stats_prose(text: str) -> str:
     for slug, label in _CONTENT_FORMAT_SLUG_VI.items():
         slug_pat = slug.replace("_", r"[\s_-]")
         out = re.sub(rf"\b{slug_pat}\b", label, out, flags=re.IGNORECASE)
-    return _substitute_enum_codes_in_prose(out)
+    out = _substitute_enum_codes_in_prose(out)
+    return _collapse_jargon_duplicates(out)
 
 
 _PROSE_FIELD_KEYS = frozenset({

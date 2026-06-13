@@ -1023,6 +1023,18 @@ export interface DiagnosisFinding {
   evidence_ref?: FindingEvidenceRef | null;
 }
 
+/** One axis inside the merged «Phân tích cấu trúc Video» block. */
+export type VideoStructureAxisId = "rhythm" | "editing" | "sound" | "persona";
+
+export interface VideoStructureAxisBlock {
+  axis_id: VideoStructureAxisId;
+  title_vi: string;
+  text_vi?: string;
+  text?: string;
+  findings?: DiagnosisFinding[];
+  embedded_tiles?: unknown[];
+}
+
 /** One section inside `diagnosis_vi.sections` — mirrors channel `ChannelSection` shape loosely for LLM JSON. */
 export interface DiagnosisSectionVi {
   section_id: VideoDiagnosisSectionId | string;
@@ -1033,6 +1045,8 @@ export interface DiagnosisSectionVi {
   findings?: DiagnosisFinding[];
   embedded_tiles?: unknown[];
   next_video?: Record<string, unknown> | null;
+  /** FE merge of script_structure + sound + persona — three-axis layout when present. */
+  structure_axes?: VideoStructureAxisBlock[];
 }
 
 export interface DiagnosisEvidenceAnchorVi {

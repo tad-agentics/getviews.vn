@@ -3,6 +3,7 @@
  */
 import { SectionProseBlocks } from "@/components/SectionProseBlocks";
 import { formatDiagnosisSectionTitle } from "@/lib/formatters";
+import { Timeline } from "@/components/v2/Timeline";
 import type {
   ChannelContext,
   ChannelNextVideoConcept,
@@ -11,6 +12,8 @@ import type {
   DiagnosisFinding,
   DiagnosisSectionVi,
   ReferenceVideoCard,
+  VideoSegment,
+  VideoStructureAxisBlock,
 } from "@/lib/api-types";
 import {
   buildDiagnosisReferenceTiles,
@@ -217,6 +220,8 @@ function StrengthGapSectionLayout({
   bridgeTopic,
   inlineGapRefs = false,
   analyzedClip,
+  compact = false,
+  structureTimeline,
 }: {
   sectionId: string;
   title: string;
@@ -228,6 +233,10 @@ function StrengthGapSectionLayout({
   /** Pair each gap finding with its reference tile directly under the card. */
   inlineGapRefs?: boolean;
   analyzedClip?: AnalyzedClipContext | null;
+  /** Omit outer section heading/wrapper — used inside multi-axis structure block. */
+  compact?: boolean;
+  /** Eight-beat bar — flat script_structure layout only (multi-axis renders on rhythm). */
+  structureTimeline?: { segments: VideoSegment[]; durationSec: number };
 }) {
   const { strengths, gaps, observations } = partitionFindingsByChip(findings);
   const gapLinkedTiles = resolvePeerReferenceTiles(
@@ -243,10 +252,15 @@ function StrengthGapSectionLayout({
   let findingRank = 0;
 
   return (
-    <div className="mb-6">
-      <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">
-        {title}
-      </h3>
+    <div className={compact ? "mt-0" : "mb-6"}>
+      {!compact && title ? (
+        <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">
+          {title}
+        </h3>
+      ) : null}
+      {!compact && structureTimeline ? (
+        <StructureTimelineEmbed timeline={structureTimeline} />
+      ) : null}
       {text ? <SectionVerdictBlock text={text} /> : null}
       {strengths.length > 0 ? (
         <div className="mt-4">
@@ -339,6 +353,86 @@ function StrengthGapSectionLayout({
   );
 }
 
+function StructureTimelineEmbed({
+  timeline,
+}: {
+  timeline: { segments: VideoSegment[]; durationSec: number };
+}) {
+  if (!timeline.segments.length) return null;
+  return (
+    <div className="mt-3">
+      <Timeline segments={timeline.segments} durationSec={timeline.durationSec} />
+      <p className="mt-2 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+        Số % trên mỗi ô là phần thời lượng clip — không phải tỷ lệ khán giả còn xem.
+      </p>
+    </div>
+  );
+}
+
+function VideoStructureAxesLayout({
+  title,
+  axes,
+  referenceVideos,
+  evidenceAnchors,
+  analyzedClip,
+  structureTimeline,
+}: {
+  title: string;
+  axes: VideoStructureAxisBlock[];
+  referenceVideos: ReferenceVideoCard[];
+  evidenceAnchors?: DiagnosisEvidenceAnchorVi[];
+  analyzedClip?: AnalyzedClipContext | null;
+  structureTimeline?: { segments: VideoSegment[]; durationSec: number };
+}) {
+  const hasRhythmAxis = axes.some((axis) => axis.axis_id === "rhythm");
+  return (
+    <div className="mb-6">
+      <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">{title}</h3>
+      {structureTimeline && !hasRhythmAxis ? (
+        <StructureTimelineEmbed timeline={structureTimeline} />
+      ) : null}
+      {axes.map((axis) => {
+        const axisSection: DiagnosisSectionVi = {
+          section_id: "script_structure",
+          embedded_tiles: axis.embedded_tiles,
+          findings: axis.findings,
+        };
+        const axisTiles = buildDiagnosisReferenceTiles(
+          axisSection,
+          referenceVideos,
+          evidenceAnchors,
+        );
+        const axisText = humanizeStatsProse((axis.text_vi || axis.text || "").trim());
+        const axisFindings = (axis.findings ?? []).filter(
+          (f) => f.title_vi || f.body_vi || f.fix_vi,
+        );
+        return (
+          <div key={axis.axis_id} className="mt-5 border-t border-[color:var(--gv-rule)] pt-4 first:mt-3 first:border-t-0 first:pt-0">
+            <p className="gv-mono m-0 mb-2 text-[11px] gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
+              {axis.title_vi}
+            </p>
+            {axis.axis_id === "rhythm" && structureTimeline ? (
+              <StructureTimelineEmbed timeline={structureTimeline} />
+            ) : null}
+            <StrengthGapSectionLayout
+              sectionId="script_structure"
+              title=""
+              text={axisText}
+              findings={axisFindings}
+              referenceTiles={axisTiles}
+              gapKicker="THIẾU SÓT"
+              bridgeTopic="structure"
+              inlineGapRefs
+              analyzedClip={analyzedClip}
+              compact
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SectionVerdictBlock({ text }: { text: string }) {
   const { verdict, support } = splitVerdictProse(text);
   if (!verdict && !support) return null;
@@ -403,6 +497,8 @@ export interface VideoDiagnosisSectionEmbeds {
   metadata?: { meta: VideoAnalyzeMeta; enrichment?: VideoEnrichment | null };
   /** Analyzed clip context for per-finding "Xem đoạn này" deep-links. */
   analyzedClip?: AnalyzedClipContext | null;
+  /** Eight-beat segment bar — shown under «Nhịp & cắt» in the structure block. */
+  structureTimeline?: { segments: VideoSegment[]; durationSec: number };
 }
 
 interface DiagnosisSectionRendererProps {
@@ -483,6 +579,28 @@ export function DiagnosisSectionRenderer({
 
   const isVideoStructureSection = sid === "script_structure";
   const isHookSection = sid === "hook_analysis";
+  const structureAxes =
+    isVideoStructureSection && Array.isArray(section.structure_axes)
+      ? section.structure_axes.filter(
+          (axis) =>
+            (axis.text_vi || axis.text || "").trim() ||
+            (axis.findings?.length ?? 0) > 0 ||
+            (axis.embedded_tiles?.length ?? 0) > 0,
+        )
+      : [];
+
+  if (isVideoStructureSection && structureAxes.length > 0) {
+    return (
+      <VideoStructureAxesLayout
+        title={title}
+        axes={structureAxes}
+        referenceVideos={referenceVideos}
+        evidenceAnchors={evidenceAnchors}
+        analyzedClip={videoEmbeds?.analyzedClip}
+        structureTimeline={videoEmbeds?.structureTimeline}
+      />
+    );
+  }
 
   const partitioned = partitionFindingsByChip(findings);
   const useStrengthGapLayout =
@@ -508,6 +626,9 @@ export function DiagnosisSectionRenderer({
         }
         inlineGapRefs={isVideoStructureSection || isHookSection}
         analyzedClip={videoEmbeds?.analyzedClip}
+        structureTimeline={
+          isVideoStructureSection ? videoEmbeds?.structureTimeline : undefined
+        }
       />
     );
   }

@@ -11,21 +11,26 @@ DIAGNOSIS_V6_SECTION_MAX_WORDS = 90
 DIAGNOSIS_V6_SECTION_SOFT_MAX = 95
 DIAGNOSIS_V6_SCRIPT_STRUCTURE_MAX_WORDS = 100
 DIAGNOSIS_V6_SCRIPT_STRUCTURE_SOFT_MAX = 105
+DIAGNOSIS_V6_SOUND_PERSONA_MAX_WORDS = 55
+DIAGNOSIS_V6_SOUND_PERSONA_SOFT_MAX = 60
 DIAGNOSIS_V6_TOTAL_TARGET_MAX = 450
-DIAGNOSIS_V6_TOTAL_RETRY_MAX = 480
+DIAGNOSIS_V6_TOTAL_RETRY_MAX = 520
 DIAGNOSIS_V6_NEXT_VIDEO_MAX_WORDS = 150
 
 
 def _section_text_soft_max(section_id: str) -> int:
     if section_id == "script_structure":
         return DIAGNOSIS_V6_SCRIPT_STRUCTURE_SOFT_MAX
+    if section_id in ("sound", "persona", "editing"):
+        return DIAGNOSIS_V6_SOUND_PERSONA_SOFT_MAX
     if section_id == "next_video":
         return DIAGNOSIS_V6_NEXT_VIDEO_MAX_WORDS
     return DIAGNOSIS_V6_SECTION_SOFT_MAX
 
 
 def _section_prose_words(section: dict[str, Any]) -> int:
-    total = approximate_word_count_vi(str(section.get("text") or ""))
+    raw = section.get("text_vi") if section.get("text_vi") is not None else section.get("text")
+    total = approximate_word_count_vi(str(raw or ""))
     findings = section.get("findings")
     if isinstance(findings, list):
         for f in findings:
@@ -71,7 +76,8 @@ def diagnosis_v6_word_budget_exceeded(diagnosis_vi: dict[str, Any] | None) -> bo
         if not isinstance(s, dict):
             continue
         sid = str(s.get("section_id") or "")
-        text_w = approximate_word_count_vi(str(s.get("text") or ""))
+        raw = s.get("text_vi") if s.get("text_vi") is not None else s.get("text")
+        text_w = approximate_word_count_vi(str(raw or ""))
         if text_w > _section_text_soft_max(sid):
             return True
 
@@ -124,7 +130,8 @@ def score_diagnosis_output_v6(
         if not isinstance(s, dict):
             continue
         sid = str(s.get("section_id") or "")
-        text_w = approximate_word_count_vi(str(s.get("text") or ""))
+        raw = s.get("text_vi") if s.get("text_vi") is not None else s.get("text")
+        text_w = approximate_word_count_vi(str(raw or ""))
         brevity_checks.append(text_w <= _section_text_soft_max(sid))
 
     section_brevity_ok_ratio = (

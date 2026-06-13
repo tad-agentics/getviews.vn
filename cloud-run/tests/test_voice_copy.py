@@ -99,6 +99,16 @@ def test_humanize_stats_prose_round3_signal_jargon_and_enums() -> None:
     assert "lời thoại" in lowered
 
 
+def test_humanize_stats_prose_completion_rate_and_duplicate_jargon() -> None:
+    raw = "Thiếu ngắt nhịp (pattern interrupt) — completion rate thấp."
+    out = humanize_stats_prose(raw)
+    assert "completion rate" not in out.lower()
+    assert "pattern interrupt" not in out.lower()
+    assert "tỷ lệ xem hết" in out.lower()
+    assert "(ngắt nhịp)" not in out.lower()
+    assert "ngắt nhịp" in out.lower()
+
+
 def test_humanize_video_report_out_sanitizes_enrichment() -> None:
     out = {
         "narrative_vi": {"headline_vi": "Format faceless — pain point yếu"},

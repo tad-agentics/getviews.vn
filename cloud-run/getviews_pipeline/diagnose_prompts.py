@@ -61,7 +61,8 @@ FINDINGS (đơn vị hiển thị chính của section issue-based):
 - Section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure, commerce): 2-3 findings — đây là phần creator đọc kỹ nhất. Mỗi finding: title_vi (≤10 từ, "Vấn đề — hậu quả"), body_vi (1 câu + số liệu), fix_vi (1 hành động copy-paste: hook template, con số, thao tác cụ thể — KHÔNG "cải thiện hook").
 - BÁM SIGNAL_MANIFEST: salience (0-1) là độ quan trọng đã đo — findings của mỗi section viết từ các signal salience CAO NHẤT của section đó, không chọn signal yếu khi còn signal mạnh chưa dùng. Mỗi finding khớp đúng 1 signal_id trong evidence_anchors; section có signal thì KHÔNG viết finding ngoài manifest.
 - KHÔNG tạo finding về tiết lộ thương mại / #qc / #ad / Luật Quảng cáo disclosure — ngoài phạm vi sản phẩm video diagnosis.
-- Section không issue-based (next_video, niche_pattern, channel_pattern, douyin_origin, persona, boost_attribution): findings: [].
+- Section không issue-based (next_video, niche_pattern, channel_pattern, douyin_origin, boost_attribution): findings: [].
+- persona: khi emit riêng hoặc cùng script_structure — section.text 2-3 câu (≤55 từ) về giọng/chân thực; tối đa 2 findings; UI gộp vào trục «Giọng & persona» trong «Phân tích cấu trúc Video».
 - Tín hiệu seeding/ads/boost (signal section_id=boost_attribution) chỉ được diễn đạt MỘT lần — trong text của section boost_attribution. KHÔNG lặp lại thành finding hay nhắc lại trong section khác.
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
 - Khi USER_EVIDENCE_DIGEST có hook_timeline / scene_pattern: body_vi của finding về hook/editing phải trích đúng mốc giây từ digest («text overlay chỉ xuất hiện 3.2s») — bằng chứng đến từng giây, không phỏng đoán.
@@ -76,7 +77,7 @@ REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
 - Section show được trực quan (niche_pattern, diagnosis, hook_analysis, script_structure): điền tối đa **3** embedded_tiles **khác aweme_id** từ REFERENCE_EVIDENCE. niche_pattern ưu tiên đủ 3 tile — đây là lưới "top ngách đang làm gì", reference là nhân vật chính, prose dẫn vào chỉ 1 câu.
 - Mỗi aweme_id chỉ dùng ở MỘT section. narrative_vi = 1 câu (tối đa 2) **khác nhau cho từng video**: nêu **điều cần học theo** (hook/format/nhịp cụ thể) so với clip đang phân tích — chỉ gắn vào **khoảng trống/thiếu sót**, KHÔNG gắn vào điểm mạnh («Tiếp tục»/«Giữ»). Điểm mạnh chứng minh bằng mốc giây/cảnh của clip đang phân tích (digest), không bằng video peer. Góc theo section (hook_analysis → 3 giây đầu; diagnosis/niche_pattern → format/hiệu quả). KHÔNG nhắc @handle hay số view (card đã hiển thị). KHÔNG lặp narrative_vi vào text. Tuân thủ ADDRESSING_MODE trong DIAGNOSTIC_CONTEXT.
 - Chỉ chọn video gần context (CTX_SUMMARY). Không đủ peer phù hợp → ít tile hơn hoặc [].
-- Section phân tích thuần (channel_pattern, persona, compliance): tile tùy chọn, không bắt buộc.
+- Section phân tích thuần (channel_pattern, compliance): tile tùy chọn, không bắt buộc. persona khi emit: prose + findings bắt buộc (trục «Giọng & persona»); peer refs thường nằm ở script_structure/sound.
 
 CHANNEL_PATTERN (Ref-style: kênh tự chứng minh):
 - Dùng channel_context: trích số cụ thể (top video X views, bottom Y views, mức view thường của kênh). 1 câu verdict in đậm: video này so với mức thường của kênh thế nào + creator nên nhân đôi cái gì. ≤90 từ. Nếu source="live": ghi chú nhẹ dữ liệu kênh là live.
@@ -104,10 +105,10 @@ KHÁCH QUAN VỚI PERFORMANCE_TIER (chống bias kết quả):
 """
 
 DIAGNOSIS_V6_SHORTEN_RETRY_APPEND = """
-BẮT BUỘC RÚT GỌN (lần 2): Bản trước quá dài. Trả lại JSON đầy đủ cùng schema.
-- TỔNG ≤450 từ (mọi section.text + findings).
-- Mỗi section.text (trừ next_video): ≤90 từ — 1 verdict **in đậm** + tối đa 4 câu chứng minh (script_structure ≤100 từ).
-- Giữ đủ findings (2-3/issue section) và embedded_tiles; cắt prose thừa, KHÔNG bỏ fix_vi.
+BẮT BUỘC RÚT GỌN: Bản trước quá dài. Trả lại JSON đầy đủ cùng schema.
+- TỔNG ≤520 từ (mọi section.text + findings) — ưu tiên giữ đủ 3 trục cấu trúc (script_structure + sound + persona khi có trong SECTIONS_TO_EMIT).
+- Mỗi section.text (trừ next_video): ≤90 từ; script_structure ≤100; sound/persona ≤55 — 1 verdict **in đậm** + tối đa 4 câu.
+- Giữ đủ findings và embedded_tiles (≥1 tile / thiếu sót rhythm); cắt prose thừa, KHÔNG bỏ fix_vi.
 - next_video: giữ bullet script • Hook → Beat → CTA, gọn hơn nếu cần.
 """
 
@@ -468,34 +469,85 @@ def build_diagnosis_v6_user_prompt(
         )
     video_structure_note = ""
     has_script_structure = "script_structure" in sections_to_emit
+    has_editing = "editing" in sections_to_emit
     has_sound = "sound" in sections_to_emit
+    has_persona = "persona" in sections_to_emit
     if has_script_structure:
-        merge_hint = " (UI gộp sound vào «Phân tích cấu trúc Video» sau hook)" if has_sound else ""
-        video_structure_note = (
-            f"\n\nSECTION script_structure{merge_hint}:"
-            "\n- section.text: ưu tiên ≤100 từ (1 verdict **in đậm** + tối đa 4 câu "
-            "về nhịp cắt, âm thanh/nhạc, dòng cảnh, dead air). Đoạn dẫn nhập — đọc xong hiểu "
-            "cấu trúc clip đang mạnh/yếu thế nào."
-            "\n- findings: đúng 1 điểm mạnh (fix_vi «Tiếp tục»/«Giữ»/«Duy trì») + "
-            "1-2 thiếu sót về nhịp/cảnh/âm (fix_vi hành động copy-paste). UI tách ĐIỂM MẠNH / THIẾU SÓT."
-            "\n- embedded_tiles: 1-3 tile gắn trực tiếp từng thiếu sót — narrative_vi "
-            "nêu peer xử lý nhịp/âm/cảnh tốt hơn («để sửa dead air, clip này xen cận mỗi 2s…»). "
-            "KHÔNG «Được chọn vì format» chung chung."
-            "\n- Dệt 1-2 câu cuối section.text dẫn sang thẻ tham chiếu (nhịp/cảnh cụ thể); "
-            "không lặp nguyên văn narrative_vi trên thẻ."
+        merge_bits = []
+        if has_editing:
+            merge_bits.append("editing")
+        if has_sound:
+            merge_bits.append("sound")
+        if has_persona:
+            merge_bits.append("persona")
+        merge_hint = (
+            f" (UI gộp {' + '.join(merge_bits)} vào «Phân tích cấu trúc Video» sau hook)"
+            if merge_bits
+            else ""
         )
+        axis_n = 1 + sum(1 for x in (has_editing, has_sound, has_persona) if x)
+        video_structure_note = (
+            f"\n\nBLOCK «Phân tích cấu trúc Video»{merge_hint} — {axis_n} TRỤC RIÊNG trên UI "
+            "(mỗi trục = section BE riêng; FE gộp sau hook):"
+            "\n\nTRỤC 1 — script_structure («Nhịp & cắt»):"
+            "\n- section.text: 2-3 câu (≤100 từ): 1 verdict **in đậm** + câu về nhịp cắt, "
+            "pattern interrupt, dead air, góc quay/framing, chuyển cảnh — KHÔNG lẫn hook 3s đầu."
+            "\n- findings: đúng 1 điểm mạnh (fix_vi «Tiếp tục»/«Giữ»/«Duy trì») + "
+            "1-2 thiếu sót nhịp/cảnh/cách quay (fix_vi copy-paste, có mốc giây/scene)."
+            "\n- embedded_tiles: 1 tile / thiếu sót (tối đa 3) — narrative_vi nêu peer xử lý "
+            "nhịp/cảnh tốt hơn. KHÔNG «Được chọn vì format»."
+        )
+        truc = 2
+        if has_editing:
+            video_structure_note += (
+                f"\n\nTRỤC {truc} — editing («Hậu kỳ & hình»):"
+                "\n- section.text: **BẮT BUỘC** 2-3 câu (≤55 từ) về color grade, chữ overlay, "
+                "framing/hậu kỳ, LUT/filter — KHÔNG lẫn nhịp cắt hay hook."
+                "\n- findings: 1 điểm mạnh HOẶC 1 thiếu sót hậu kỳ/chữ trên hình (fix_vi cụ thể)."
+                "\n- embedded_tiles: 0-1 tile gắn thiếu sót editing nếu có peer phù hợp."
+            )
+            truc += 1
         if has_sound:
             video_structure_note += (
-                "\n- sound (cùng emit): tối đa 1 finding về âm thanh; section.text **trống** — "
-                "âm thanh gộp vào findings/tiles của block cấu trúc trên UI."
+                f"\n\nTRỤC {truc} — sound («Âm thanh»):"
+                "\n- section.text: **BẮT BUỘC** 2-3 câu (≤55 từ) về nhạc nền, voiceover, "
+                "sound layering, trending vs original — KHÔNG để trống."
+                "\n- findings: 1 điểm mạnh HOẶC 1 thiếu sót âm thanh (fix_vi cụ thể)."
+                "\n- embedded_tiles: 0-1 tile gắn thiếu sót âm nếu có peer phù hợp."
             )
+            truc += 1
+        if has_persona:
+            video_structure_note += (
+                f"\n\nTRỤC {truc} — persona («Giọng & persona»):"
+                "\n- section.text: **BẮT BUỘC** 2-3 câu (≤55 từ) về giọng, persona on-camera, "
+                "register, chân thực — KHÔNG để trống."
+                "\n- findings: 1 điểm mạnh HOẶC 1 thiếu sót persona (fix_vi copy-paste)."
+                "\n- embedded_tiles: [] (peer refs thuộc script_structure/sound/editing khi có)."
+            )
+        if not has_editing and not has_sound and not has_persona:
+            video_structure_note += (
+                "\n- Chỉ trục Nhịp & cắt khi editing/sound/persona không có trong SECTIONS_TO_EMIT."
+            )
+    elif has_editing:
+        video_structure_note = (
+            "\n\nBLOCK «Phân tích cấu trúc Video» (chỉ editing trong SECTIONS_TO_EMIT):"
+            "\n- section.text: 2-3 câu (≤55 từ) về color grade, chữ overlay, hậu kỳ — KHÔNG để trống."
+            "\n- findings: ≥1 về hậu kỳ/chữ trên hình (fix_vi cụ thể, copy-paste)."
+            "\n- embedded_tiles: 0-1 tile gắn thiếu sót editing nếu có peer phù hợp."
+        )
     elif has_sound:
         video_structure_note = (
-            "\n\nSECTION sound (chỉ sound trong SECTIONS_TO_EMIT — UI gộp thành "
-            "«Phân tích cấu trúc Video», KHÔNG tạo script_structure):"
-            "\n- findings: tối đa 1 về âm thanh (fix_vi cụ thể, copy-paste)."
-            "\n- section.text: **trống**."
-            "\n- embedded_tiles: 0-1 tile gắn thiếu sót âm thanh nếu có peer phù hợp."
+            "\n\nBLOCK «Phân tích cấu trúc Video» (chỉ sound trong SECTIONS_TO_EMIT):"
+            "\n- section.text: 2-3 câu (≤55 từ) về âm thanh — KHÔNG để trống."
+            "\n- findings: ≥1 về âm thanh (fix_vi cụ thể, copy-paste)."
+            "\n- embedded_tiles: 0-1 tile gắn thiếu sót âm nếu có peer phù hợp."
+        )
+    elif has_persona:
+        video_structure_note = (
+            "\n\nBLOCK «Phân tích cấu trúc Video» (chỉ persona trong SECTIONS_TO_EMIT):"
+            "\n- section.text: 2-3 câu (≤55 từ) về giọng/persona — KHÔNG để trống."
+            "\n- findings: ≥1 về giọng/chân thực on-camera (fix_vi copy-paste)."
+            "\n- embedded_tiles: [] (peer refs khi có script_structure)."
         )
     blocks.append(
         "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu "

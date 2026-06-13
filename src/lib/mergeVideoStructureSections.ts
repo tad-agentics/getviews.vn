@@ -1,15 +1,27 @@
-import type { DiagnosisSectionVi } from "@/lib/api-types";
+import type {
+  DiagnosisFinding,
+  DiagnosisSectionVi,
+  VideoStructureAxisBlock,
+  VideoStructureAxisId,
+} from "@/lib/api-types";
 
-/** Unified FE block for sound + script_structure (placed after hook_analysis). */
+/** Unified FE block for editing + sound + script_structure + persona (after hook_analysis). */
 export const VIDEO_STRUCTURE_SECTION_TITLE = "Phân tích cấu trúc Video";
 
-const MERGE_SOURCE_IDS = new Set(["sound", "script_structure"]);
+export const STRUCTURE_AXIS_TITLES: Record<VideoStructureAxisId, string> = {
+  rhythm: "Nhịp & cắt",
+  editing: "Hậu kỳ & hình",
+  sound: "Âm thanh",
+  persona: "Giọng & persona",
+};
+
+const MERGE_SOURCE_IDS = new Set(["editing", "sound", "script_structure", "persona"]);
 
 function sectionBody(s: DiagnosisSectionVi): string {
   return (s.text_vi || s.text || "").trim();
 }
 
-const MERGED_FINDINGS_CAP = 3;
+const MERGED_FINDINGS_CAP = 6;
 const MERGED_TILES_CAP = 3;
 
 function tileAwemeId(tile: unknown): string {
@@ -17,23 +29,82 @@ function tileAwemeId(tile: unknown): string {
   return String((tile as { aweme_id?: string }).aweme_id ?? "").trim();
 }
 
-/** script_structure prose is canonical; sound section is findings-only on the BE. */
-function mergedStructureProse(
-  sound: DiagnosisSectionVi | undefined,
-  script: DiagnosisSectionVi | undefined,
-): string {
-  const scriptText = script ? sectionBody(script) : "";
-  if (scriptText) return scriptText;
-  return sound ? sectionBody(sound) : "";
+function hasFindingContent(f: DiagnosisFinding): boolean {
+  return Boolean(f.title_vi || f.body_vi || f.fix_vi);
 }
 
-function dedupeEmbeddedTiles(
-  scriptTiles: unknown[],
-  soundTiles: unknown[],
-): unknown[] {
+function buildAxisBlock(
+  axisId: VideoStructureAxisId,
+  section: DiagnosisSectionVi | undefined,
+): VideoStructureAxisBlock | null {
+  if (!section) return null;
+  const text = sectionBody(section);
+  const findings = (section.findings ?? []).filter(hasFindingContent);
+  const tiles = Array.isArray(section.embedded_tiles) ? section.embedded_tiles : [];
+  if (!text && findings.length === 0 && tiles.length === 0) {
+    return null;
+  }
+  return {
+    axis_id: axisId,
+    title_vi: STRUCTURE_AXIS_TITLES[axisId],
+    text_vi: text,
+    text,
+    findings: findings.length > 0 ? findings : undefined,
+    embedded_tiles: tiles.length > 0 ? tiles : undefined,
+  };
+}
+
+function buildStructureAxes(
+  editing: DiagnosisSectionVi | undefined,
+  sound: DiagnosisSectionVi | undefined,
+  script: DiagnosisSectionVi | undefined,
+  persona: DiagnosisSectionVi | undefined,
+): VideoStructureAxisBlock[] {
+  const axes: VideoStructureAxisBlock[] = [];
+  const rhythm = buildAxisBlock("rhythm", script);
+  if (rhythm) axes.push(rhythm);
+  const editingAxis = buildAxisBlock("editing", editing);
+  if (editingAxis) axes.push(editingAxis);
+  const soundAxis = buildAxisBlock("sound", sound);
+  if (soundAxis) axes.push(soundAxis);
+  const personaAxis = buildAxisBlock("persona", persona);
+  if (personaAxis) axes.push(personaAxis);
+  return axes;
+}
+
+/** script → editing → sound → persona per round. */
+function mergeFindingsRoundRobin(
+  script: DiagnosisFinding[],
+  editing: DiagnosisFinding[],
+  sound: DiagnosisFinding[],
+  persona: DiagnosisFinding[],
+): DiagnosisFinding[] {
+  const sources = [
+    script.filter(hasFindingContent),
+    editing.filter(hasFindingContent),
+    sound.filter(hasFindingContent),
+    persona.filter(hasFindingContent),
+  ];
+  const out: DiagnosisFinding[] = [];
+  let round = 0;
+  while (out.length < MERGED_FINDINGS_CAP) {
+    let pushed = false;
+    for (const src of sources) {
+      if (round < src.length && out.length < MERGED_FINDINGS_CAP) {
+        out.push(src[round]!);
+        pushed = true;
+      }
+    }
+    if (!pushed) break;
+    round += 1;
+  }
+  return out;
+}
+
+function dedupeEmbeddedTiles(...tileGroups: unknown[][]): unknown[] {
   const seen = new Set<string>();
   const out: unknown[] = [];
-  for (const tile of [...scriptTiles, ...soundTiles]) {
+  for (const tile of tileGroups.flat()) {
     const aid = tileAwemeId(tile);
     if (aid) {
       if (seen.has(aid)) continue;
@@ -46,37 +117,42 @@ function dedupeEmbeddedTiles(
 }
 
 function mergeDiagnosisSection(
+  editing: DiagnosisSectionVi | undefined,
   sound: DiagnosisSectionVi | undefined,
   script: DiagnosisSectionVi | undefined,
+  persona: DiagnosisSectionVi | undefined,
 ): DiagnosisSectionVi {
-  const findings = [
-    ...(script?.findings ?? []),
-    ...(sound?.findings ?? []),
-  ]
-    .filter((f) => f.title_vi || f.body_vi || f.fix_vi)
-    .slice(0, MERGED_FINDINGS_CAP);
+  const structureAxes = buildStructureAxes(editing, sound, script, persona);
+  const findings = mergeFindingsRoundRobin(
+    script?.findings ?? [],
+    editing?.findings ?? [],
+    sound?.findings ?? [],
+    persona?.findings ?? [],
+  );
 
   const tiles = dedupeEmbeddedTiles(
     Array.isArray(script?.embedded_tiles) ? script.embedded_tiles : [],
+    Array.isArray(editing?.embedded_tiles) ? editing.embedded_tiles : [],
     Array.isArray(sound?.embedded_tiles) ? sound.embedded_tiles : [],
+    Array.isArray(persona?.embedded_tiles) ? persona.embedded_tiles : [],
   );
-
-  const text = mergedStructureProse(sound, script);
 
   return {
     section_id: "script_structure",
     title_vi: VIDEO_STRUCTURE_SECTION_TITLE,
     title: VIDEO_STRUCTURE_SECTION_TITLE,
-    text_vi: text,
-    text,
+    text_vi: "",
+    text: "",
+    structure_axes: structureAxes.length > 0 ? structureAxes : undefined,
     findings: findings.length > 0 ? findings : undefined,
     embedded_tiles: tiles.length > 0 ? tiles : undefined,
-    next_video: script?.next_video ?? sound?.next_video ?? null,
+    next_video:
+      script?.next_video ?? editing?.next_video ?? sound?.next_video ?? persona?.next_video ?? null,
   };
 }
 
 /**
- * Collapse «Âm thanh và nhịp điệu» + «Dòng thời gian · Cấu trúc video» into one
+ * Collapse «Hậu kỳ», «Âm thanh», «Phong cách», và «Cấu trúc video» into one
  * block and insert it immediately after hook_analysis.
  */
 export function mergeVideoStructureSections(
@@ -84,12 +160,14 @@ export function mergeVideoStructureSections(
 ): DiagnosisSectionVi[] {
   if (!sections.length) return sections;
 
+  const editing = sections.find((s) => String(s.section_id) === "editing");
   const sound = sections.find((s) => String(s.section_id) === "sound");
   const script = sections.find((s) => String(s.section_id) === "script_structure");
-  if (!sound && !script) return sections;
+  const persona = sections.find((s) => String(s.section_id) === "persona");
+  if (!editing && !sound && !script && !persona) return sections;
 
   const rest = sections.filter((s) => !MERGE_SOURCE_IDS.has(String(s.section_id)));
-  const merged = mergeDiagnosisSection(sound, script);
+  const merged = mergeDiagnosisSection(editing, sound, script, persona);
 
   const hookIdx = rest.findIndex((s) => String(s.section_id) === "hook_analysis");
   const insertAt = hookIdx >= 0 ? hookIdx + 1 : rest.length;
