@@ -266,13 +266,12 @@ export function VideoBody({
     });
   }, [performanceTier, report.video_id, report.source]);
 
-  const diagnosisSections = useMemo(
-    () =>
-      mergeVideoStructureSections(
-        resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, performanceTier),
-      ),
-    [narrativeVi, flopIssuesForNarrative, performanceTier],
-  );
+  const diagnosisSections = useMemo(() => {
+    const merged = mergeVideoStructureSections(
+      resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, performanceTier),
+    );
+    return merged.filter((s) => String(s.section_id) !== "next_video");
+  }, [narrativeVi, flopIssuesForNarrative, performanceTier]);
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const hasChannelPattern = sectionIds.has("channel_pattern");
   const hasBoostAttribution = sectionIds.has("boost_attribution");
@@ -554,6 +553,7 @@ export function VideoBody({
                   <DiagnosisSectionRenderer
                     section={sec}
                     referenceVideos={refVideos}
+                    analyzedContentFormat={meta.content_format ?? null}
                     evidenceAnchors={narrativeVi?.diagnosis_vi?.evidence_anchors}
                     creatorComparison={
                       sid === "channel_pattern" ? report.creator_comparison ?? null : undefined
@@ -663,7 +663,7 @@ export function VideoBody({
           />
         ) : null}
 
-        {narrativeVi?.dinh_huong_chien_luoc && !sectionIds.has("next_video") ? (
+        {narrativeVi?.dinh_huong_chien_luoc ? (
           <NextStepsSection text={narrativeVi.dinh_huong_chien_luoc} />
         ) : null}
 

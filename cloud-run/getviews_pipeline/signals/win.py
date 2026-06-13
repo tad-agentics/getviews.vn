@@ -264,7 +264,7 @@ def extract_win_replicable_cta_signal(ctx: dict) -> list[Signal]:
     return [
         Signal(
             id="win_replicable_cta",
-            section_id="next_video",
+            section_id="commerce",
             taxonomy_ref="§4.8.3",
             salience=0.82,
             claim=(

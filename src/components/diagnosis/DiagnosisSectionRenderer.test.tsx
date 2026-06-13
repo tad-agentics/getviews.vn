@@ -2,9 +2,7 @@
  * DiagnosisSectionRenderer — regressions from the 2026-06-12 live
  * video-diagnosis report audit:
  *   - keep-advice findings get a positive "Giữ" chip, not "Sửa",
- *   - next_video section text renders **bold** as <strong> (no literal ``**``),
- *   - next_video shot-script bullets render in chronological order,
- *   - the fabricated v6 next_video concept never shows "gap 0%"/"Peer TB ~0".
+ *   - section prose renders **bold** as <strong> (no literal ``**``).
  */
 import React from "react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -258,7 +256,7 @@ describe("video structure strength-gap layout", () => {
     expect(screen.getByText("Âm thanh")).toBeTruthy();
     expect(screen.getAllByText("ĐIỂM MẠNH").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("THIẾU SÓT").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/thiếu sót «Dead air giữa clip»/)).toBeTruthy();
+    expect(screen.getByText(/Thiếu sót «Dead air giữa clip»/)).toBeTruthy();
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
   });
 
@@ -316,7 +314,7 @@ describe("video structure strength-gap layout", () => {
     expect(screen.getByLabelText("Dòng thời gian cấu trúc video")).toBeTruthy();
     expect(screen.getByText(/Hook kéo dài/)).toBeTruthy();
     expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
-    expect(screen.getByText(/thiếu sót «Dead air giữa clip»/)).toBeTruthy();
+    expect(screen.getByText(/Thiếu sót «Dead air giữa clip»/)).toBeTruthy();
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
   });
 
@@ -370,7 +368,9 @@ describe("hook_analysis strength-gap layout (#1)", () => {
     );
     expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
     expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
-    expect(screen.getByText(/cách mở 3 giây đầu trong ngách xử lý điểm này/)).toBeTruthy();
+    expect(screen.getByText(/Thiếu sót «Overlay trễ»/)).toBeTruthy();
+    expect(screen.getByText(/So cắt, chữ overlay và hình mở với clip của bạn/)).toBeTruthy();
+    expect(screen.queryByText(/Để xử lý «Overlay trễ»/)).toBeNull();
     // Peer card inline under the gap (one gap → one tile).
     expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(1);
   });
@@ -420,7 +420,8 @@ describe("hook_analysis strength-gap layout (#1)", () => {
       />,
     );
     expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(2);
-    expect(screen.getAllByText(/cách mở 3 giây đầu trong ngách/).length).toBe(2);
+    expect(screen.getAllByText(/Thiếu sót «/).length).toBe(2);
+    expect(screen.queryByText(/Để xử lý «Overlay trễ»/)).toBeNull();
   });
 
   it("shows empty-state copy when a hook gap has no paired peer tile", () => {
@@ -564,55 +565,77 @@ describe("section verdict prose", () => {
 describe("section prose markdown", () => {
   it("renders **bold** as <strong> instead of literal asterisks", () => {
     const { container } = renderSection({
-      section_id: "next_video",
-      title: "Video tiếp theo nên quay",
-      text: "Học nhịp video **Quy trình đóng hộp** — giữ texture cận.",
+      section_id: "diagnosis",
+      title: "Vấn đề chính",
+      text: "**Quy trình đóng hộp** — giữ texture cận.",
       findings: [],
     } as DiagnosisSectionVi);
     expect(container.textContent).not.toContain("**");
-    const strong = container.querySelector("strong");
-    expect(strong?.textContent).toBe("Quy trình đóng hộp");
+    const bold = container.querySelector("span.font-bold");
+    expect(bold?.textContent).toBe("Quy trình đóng hộp");
   });
 });
 
-describe("next_video shot script", () => {
-  it("sorts timestamped bullets chronologically (belt-and-braces)", () => {
-    const { container } = renderSection({
-      section_id: "next_video",
-      title: "Video tiếp theo nên quay",
-      text: [
-        "• Beat 2 (8-12s): so sánh trước/sau",
-        "• Hook (0-1s): câu hỏi đảo",
-        "• Beat 1 (1-8s): demo cận",
-        "• CTA: comment 'giá'",
-      ].join("\n"),
-      findings: [],
-    } as DiagnosisSectionVi);
-    const items = Array.from(container.querySelectorAll("li")).map(
-      (li) => li.textContent ?? "",
+describe("niche_pattern reference grid", () => {
+  it("falls back to corpus peers and shows bridge prose when tiles missing", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "niche_pattern",
+          title_vi: "Công thức đang chạy trong ngách",
+          text_vi:
+            "**Định dạng đánh giá** chiếm 35% view ngách. Video này bám công thức thử thách mua sắm.",
+          findings: [],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "999",
+            desc: "Peer top",
+            hook_type: "question",
+            content_format: "review",
+            views: 800_000,
+            engagement_rate: null,
+            author_handle: "@peer",
+            thumbnail_url: "https://t/9.jpg",
+            tiktok_url: "https://tiktok.com/999",
+            source: "corpus",
+          },
+        ]}
+      />,
     );
-    expect(items[0]).toContain("Hook (0-1s)");
-    expect(items[1]).toContain("Beat 1 (1-8s)");
-    expect(items[2]).toContain("Beat 2 (8-12s)");
-    expect(items[3]).toContain("CTA");
+    expect(screen.getByText(/Clip dưới là video dẫn đầu ngách/)).toBeTruthy();
+    expect(screen.queryByText("VIDEO DẪN ĐẦU NGÁCH")).toBeNull();
+    expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
   });
 
-  it("never renders 'gap 0%' / 'Peer TB ~0' from a loose v6 concept", () => {
-    const { container } = renderSection({
-      section_id: "next_video",
-      title: "Video tiếp theo nên quay",
-      text: "",
-      findings: [],
-      next_video: {
-        hook_vi: "Mở bằng câu hỏi đảo.",
-        premise_vi: "So sánh 2 sản phẩm cùng giá.",
-        format: "talking_head",
-        reason_vi: "Giữ giọng đọc; đổi cảnh mở.",
-        expected_views_range: "25K - 40K",
-      },
-    } as unknown as DiagnosisSectionVi);
-    expect(container.textContent).not.toContain("gap");
-    expect(container.textContent).not.toContain("Peer TB");
-    expect(container.textContent).not.toContain("format trên kênh");
+  it("does not duplicate bridge when synthesis prose already leads into refs", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "niche_pattern",
+          title_vi: "Công thức đang chạy trong ngách",
+          text_vi:
+            "**Định dạng đánh giá** chiếm 35% view ngách. 2 clip dưới là video dẫn đầu ngách cùng công thức.",
+          findings: [],
+        }}
+        analyzedContentFormat="review"
+        referenceVideos={[
+          {
+            aweme_id: "999",
+            desc: "Peer",
+            hook_type: null,
+            content_format: "review",
+            views: 800_000,
+            engagement_rate: null,
+            author_handle: "@peer",
+            thumbnail_url: "https://t/9.jpg",
+            tiktok_url: "https://tiktok.com/999",
+            source: "corpus",
+          },
+        ]}
+      />,
+    );
+    expect(screen.queryByText(/Clip dưới là video dẫn đầu ngách/)).toBeNull();
+    expect(screen.getByText(/2 clip dưới là video dẫn đầu ngách/)).toBeTruthy();
   });
 });

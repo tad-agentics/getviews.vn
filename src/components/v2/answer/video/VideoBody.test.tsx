@@ -863,6 +863,31 @@ describe("VideoBody render", () => {
     expect(screen.getByText("2.0K")).toBeTruthy();
   });
 
+  it("does not render next_video shot-script section in video diagnosis", () => {
+    renderInRouter(
+      makeWinReport({
+        narrative_vi: {
+          ...makeWinReport().narrative_vi!,
+          _schema_version: "v6",
+          diagnosis_vi: {
+            headline_vi: "H",
+            sections: [
+              { section_id: "diagnosis", title_vi: "Chẩn đoán", text_vi: "Body." },
+              {
+                section_id: "next_video",
+                title_vi: "Video tiếp theo nên quay",
+                text_vi:
+                  "Hook (0-1s): [Cầm bill dài] 'Đi mua đồ theo người phía trước và cái kết sốc tận óc!'",
+              },
+            ],
+          },
+        },
+      }),
+    );
+    expect(screen.queryByText("Video tiếp theo nên quay")).toBeNull();
+    expect(screen.queryByText(/Cầm bill dài/)).toBeNull();
+  });
+
   it("renders BoostAttributionBlock after boost_attribution section", () => {
     const base = makeWinReport();
     renderInRouter(

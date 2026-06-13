@@ -1339,8 +1339,11 @@ def _inject_fallback_embedded_tiles(
     if "niche_pattern" in by_sid:
         sec = by_sid["niche_pattern"]
         existing = sec.get("embedded_tiles")
-        if not (isinstance(existing, list) and existing):
-            injection_plan.append(("niche_pattern", _MAX_EMBEDDED_TILES_PER_SECTION))
+        existing_n = len(existing) if isinstance(existing, list) else 0
+        if existing_n < _MAX_EMBEDDED_TILES_PER_SECTION:
+            injection_plan.append(
+                ("niche_pattern", _MAX_EMBEDDED_TILES_PER_SECTION - existing_n),
+            )
 
     for sid, want_n in injection_plan:
         sec = by_sid.get(sid)
@@ -1369,7 +1372,16 @@ def _inject_fallback_embedded_tiles(
                 )
         if resolved:
             ensure_distinct_tile_narratives(resolved, sid, addressing_mode)  # type: ignore[arg-type]
-            sec["embedded_tiles"] = resolved[:want_n]
+            injected = resolved[:want_n]
+            if sid == "niche_pattern":
+                prior = sec.get("embedded_tiles")
+                if isinstance(prior, list) and prior:
+                    merged = prior + injected
+                else:
+                    merged = injected
+                sec["embedded_tiles"] = merged[:_MAX_EMBEDDED_TILES_PER_SECTION]
+            else:
+                sec["embedded_tiles"] = injected
 
 
 def _strip_disallowed_embedded_tile_ids(
@@ -1711,63 +1723,16 @@ def _strip_headline_markdown(text: str) -> str:
     return _HEADLINE_MARKDOWN_RE.sub("", text).strip()
 
 
-# 2026-06-12 audit — next_video payload hygiene for the answer-session
-# surface. Zero-valued peer/gap claims ("Peer TB ~0 view", "gap 0% format
-# trên kênh") are broken copy parroted from missing data, and the FE renders
-# the concept's string fields as plain text (no markdown).
-_NEXT_VIDEO_ZERO_PEER_RE = re.compile(
-    r"[,;:·]?\s*(?:[—–-]\s*)?Peer\s*TB\s*~?\s*0(?:[.,]0)?\s*view\.?",
-    re.IGNORECASE,
-)
-_NEXT_VIDEO_ZERO_GAP_RE = re.compile(
-    r"[,;:·]?\s*(?:[—–-]\s*)?gap\s*~?\s*0(?:[.,]0)?\s*%(?:\s*format(?:\s*trên\s*kênh)?)?\.?",
-    re.IGNORECASE,
-)
-
-
-def _scrub_next_video_zero_claims(text: str) -> str:
-    out = _NEXT_VIDEO_ZERO_PEER_RE.sub("", text)
-    out = _NEXT_VIDEO_ZERO_GAP_RE.sub("", out)
-    # Collapse doubled spaces left by clause removal — keep newlines intact
-    # (the section text is a bullet script).
-    return re.sub(r"[ \t]{2,}", " ", out).strip()
-
-
-def _normalize_v6_next_video_sections(diagnosis_vi: dict[str, Any]) -> None:
-    """Mutate ``next_video`` sections in place (answer-session v6 surface).
-
-    - drop ``peer_avg_views`` / ``channel_share_pct`` when 0/None so the FE
-      can't render "Peer TB ~0 view" / "gap 0% format trên kênh",
-    - scrub the same zero-claims if Gemini parroted them into prose,
-    - strip markdown emphasis from the concept's string fields (the FE
-      NextVideoCard renders them as plain text — literal ``**`` was a live bug).
-    """
+def _drop_retired_v6_sections(diagnosis_vi: dict[str, Any]) -> None:
+    """Strip retired section ids from v6 pool output (LLM may still hallucinate them)."""
     sections = diagnosis_vi.get("sections")
     if not isinstance(sections, list):
         return
-    for sec in sections:
-        if not isinstance(sec, dict) or str(sec.get("section_id") or "") != "next_video":
-            continue
-        for tkey in ("text", "text_vi"):
-            txt = sec.get(tkey)
-            if isinstance(txt, str) and txt:
-                sec[tkey] = _scrub_next_video_zero_claims(txt)
-        nv = sec.get("next_video")
-        if not isinstance(nv, dict):
-            continue
-        for key in ("peer_avg_views", "channel_share_pct"):
-            if key not in nv:
-                continue
-            try:
-                val = float(nv.get(key) or 0)
-            except (TypeError, ValueError):
-                val = 0.0
-            if val <= 0:
-                nv.pop(key, None)
-        for key, val in list(nv.items()):
-            if isinstance(val, str) and val:
-                cleaned = _HEADLINE_MARKDOWN_RE.sub("", val)
-                nv[key] = _scrub_next_video_zero_claims(cleaned)
+    diagnosis_vi["sections"] = [
+        sec
+        for sec in sections
+        if isinstance(sec, dict) and str(sec.get("section_id") or "") != "next_video"
+    ]
 
 
 def _normalize_narrative_vi_dict(narrative_vi: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -1858,7 +1823,7 @@ def _parse_diagnosis_v6_pool_response(
         diag_vi = raw_obj.get("diagnosis_vi")
         if isinstance(diag_vi, dict):
             # Run before the body build so the streamed markdown is clean too.
-            _normalize_v6_next_video_sections(diag_vi)
+            _drop_retired_v6_sections(diag_vi)
             body, narrative_vi = _v6_section_body_and_narrative(diag_vi)
             fc = raw_obj.get("format_cards")
             format_cards = fc if isinstance(fc, list) else None
@@ -1923,16 +1888,16 @@ def _synthesize_diagnosis_v6_section_pool(
         diagnosis_v6_word_counts,
         score_diagnosis_output_v6,
     )
-    from getviews_pipeline.structure_axis_contract import (
-        build_structure_axis_retry_append,
-        structure_axis_contract_violations,
-    )
     from getviews_pipeline.signals.registry import (
         build_diagnosis_ctx,
         build_signal_manifest,
         log_manifest_telemetry,
         manifest_for_prompt,
         manifest_telemetry,
+    )
+    from getviews_pipeline.structure_axis_contract import (
+        build_structure_axis_retry_append,
+        structure_axis_contract_violations,
     )
 
     allowed = _allowed_aweme_ids(reference_videos)

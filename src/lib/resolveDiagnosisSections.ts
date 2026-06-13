@@ -53,17 +53,5 @@ export function resolveDiagnosisSections(
     });
   }
 
-  const nextSteps = narrativeVi?.dinh_huong_chien_luoc?.trim();
-  if (nextSteps) {
-    sections.push({
-      section_id: "next_video",
-      title_vi: "Hướng tiếp theo",
-      title: "Hướng tiếp theo",
-      text_vi: nextSteps,
-      text: nextSteps,
-      findings: [],
-    });
-  }
-
   return sections;
 }

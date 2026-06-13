@@ -25,8 +25,7 @@ def test_select_sections_minimal_ctx() -> None:
     manifest = build_signal_manifest(ctx)
     out = select_sections_to_emit(manifest, ctx)
     assert "diagnosis" in out
-    assert "next_video" in out
-    assert out.index("diagnosis") < out.index("next_video")
+    assert "next_video" not in out
 
 
 def test_select_sections_includes_commerce_when_organic_but_commercial_intent_signals() -> None:

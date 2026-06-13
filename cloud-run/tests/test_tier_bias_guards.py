@@ -223,10 +223,9 @@ def test_video_age_days_graceful_on_garbage() -> None:
 
 
 def test_v6_lightreel_generative_rules_pinned() -> None:
-    """Pin the four generative Lightreel moves applied to video diagnosis:
+    """Pin the generative Lightreel moves applied to video diagnosis:
     mechanism-level headline, coined archetype + keep-rule in diagnosis,
-    pattern-lock over reference tiles, and GIỮ/ĐỔI + rhythm-mirror in
-    next_video."""
+    and pattern-lock over reference tiles."""
     from getviews_pipeline.diagnose_prompts import DIAGNOSIS_V6_JSON_INSTRUCTION as v6
 
     # Headline names the mechanism with a timestamp, not the symptom.
@@ -237,9 +236,6 @@ def test_v6_lightreel_generative_rules_pinned() -> None:
     # Niche pattern: induced common denominator of the cited tiles only.
     assert "KHÓA PATTERN" in v6
     assert "Không bịa mẫu số chung ngoài tile đã trích" in v6
-    # Next video: anti-repeat ledger + structure mirrored from one reference.
-    assert "GIỮ / ĐỔI" in v6
-    assert "bám NHỊP của đúng 1 video trong REFERENCE_EVIDENCE" in v6
     # Findings: second-level evidence from the digest.
     assert "trích đúng mốc giây từ digest" in v6
 
@@ -258,9 +254,9 @@ def test_section_cap_keeps_highest_salience_not_display_order() -> None:
         return Signal(id=f"{sid}_s", section_id=sid, taxonomy_ref="t",
                       salience=sal, claim="c")
 
-    # 5 priority sections + 4 non-priority candidates competing for 2 slots.
+    # 4 priority sections + 4 non-priority candidates competing for 3 slots.
     sections = [
-        "diagnosis", "compliance", "hook_analysis", "niche_pattern", "next_video",
+        "diagnosis", "compliance", "hook_analysis", "niche_pattern",
         "metadata", "editing", "sound", "persona",
     ]
     manifest = {
@@ -271,12 +267,13 @@ def test_section_cap_keeps_highest_salience_not_display_order() -> None:
     }
     out = _reorder_and_cap_sections(sections, manifest=manifest)
     assert len(out) == 7
-    # persona (0.90) and sound (0.62) win the two slots; metadata/editing drop.
-    assert "persona" in out and "sound" in out
-    assert "metadata" not in out and "editing" not in out
+    # persona (0.90), sound (0.62), editing (0.55) win; metadata (0.50) drops.
+    assert "persona" in out and "sound" in out and "editing" in out
+    assert "metadata" not in out
     # Legacy fallback without a manifest keeps the old display-order slice.
     legacy = _reorder_and_cap_sections(sections)
-    assert "metadata" in legacy and "persona" not in legacy
+    assert "metadata" not in legacy
+    assert "persona" in legacy and "sound" in legacy and "editing" in legacy
 
 
 def test_section_cap_reserves_script_structure_over_context_sections() -> None:
@@ -292,7 +289,7 @@ def test_section_cap_reserves_script_structure_over_context_sections() -> None:
 
     # 4 priority present + 3 high-salience context + script_structure (no signals).
     sections = [
-        "diagnosis", "hook_analysis", "niche_pattern", "next_video",
+        "diagnosis", "hook_analysis", "niche_pattern", "compliance",
         "channel_pattern", "commerce", "boost_attribution", "script_structure",
     ]
     manifest = {
@@ -321,4 +318,5 @@ def test_v6_salience_semantics_and_orphan_sections_classified() -> None:
     assert "khớp đúng 1 signal_id" in v6
     # commerce is issue-based; boost_attribution is non-issue.
     assert "script_structure, commerce)" in v6
-    assert "persona, boost_attribution)" in v6
+    assert "niche_pattern, channel_pattern, douyin_origin, boost_attribution)" in v6
+    assert "persona: khi emit riêng" in v6

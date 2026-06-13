@@ -6,12 +6,16 @@ import {
   embeddedTilesFromEvidenceAnchors,
   enrichReferenceTilesForGaps,
   formatReferenceBridgeProse,
+  formatNichePatternBridgeProse,
+  formatSingleGapBridgeProse,
+  fallbackNichePatternReferenceTiles,
   mapDiagnosisEmbeddedTiles,
   partitionFindingsByChip,
   resolvePeerReferenceTiles,
   referenceTileNarrative,
   stripGenericReferenceBoilerplate,
   stripSectionProseForEmbeddedRefs,
+  sectionProseHasNichePatternBridge,
 } from "./diagnosisReferenceTiles";
 import type { ReferenceVideoCard } from "@/lib/api-types";
 
@@ -213,6 +217,26 @@ describe("buildGapLinkedTileNarrative", () => {
     expect(text).toContain("Áp dụng:");
   });
 
+  it("omits gap title frame when inline bridge prose is shown above the tile", () => {
+    const text = buildGapLinkedTileNarrative(
+      {
+        video_url: "",
+        thumbnail_url: "",
+        views: 1,
+        caption_snippet: "",
+        posted_at: "",
+        narrative_vi:
+          "cấu trúc format và nhịp dẫn nhất quán suốt clip. So 3 giây đầu với clip đang phân tích.",
+      },
+      { title_vi: "Nhịp độ mở đầu — Cần nhanh", fix_vi: "Cắt bỏ lời chào, vào ngay hành động." },
+      "hook",
+      { leadWithGapTitle: false },
+    );
+    expect(text).not.toMatch(/Để xử lý «/);
+    expect(text).toMatch(/cấu trúc format và nhịp dẫn nhất quán/i);
+    expect(text).toContain("Áp dụng:");
+  });
+
   it("uses structure-specific peer fallback when tile narrative is thin", () => {
     const text = buildGapLinkedTileNarrative(
       {
@@ -248,6 +272,15 @@ describe("formatReferenceBridgeProse", () => {
     );
     expect(text).toContain("thiếu sót");
     expect(text).toContain("nhịp/cảnh/âm");
+  });
+});
+
+describe("formatSingleGapBridgeProse", () => {
+  it("uses hook-specific lead-in without repeating tile gap frame", () => {
+    const text = formatSingleGapBridgeProse("Nhịp độ mở đầu — Cần nhanh", "hook");
+    expect(text).toContain("Thiếu sót «Nhịp độ mở đầu — Cần nhanh»");
+    expect(text).toContain("So cắt, chữ overlay");
+    expect(text).not.toContain("Để khắc phục");
   });
 });
 
@@ -361,6 +394,97 @@ describe("referenceTileNarrative", () => {
       }),
     ).toBe(
       "Phân tích cách video này xây dựng format.",
+    );
+  });
+});
+
+describe("formatNichePatternBridgeProse", () => {
+  it("mentions format label when provided", () => {
+    expect(formatNichePatternBridgeProse(2, "Đánh giá")).toContain("định dạng Đánh giá");
+    expect(formatNichePatternBridgeProse(2, "Đánh giá")).toContain("2 clip dưới");
+  });
+
+  it("falls back to generic formula wording", () => {
+    expect(formatNichePatternBridgeProse(1, null)).toContain("công thức đang chạy");
+  });
+});
+
+describe("fallbackNichePatternReferenceTiles", () => {
+  it("maps top reference videos by views", () => {
+    const out = fallbackNichePatternReferenceTiles([
+      {
+        aweme_id: "1",
+        desc: "A",
+        hook_type: null,
+        content_format: "review",
+        views: 10_000,
+        engagement_rate: null,
+        author_handle: "@a",
+        thumbnail_url: "https://t/1.jpg",
+        tiktok_url: "https://tiktok.com/1",
+        source: "corpus",
+      },
+      {
+        aweme_id: "2",
+        desc: "B",
+        hook_type: null,
+        content_format: "review",
+        views: 500_000,
+        engagement_rate: null,
+        author_handle: "@b",
+        thumbnail_url: "https://t/2.jpg",
+        tiktok_url: "https://tiktok.com/2",
+        source: "corpus",
+      },
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out[0].aweme_id).toBe("2");
+    expect(out[0].narrative_vi).toBeTruthy();
+  });
+
+  it("prefers peers with the same content_format as the analyzed clip", () => {
+    const out = fallbackNichePatternReferenceTiles(
+      [
+        {
+          aweme_id: "1",
+          desc: "Vlog top",
+          hook_type: null,
+          content_format: "vlog",
+          views: 900_000,
+          engagement_rate: null,
+          author_handle: "@v",
+          thumbnail_url: "https://t/1.jpg",
+          tiktok_url: "https://tiktok.com/1",
+          source: "corpus",
+        },
+        {
+          aweme_id: "2",
+          desc: "Review peer",
+          hook_type: null,
+          content_format: "review",
+          views: 50_000,
+          engagement_rate: null,
+          author_handle: "@r",
+          thumbnail_url: "https://t/2.jpg",
+          tiktok_url: "https://tiktok.com/2",
+          source: "corpus",
+        },
+      ],
+      3,
+      "review",
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].aweme_id).toBe("2");
+  });
+});
+
+describe("sectionProseHasNichePatternBridge", () => {
+  it("detects synthesis bridge and strip removes trailing duplicate", () => {
+    const prose =
+      "**Định dạng đánh giá** chiếm 35% view ngách. 3 clip dưới là video dẫn đầu ngách cùng công thức đánh giá.";
+    expect(sectionProseHasNichePatternBridge(prose)).toBe(true);
+    expect(stripSectionProseForEmbeddedRefs(prose)).toBe(
+      "**Định dạng đánh giá** chiếm 35% view ngách.",
     );
   });
 });

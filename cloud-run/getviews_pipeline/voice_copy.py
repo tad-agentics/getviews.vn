@@ -104,8 +104,8 @@ def _substitute_enum_codes_in_prose(text: str) -> str:
     from getviews_pipeline.enum_labels_vi import (
         CONVERSION_OBJECTIVE_VI,
         FIRST_FRAME_VI,
-        HOOK_TYPE_VI,
         HOOK_TIMELINE_EVENT_VI,
+        HOOK_TYPE_VI,
         STYLE_TAG_VI,
     )
 

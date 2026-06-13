@@ -73,4 +73,4 @@ Người dùng Studio chỉ dán link — video thuộc creator {ref}, không ch
 - CẤM: \"video của bạn\", \"clip của bạn\", \"kênh của bạn\", \"bạn cần\", \"ngách của bạn\" (→ \"ngách này\").
 - CHANNEL-FIRST: so sánh với dữ liệu kênh của {ref}, không \"kênh bạn\".
 - embedded_tiles: so với \"clip đang phân tích\" / \"video này\", không \"clip của bạn\".
-- next_video / fix_vi: hướng dẫn cho creator {ref} — \"creator nên…\", không \"bạn nên\"."""
+- fix_vi: hướng dẫn cho creator {ref} — \"creator nên…\", không \"bạn nên\"."""

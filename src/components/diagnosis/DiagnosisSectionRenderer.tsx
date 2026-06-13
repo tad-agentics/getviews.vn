@@ -10,7 +10,6 @@ import {
 } from "@/lib/structureTimeline";
 import type {
   ChannelContext,
-  ChannelNextVideoConcept,
   CreatorComparison,
   DiagnosisEvidenceAnchorVi,
   DiagnosisFinding,
@@ -21,22 +20,25 @@ import type {
 } from "@/lib/api-types";
 import {
   buildDiagnosisReferenceTiles,
+  fallbackNichePatternReferenceTiles,
+  formatNichePatternBridgeProse,
   formatReferenceBridgeProse,
   formatSingleGapBridgeProse,
   GAP_PEER_MISSING_VI,
   partitionFindingsByChip,
   resolvePeerReferenceTiles,
+  sectionProseHasNichePatternBridge,
   stripSectionProseForEmbeddedRefs,
   type DiagnosisReferenceTile,
   type ReferenceBridgeTopic,
 } from "@/lib/diagnosisReferenceTiles";
+import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
 import { fixChipMeta } from "@/lib/findingFixChip";
 import {
   FindingEvidenceClip,
   type AnalyzedClipContext,
 } from "@/components/diagnosis/FindingEvidenceClip";
 import { humanizeStatsProse, splitVerdictProse } from "@/lib/humanizeStatsProse";
-import { sortScriptBulletsByTimestamp } from "@/lib/nextVideoScript";
 import { CreatorComparisonEmbed } from "@/components/diagnosis/CreatorComparisonEmbed";
 import {
   ChannelContextLegacy,
@@ -51,7 +53,6 @@ import {
 } from "@/lib/statsHistoryProse";
 import { hasContextStripContent } from "@/lib/videoAdjunctSections";
 import { DiagnosisReferenceVideoCards } from "@/components/diagnosis/DiagnosisReferenceVideoCards";
-import { NextVideoCard, NextVideoCardEmpty } from "@/routes/_app/channel/components/NextVideoCard";
 import type {
   VideoAnalyzeMeta,
   VideoEnrichment,
@@ -120,34 +121,6 @@ export {
   embeddedTilesFromEvidenceAnchors,
   mapDiagnosisEmbeddedTiles,
 } from "@/lib/diagnosisReferenceTiles";
-
-function looseNextVideoConcept(
-  raw: Record<string, unknown> | null | undefined,
-): ChannelNextVideoConcept | null {
-  if (!raw) return null;
-  const hook = String(raw.hook_vi ?? "").trim();
-  const premise = String(raw.premise_vi ?? "").trim();
-  const reason = String(raw.reason_vi ?? "").trim();
-  const narrative = [hook, premise, reason].filter(Boolean).join("\n\n").trim();
-  const rationale = String(
-    raw.rationale_struct ?? raw.expected_views_range ?? "",
-  ).trim();
-  const body = narrative || rationale;
-  if (!body) return null;
-  const fmtLabel = String(raw.format ?? raw.format_label ?? "Gợi ý");
-  return {
-    format: fmtLabel,
-    format_label: fmtLabel,
-    duration_sec: Number(raw.duration_sec ?? 30) || 30,
-    rationale_struct: rationale || narrative.slice(0, 240) || body.slice(0, 240),
-    sample_peer_handle: String(raw.sample_peer_handle ?? ""),
-    sample_video_url: String(raw.sample_video_url ?? raw.tiktok_url ?? ""),
-    sample_thumbnail_url: (raw.sample_thumbnail_url as string | null | undefined) ?? null,
-    peer_avg_views: Number(raw.peer_avg_views ?? 0) || 0,
-    channel_share_pct: Number(raw.channel_share_pct ?? 0) || 0,
-    narrative: narrative || undefined,
-  };
-}
 
 /** Findings-first card with copy-paste fix chip. */
 function SectionFindingCard({
@@ -248,6 +221,7 @@ function StrengthGapSectionLayout({
     referenceTiles,
     findings,
     bridgeTopic,
+    inlineGapRefs,
   );
   const refBridge =
     !inlineGapRefs && gapLinkedTiles.length > 0
@@ -514,6 +488,8 @@ interface DiagnosisSectionRendererProps {
   channelPatternEmbed?: ChannelPatternEmbedProps | null;
   videoEmbeds?: VideoDiagnosisSectionEmbeds;
   fallbackProse?: string;
+  /** Analyzed clip content_format — niche_pattern bridge + peer fallback. */
+  analyzedContentFormat?: string | null;
 }
 
 export function DiagnosisSectionRenderer({
@@ -524,6 +500,7 @@ export function DiagnosisSectionRenderer({
   channelPatternEmbed,
   videoEmbeds,
   fallbackProse,
+  analyzedContentFormat = null,
 }: DiagnosisSectionRendererProps) {
   const title = sectionTitle(section);
   const sid = String(section.section_id);
@@ -536,51 +513,33 @@ export function DiagnosisSectionRenderer({
     (f) => f.title_vi || f.body_vi || f.fix_vi,
   );
   const peerTiles = resolvePeerReferenceTiles(sid, referenceTiles, findings);
+  const isNichePatternSection = sid === "niche_pattern";
+  const displayTiles =
+    isNichePatternSection && peerTiles.length === 0 && referenceVideos.length > 0
+      ? fallbackNichePatternReferenceTiles(referenceVideos, 3, analyzedContentFormat)
+      : peerTiles;
   const sectionOnlyText = sectionText(section);
   const rawText =
     sid === "metadata"
       ? sectionOnlyText
       : sectionOnlyText || (fallbackProse ?? "").trim();
+  const formatLabel = analyzedContentFormat
+    ? contentFormatLabelVi(analyzedContentFormat)
+    : displayTiles[0]?.content_format
+      ? contentFormatLabelVi(displayTiles[0].content_format)
+      : null;
+  const synthesisHasNicheBridge =
+    isNichePatternSection && sectionProseHasNichePatternBridge(rawText);
+  const nicheBridge =
+    isNichePatternSection &&
+    displayTiles.length > 0 &&
+    !synthesisHasNicheBridge
+      ? formatNichePatternBridgeProse(displayTiles.length, formatLabel)
+      : "";
   const text =
-    peerTiles.length > 0 ? stripSectionProseForEmbeddedRefs(rawText) : rawText;
-
-  if (sid === "next_video") {
-    const nvRaw =
-      section.next_video && typeof section.next_video === "object"
-        ? (section.next_video as Record<string, unknown>)
-        : null;
-    const concept = looseNextVideoConcept(nvRaw);
-    const hasShotScript = text.includes("•") || /Hook\s*\(/i.test(text);
-    // Belt-and-braces: the prompt demands chronological bullets, but a
-    // shuffled script still renders in order when lines carry "(Ns-Ms)".
-    const orderedText = text ? sortScriptBulletsByTimestamp(text) : text;
-    return (
-      <div className="mb-6">
-        <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">{title}</h3>
-        {text ? (
-          // Body prose stays in the normal text face — mono is reserved for
-          // kickers/numbers per the design system (live audit 2026-06-12:
-          // the whole GỢI Ý script rendered monospace).
-          <SectionProseBlocks
-            text={orderedText}
-            wrapperClassName="mt-3 space-y-1 text-[15px]"
-            paragraphClassName="whitespace-pre-wrap leading-relaxed text-[color:var(--foreground)]"
-          />
-        ) : concept ? (
-          <div className="mt-4">
-            <NextVideoCard concept={concept} />
-          </div>
-        ) : (
-          <NextVideoCardEmpty />
-        )}
-        {text && concept && !hasShotScript ? (
-          <div className="mt-4 opacity-90">
-            <NextVideoCard concept={concept} />
-          </div>
-        ) : null}
-      </div>
-    );
-  }
+    displayTiles.length > 0 && !synthesisHasNicheBridge
+      ? stripSectionProseForEmbeddedRefs(rawText)
+      : rawText;
 
   const isVideoStructureSection = sid === "script_structure";
   const isHookSection = sid === "hook_analysis";
@@ -654,6 +613,11 @@ export function DiagnosisSectionRenderer({
         </div>
       ) : null}
       {text && sid !== "metadata" ? <SectionVerdictBlock text={text} /> : null}
+      {nicheBridge ? (
+        <p className="m-0 mt-3 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">
+          {nicheBridge}
+        </p>
+      ) : null}
       {sid === "channel_pattern" && creatorComparison ? (
         <CreatorComparisonEmbed data={creatorComparison} />
       ) : null}
@@ -674,8 +638,13 @@ export function DiagnosisSectionRenderer({
           />
         )
       ) : null}
-      {peerTiles.length > 0 ? (
-        <DiagnosisReferenceVideoCards tiles={peerTiles} embedded showLabel={false} />
+      {displayTiles.length > 0 ? (
+        <DiagnosisReferenceVideoCards
+          tiles={displayTiles}
+          label="VIDEO DẪN ĐẦU NGÁCH"
+          embedded
+          showLabel={!nicheBridge}
+        />
       ) : null}
       {sid === "metadata" && videoEmbeds?.metadata ? (
         <MetadataContextEmbed

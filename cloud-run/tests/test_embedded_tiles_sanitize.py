@@ -323,6 +323,30 @@ def test_inject_fallback_skips_strength_only_diagnosis() -> None:
     assert diag_vi["sections"][0]["embedded_tiles"] == []
 
 
+def test_inject_fallback_caps_niche_pattern_merge_at_three() -> None:
+    from getviews_pipeline.gemini import _inject_fallback_embedded_tiles
+
+    refs = [
+        _slim("111", "A", proximity=3, source="corpus"),
+        _slim("222", "B", proximity=2, source="corpus"),
+        _slim("333", "C", proximity=1, source="corpus"),
+        _slim("444", "D", proximity=1, source="corpus"),
+    ]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "niche_pattern",
+                "text_vi": "prose",
+                "embedded_tiles": [{"aweme_id": "111", "video_url": "https://x/111"}],
+            },
+        ]
+    }
+    _inject_fallback_embedded_tiles(diag_vi, refs, {"111", "222", "333", "444"})
+    tiles = diag_vi["sections"][0]["embedded_tiles"]
+    assert len(tiles) == 3
+    assert [t["aweme_id"] for t in tiles] == ["111", "222", "333"]
+
+
 def test_validate_citations_invokes_tile_sanitize() -> None:
     refs = [_slim("111", "match caption keyword đồng hồ", proximity=1)]
     diag_vi = {

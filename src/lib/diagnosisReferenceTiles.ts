@@ -24,10 +24,24 @@ export interface DiagnosisReferenceTile extends ChannelPerformerTile {
 const EMBED_PROSE_TRAIL_RE =
   /(?:\n\n|\n)?(?:Video dưới đây|Đây là (?:những )?video|Tham khảo (?:các )?video|Xem (?:các )?video tham chiếu)[^.!?…]*[.!?…]\s*$/iu;
 
+const NICHE_BRIDGE_TRAIL_RE =
+  /(?:\n\n|\n)?(?:\d+\s+clip dưới (?:là )?video dẫn đầu ngách|Clip dưới là video dẫn đầu ngách)[^.!?…]*[.!?…]\s*$/iu;
+
+const NICHE_BRIDGE_INLINE_RE =
+  /(?:\d+\s+clip dưới (?:là )?video dẫn đầu ngách|Clip dưới là video dẫn đầu ngách)/iu;
+
 export function stripSectionProseForEmbeddedRefs(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return trimmed;
-  return trimmed.replace(EMBED_PROSE_TRAIL_RE, "").trim();
+  return trimmed
+    .replace(EMBED_PROSE_TRAIL_RE, "")
+    .replace(NICHE_BRIDGE_TRAIL_RE, "")
+    .trim();
+}
+
+/** True when synthesis already ends with a niche-pattern reference bridge sentence. */
+export function sectionProseHasNichePatternBridge(text: string): boolean {
+  return NICHE_BRIDGE_INLINE_RE.test(text.trim());
 }
 
 export function mapDiagnosisEmbeddedTiles(
@@ -181,6 +195,12 @@ const GENERIC_REF_LEAD_RE =
 const GENERIC_REF_ANGLE_RE =
   /\s*(?:So format và giữ chân suốt clip với video đang phân tích\.|Quan sát cấu trúc kịch bản và nhịp cuốn\.|Chú ý tương tác giữa clip và CTA chốt\.|Đối chiếu cách mở đầu và giữ chân với clip đang phân tích\.|Quan sát nhịp truyền tải và cách chốt ý cho lần quay tiếp theo của creator\.|Học cách duy trì momentum giữa clip mà không bị rời nhịp\.)\s*$/iu;
 const GAP_FRAMED_NARRATIVE_RE = /để\s+(?:xử lý|sửa|khắc phục)/iu;
+const GAP_TITLE_FRAME_PREFIX_RE =
+  /^Để\s+(?:xử lý|sửa|khắc phục)\s+«[^»]+»,\s*(?:clip này\s+)?/iu;
+
+function stripGapTitleFrame(text: string): string {
+  return text.replace(GAP_TITLE_FRAME_PREFIX_RE, "").trim();
+}
 
 /** Strip cached backend boilerplate from tile narratives before gap reframing. */
 export function stripGenericReferenceBoilerplate(text: string): string {
@@ -265,6 +285,55 @@ export function formatReferenceBridgeProse(
   return `${tileCount} clip dưới là ví dụ trong ngách cho ${listed} — mỗi clip gắn với một hướng sửa cụ thể.`;
 }
 
+/** Lead-in before niche_pattern reference grid — top peers / same formula. */
+export function formatNichePatternBridgeProse(
+  tileCount: number,
+  formatLabel?: string | null,
+): string {
+  if (!tileCount) return "";
+  const fmt = formatLabel?.trim();
+  const fmtClause = fmt ? ` định dạng ${fmt}` : " công thức đang chạy";
+  if (tileCount === 1) {
+    return `Clip dưới là video dẫn đầu ngách cùng${fmtClause} — đối chiếu hook, nhịp và cách giữ chân với clip đang phân tích.`;
+  }
+  return `${tileCount} clip dưới là video dẫn đầu ngách cùng${fmtClause} — mỗi clip minh họa một cách triển khai công thức đang thắng view trong ngách.`;
+}
+
+/** When synthesis omits tiles, surface top corpus peers for niche_pattern. */
+export function fallbackNichePatternReferenceTiles(
+  referenceVideos: ReferenceVideoCard[],
+  limit = 3,
+  analyzedContentFormat?: string | null,
+): DiagnosisReferenceTile[] {
+  const analyzedFmt = analyzedContentFormat?.trim().toLowerCase() ?? "";
+  const eligible = referenceVideos.filter(
+    (r) => r.aweme_id && (r.thumbnail_url || r.tiktok_url),
+  );
+  const sameFormat = analyzedFmt
+    ? eligible.filter((r) => String(r.content_format ?? "").toLowerCase() === analyzedFmt)
+    : [];
+  const pool = sameFormat.length > 0 ? sameFormat : eligible;
+  const sorted = [...pool].sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0));
+  return sorted.slice(0, limit).map((src) => {
+    const tile: DiagnosisReferenceTile = {
+      aweme_id: String(src.aweme_id),
+      video_url: String(src.tiktok_url ?? ""),
+      thumbnail_url: String(src.thumbnail_url ?? ""),
+      views: Number(src.views ?? 0) || 0,
+      caption_snippet: String(src.desc ?? "").slice(0, 200),
+      posted_at: "",
+      content_format: src.content_format ?? undefined,
+      author_handle: src.author_handle ?? null,
+      hook_type: src.hook_type ?? null,
+      playback_url: src.playback_url ?? null,
+    };
+    return {
+      ...tile,
+      narrative_vi: referenceTileNarrative(tile),
+    };
+  });
+}
+
 function sentenceCaseVi(text: string): string {
   const t = text.trim();
   if (!t) return t;
@@ -276,13 +345,18 @@ export function buildGapLinkedTileNarrative(
   tile: DiagnosisReferenceTile,
   gap?: Pick<DiagnosisFinding, "title_vi" | "fix_vi">,
   topic: ReferenceBridgeTopic = "general",
+  options?: { leadWithGapTitle?: boolean },
 ): string {
+  const leadWithGapTitle = options?.leadWithGapTitle !== false;
   const cleaned = stripGenericReferenceBoilerplate(tile.narrative_vi?.trim() ?? "");
-  if (cleaned && GAP_FRAMED_NARRATIVE_RE.test(cleaned)) {
+  if (cleaned && GAP_FRAMED_NARRATIVE_RE.test(cleaned) && leadWithGapTitle) {
     return cleaned;
   }
 
   let peerLesson = cleaned;
+  if (GAP_FRAMED_NARRATIVE_RE.test(peerLesson)) {
+    peerLesson = stripGapTitleFrame(peerLesson);
+  }
   if (peerLesson.length < 24) {
     peerLesson = stripGenericReferenceBoilerplate(referenceFallbackNarrative(tile, topic));
   }
@@ -300,10 +374,18 @@ export function buildGapLinkedTileNarrative(
 
   const compareFallback =
     topic === "structure"
-      ? "đối chiếu nhịp cắt, cảnh và âm thanh của clip này với video của bạn"
+      ? "Đối chiếu nhịp cắt, cảnh và âm thanh với clip đang phân tích"
       : topic === "hook"
-        ? "đối chiếu cách clip này mở 3 giây đầu (text overlay, lời thoại, visual) với video của bạn"
-        : "đối chiếu cách clip này mở đầu và giữ nhịp so với video của bạn";
+        ? "So 3 giây đầu (cắt, chữ overlay, hình mở) với clip đang phân tích"
+        : "Đối chiếu cách clip này mở đầu và giữ nhịp với clip đang phân tích";
+
+  if (!leadWithGapTitle) {
+    const bodyRaw = peerLesson
+      ? sentenceCaseVi(peerLesson.replace(/\.$/, ""))
+      : compareFallback;
+    const body = bodyRaw.charAt(0).toUpperCase() + bodyRaw.slice(1);
+    return `${body.endsWith(".") ? body : `${body}.`}${fixClause}`;
+  }
 
   const core = peerLesson
     ? `Để xử lý «${gapTitle}», clip này ${sentenceCaseVi(peerLesson.replace(/\.$/, ""))}.`
@@ -317,11 +399,14 @@ export function enrichReferenceTilesForGaps(
   tiles: DiagnosisReferenceTile[],
   gaps: DiagnosisFinding[],
   topic: ReferenceBridgeTopic = "general",
+  inlineBridge = false,
 ): DiagnosisReferenceTile[] {
   if (!gaps.length) return tiles;
   return tiles.map((tile, i) => ({
     ...tile,
-    narrative_vi: buildGapLinkedTileNarrative(tile, gaps[i] ?? gaps[0], topic),
+    narrative_vi: buildGapLinkedTileNarrative(tile, gaps[i] ?? gaps[0], topic, {
+      leadWithGapTitle: !inlineBridge,
+    }),
   }));
 }
 
@@ -341,6 +426,7 @@ export function resolvePeerReferenceTiles(
   tiles: DiagnosisReferenceTile[],
   findings: DiagnosisFinding[],
   topic: ReferenceBridgeTopic = "general",
+  inlineBridge = false,
 ): DiagnosisReferenceTile[] {
   if (!tiles.length) return [];
   if (!PEER_REF_GAP_ONLY_SECTION_IDS.has(sectionId.trim())) {
@@ -348,7 +434,7 @@ export function resolvePeerReferenceTiles(
   }
   const { gaps } = partitionFindingsByChip(findings);
   if (!gaps.length) return [];
-  return enrichReferenceTilesForGaps(tiles.slice(0, gaps.length), gaps, topic);
+  return enrichReferenceTilesForGaps(tiles.slice(0, gaps.length), gaps, topic, inlineBridge);
 }
 
 /** Shown under an inline gap card when the synthesis pool has no peer for that gap. */
@@ -363,12 +449,12 @@ export function formatSingleGapBridgeProse(
   const title = gapTitle.trim();
   if (!title) return "";
   if (topic === "structure") {
-    return `Để khắc phục thiếu sót «${title}», xem clip tham chiếu — creator trong ngách đã xử lý nhịp/cảnh/âm đúng điểm này.`;
+    return `Thiếu sót «${title}» — clip dưới minh họa cách ngách xử lý nhịp, cảnh và âm. Đối chiếu với clip của bạn.`;
   }
   if (topic === "hook") {
-    return `Để khắc phục «${title}», xem clip tham chiếu — cách mở 3 giây đầu trong ngách xử lý điểm này.`;
+    return `Thiếu sót «${title}» — clip dưới minh họa cách ngách mở 3 giây đầu. So cắt, chữ overlay và hình mở với clip của bạn.`;
   }
-  return `Để khắc phục «${title}», xem clip tham chiếu — creator trong ngách đã xử lý đúng điểm này.`;
+  return `Thiếu sót «${title}» — clip dưới minh họa cách creator trong ngách xử lý điểm này.`;
 }
 
 export function referenceTileNarrative(tile: DiagnosisReferenceTile): string {

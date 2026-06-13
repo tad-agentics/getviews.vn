@@ -26,10 +26,10 @@ from getviews_pipeline.signals.win import extract_win_hook_aligns_niche_top_sign
 
 def test_normalize_strips_markdown_emphasis_from_headline() -> None:
     out = _normalize_narrative_vi_dict(
-        {"headline_vi": "**Video thắng nhờ hook 0-3s** — giữ format này."}
+        {"headline_vi": "**Video thắng nhờ hook 0-3s** — giữ nhịp này."}
     )
     assert out is not None
-    assert out["headline_vi"] == "Video thắng nhờ hook 0-3s — giữ format này."
+    assert out["headline_vi"] == "Video thắng nhờ hook 0-3s — giữ nhịp này."
     assert "*" not in out["headline_vi"]
 
 
@@ -176,115 +176,25 @@ def test_prompt_forbids_raw_enums_in_prose() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Bug 5 — next_video payload hygiene (answer-session v6 surface)
+# Retired next_video section — stripped from v6 video diagnosis pool (2026-06-13)
 # ---------------------------------------------------------------------------
 
 
-def _nv_diag(section: dict) -> dict:
-    return {"headline_vi": "h", "sections": [section], "evidence_anchors": []}
+def test_drop_retired_v6_sections_removes_next_video() -> None:
+    from getviews_pipeline.gemini import _drop_retired_v6_sections
+
+    diag = {
+        "headline_vi": "h",
+        "sections": [
+            {"section_id": "diagnosis", "text": "**Verdict.**"},
+            {"section_id": "next_video", "text": "• Hook (0-1s): câu mở"},
+        ],
+    }
+    _drop_retired_v6_sections(diag)
+    assert [s["section_id"] for s in diag["sections"]] == ["diagnosis"]
 
 
-def test_next_video_drops_zero_peer_and_gap_fields() -> None:
-    from getviews_pipeline.gemini import _normalize_v6_next_video_sections
-
-    diag = _nv_diag(
-        {
-            "section_id": "next_video",
-            "text": "• Hook (0-1s): câu mở",
-            "next_video": {
-                "hook_vi": "Câu mở.",
-                "reason_vi": "Giữ giọng đọc.",
-                "peer_avg_views": 0,
-                "channel_share_pct": 0,
-            },
-        }
-    )
-    _normalize_v6_next_video_sections(diag)
-    nv = diag["sections"][0]["next_video"]
-    assert "peer_avg_views" not in nv
-    assert "channel_share_pct" not in nv
-
-
-def test_next_video_keeps_real_peer_and_gap_fields() -> None:
-    from getviews_pipeline.gemini import _normalize_v6_next_video_sections
-
-    diag = _nv_diag(
-        {
-            "section_id": "next_video",
-            "text": "• Hook (0-1s): câu mở",
-            "next_video": {
-                "reason_vi": "Học nhịp video talking_head 1.2M view.",
-                "peer_avg_views": 120_000,
-                "channel_share_pct": 3.0,
-            },
-        }
-    )
-    _normalize_v6_next_video_sections(diag)
-    nv = diag["sections"][0]["next_video"]
-    assert nv["peer_avg_views"] == 120_000
-    assert nv["channel_share_pct"] == 3.0
-
-
-def test_next_video_scrubs_zero_claims_from_prose() -> None:
-    from getviews_pipeline.gemini import _normalize_v6_next_video_sections
-
-    diag = _nv_diag(
-        {
-            "section_id": "next_video",
-            "text": "Kỳ vọng 25K - 40K Peer TB ~0 view.\n• Hook (0-1s): câu mở",
-            "next_video": {
-                "reason_vi": "Format này — gap 0% format trên kênh — đáng thử.",
-                "expected_views_range": "25K - 40K",
-            },
-        }
-    )
-    _normalize_v6_next_video_sections(diag)
-    sec = diag["sections"][0]
-    assert "Peer TB" not in sec["text"]
-    assert "25K - 40K" in sec["text"]
-    # Bullet newline survives the scrub.
-    assert "\n• Hook (0-1s): câu mở" in sec["text"]
-    nv = sec["next_video"]
-    assert "gap 0%" not in nv["reason_vi"]
-    assert "format trên kênh" not in nv["reason_vi"]
-    assert nv["expected_views_range"] == "25K - 40K"
-
-
-def test_next_video_strips_markdown_from_concept_strings() -> None:
-    from getviews_pipeline.gemini import _normalize_v6_next_video_sections
-
-    diag = _nv_diag(
-        {
-            "section_id": "next_video",
-            "text": "",
-            "next_video": {
-                "hook_vi": "**Mở bằng câu hỏi đảo.**",
-                "premise_vi": "So sánh *2 sản phẩm* cùng giá.",
-                "reason_vi": "Giữ `texture cận`.",
-            },
-        }
-    )
-    _normalize_v6_next_video_sections(diag)
-    nv = diag["sections"][0]["next_video"]
-    assert nv["hook_vi"] == "Mở bằng câu hỏi đảo."
-    assert "*" not in nv["premise_vi"]
-    assert "`" not in nv["reason_vi"]
-
-
-def test_next_video_normalize_ignores_other_sections() -> None:
-    from getviews_pipeline.gemini import _normalize_v6_next_video_sections
-
-    diag = _nv_diag(
-        {
-            "section_id": "diagnosis",
-            "text": "**Verdict in đậm.** Giữ nguyên markdown ở section thường.",
-        }
-    )
-    _normalize_v6_next_video_sections(diag)
-    assert diag["sections"][0]["text"].startswith("**Verdict in đậm.**")
-
-
-def test_parse_v6_pool_response_normalizes_next_video() -> None:
+def test_parse_v6_pool_response_strips_retired_next_video() -> None:
     import json
 
     from getviews_pipeline.gemini import _parse_diagnosis_v6_pool_response
@@ -293,17 +203,13 @@ def test_parse_v6_pool_response_normalizes_next_video() -> None:
         "diagnosis_vi": {
             "headline_vi": "Verdict.",
             "sections": [
+                {"section_id": "diagnosis", "text": "**Verdict.** Ngắn."},
                 {
                     "section_id": "next_video",
                     "title": "Video tiếp theo nên quay",
-                    "text": "• Hook (0-1s): câu mở Peer TB ~0 view.",
+                    "text": "• Hook (0-1s): câu mở",
                     "findings": [],
-                    "next_video": {
-                        "hook_vi": "**Câu mở.**",
-                        "peer_avg_views": 0,
-                        "channel_share_pct": 0,
-                    },
-                }
+                },
             ],
             "evidence_anchors": [],
         },
@@ -314,23 +220,10 @@ def test_parse_v6_pool_response_normalizes_next_video() -> None:
         text, allowed=set(), reference_videos=[]
     )
     assert diag_vi is not None
-    sec = diag_vi["sections"][0]
-    assert "Peer TB" not in sec["text"]
-    assert sec["next_video"]["hook_vi"] == "Câu mở."
-    assert "peer_avg_views" not in sec["next_video"]
+    assert [s["section_id"] for s in diag_vi["sections"]] == ["diagnosis"]
     assert narrative_vi is not None
 
 
-# ---------------------------------------------------------------------------
-# Bug 6 — next_video beat ordering + raw video-id citation prompt rules
-# ---------------------------------------------------------------------------
-
-
-def test_prompt_requires_chronological_next_video_bullets() -> None:
-    assert "PHẢI theo thứ tự thời gian" in DIAGNOSIS_V6_JSON_INSTRUCTION
-    assert "KHÔNG đảo Beat/CTA lên trước Hook" in DIAGNOSIS_V6_JSON_INSTRUCTION
-
-
-def test_prompt_forbids_raw_video_ids_in_prose() -> None:
-    assert "KHÔNG dán video_id/aweme_id thô" in DIAGNOSIS_V6_JSON_INSTRUCTION
-    assert "format + view" in DIAGNOSIS_V6_JSON_INSTRUCTION
+def test_v6_prompt_no_longer_mentions_next_video_section() -> None:
+    assert "NEXT_VIDEO" not in DIAGNOSIS_V6_JSON_INSTRUCTION
+    assert "next_video là object" not in DIAGNOSIS_V6_JSON_INSTRUCTION

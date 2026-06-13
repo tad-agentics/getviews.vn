@@ -96,11 +96,10 @@ def test_v6_prompt_includes_video_structure_note_when_script_structure_emits() -
         errors=None,
         wants_directions=False,
     )
-    assert "SECTION script_structure" in prompt
+    assert "TRỤC 1 — script_structure" in prompt
     assert "≤100 từ" in prompt
-    assert "THIẾU SÓT" in prompt
-    assert "sound (cùng emit)" in prompt
-    assert "section.text **trống**" in prompt
+    assert "thiếu sót" in prompt.lower()
+    assert "TRỤC 2 — sound" in prompt
     assert "script_structure ≤100 từ" in prompt
 
 
@@ -120,9 +119,8 @@ def test_v6_prompt_sound_only_video_structure_note() -> None:
         errors=None,
         wants_directions=False,
     )
-    assert "SECTION sound (chỉ sound trong SECTIONS_TO_EMIT" in prompt
-    assert "KHÔNG tạo script_structure" in prompt
-    assert "SECTION script_structure" not in prompt
+    assert "chỉ sound trong SECTIONS_TO_EMIT" in prompt
+    assert "TRỤC 1 — script_structure" not in prompt
 
 
 def test_v6_prompt_average_diagnosis_has_no_short_prose_cap() -> None:

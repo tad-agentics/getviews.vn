@@ -15,7 +15,6 @@ DIAGNOSIS_V6_SOUND_PERSONA_MAX_WORDS = 55
 DIAGNOSIS_V6_SOUND_PERSONA_SOFT_MAX = 60
 DIAGNOSIS_V6_TOTAL_TARGET_MAX = 450
 DIAGNOSIS_V6_TOTAL_RETRY_MAX = 520
-DIAGNOSIS_V6_NEXT_VIDEO_MAX_WORDS = 150
 
 
 def _section_text_soft_max(section_id: str) -> int:
@@ -23,8 +22,6 @@ def _section_text_soft_max(section_id: str) -> int:
         return DIAGNOSIS_V6_SCRIPT_STRUCTURE_SOFT_MAX
     if section_id in ("sound", "persona", "editing"):
         return DIAGNOSIS_V6_SOUND_PERSONA_SOFT_MAX
-    if section_id == "next_video":
-        return DIAGNOSIS_V6_NEXT_VIDEO_MAX_WORDS
     return DIAGNOSIS_V6_SECTION_SOFT_MAX
 
 

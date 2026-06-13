@@ -146,8 +146,6 @@ function mergeDiagnosisSection(
     structure_axes: structureAxes.length > 0 ? structureAxes : undefined,
     findings: findings.length > 0 ? findings : undefined,
     embedded_tiles: tiles.length > 0 ? tiles : undefined,
-    next_video:
-      script?.next_video ?? editing?.next_video ?? sound?.next_video ?? persona?.next_video ?? null,
   };
 }
 

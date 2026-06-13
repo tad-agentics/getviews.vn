@@ -36,8 +36,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
         ],
         "embedded_tiles": [
           {"aweme_id": "<id từ REFERENCE_EVIDENCE>", "narrative_vi": "1-3 câu: vì sao chọn video này + nó làm tốt điều gì (hook, format, nhịp) so với clip đang phân tích"}
-        ],
-        "next_video": null
+        ]
       }
     ],
     "evidence_anchors": [
@@ -54,14 +53,14 @@ Quy tắc:
 - TỔNG báo cáo ~350-450 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu chứng minh (≤90 từ; script_structure ≤100 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 5 câu prose.
 - VERDICT-FIRST: câu đầu mỗi section là kết luận in đậm — đọc các câu đậm xuyên suốt bài là hiểu toàn bộ. Phần còn lại chỉ chứng minh + fix + reference.
 - ĐƠN VỊ CHÍNH là FINDINGS + REFERENCE, KHÔNG phải prose. Khi phân vân giữa viết thêm 1 đoạn giải thích và đưa thêm 1 finding/1 reference tile → luôn chọn finding/reference. Prose chỉ là 1 câu verdict dẫn vào.
-- DẠY VIỆC CẦN LÀM > chẩn đoán. Nén chẩn đoán còn 1 câu; dồn không gian cho fix cụ thể, reference video, và script clip tiếp theo.
+- DẠY VIỆC CẦN LÀM > chẩn đoán. Nén chẩn đoán còn 1 câu; dồn không gian cho fix cụ thể và reference video.
 - Chỉ tạo các section có trong SECTIONS_TO_EMIT, đúng thứ tự đó. KHÔNG tạo section riêng cho timing/giờ đăng. Khi `user_stats_trim.stats_history` có ≥2 mốc (t0/t6h/t24h), diễn giải trong section `metadata`: view/ER tăng hay đứng, `distribution_shape=spike_then_flat` nghĩa gì, tốt/chưa tốt và 1 fix cụ thể — không chỉ liệt kê số.
 
 FINDINGS (đơn vị hiển thị chính của section issue-based):
 - Section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure, commerce): 2-3 findings — đây là phần creator đọc kỹ nhất. Mỗi finding: title_vi (≤10 từ, "Vấn đề — hậu quả"), body_vi (1 câu + số liệu), fix_vi (1 hành động copy-paste: hook template, con số, thao tác cụ thể — KHÔNG "cải thiện hook").
 - BÁM SIGNAL_MANIFEST: salience (0-1) là độ quan trọng đã đo — findings của mỗi section viết từ các signal salience CAO NHẤT của section đó, không chọn signal yếu khi còn signal mạnh chưa dùng. Mỗi finding khớp đúng 1 signal_id trong evidence_anchors; section có signal thì KHÔNG viết finding ngoài manifest.
 - KHÔNG tạo finding về tiết lộ thương mại / #qc / #ad / Luật Quảng cáo disclosure — ngoài phạm vi sản phẩm video diagnosis.
-- Section không issue-based (next_video, niche_pattern, channel_pattern, douyin_origin, boost_attribution): findings: [].
+- Section không issue-based (niche_pattern, channel_pattern, douyin_origin, boost_attribution): findings: [].
 - persona: khi emit riêng hoặc cùng script_structure — section.text 2-3 câu (≤55 từ) về giọng/chân thực; tối đa 2 findings; UI gộp vào trục «Giọng & persona» trong «Phân tích cấu trúc Video».
 - Tín hiệu seeding/ads/boost (signal section_id=boost_attribution) chỉ được diễn đạt MỘT lần — trong text của section boost_attribution. KHÔNG lặp lại thành finding hay nhắc lại trong section khác.
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
@@ -70,12 +69,12 @@ FINDINGS (đơn vị hiển thị chính của section issue-based):
 - CHỐNG pad: mỗi câu advance argument; không lặp ý. evidence_anchors khớp claim trong text.
 
 DIAGNOSIS (2 yêu cầu thêm — Lightreel contract):
-- Câu verdict đặt **tên archetype 2-4 từ tự đặt** cho cách video này làm nội dung («Ảnh catalog tĩnh», «Quy trình đóng hộp», «Mặt người kể chuyện») — findings và next_video gọi lại đúng tên đó để hành động bám chẩn đoán.
+- Câu verdict đặt **tên archetype 2-4 từ tự đặt** cho cách video này làm nội dung («Ảnh catalog tĩnh», «Quy trình đóng hộp», «Mặt người kể chuyện») — findings gọi lại đúng tên đó để hành động bám chẩn đoán.
 - Nêu 1 điểm GIỮ NGUYÊN có bằng chứng (kể cả khi video yếu — vd nhịp cắt, giọng đọc, texture cận) — fix không được phá cái đang chạy.
 
 REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
 - Section show được trực quan (niche_pattern, diagnosis, hook_analysis, script_structure): điền tối đa **3** embedded_tiles **khác aweme_id** từ REFERENCE_EVIDENCE. niche_pattern ưu tiên đủ 3 tile — đây là lưới "top ngách đang làm gì", reference là nhân vật chính, prose dẫn vào chỉ 1 câu.
-- Mỗi aweme_id chỉ dùng ở MỘT section. narrative_vi = 1 câu (tối đa 2) **khác nhau cho từng video**: nêu **điều cần học theo** (hook/format/nhịp cụ thể) so với clip đang phân tích — chỉ gắn vào **khoảng trống/thiếu sót**, KHÔNG gắn vào điểm mạnh («Tiếp tục»/«Giữ»). Điểm mạnh chứng minh bằng mốc giây/cảnh của clip đang phân tích (digest), không bằng video peer. Góc theo section (hook_analysis → 3 giây đầu; diagnosis/niche_pattern → format/hiệu quả). KHÔNG nhắc @handle hay số view (card đã hiển thị). KHÔNG lặp narrative_vi vào text. Tuân thủ ADDRESSING_MODE trong DIAGNOSTIC_CONTEXT.
+- Mỗi aweme_id chỉ dùng ở MỘT section. narrative_vi = 1 câu (tối đa 2) **khác nhau cho từng video**: nêu **điều cần học theo** (hook/format/nhịp cụ thể) so với clip đang phân tích — với diagnosis/hook_analysis/script_structure chỉ gắn vào **khoảng trống/thiếu sót**, KHÔNG gắn vào điểm mạnh («Tiếp tục»/«Giữ»). **niche_pattern là ngoại lệ:** tiles = video dẫn đầu ngách / cùng công thức — luôn ≥1 clip (ưu tiên 3), không phụ thuộc findings. Góc theo section (hook_analysis → 3 giây đầu; diagnosis/niche_pattern → format/hiệu quả). KHÔNG nhắc @handle hay số view (card đã hiển thị). KHÔNG lặp narrative_vi vào text. Tuân thủ ADDRESSING_MODE trong DIAGNOSTIC_CONTEXT.
 - Chỉ chọn video gần context (CTX_SUMMARY). Không đủ peer phù hợp → ít tile hơn hoặc [].
 - Section phân tích thuần (channel_pattern, compliance): tile tùy chọn, không bắt buộc. persona khi emit: prose + findings bắt buộc (trục «Giọng & persona»); peer refs thường nằm ở script_structure/sound.
 
@@ -83,17 +82,12 @@ CHANNEL_PATTERN (Ref-style: kênh tự chứng minh):
 - Dùng channel_context: trích số cụ thể (top video X views, bottom Y views, mức view thường của kênh). 1 câu verdict in đậm: video này so với mức thường của kênh thế nào + creator nên nhân đôi cái gì. ≤90 từ. Nếu source="live": ghi chú nhẹ dữ liệu kênh là live.
 - Nếu channel_context.recent_content_audit có mặt: được trích số đếm thật để nối video này với pattern kênh («video này không có mặt người — X/Y video gần nhất của kênh cũng vậy»; avg_views_with_face vs without nếu có). KHÔNG suy đoán ngoài số đếm.
 
-NEXT_VIDEO (script copy-paste được, KHÔNG concept trừu tượng):
-- next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" }; findings: [].
-- text của section = script theo cảnh, mỗi dòng 1 bullet •: "• Hook (0-1s): [câu copy-paste]" → "• Beat 2: ..." → "• Beat 3: ..." → "• CTA: ...". Creator phải quay được ngay mà không cần nghĩ thêm.
-- Bullets PHẢI theo thứ tự thời gian: Hook → Beat 1 → Beat 2 → CTA cuối cùng — mốc giây tăng dần, KHÔNG đảo Beat/CTA lên trước Hook.
-- KHÔNG dán video_id/aweme_id thô (chuỗi 15-19 chữ số) vào prose hay reason_vi — nhắc video tham chiếu bằng format + view («video talking_head 1.2M view», kèm @handle nếu có).
-- GIỮ / ĐỔI (chống lặp + chống đập đi xây lại): reason_vi nêu 1 điều GIỮ từ video đang phân tích (có bằng chứng chạy được) và 1 điều ĐỔI then chốt — nối đúng tên archetype đã đặt ở diagnosis.
-- Beat script bám NHỊP của đúng 1 video trong REFERENCE_EVIDENCE (reason_vi nói rõ học nhịp video nào, vì sao) — học cấu trúc đã thắng, không sáng tác từ con số 0.
-
 NICHE_PATTERN:
-- embedded_tiles từ reference pool (ưu tiên đủ 3); findings: []. Nếu có cross_format_signal: 1 câu verdict in đậm — "format X đang chạy ở N ngách / hook nào đạt view cao nhất" + creator học gì. Phải ra conclusion, không chỉ mô tả.
-- KHÓA PATTERN: khi đủ ≥3 tile và có USER_EVIDENCE_DIGEST, câu verdict in đậm = mẫu số chung của CHÍNH các tile đã chọn + video này làm gì khác («Cả 3 video tham chiếu mở bằng mặt người nói trong 1s đầu — video này vào thẳng sản phẩm đến 3.2s»). Không bịa mẫu số chung ngoài tile đã trích; thiếu tile hoặc thiếu digest → verdict thường.
+- **BẮT BUỘC** embedded_tiles ≥1 (ưu tiên đủ 3) từ REFERENCE_EVIDENCE — video cùng format/công thức hoặc top view ngách; section KHÔNG hợp lệ nếu thiếu tile khi pool có peer. findings: [].
+- section.text: 1 verdict **in đậm** + 2-3 câu (≤90 từ) nêu công thức đang chiếm view; **1 câu cuối** dẫn sang lưới clip tham chiếu («X clip dưới là video dẫn đầu ngách cùng công thức…»).
+- narrative_vi mỗi tile: 1 câu — peer làm format/hook/nhịp tốt hơn clip đang phân tích ở điểm nào.
+- Nếu có cross_format_signal: 1 câu verdict in đậm — "format X đang chạy ở N ngách / hook nào đạt view cao nhất" + creator học gì. Phải ra conclusion, không chỉ mô tả.
+- KHÓA PATTERN: khi đủ ≥3 tile và có USER_EVIDENCE_DIGEST, câu verdict in đậm = mẫu số chung của CHÍNH các tile đã chọn + video này làm gì khác. Không bịa mẫu số chung ngoài tile đã trích.
 - Ngôn ngữ: tiếng Việt peer-to-peer. Dùng **view** (không "lượt xem"), **tỷ lệ tương tác** (không "engagement rate"). Tránh quote tiếng Anh thô — diễn đạt format/hook bằng tiếng Việt. Khi performance_tier=hit: khung breakout, hook chỉ là polish — không mô tả như flop.
 - ENUM PHẢI DỊCH: mọi enum kỹ thuật trong SIGNAL_MANIFEST / USER_ANALYSIS (hook_type, conversion_objective, content_format, first_frame_type…) phải diễn đạt bằng nhãn tiếng Việt — KHÔNG thả enum thô («curiosity_gap», «entertainment_first», «product_closeup») vào câu. SIGNAL_MANIFEST đã kèm nhãn tiếng Việt — dùng đúng nhãn đó.
 
@@ -107,9 +101,8 @@ KHÁCH QUAN VỚI PERFORMANCE_TIER (chống bias kết quả):
 DIAGNOSIS_V6_SHORTEN_RETRY_APPEND = """
 BẮT BUỘC RÚT GỌN: Bản trước quá dài. Trả lại JSON đầy đủ cùng schema.
 - TỔNG ≤520 từ (mọi section.text + findings) — ưu tiên giữ đủ 3 trục cấu trúc (script_structure + sound + persona khi có trong SECTIONS_TO_EMIT).
-- Mỗi section.text (trừ next_video): ≤90 từ; script_structure ≤100; sound/persona ≤55 — 1 verdict **in đậm** + tối đa 4 câu.
+- Mỗi section.text: ≤90 từ; script_structure ≤100; sound/persona ≤55 — 1 verdict **in đậm** + tối đa 4 câu.
 - Giữ đủ findings và embedded_tiles (≥1 tile / thiếu sót rhythm); cắt prose thừa, KHÔNG bỏ fix_vi.
-- next_video: giữ bullet script • Hook → Beat → CTA, gọn hơn nếu cần.
 """
 
 
@@ -548,6 +541,19 @@ def build_diagnosis_v6_user_prompt(
             "\n- section.text: 2-3 câu (≤55 từ) về giọng/persona — KHÔNG để trống."
             "\n- findings: ≥1 về giọng/chân thực on-camera (fix_vi copy-paste)."
             "\n- embedded_tiles: [] (peer refs khi có script_structure)."
+            )
+    niche_pattern_note = ""
+    if "niche_pattern" in sections_to_emit:
+        niche_pattern_note = (
+            "\n\nSECTION niche_pattern («Công thức đang chạy trong ngách»):"
+            "\n- section.text: 1 verdict **in đậm** + 2-3 câu (≤90 từ) — công thức/format đang chiếm view "
+            "trong ngách + video này bám hay lệch; **1 câu cuối** dẫn sang lưới clip («X clip dưới là video "
+            "dẫn đầu ngách cùng công thức…»)."
+            "\n- findings: [] (bắt buộc)."
+            "\n- embedded_tiles: **BẮT BUỘC** ≥1 clip (ưu tiên 3) từ REFERENCE_EVIDENCE — cùng format/công thức "
+            "hoặc top view ngách; lưới clip là phần chính của section."
+            "\n- narrative_vi: 1 câu/tile — peer làm format/hook/nhịp tốt hơn clip đang phân tích ở điểm nào; "
+            "KHÔNG «Được chọn vì format» chung chung."
         )
     blocks.append(
         "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu "
@@ -574,5 +580,6 @@ def build_diagnosis_v6_user_prompt(
         + strength_gap_note
         + hook_analysis_note
         + video_structure_note
+        + niche_pattern_note
     )
     return "".join(blocks)

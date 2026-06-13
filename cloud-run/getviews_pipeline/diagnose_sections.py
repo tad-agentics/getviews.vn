@@ -37,7 +37,6 @@ class VideoSectionId(StrEnum):
     sound = "sound"
     persona = "persona"
     script_structure = "script_structure"
-    next_video = "next_video"
     boost_attribution = "boost_attribution"
 
 
@@ -277,7 +276,6 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.persona, 65, False, _applies_persona),
     SectionSpec(VideoSectionId.script_structure, 68, False, _applies_script_structure),
     SectionSpec(VideoSectionId.boost_attribution, 70, False, _applies_boost_attribution),
-    SectionSpec(VideoSectionId.next_video, 90, True, lambda _c, _m: True),
 )
 
 
@@ -334,10 +332,6 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("boost_attribution", "average"): "Có dấu hiệu ads/seeding",
     ("boost_attribution", "flop"): "Có dấu hiệu ads/seeding",
     ("boost_attribution", "unknown"): "Có dấu hiệu ads/seeding",
-    ("next_video", "hit"): "Video tiếp theo nên quay",
-    ("next_video", "average"): "Video tiếp theo nên quay",
-    ("next_video", "flop"): "Video tiếp theo nên quay",
-    ("next_video", "unknown"): "Video tiếp theo nên quay",
 }
 
 
@@ -360,7 +354,6 @@ _REDESIGN_PRIORITY_ORDER: tuple[str, ...] = (
     "compliance",
     "hook_analysis",
     "niche_pattern",
-    "next_video",
 )
 DEEP_SECTION_CAP = 7
 
@@ -382,7 +375,7 @@ def _reorder_and_cap_sections(
     *,
     manifest: Manifest | None = None,
 ) -> list[str]:
-    """Put diagnosis → niche_pattern → next_video first; cap deep at DEEP_SECTION_CAP.
+    """Put diagnosis → niche_pattern first; cap deep at DEEP_SECTION_CAP.
 
     2026-06-11 salience audit: when the cap bites, non-priority slots are won
     by each section's strongest signal (max salience), not by static display
