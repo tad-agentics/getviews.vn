@@ -155,14 +155,47 @@ def _applies_metadata(ctx: dict, manifest: Manifest) -> bool:
     return _has_gate(manifest, "metadata", ctx)
 
 
-def _applies_editing(_ctx: dict, manifest: Manifest) -> bool:
+def _structure_block_warranted(ctx: dict) -> bool:
+    """Full «Phân tích cấu trúc Video» block — scene timeline or structural arc."""
+    return _video_has_scene_timeline(ctx) or _has_structural_arc(ctx)
+
+
+def _video_has_persona_observables(ctx: dict) -> bool:
+    """Enough extraction data to assess on-camera voice/persona (not only gap signals)."""
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return False
+    if ua.get("has_human_speaking_to_camera") is True:
+        return True
+    if str(ua.get("creator_persona") or "").strip():
+        return True
+    if str(ua.get("tone") or "").strip():
+        return True
+    transcript = str(ua.get("audio_transcript") or "").strip()
+    if len(transcript) >= 8:
+        return True
+    tags = {str(t).strip().lower() for t in (ua.get("style_tags") or []) if t}
+    if "talking_head" in tags or "voiceover_only" in tags:
+        return True
+    enr = ua.get("enrichment")
+    if isinstance(enr, dict) and str(enr.get("tone") or "").strip():
+        return True
+    scenes = ua.get("scenes")
+    return isinstance(scenes, list) and len(scenes) >= 1
+
+
+def _applies_editing(ctx: dict, manifest: Manifest) -> bool:
+    if _structure_block_warranted(ctx):
+        return True
     return any(
         s.salience >= EDITING_SECTION_MIN_SALIENCE
         for s in manifest.get("editing", [])
     )
 
 
-def _applies_persona(_ctx: dict, manifest: Manifest) -> bool:
+def _applies_persona(ctx: dict, manifest: Manifest) -> bool:
+    if _structure_block_warranted(ctx) and _video_has_persona_observables(ctx):
+        return True
     return any(
         s.salience >= PERSONA_SECTION_MIN_SALIENCE
         for s in manifest.get("persona", [])
@@ -197,6 +230,8 @@ def _video_has_audible_sound_track(ctx: dict) -> bool:
 def _applies_sound(ctx: dict, manifest: Manifest) -> bool:
     if not _video_has_audible_sound_track(ctx):
         return False
+    if _structure_block_warranted(ctx):
+        return True
     return _has_gate(manifest, "sound", ctx)
 
 

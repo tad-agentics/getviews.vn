@@ -375,6 +375,66 @@ describe("hook_analysis strength-gap layout (#1)", () => {
     expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(1);
   });
 
+  it("embeds thumbnail stop-power under hook verdict when requested", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "hook_analysis",
+          title_vi: "Phân tích hook",
+          text_vi: "**Hook ổn** — sản phẩm vào khung sớm.",
+          findings: [],
+        }}
+        referenceVideos={[]}
+        embedThumbnailSupport
+        videoEmbeds={{
+          thumbnailAnalysis: {
+            data: {
+              stop_power_score: 6.5,
+              dominant_element: "product",
+              text_on_thumbnail: null,
+              facial_expression: null,
+              colour_contrast: "medium",
+              why_it_stops:
+                "Chiếc váy hoa nhí nổi bật trên nền sáng, thu hút người xem nhờ kiểu dáng thời trang.",
+            },
+            frameUrl: "https://r2.test/frames/v.webp",
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText(/Stop-power vừa/)).toBeTruthy();
+    expect(screen.getByText(/6\.5\/10/)).toBeTruthy();
+    expect(screen.getByText(/Chiếc váy hoa nhí/)).toBeTruthy();
+  });
+
+  it("embeds thumbnail under diagnosis when hook section is absent", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "diagnosis",
+          title_vi: "Đang làm tốt",
+          text_vi: "**Thumbnail và hook** giúp video dừng scroll tốt.",
+          findings: [],
+        }}
+        referenceVideos={[]}
+        embedThumbnailSupport
+        videoEmbeds={{
+          thumbnailAnalysis: {
+            data: {
+              stop_power_score: 7.8,
+              dominant_element: "product",
+              text_on_thumbnail: null,
+              facial_expression: null,
+              colour_contrast: "high",
+              why_it_stops: "Sản phẩm nổi trên nền tối.",
+            },
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText(/Stop-power cao/)).toBeTruthy();
+  });
+
   it("renders one inline reference tile per hook gap when two gaps exist", () => {
     const { container } = render(
       <DiagnosisSectionRenderer

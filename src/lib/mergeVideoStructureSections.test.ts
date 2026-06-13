@@ -153,6 +153,31 @@ describe("mergeVideoStructureSections", () => {
     expect(out.find((s) => s.section_id === "editing")).toBeUndefined();
   });
 
+  it("merges commerce into structure block as cta axis", () => {
+    const out = mergeVideoStructureSections([
+      { section_id: "hook_analysis", title_vi: "Hook" },
+      {
+        section_id: "script_structure",
+        text_vi: "Nhịp cắt prose.",
+      },
+      {
+        section_id: "commerce",
+        title_vi: "Kêu gọi hành động",
+        text_vi: "Thiếu lời kêu mua cuối clip.",
+        findings: [
+          {
+            title_vi: "Thiếu CTA bằng giọng",
+            fix_vi: "Thêm câu cuối: 'Lưu lại để phối đồ theo nha'.",
+          },
+        ],
+      },
+    ]);
+    expect(out.map((s) => s.section_id)).toEqual(["hook_analysis", "script_structure"]);
+    expect(out[1].structure_axes?.map((a) => a.axis_id)).toEqual(["rhythm", "cta"]);
+    expect(out[1].structure_axes?.[1]?.title_vi).toBe(STRUCTURE_AXIS_TITLES.cta);
+    expect(out.find((s) => s.section_id === "commerce")).toBeUndefined();
+  });
+
   it("round-robins findings so persona and sound are not dropped", () => {
     const out = mergeVideoStructureSections([
       {

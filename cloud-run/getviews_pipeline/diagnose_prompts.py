@@ -62,6 +62,7 @@ FINDINGS (đơn vị hiển thị chính của section issue-based):
 - KHÔNG tạo finding về tiết lộ thương mại / #qc / #ad / Luật Quảng cáo disclosure — ngoài phạm vi sản phẩm video diagnosis.
 - Section không issue-based (niche_pattern, channel_pattern, douyin_origin, boost_attribution): findings: [].
 - persona: khi emit riêng hoặc cùng script_structure — section.text 2-3 câu (≤55 từ) về giọng/chân thực; tối đa 2 findings; UI gộp vào trục «Giọng & persona» trong «Phân tích cấu trúc Video».
+- commerce: khi emit — section.text 2-3 câu (≤55 từ) về CTA giọng/caption/link; tối đa 2 findings; UI gộp vào trục «Kêu gọi hành động» trong «Phân tích cấu trúc Video» (KHÔNG block riêng).
 - Tín hiệu seeding/ads/boost (signal section_id=boost_attribution) chỉ được diễn đạt MỘT lần — trong text của section boost_attribution. KHÔNG lặp lại thành finding hay nhắc lại trong section khác.
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
 - Khi USER_EVIDENCE_DIGEST có hook_timeline / scene_pattern: body_vi của finding về hook/editing phải trích đúng mốc giây từ digest («text overlay chỉ xuất hiện 3.2s») — bằng chứng đến từng giây, không phỏng đoán.
@@ -465,6 +466,7 @@ def build_diagnosis_v6_user_prompt(
     has_editing = "editing" in sections_to_emit
     has_sound = "sound" in sections_to_emit
     has_persona = "persona" in sections_to_emit
+    has_commerce = "commerce" in sections_to_emit
     if has_script_structure:
         merge_bits = []
         if has_editing:
@@ -473,12 +475,14 @@ def build_diagnosis_v6_user_prompt(
             merge_bits.append("sound")
         if has_persona:
             merge_bits.append("persona")
+        if has_commerce:
+            merge_bits.append("commerce")
         merge_hint = (
             f" (UI gộp {' + '.join(merge_bits)} vào «Phân tích cấu trúc Video» sau hook)"
             if merge_bits
             else ""
         )
-        axis_n = 1 + sum(1 for x in (has_editing, has_sound, has_persona) if x)
+        axis_n = 1 + sum(1 for x in (has_editing, has_sound, has_persona, has_commerce) if x)
         video_structure_note = (
             f"\n\nBLOCK «Phân tích cấu trúc Video»{merge_hint} — {axis_n} TRỤC RIÊNG trên UI "
             "(mỗi trục = section BE riêng; FE gộp sau hook):"
@@ -489,6 +493,8 @@ def build_diagnosis_v6_user_prompt(
             "1-2 thiếu sót nhịp/cảnh/cách quay (fix_vi copy-paste, có mốc giây/scene)."
             "\n- embedded_tiles: 1 tile / thiếu sót (tối đa 3) — narrative_vi nêu peer xử lý "
             "nhịp/cảnh tốt hơn. KHÔNG «Được chọn vì format»."
+            "\n- Khi nhịp/cắt **đủ tốt** (không có gap rõ): vẫn viết prose + 1 finding điểm mạnh "
+            "(fix_vi «Tiếp tục»/«Giữ») — KHÔNG bỏ trống trục chỉ vì signal yếu."
         )
         truc = 2
         if has_editing:
@@ -498,6 +504,8 @@ def build_diagnosis_v6_user_prompt(
                 "framing/hậu kỳ, LUT/filter — KHÔNG lẫn nhịp cắt hay hook."
                 "\n- findings: 1 điểm mạnh HOẶC 1 thiếu sót hậu kỳ/chữ trên hình (fix_vi cụ thể)."
                 "\n- embedded_tiles: 0-1 tile gắn thiếu sót editing nếu có peer phù hợp."
+                "\n- Khi hậu kỳ **ổn** (overlay/LUT không có vấn đề): vẫn prose + 1 điểm mạnh "
+                "(fix_vi «Tiếp tục»/«Giữ») — đánh giá baseline, không bỏ trống."
             )
             truc += 1
         if has_sound:
@@ -507,6 +515,8 @@ def build_diagnosis_v6_user_prompt(
                 "sound layering, trending vs original — KHÔNG để trống."
                 "\n- findings: 1 điểm mạnh HOẶC 1 thiếu sót âm thanh (fix_vi cụ thể)."
                 "\n- embedded_tiles: 0-1 tile gắn thiếu sót âm nếu có peer phù hợp."
+                "\n- Khi âm thanh **ổn**: vẫn prose + 1 điểm mạnh (fix_vi «Tiếp tục»/«Giữ») — "
+                "đánh giá layering/nhạc/VO, không bỏ trống."
             )
             truc += 1
         if has_persona:
@@ -516,10 +526,22 @@ def build_diagnosis_v6_user_prompt(
                 "register, chân thực — KHÔNG để trống."
                 "\n- findings: 1 điểm mạnh HOẶC 1 thiếu sót persona (fix_vi copy-paste)."
                 "\n- embedded_tiles: [] (peer refs thuộc script_structure/sound/editing khi có)."
+                "\n- Khi giọng/persona **ổn**: vẫn prose + 1 điểm mạnh (fix_vi «Tiếp tục»/«Giữ») — "
+                "đánh giá chân thực/register, không bỏ trống."
             )
-        if not has_editing and not has_sound and not has_persona:
+            truc += 1
+        if has_commerce:
             video_structure_note += (
-                "\n- Chỉ trục Nhịp & cắt khi editing/sound/persona không có trong SECTIONS_TO_EMIT."
+                f"\n\nTRỤC {truc} — commerce («Kêu gọi hành động»):"
+                "\n- section.text: **BẮT BUỘC** 2-3 câu (≤55 từ) về CTA bằng giọng, caption, "
+                "link giỏ/link bio, lời kêu mua/lưu — KHÔNG để trống."
+                "\n- findings: 1 điểm mạnh HOẶC 1 thiếu sót CTA (fix_vi copy-paste câu nói/caption)."
+                "\n- embedded_tiles: 0-1 tile peer có CTA rõ hơn nếu có."
+            )
+        if not has_editing and not has_sound and not has_persona and not has_commerce:
+            video_structure_note += (
+                "\n- Chỉ trục Nhịp & cắt khi editing/sound/persona/commerce "
+                "không có trong SECTIONS_TO_EMIT."
             )
     elif has_editing:
         video_structure_note = (

@@ -1,7 +1,7 @@
-"""Video structure block — four-axis contract (rhythm / editing / sound / persona).
+"""Video structure block — five-axis contract (rhythm / editing / sound / persona / cta).
 
-UI merges ``script_structure`` + ``editing`` + ``sound`` + ``persona`` into
-«Phân tích cấu trúc Video». Each emitted axis must carry prose + actionable findings.
+UI merges ``script_structure`` + ``editing`` + ``sound`` + ``persona`` + ``commerce``
+into «Phân tích cấu trúc Video». Each emitted axis must carry prose + actionable findings.
 """
 
 from __future__ import annotations
@@ -21,8 +21,15 @@ _RHYTHM_SECTION = "script_structure"
 _EDITING_SECTION = "editing"
 _SOUND_SECTION = "sound"
 _PERSONA_SECTION = "persona"
+_COMMERCE_SECTION = "commerce"
 
-_STRUCTURE_AXIS_SECTIONS = (_RHYTHM_SECTION, _EDITING_SECTION, _SOUND_SECTION, _PERSONA_SECTION)
+_STRUCTURE_AXIS_SECTIONS = (
+    _RHYTHM_SECTION,
+    _EDITING_SECTION,
+    _SOUND_SECTION,
+    _PERSONA_SECTION,
+    _COMMERCE_SECTION,
+)
 
 
 def _section_by_id(
@@ -147,6 +154,19 @@ def structure_axis_contract_violations(
             if _count_actionable_findings(sec) < 1:
                 violations.append("persona: need ≥1 finding with fix_vi")
 
+    if _COMMERCE_SECTION in emit:
+        sec = _section_by_id(diagnosis_vi, _COMMERCE_SECTION)
+        if sec is None:
+            violations.append("commerce: section missing")
+        else:
+            prose_w = _axis_prose_words(sec)
+            if prose_w < STRUCTURE_AXIS_PROSE_MIN_WORDS:
+                violations.append(
+                    f"commerce: prose too short ({prose_w}<{STRUCTURE_AXIS_PROSE_MIN_WORDS} words)"
+                )
+            if _count_actionable_findings(sec) < 1:
+                violations.append("commerce: need ≥1 finding with fix_vi")
+
     return violations
 
 
@@ -166,5 +186,7 @@ def build_structure_axis_retry_append(violations: list[str]) -> str:
         "KHÔNG để text trống khi sound có trong SECTIONS_TO_EMIT.\n"
         "- persona (Giọng & persona): section.text 2-3 câu (≤55 từ) + ≥1 finding giọng/"
         "chân thực — KHÔNG để text trống khi persona có trong SECTIONS_TO_EMIT.\n"
+        "- commerce (Kêu gọi hành động): section.text 2-3 câu (≤55 từ) + ≥1 finding CTA "
+        "giọng/caption/link — KHÔNG để text trống khi commerce có trong SECTIONS_TO_EMIT.\n"
         "Giữ schema JSON; chỉ bổ sung/sửa các section trên."
     )

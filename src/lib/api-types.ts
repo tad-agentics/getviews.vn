@@ -1028,7 +1028,7 @@ export interface DiagnosisFinding {
 }
 
 /** One axis inside the merged «Phân tích cấu trúc Video» block. */
-export type VideoStructureAxisId = "rhythm" | "editing" | "sound" | "persona";
+export type VideoStructureAxisId = "rhythm" | "editing" | "sound" | "persona" | "cta";
 
 export interface VideoStructureAxisBlock {
   axis_id: VideoStructureAxisId;

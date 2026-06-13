@@ -1,9 +1,12 @@
 /**
  * One `diagnosis_vi.sections[]` block — verdict-first, findings as hero (redesign 2026-05).
  */
+import type { ReactNode } from "react";
+
 import { SectionProseBlocks } from "@/components/SectionProseBlocks";
 import { formatDiagnosisSectionTitle } from "@/lib/formatters";
 import { Timeline } from "@/components/v2/Timeline";
+import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
 import {
   buildStructureTimelineSummary,
   isInformativeStructureTimeline,
@@ -33,6 +36,7 @@ import {
   type ReferenceBridgeTopic,
 } from "@/lib/diagnosisReferenceTiles";
 import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
+import type { ThumbnailAnalysisData } from "@/lib/types/corpus-sidecars";
 import { fixChipMeta } from "@/lib/findingFixChip";
 import {
   FindingEvidenceClip,
@@ -199,6 +203,7 @@ function StrengthGapSectionLayout({
   analyzedClip,
   compact = false,
   structureTimeline,
+  supportEmbed,
 }: {
   sectionId: string;
   title: string;
@@ -214,6 +219,8 @@ function StrengthGapSectionLayout({
   compact?: boolean;
   /** Eight-beat bar — flat script_structure layout only (multi-axis renders on rhythm). */
   structureTimeline?: { segments: VideoSegment[]; durationSec: number };
+  /** Evidence tile under verdict prose (e.g. cover stop-power). */
+  supportEmbed?: ReactNode;
 }) {
   const { strengths, gaps, observations } = partitionFindingsByChip(findings);
   const gapLinkedTiles = resolvePeerReferenceTiles(
@@ -240,6 +247,7 @@ function StrengthGapSectionLayout({
         <StructureTimelineEmbed timeline={structureTimeline} />
       ) : null}
       {text ? <SectionVerdictBlock text={text} /> : null}
+      {supportEmbed}
       {strengths.length > 0 ? (
         <div className="mt-4">
           <p className="gv-mono m-0 mb-2 text-[11px] gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
@@ -478,6 +486,11 @@ export interface VideoDiagnosisSectionEmbeds {
   analyzedClip?: AnalyzedClipContext | null;
   /** Eight-beat segment bar — shown under «Nhịp & cắt» in the structure block. */
   structureTimeline?: { segments: VideoSegment[]; durationSec: number };
+  /** Cover stop-power — rendered under hook or diagnosis prose (not standalone). */
+  thumbnailAnalysis?: {
+    data: ThumbnailAnalysisData;
+    frameUrl?: string | null;
+  };
 }
 
 interface DiagnosisSectionRendererProps {
@@ -490,6 +503,8 @@ interface DiagnosisSectionRendererProps {
   fallbackProse?: string;
   /** Analyzed clip content_format — niche_pattern bridge + peer fallback. */
   analyzedContentFormat?: string | null;
+  /** Render cover stop-power tile under this section's verdict prose. */
+  embedThumbnailSupport?: boolean;
 }
 
 export function DiagnosisSectionRenderer({
@@ -501,6 +516,7 @@ export function DiagnosisSectionRenderer({
   videoEmbeds,
   fallbackProse,
   analyzedContentFormat = null,
+  embedThumbnailSupport = false,
 }: DiagnosisSectionRendererProps) {
   const title = sectionTitle(section);
   const sid = String(section.section_id);
@@ -543,6 +559,15 @@ export function DiagnosisSectionRenderer({
 
   const isVideoStructureSection = sid === "script_structure";
   const isHookSection = sid === "hook_analysis";
+  const isDiagnosisSection = sid === "diagnosis";
+  const thumbnailSupportEmbed =
+    embedThumbnailSupport && videoEmbeds?.thumbnailAnalysis ? (
+      <ThumbnailTile
+        data={videoEmbeds.thumbnailAnalysis.data}
+        frameUrl={videoEmbeds.thumbnailAnalysis.frameUrl}
+        embedded
+      />
+    ) : null;
   const structureAxes =
     isVideoStructureSection && Array.isArray(section.structure_axes)
       ? section.structure_axes.filter(
@@ -574,7 +599,8 @@ export function DiagnosisSectionRenderer({
       (title.toLowerCase().includes("khoảng trống") ||
         partitioned.strengths.length > 0 ||
         partitioned.gaps.length > 0 ||
-        partitioned.observations.length > 0));
+        partitioned.observations.length > 0 ||
+        embedThumbnailSupport));
 
   if (useStrengthGapLayout) {
     return (
@@ -592,6 +618,9 @@ export function DiagnosisSectionRenderer({
         analyzedClip={videoEmbeds?.analyzedClip}
         structureTimeline={
           isVideoStructureSection ? videoEmbeds?.structureTimeline : undefined
+        }
+        supportEmbed={
+          (isHookSection || isDiagnosisSection) ? thumbnailSupportEmbed : undefined
         }
       />
     );

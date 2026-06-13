@@ -5,7 +5,7 @@ import type {
   VideoStructureAxisId,
 } from "@/lib/api-types";
 
-/** Unified FE block for editing + sound + script_structure + persona (after hook_analysis). */
+/** Unified FE block for editing + sound + script_structure + persona + commerce (after hook_analysis). */
 export const VIDEO_STRUCTURE_SECTION_TITLE = "Phân tích cấu trúc Video";
 
 export const STRUCTURE_AXIS_TITLES: Record<VideoStructureAxisId, string> = {
@@ -13,9 +13,16 @@ export const STRUCTURE_AXIS_TITLES: Record<VideoStructureAxisId, string> = {
   editing: "Hậu kỳ & hình",
   sound: "Âm thanh",
   persona: "Giọng & persona",
+  cta: "Kêu gọi hành động",
 };
 
-const MERGE_SOURCE_IDS = new Set(["editing", "sound", "script_structure", "persona"]);
+const MERGE_SOURCE_IDS = new Set([
+  "editing",
+  "sound",
+  "script_structure",
+  "persona",
+  "commerce",
+]);
 
 function sectionBody(s: DiagnosisSectionVi): string {
   return (s.text_vi || s.text || "").trim();
@@ -59,6 +66,7 @@ function buildStructureAxes(
   sound: DiagnosisSectionVi | undefined,
   script: DiagnosisSectionVi | undefined,
   persona: DiagnosisSectionVi | undefined,
+  commerce: DiagnosisSectionVi | undefined,
 ): VideoStructureAxisBlock[] {
   const axes: VideoStructureAxisBlock[] = [];
   const rhythm = buildAxisBlock("rhythm", script);
@@ -69,21 +77,25 @@ function buildStructureAxes(
   if (soundAxis) axes.push(soundAxis);
   const personaAxis = buildAxisBlock("persona", persona);
   if (personaAxis) axes.push(personaAxis);
+  const ctaAxis = buildAxisBlock("cta", commerce);
+  if (ctaAxis) axes.push(ctaAxis);
   return axes;
 }
 
-/** script → editing → sound → persona per round. */
+/** script → editing → sound → persona → commerce per round. */
 function mergeFindingsRoundRobin(
   script: DiagnosisFinding[],
   editing: DiagnosisFinding[],
   sound: DiagnosisFinding[],
   persona: DiagnosisFinding[],
+  commerce: DiagnosisFinding[],
 ): DiagnosisFinding[] {
   const sources = [
     script.filter(hasFindingContent),
     editing.filter(hasFindingContent),
     sound.filter(hasFindingContent),
     persona.filter(hasFindingContent),
+    commerce.filter(hasFindingContent),
   ];
   const out: DiagnosisFinding[] = [];
   let round = 0;
@@ -121,13 +133,15 @@ function mergeDiagnosisSection(
   sound: DiagnosisSectionVi | undefined,
   script: DiagnosisSectionVi | undefined,
   persona: DiagnosisSectionVi | undefined,
+  commerce: DiagnosisSectionVi | undefined,
 ): DiagnosisSectionVi {
-  const structureAxes = buildStructureAxes(editing, sound, script, persona);
+  const structureAxes = buildStructureAxes(editing, sound, script, persona, commerce);
   const findings = mergeFindingsRoundRobin(
     script?.findings ?? [],
     editing?.findings ?? [],
     sound?.findings ?? [],
     persona?.findings ?? [],
+    commerce?.findings ?? [],
   );
 
   const tiles = dedupeEmbeddedTiles(
@@ -135,6 +149,7 @@ function mergeDiagnosisSection(
     Array.isArray(editing?.embedded_tiles) ? editing.embedded_tiles : [],
     Array.isArray(sound?.embedded_tiles) ? sound.embedded_tiles : [],
     Array.isArray(persona?.embedded_tiles) ? persona.embedded_tiles : [],
+    Array.isArray(commerce?.embedded_tiles) ? commerce.embedded_tiles : [],
   );
 
   return {
@@ -150,8 +165,8 @@ function mergeDiagnosisSection(
 }
 
 /**
- * Collapse «Hậu kỳ», «Âm thanh», «Phong cách», và «Cấu trúc video» into one
- * block and insert it immediately after hook_analysis.
+ * Collapse «Hậu kỳ», «Âm thanh», «Phong cách», «Kêu gọi hành động», và «Cấu trúc video»
+ * into one block and insert it immediately after hook_analysis.
  */
 export function mergeVideoStructureSections(
   sections: DiagnosisSectionVi[],
@@ -162,10 +177,11 @@ export function mergeVideoStructureSections(
   const sound = sections.find((s) => String(s.section_id) === "sound");
   const script = sections.find((s) => String(s.section_id) === "script_structure");
   const persona = sections.find((s) => String(s.section_id) === "persona");
-  if (!editing && !sound && !script && !persona) return sections;
+  const commerce = sections.find((s) => String(s.section_id) === "commerce");
+  if (!editing && !sound && !script && !persona && !commerce) return sections;
 
   const rest = sections.filter((s) => !MERGE_SOURCE_IDS.has(String(s.section_id)));
-  const merged = mergeDiagnosisSection(editing, sound, script, persona);
+  const merged = mergeDiagnosisSection(editing, sound, script, persona, commerce);
 
   const hookIdx = rest.findIndex((s) => String(s.section_id) === "hook_analysis");
   const insertAt = hookIdx >= 0 ? hookIdx + 1 : rest.length;

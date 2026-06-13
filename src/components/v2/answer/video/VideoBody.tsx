@@ -24,7 +24,6 @@ import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
 import { KpiGrid } from "@/components/v2/KpiGrid";
 import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
-import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
 import { logUsage } from "@/lib/logUsage";
@@ -273,6 +272,12 @@ export function VideoBody({
     return merged.filter((s) => String(s.section_id) !== "next_video");
   }, [narrativeVi, flopIssuesForNarrative, performanceTier]);
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
+  const thumbnailEmbedSectionId = useMemo((): string | null => {
+    if (!report.thumbnail_analysis) return null;
+    if (sectionIds.has("hook_analysis")) return "hook_analysis";
+    if (sectionIds.has("diagnosis")) return "diagnosis";
+    return null;
+  }, [report.thumbnail_analysis, diagnosisSections]);
   const hasChannelPattern = sectionIds.has("channel_pattern");
   const hasBoostAttribution = sectionIds.has("boost_attribution");
   const adjunctTier = (
@@ -300,6 +305,12 @@ export function VideoBody({
     }
     if ((report.segments?.length ?? 0) > 0 && duration > 0) {
       embeds.structureTimeline = { segments: report.segments, durationSec: duration };
+    }
+    if (report.thumbnail_analysis) {
+      embeds.thumbnailAnalysis = {
+        data: report.thumbnail_analysis,
+        frameUrl: report.video_id ? r2FrameUrl(report.video_id) : null,
+      };
     }
     return embeds;
   }, [report, meta, duration]);
@@ -350,7 +361,6 @@ export function VideoBody({
     meta.caption?.trim() || meta.title?.trim() || "";
   const showCommentRadarTile =
     report.comment_radar != null && report.comment_radar.sampled > 0;
-  const showThumbnailTile = report.thumbnail_analysis != null;
 
   const applyLesson = (lesson: VideoLesson) => {
     navigate("/app/answer", {
@@ -555,6 +565,7 @@ export function VideoBody({
                     referenceVideos={refVideos}
                     analyzedContentFormat={meta.content_format ?? null}
                     evidenceAnchors={narrativeVi?.diagnosis_vi?.evidence_anchors}
+                    embedThumbnailSupport={sid === thumbnailEmbedSectionId}
                     creatorComparison={
                       sid === "channel_pattern" ? report.creator_comparison ?? null : undefined
                     }
@@ -697,19 +708,11 @@ export function VideoBody({
           />
         ) : null}
 
-        {showCommentRadarTile || showThumbnailTile ? (
-          <section aria-label="Thumbnail và bình luận">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {showCommentRadarTile && report.comment_radar ? (
-                <CommentRadarTile data={report.comment_radar} />
-              ) : null}
-              {showThumbnailTile && report.thumbnail_analysis ? (
-                <ThumbnailTile
-                  data={report.thumbnail_analysis}
-                  frameUrl={r2FrameUrl(report.video_id)}
-                />
-              ) : null}
-            </div>
+        {showCommentRadarTile ? (
+          <section aria-label="Bình luận">
+            {report.comment_radar ? (
+              <CommentRadarTile data={report.comment_radar} />
+            ) : null}
           </section>
         ) : null}
 

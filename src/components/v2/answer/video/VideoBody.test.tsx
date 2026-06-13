@@ -54,9 +54,6 @@ vi.mock("@/components/ui/collapsible", () => ({
 vi.mock("@/routes/_app/components/CommentRadarTile", () => ({
   CommentRadarTile: () => <div data-testid="comment-radar-tile" />,
 }));
-vi.mock("@/routes/_app/components/ThumbnailTile", () => ({
-  ThumbnailTile: () => <div data-testid="thumbnail-tile" />,
-}));
 
 import { VideoBody } from "./VideoBody";
 

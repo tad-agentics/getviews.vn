@@ -52,9 +52,12 @@ function scoreLabel(score: number): { label: string; color: string } {
 export function ThumbnailTile({
   data,
   frameUrl,
+  embedded = false,
 }: {
   data: ThumbnailAnalysisData;
   frameUrl?: string | null;
+  /** Inline under diagnosis/hook prose — tighter spacing, design tokens. */
+  embedded?: boolean;
 }) {
   const score = Math.max(0, Math.min(10, Number(data.stop_power_score) || 0));
   const scoreMeta = scoreLabel(score);
@@ -72,7 +75,11 @@ export function ThumbnailTile({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="my-3 flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] p-3"
+      className={
+        embedded
+          ? "mt-3 flex items-start gap-3 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3"
+          : "my-3 flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] p-3"
+      }
     >
       {frameUrl ? (
         <img
