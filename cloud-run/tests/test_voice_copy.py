@@ -79,6 +79,26 @@ def test_humanize_stats_prose_round2_jargon() -> None:
     assert "điểm nhạy" in out
 
 
+def test_humanize_stats_prose_round3_signal_jargon_and_enums() -> None:
+    raw = (
+        "Thiếu neo giá trị (price anchor) khiến hook curiosity_gap yếu. "
+        "Persona thiếu negative markers trong transcript."
+    )
+    out = humanize_stats_prose(raw)
+    lowered = out.lower()
+    for banned in (
+        "price anchor",
+        "negative markers",
+        "curiosity_gap",
+        "transcript",
+    ):
+        assert banned not in lowered, f"{banned!r} leaked: {out!r}"
+    assert "neo giá" in lowered
+    assert "dấu hiệu tiêu cực" in lowered
+    assert "tạo khoảng trống tò mò" in lowered
+    assert "lời thoại" in lowered
+
+
 def test_humanize_video_report_out_sanitizes_enrichment() -> None:
     out = {
         "narrative_vi": {"headline_vi": "Format faceless — pain point yếu"},

@@ -18,6 +18,21 @@ describe("humanizeStatsProse", () => {
   it("compacts raw view counts in prose", () => {
     expect(humanizeStatsProse("Video @a đạt 27.461 view trong tuần.")).toContain("27.5K view");
   });
+
+  it("replaces signal jargon and raw enum codes in diagnosis copy", () => {
+    const raw =
+      "Thiếu neo giá trị (price anchor) khiến hook curiosity_gap yếu. " +
+      "Persona thiếu negative markers trong transcript.";
+    const out = humanizeStatsProse(raw);
+    expect(out.toLowerCase()).not.toContain("price anchor");
+    expect(out.toLowerCase()).not.toContain("negative markers");
+    expect(out.toLowerCase()).not.toContain("curiosity_gap");
+    expect(out.toLowerCase()).not.toContain("transcript");
+    expect(out.toLowerCase()).toContain("neo giá");
+    expect(out.toLowerCase()).toContain("dấu hiệu tiêu cực");
+    expect(out.toLowerCase()).toContain("tạo khoảng trống tò mò");
+    expect(out.toLowerCase()).toContain("lời thoại");
+  });
 });
 
 describe("splitVerdictProse", () => {

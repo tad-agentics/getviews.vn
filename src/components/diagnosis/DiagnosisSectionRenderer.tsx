@@ -28,7 +28,7 @@ import {
   FindingEvidenceClip,
   type AnalyzedClipContext,
 } from "@/components/diagnosis/FindingEvidenceClip";
-import { splitVerdictProse } from "@/lib/humanizeStatsProse";
+import { humanizeStatsProse, splitVerdictProse } from "@/lib/humanizeStatsProse";
 import { sortScriptBulletsByTimestamp } from "@/lib/nextVideoScript";
 import { CreatorComparisonEmbed } from "@/components/diagnosis/CreatorComparisonEmbed";
 import {
@@ -153,7 +153,9 @@ function SectionFindingCard({
   /** When present, a strength/observation can show a "Xem đoạn này" clip from the analyzed video. */
   analyzedClip?: AnalyzedClipContext | null;
 }) {
-  const { title_vi, body_vi, fix_vi } = finding;
+  const title_vi = finding.title_vi ? humanizeStatsProse(finding.title_vi) : "";
+  const body_vi = finding.body_vi ? humanizeStatsProse(finding.body_vi) : "";
+  const fix_vi = finding.fix_vi ? humanizeStatsProse(finding.fix_vi) : "";
   if (!title_vi && !body_vi && !fix_vi) return null;
   return (
     <div className="flex items-start gap-4 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5">

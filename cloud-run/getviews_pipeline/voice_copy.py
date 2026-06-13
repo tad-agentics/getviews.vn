@@ -79,7 +79,39 @@ _JARGON_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bheatmaps?\b", re.IGNORECASE), "bản đồ nhiệt"),
     (re.compile(r"\bcorpus\b", re.IGNORECASE), "kho video"),
     (re.compile(r"\bformats?\b", re.IGNORECASE), "định dạng"),
+    (re.compile(r"\bprice[\s_-]?anchor\b", re.IGNORECASE), "neo giá"),
+    (re.compile(r"\bnegative[\s_-]?markers?\b", re.IGNORECASE), "dấu hiệu tiêu cực"),
+    (re.compile(r"\b(?:audio[\s_-]?)?transcript\b", re.IGNORECASE), "lời thoại"),
+    (re.compile(r"\bcuriousity[\s_-]?gap\b", re.IGNORECASE), "Tạo khoảng trống tò mò"),
 )
+
+
+def _substitute_enum_codes_in_prose(text: str) -> str:
+    """Replace raw snake_case enum codes still echoed in synthesis prose."""
+    from getviews_pipeline.enum_labels_vi import (
+        CONVERSION_OBJECTIVE_VI,
+        FIRST_FRAME_VI,
+        HOOK_TYPE_VI,
+        HOOK_TIMELINE_EVENT_VI,
+        STYLE_TAG_VI,
+    )
+
+    merged: dict[str, str] = {}
+    for table in (
+        HOOK_TYPE_VI,
+        CONVERSION_OBJECTIVE_VI,
+        STYLE_TAG_VI,
+        FIRST_FRAME_VI,
+        HOOK_TIMELINE_EVENT_VI,
+    ):
+        merged.update(table)
+    skip = frozenset({"none", "other", ""})
+    for key in sorted(merged.keys(), key=len, reverse=True):
+        if key in skip:
+            continue
+        slug_pat = re.escape(key).replace("_", r"[\s_-]")
+        text = re.sub(rf"\b{slug_pat}\b", merged[key], text, flags=re.IGNORECASE)
+    return text
 
 
 def humanize_stats_prose(text: str) -> str:
@@ -109,7 +141,7 @@ def humanize_stats_prose(text: str) -> str:
     for slug, label in _CONTENT_FORMAT_SLUG_VI.items():
         slug_pat = slug.replace("_", r"[\s_-]")
         out = re.sub(rf"\b{slug_pat}\b", label, out, flags=re.IGNORECASE)
-    return out
+    return _substitute_enum_codes_in_prose(out)
 
 
 _PROSE_FIELD_KEYS = frozenset({
