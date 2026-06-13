@@ -368,6 +368,9 @@ export default function AnswerScreen() {
   const researchStage = useResearchStage(loading);
   const turnCount = turns.length;
 
+  /** Hide start/follow-up composer while bootstrap or SSE is in flight (turn not persisted yet). */
+  const showStartComposer = turnCount === 0 && !loading;
+
   const hasReplayHandles = useMemo(() => {
     if (!sessionId) return false;
     return hasAnswerStreamReplayHandles(sessionId, streamId, lastSeq);
@@ -1552,7 +1555,7 @@ export default function AnswerScreen() {
                   />
                 </div>
               ) : null}
-              {!sessionId || turnCount === 0 ? (
+              {showStartComposer ? (
                 <FollowUpComposer
                   value={followUp}
                   onChange={setFollowUp}

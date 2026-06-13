@@ -188,10 +188,11 @@ vi.mock("@/hooks/useAnswerSessionQueries", async () => {
 
 const mockStream = vi.fn();
 const mockResetStream = vi.fn();
+let mockStreamStatus: "idle" | "streaming" | "done" | "error" = "idle";
 vi.mock("@/hooks/useSessionStream", () => ({
   useSessionStream: () => ({
     stream: mockStream,
-    status: "idle",
+    status: mockStreamStatus,
     text: "",
     streamId: null,
     lastSeq: 0,
@@ -271,6 +272,7 @@ describe("AnswerScreen state transitions", () => {
     });
     mockStream.mockReset();
     mockCreateAnswerSession.mockReset();
+    mockStreamStatus = "idle";
   });
   afterEach(cleanup);
 
@@ -281,6 +283,21 @@ describe("AnswerScreen state transitions", () => {
     expect(screen.queryByText(/Xu hướng đang hot/)).toBeNull();
     expect(screen.queryByText(/Dán câu hỏi từ Studio/)).toBeNull();
     expect(screen.getByTestId("header").textContent?.trim()).toBe("");
+  });
+
+  it("hides start composer while stream is in flight with zero turns", () => {
+    mockStreamStatus = "streaming";
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: {
+        session: makeSession({ id: "sess-stream", initial_q: "https://tiktok.com/@a/video/1" }),
+        turns: [],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderScreen("/app/answer?session=sess-stream");
+    expect(screen.queryByTestId("follow-up-composer")).toBeNull();
   });
 
   it("renders each turn via the ContinuationTurn dispatcher when detail has turns", () => {
@@ -410,7 +427,8 @@ describe("AnswerScreen state transitions", () => {
     });
 
     await waitFor(() => {
-      expect(input.value).toBe("my query");
+      const restored = screen.getByTestId("composer-input") as HTMLTextAreaElement;
+      expect(restored.value).toBe("my query");
     });
   });
 
