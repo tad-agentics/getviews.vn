@@ -4,6 +4,10 @@
 import { SectionProseBlocks } from "@/components/SectionProseBlocks";
 import { formatDiagnosisSectionTitle } from "@/lib/formatters";
 import { Timeline } from "@/components/v2/Timeline";
+import {
+  buildStructureTimelineSummary,
+  isInformativeStructureTimeline,
+} from "@/lib/structureTimeline";
 import type {
   ChannelContext,
   ChannelNextVideoConcept,
@@ -358,13 +362,14 @@ function StructureTimelineEmbed({
 }: {
   timeline: { segments: VideoSegment[]; durationSec: number };
 }) {
-  if (!timeline.segments.length) return null;
+  if (!timeline.segments.length || !isInformativeStructureTimeline(timeline.segments)) {
+    return null;
+  }
+  const summary = buildStructureTimelineSummary(timeline.segments, timeline.durationSec);
   return (
     <div className="mt-3">
       <Timeline segments={timeline.segments} durationSec={timeline.durationSec} />
-      <p className="mt-2 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
-        Số % trên mỗi ô là phần thời lượng clip — không phải tỷ lệ khán giả còn xem.
-      </p>
+      <p className="mt-2 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">{summary}</p>
     </div>
   );
 }

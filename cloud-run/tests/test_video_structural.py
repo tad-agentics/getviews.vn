@@ -45,6 +45,20 @@ def test_decompose_segments_suppresses_uniform_short_video() -> None:
     assert decompose_segments({"duration_seconds": 8, "scenes": scenes}) == []
 
 
+def test_decompose_segments_includes_scene_timestamps() -> None:
+    scenes = [
+        {"start": 0, "end": 15},
+        {"start": 15, "end": 20},
+        {"start": 20, "end": 25},
+        {"start": 25, "end": 30},
+    ]
+    segs = decompose_segments({"duration_seconds": 30, "scenes": scenes})
+    assert len(segs) == 8
+    assert segs[0]["start_sec"] == 0.0
+    assert segs[0]["end_sec"] > 0
+    assert sum(s["pct"] for s in segs) == 100
+
+
 def test_extract_hook_phases_three_cards_empty_body() -> None:
     analysis = {
         "hook_analysis": {

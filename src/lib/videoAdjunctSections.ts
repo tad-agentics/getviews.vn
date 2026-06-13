@@ -101,7 +101,7 @@ export function buildCreatorComparisonProse(
 
 export function buildScriptStructureFallbackProse(durationSec: number): string {
   const sec = Math.max(1, Math.round(durationSec));
-  return `Phân tích đọc video qua các khung hình được lấy mẫu theo thời gian (nhận diện hình + cấu trúc cảnh), rồi gom thành 8 nhịp kịch bản trong ${sec} giây. Số % trên mỗi ô là phần thời lượng dành cho nhịp đó — không phải tỉ lệ khán giả còn xem. Trục giây bên dưới khớp độ dài video.`;
+  return `Phân tích đọc video qua các khung hình được lấy mẫu theo thời gian, rồi gom thành các nhịp kịch bản trong ${sec} giây. Khi nhịp cắt có tín hiệu rõ (hook dài/ngắn, thân chia lệch), thanh thời gian hiện mốc giây từng nhịp — nếu không thấy thanh, xem phần «Nhịp & cắt» bên dưới.`;
 }
 
 export function buildHookAnalysisFallbackProse(

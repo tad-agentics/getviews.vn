@@ -788,7 +788,7 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/Giọng thiếu va chạm/)).toBeTruthy();
   });
 
-  it("renders script_structure adjunct with fallback prose and timeline when segments exist", () => {
+  it("renders script_structure adjunct with fallback prose when segments are not informative", () => {
     renderInRouter(
       makeWinReport({
         segments: [
@@ -798,8 +798,8 @@ describe("VideoBody render", () => {
         meta: { ...makeWinReport().meta, duration_sec: 28 },
       }),
     );
-    expect(screen.getByText(/8 nhịp kịch bản/)).toBeTruthy();
-    expect(screen.getByLabelText("Dòng thời gian cấu trúc video")).toBeTruthy();
+    expect(screen.getByText(/nhịp kịch bản trong 28 giây/)).toBeTruthy();
+    expect(screen.queryByLabelText("Dòng thời gian cấu trúc video")).toBeNull();
     expect(screen.queryByText("BẰNG CHỨNG TRONG CLIP")).toBeNull();
   });
 

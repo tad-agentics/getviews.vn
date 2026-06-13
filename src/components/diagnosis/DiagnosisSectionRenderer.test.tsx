@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
 import type { DiagnosisSectionVi } from "@/lib/api-types";
+import { INFORMATIVE_STRUCTURE_SEGMENTS } from "@/lib/testFixtures/informativeStructureSegments";
 
 import { DiagnosisSectionRenderer } from "./DiagnosisSectionRenderer";
 import { humanizeStatsProse } from "@/lib/humanizeStatsProse";
@@ -179,17 +180,15 @@ describe("video structure strength-gap layout", () => {
         referenceVideos={[]}
         videoEmbeds={{
           structureTimeline: {
-            durationSec: 28,
-            segments: [
-              { name: "Hook", pct: 12, color_key: "hook" },
-              { name: "Body", pct: 88, color_key: "body" },
-            ],
+            durationSec: 60,
+            segments: INFORMATIVE_STRUCTURE_SEGMENTS,
           },
         }}
       />,
     );
     expect(screen.getByText("Hậu kỳ & hình")).toBeTruthy();
     expect(screen.getByLabelText("Dòng thời gian cấu trúc video")).toBeTruthy();
+    expect(screen.getByText(/Hook kéo dài/)).toBeTruthy();
     expect(container.querySelectorAll('[aria-label="Dòng thời gian cấu trúc video"]')).toHaveLength(
       1,
     );
@@ -306,11 +305,8 @@ describe("video structure strength-gap layout", () => {
         ]}
         videoEmbeds={{
           structureTimeline: {
-            durationSec: 28,
-            segments: [
-              { name: "Hook", pct: 12, color_key: "hook" },
-              { name: "Body", pct: 88, color_key: "body" },
-            ],
+            durationSec: 60,
+            segments: INFORMATIVE_STRUCTURE_SEGMENTS,
           },
         }}
       />,
@@ -318,6 +314,7 @@ describe("video structure strength-gap layout", () => {
     expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
     expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
     expect(screen.getByLabelText("Dòng thời gian cấu trúc video")).toBeTruthy();
+    expect(screen.getByText(/Hook kéo dài/)).toBeTruthy();
     expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
     expect(screen.getByText(/thiếu sót «Dead air giữa clip»/)).toBeTruthy();
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();

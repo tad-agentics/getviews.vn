@@ -152,22 +152,26 @@ def decompose_segments(analysis: dict[str, Any]) -> list[dict[str, Any]]:
     for j in range(remainder):
         floors[frac[j % len(floors)][0]] += 1
 
-    out: list[dict[str, Any]] = []
+    # Short clips: 8 near-equal beats = no real structure (audit TIMELINE-NOISE v4).
+    # Longer clips may still look equal after the 8-bucket merge — FE hides those bars.
+    if duration <= 20.0 and len(floors) >= 8 and max(floors) - min(floors) < 5:
+        return []
+
+    scene_out: list[dict[str, Any]] = []
     for i, pct in enumerate(floors):
         name = names[i] if i < len(names) else f"SEG {i + 1}"
         ck = colors[i] if i < len(colors) else "ink-3"
-        out.append({"name": name, "pct": pct, "color_key": ck})
-
-    pcts_only = [seg["pct"] for seg in out]
-    # Short clips: 8 near-equal beats = no real structure (audit TIMELINE-NOISE v4).
-    if (
-        duration <= 20.0
-        and len(pcts_only) >= 8
-        and max(pcts_only) - min(pcts_only) < 5
-    ):
-        return []
-
-    return out
+        s_start, s_end = working[i]
+        scene_out.append(
+            {
+                "name": name,
+                "pct": pct,
+                "color_key": ck,
+                "start_sec": round(s_start, 2),
+                "end_sec": round(s_end, 2),
+            }
+        )
+    return scene_out
 
 
 def extract_hook_phases(analysis: dict[str, Any]) -> list[dict[str, str]]:

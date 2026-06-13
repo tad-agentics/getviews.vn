@@ -137,6 +137,10 @@ export interface VideoSegment {
   name: string;
   pct: number;
   color_key: string;
+  /** Scene-derived beat start (seconds). Omitted on template fallback bars. */
+  start_sec?: number;
+  /** Scene-derived beat end (seconds). */
+  end_sec?: number;
 }
 
 export interface VideoHookPhase {
