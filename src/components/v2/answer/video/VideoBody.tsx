@@ -23,7 +23,6 @@ import { ArrowRight } from "lucide-react";
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
 import { KpiGrid } from "@/components/v2/KpiGrid";
-import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import { buildChannelStudioPath } from "@/lib/channelStudioHandoff";
 import { contentFormatLabelVi } from "@/lib/contentFormatLabels";
 import { logUsage } from "@/lib/logUsage";
@@ -291,10 +290,14 @@ export function VideoBody({
     if (!report.creator_comparison || hasChannelPattern) return undefined;
     return buildCreatorComparisonProse(report.creator_comparison, meta.views ?? 0, gapHeavy);
   }, [report.creator_comparison, hasChannelPattern, meta.views, gapHeavy]);
+  const commentRadar =
+    report.comment_radar != null && report.comment_radar.sampled > 0
+      ? report.comment_radar
+      : null;
   const videoSectionEmbeds = useMemo((): VideoDiagnosisSectionEmbeds => {
     const embeds: VideoDiagnosisSectionEmbeds = {};
-    if (shouldShowMetadataBlock(meta, report.enrichment)) {
-      embeds.metadata = { meta, enrichment: report.enrichment };
+    if (shouldShowMetadataBlock(meta, report.enrichment, commentRadar)) {
+      embeds.metadata = { meta, enrichment: report.enrichment, commentRadar };
     }
     if (report.video_id) {
       embeds.analyzedClip = {
@@ -313,7 +316,7 @@ export function VideoBody({
       };
     }
     return embeds;
-  }, [report, meta, duration]);
+  }, [report, meta, duration, commentRadar]);
   const showCarouselIntel = (report.carousel_intel?.slides?.length ?? 0) > 0;
   const showBoostFallback =
     !hasBoostAttribution &&
@@ -359,8 +362,6 @@ export function VideoBody({
 
   const overlayCaption =
     meta.caption?.trim() || meta.title?.trim() || "";
-  const showCommentRadarTile =
-    report.comment_radar != null && report.comment_radar.sampled > 0;
 
   const applyLesson = (lesson: VideoLesson) => {
     navigate("/app/answer", {
@@ -693,7 +694,7 @@ export function VideoBody({
           />
         ) : null}
 
-        {!sectionIds.has("metadata") && shouldShowMetadataBlock(meta, report.enrichment) ? (
+        {!sectionIds.has("metadata") && shouldShowMetadataBlock(meta, report.enrichment, commentRadar) ? (
           <DiagnosisSectionRenderer
             section={{
               section_id: "metadata",
@@ -706,14 +707,6 @@ export function VideoBody({
             videoEmbeds={videoSectionEmbeds}
             fallbackProse={buildMetadataFallbackProse(meta)}
           />
-        ) : null}
-
-        {showCommentRadarTile ? (
-          <section aria-label="Bình luận">
-            {report.comment_radar ? (
-              <CommentRadarTile data={report.comment_radar} />
-            ) : null}
-          </section>
         ) : null}
 
         {strengthHeavy && winLessons.length ? (

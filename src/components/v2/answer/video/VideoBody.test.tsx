@@ -627,20 +627,46 @@ describe("VideoBody render", () => {
     expect(screen.getByLabelText("Phân loại nguồn lượt xem")).toBeTruthy();
   });
 
-  it("renders CommentRadarTile when on-demand report includes comment_radar", () => {
+  it("embeds comment radar inside metadata block with analysis prose", () => {
     renderInRouter(
       makeWinReport({
         source: "on_demand",
+        enrichment: {
+          pain_points: [],
+          promotion_type: "organic",
+          style_tags: [],
+          tone: "entertaining",
+        },
         comment_radar: {
-          sampled: 12,
-          total_available: 48,
-          sentiment: { positive_pct: 40, negative_pct: 10, neutral_pct: 50 },
-          purchase_intent: { count: 2, top_phrases: ["mua ở đâu"] },
-          questions_asked: 3,
+          sampled: 30,
+          total_available: 945,
+          sentiment: { positive_pct: 3, negative_pct: 0, neutral_pct: 97 },
+          purchase_intent: { count: 1, top_phrases: ["Vãi cái áo mua ở đâu mn"] },
+          questions_asked: 1,
           language: "vi",
         },
       }),
     );
+    expect(screen.getByText("Phân tích bối cảnh & diễn biến")).toBeTruthy();
+    expect(screen.getByTestId("comment-radar-tile")).toBeTruthy();
+    expect(screen.getByText(/trung tính \(97%\)/)).toBeTruthy();
+    expect(screen.queryByLabelText("Bình luận")).toBeNull();
+  });
+
+  it("shows metadata adjunct with comment radar when only comments are available", () => {
+    renderInRouter(
+      makeWinReport({
+        comment_radar: {
+          sampled: 12,
+          total_available: 48,
+          sentiment: { positive_pct: 40, negative_pct: 10, neutral_pct: 50 },
+          purchase_intent: { count: 0, top_phrases: [] },
+          questions_asked: 0,
+          language: "vi",
+        },
+      }),
+    );
+    expect(screen.getByText("Phân tích bối cảnh & diễn biến")).toBeTruthy();
     expect(screen.getByTestId("comment-radar-tile")).toBeTruthy();
   });
 

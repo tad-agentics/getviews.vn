@@ -1,4 +1,5 @@
 import { formatDiagnosisSectionTitle } from "@/lib/formatters";
+import { hasCommentRadarContent } from "@/lib/commentRadarProse";
 import { hasStatsHistorySnapshots } from "@/lib/statsHistoryProse";
 import { VIDEO_STRUCTURE_SECTION_TITLE } from "@/lib/mergeVideoStructureSections";
 import type {
@@ -11,6 +12,7 @@ import type {
   VideoHookPhase,
   VideoReportPayload,
 } from "@/lib/api-types";
+import type { CommentRadarData } from "@/lib/types/corpus-sidecars";
 
 export function findDiagnosisSection(
   sections: DiagnosisSectionVi[],
@@ -194,9 +196,11 @@ export function shouldShowHookAnalysisBlock(_report: VideoReportPayload): boolea
 export function shouldShowMetadataBlock(
   meta: VideoAnalyzeMeta,
   enrichment?: VideoEnrichment | null,
+  commentRadar?: CommentRadarData | null,
 ): boolean {
   return (
     hasContextStripContent(meta, enrichment) ||
-    hasStatsHistorySnapshots(meta.stats_history)
+    hasStatsHistorySnapshots(meta.stats_history) ||
+    hasCommentRadarContent(commentRadar)
   );
 }

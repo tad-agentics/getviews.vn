@@ -27,6 +27,8 @@ import type {
   VideoSegment,
   VideoStructureAxisBlock,
 } from "@/lib/api-types";
+import type { CommentRadarData } from "@/lib/types/corpus-sidecars";
+import { buildCommentRadarProse } from "@/lib/commentRadarProse";
 import {
   buildDiagnosisReferenceTiles,
   enrichReferenceTilesForGaps,
@@ -64,6 +66,7 @@ import {
 } from "@/lib/statsHistoryProse";
 import { hasContextStripContent } from "@/lib/videoAdjunctSections";
 import { DiagnosisReferenceVideoCards } from "@/components/diagnosis/DiagnosisReferenceVideoCards";
+import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import type {
   VideoAnalyzeMeta,
   VideoEnrichment,
@@ -74,11 +77,13 @@ function MetadataContextEmbed({
   enrichment,
   sectionText,
   fallbackProse,
+  commentRadar,
 }: {
   meta: VideoAnalyzeMeta;
   enrichment?: VideoEnrichment | null;
   sectionText: string;
   fallbackProse?: string;
+  commentRadar?: CommentRadarData | null;
 }) {
   const hasContextGrid = hasContextStripContent(meta, enrichment);
   const { contextProse: resolvedContext, statsProse } = resolveMetadataStripProse({
@@ -94,6 +99,7 @@ function MetadataContextEmbed({
       : undefined;
   const showStats = hasStatsHistorySnapshots(meta.stats_history);
   const showContext = hasContextGrid || Boolean(contextProse);
+  const commentProse = buildCommentRadarProse(commentRadar);
 
   return (
     <div className="mt-4 flex flex-col gap-3">
@@ -113,6 +119,10 @@ function MetadataContextEmbed({
           interpretationProse={statsProse}
         />
       ) : null}
+      {commentProse ? (
+        <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink-2)]">{commentProse}</p>
+      ) : null}
+      {commentRadar ? <CommentRadarTile data={commentRadar} embedded /> : null}
     </div>
   );
 }
@@ -543,7 +553,11 @@ export interface ChannelPatternEmbedProps {
 }
 
 export interface VideoDiagnosisSectionEmbeds {
-  metadata?: { meta: VideoAnalyzeMeta; enrichment?: VideoEnrichment | null };
+  metadata?: {
+    meta: VideoAnalyzeMeta;
+    enrichment?: VideoEnrichment | null;
+    commentRadar?: CommentRadarData | null;
+  };
   /** Analyzed clip context for per-finding "Xem đoạn này" deep-links. */
   analyzedClip?: AnalyzedClipContext | null;
   /** Eight-beat segment bar — shown under «Nhịp & cắt» in the structure block. */
@@ -744,6 +758,7 @@ export function DiagnosisSectionRenderer({
           enrichment={videoEmbeds.metadata.enrichment}
           sectionText={sectionOnlyText}
           fallbackProse={fallbackProse}
+          commentRadar={videoEmbeds.metadata.commentRadar}
         />
       ) : null}
     </div>

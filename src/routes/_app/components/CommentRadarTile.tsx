@@ -26,7 +26,14 @@ function formatVN(n: number): string {
  * before committing to a KOL. Creators read it to see if their "tôi sẽ mua"
  * signal is landing. Hidden when null (no comments fetched / sparse video).
  */
-export function CommentRadarTile({ data }: { data: CommentRadarData }) {
+export function CommentRadarTile({
+  data,
+  embedded = false,
+}: {
+  data: CommentRadarData;
+  /** Nested inside metadata block — tighter vertical spacing. */
+  embedded?: boolean;
+}) {
   if (!data || data.sampled === 0) return null;
 
   const { sentiment, purchase_intent, questions_asked, sampled, total_available } = data;
@@ -41,7 +48,7 @@ export function CommentRadarTile({ data }: { data: CommentRadarData }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="my-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] p-3"
+      className={`rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] p-3 ${embedded ? "mt-0" : "my-3"}`}
     >
       <div className="flex items-center gap-2 text-xs">
         <MessageCircle className="h-3.5 w-3.5 text-[var(--muted)]" strokeWidth={2} />

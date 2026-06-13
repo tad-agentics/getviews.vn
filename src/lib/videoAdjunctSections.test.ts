@@ -24,6 +24,19 @@ describe("videoAdjunctSections", () => {
     ).toBe(true);
   });
 
+  it("shows metadata block when comment_radar has samples", () => {
+    expect(
+      shouldShowMetadataBlock({} as never, null, {
+        sampled: 10,
+        total_available: 100,
+        sentiment: { positive_pct: 10, negative_pct: 5, neutral_pct: 85 },
+        purchase_intent: { count: 0, top_phrases: [] },
+        questions_asked: 0,
+        language: "vi",
+      }),
+    ).toBe(true);
+  });
+
   it("detects context strip payload", () => {
     expect(
       hasContextStripContent(
