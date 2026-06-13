@@ -171,9 +171,7 @@ export function VideoBody({
 }) {
   const navigate = useNavigate();
   const meta = report.meta;
-  const isForeignReup =
-    meta.foreign_reup === true ||
-    (report.enrichment?.style_tags ?? []).some((t) => t.toLowerCase() === "foreign_reup");
+  const isForeignReup = meta.foreign_reup === true;
   const duration = meta.duration_sec || 58;
   const userCurve = report.retention_curve ?? [];
   const retEnd = retentionEndPct(userCurve);

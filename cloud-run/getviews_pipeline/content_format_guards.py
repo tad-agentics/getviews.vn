@@ -37,16 +37,14 @@ _VN_OVERLAY_RE = re.compile(
 # Strict — subtitle/dub heuristics; omits bare «quốc tế» (native travel vlogs).
 _FOREIGN_TOPIC_STRICT_RE = re.compile(
     r"china|chinese|trung quốc|trung quoc|douyin|抖音|korean|hàn quốc|han quoc|"
-    r"japanese|nhật bản|nhat ban|reup|re-upload|\bdub\b|dịch|phụ đề|phu de|lồng tiếng",
+    r"japanese|nhật bản|nhat ban|reup|re-upload|\bdub\b|"
+    r"\bdịch\b(?! vụ)|phụ đề|phu de|lồng tiếng",
     re.IGNORECASE,
 )
 
-_REUP_FORMAT_AXES = frozenset({
-    "react_commentary",
-    "montage_highlights",
-    "observational_relatable",
-    "pov_storytelling",
-})
+
+def _foreign_topic_hit(combined: str) -> bool:
+    return bool(_FOREIGN_TOPIC_STRICT_RE.search(combined))
 
 
 def _commerce_intent_is_commerce(analysis: dict[str, Any]) -> bool:
@@ -112,34 +110,35 @@ def _format_axis(analysis: dict[str, Any]) -> str:
 
 def detect_foreign_reup(analysis: dict[str, Any]) -> bool:
     """True when the clip is re-uploaded foreign footage with Vietnamese subtitles/dub."""
-    tags = {str(t).strip().lower() for t in (analysis.get("style_tags") or []) if t}
-    if "foreign_reup" in tags:
-        return True
-
     transcript = str(analysis.get("audio_transcript") or "")
     topics = " ".join(str(t) for t in (analysis.get("topics") or []))
     overlays = _overlay_text_blob(analysis)
     combined = f"{transcript} {topics} {overlays}".lower()
+    tags = {str(t).strip().lower() for t in (analysis.get("style_tags") or []) if t}
 
     has_cjk = bool(_CJK_RE.search(transcript) or _CJK_RE.search(overlays))
     has_vn_overlay = bool(_VN_OVERLAY_RE.search(overlays))
+    has_foreign_topic = _foreign_topic_hit(combined)
 
-    # Primary heuristic: CJK on screen/speech + Vietnamese subtitle layer.
+    def _corroborated() -> bool:
+        """Gemini tag or soft heuristics need foreign-footage evidence — not VN-native review."""
+        return has_cjk or has_foreign_topic
+
+    if "foreign_reup" in tags:
+        return _corroborated()
+
+    # Primary: CJK on screen/speech + Vietnamese subtitle layer.
     if has_cjk and has_vn_overlay:
         return True
     # Secondary: strict foreign-origin topics + heavy VN subtitle overlay.
-    if (
-        _FOREIGN_TOPIC_STRICT_RE.search(combined)
-        and has_vn_overlay
-        and "text_overlay_heavy" in tags
-    ):
+    if has_foreign_topic and has_vn_overlay and "text_overlay_heavy" in tags:
         return True
     # Tertiary: react/montage format_axis + CJK without native commerce intent.
     axis = _format_axis(analysis)
     if axis in ("react_commentary", "montage_highlights") and has_cjk:
         if not _commerce_intent_is_commerce(analysis):
             return True
-    # Quaternary: VN dub + burned subtitles (no CJK) — CN/KR/JP footage reup pattern.
+    # Quaternary: VN dub + burned subtitles — requires CJK or explicit foreign-topic signal.
     has_vn_transcript = bool(_VN_OVERLAY_RE.search(transcript)) and len(transcript.strip()) >= 20
     has_sub_style = _has_subtitle_style_overlays(analysis) or (
         "text_overlay_heavy" in tags and has_vn_overlay
@@ -149,11 +148,7 @@ def detect_foreign_reup(analysis: dict[str, Any]) -> bool:
         and has_vn_overlay
         and has_sub_style
         and not _commerce_intent_is_commerce(analysis)
-        and (
-            _FOREIGN_TOPIC_STRICT_RE.search(combined)
-            or "voiceover_only" in tags
-            or axis in _REUP_FORMAT_AXES
-        )
+        and _corroborated()
     ):
         return True
     return False

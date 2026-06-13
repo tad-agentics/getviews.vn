@@ -21,8 +21,42 @@ def _analysis(transcript: str = "", *, topics: list[str] | None = None, **extra)
     return base
 
 
-def test_detect_foreign_reup_from_style_tag() -> None:
-    assert detect_foreign_reup(_analysis(style_tags=["foreign_reup", "text_overlay_heavy"]))
+def test_detect_foreign_reup_from_style_tag_requires_corroboration() -> None:
+    assert not detect_foreign_reup(_analysis(
+        "Hôm nay mình review serum cho chị em",
+        style_tags=["foreign_reup", "text_overlay_heavy"],
+    ))
+    assert detect_foreign_reup(_analysis(
+        "今天天气很好",
+        style_tags=["foreign_reup"],
+        text_overlays=[{"text": "Hôm nay trời đẹp"}],
+    ))
+
+
+def test_native_vn_review_voiceover_not_foreign_reup() -> None:
+    """VN creator review — voiceover + overlays must not trip reup without CJK/foreign topic."""
+    analysis = _analysis(
+        "Hôm nay mình review chi tiết em serum này cho chị em sau hai tuần dùng thử",
+        topics=["skincare", "review", "làm đẹp"],
+        text_overlays=[
+            {"text": "Serum vitamin C", "overlay_style": "title_card"},
+            {"text": "Kết quả sau 14 ngày", "overlay_style": "title_card"},
+        ],
+        style_tags=["voiceover_only", "text_overlay_heavy", "talking_head"],
+        commerce_intent={"product_price_tier": "not_commerce"},
+        niche_classification={"format_axis": "review_unboxing", "creator_niche_slug": "beauty"},
+    )
+    assert not detect_foreign_reup(analysis)
+
+
+def test_dich_vu_customer_service_not_foreign_topic() -> None:
+    analysis = _analysis(
+        "Shop có dịch vụ giao hàng nhanh và chăm sóc khách hàng tận tình",
+        topics=["dịch vụ", "skincare"],
+        text_overlays=[{"text": "Dịch vụ khách hàng"}],
+        style_tags=["text_overlay_heavy"],
+    )
+    assert not detect_foreign_reup(analysis)
 
 
 def test_detect_foreign_reup_cjk_plus_vn_overlay() -> None:
