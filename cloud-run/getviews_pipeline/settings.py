@@ -239,7 +239,7 @@ class _PipelineSettings(BaseSettings):
         description="Emit lead_finding in diagnosis_vi JSON + elevate in FE",
     )
     diagnosis_wide_context: bool = Field(
-        default=True,
+        default=False,
         description="Widen USER_EVIDENCE_DIGEST (more scenes, full hook_timeline)",
     )
     diagnosis_salience_rank_only: bool = Field(
@@ -247,7 +247,7 @@ class _PipelineSettings(BaseSettings):
         description="Demote salience from emit-gate to ranking-only (no section cap drop)",
     )
     diagnosis_proposed_findings: bool = Field(
-        default=True,
+        default=False,
         description="Allow LLM-proposed findings beyond fired signals (lower confidence)",
     )
     corpus_postextract_hook_cap: int = Field(default=3, ge=1)

@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
-from getviews_pipeline.pipelines import (  # noqa: E402
+from getviews_pipeline.corpus_windows import (
+    corpus_reference_fetch_days,
+    corpus_reference_pick_days,
+)
+from getviews_pipeline.pipelines import (
     REF_N,
     _content_proximity_score,
     _maybe_merge_content_targeted_refs_async,
@@ -16,10 +18,8 @@ from getviews_pipeline.pipelines import (  # noqa: E402
     _select_by_proximity_then_er,
     _slim_reference_video,
 )
-from getviews_pipeline.corpus_windows import (
-    corpus_reference_fetch_days,
-    corpus_reference_pick_days,
-)
+
+logger = logging.getLogger(__name__)
 
 
 def _proximity_score_for_ref(

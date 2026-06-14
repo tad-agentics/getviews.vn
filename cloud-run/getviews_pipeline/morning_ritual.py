@@ -575,11 +575,33 @@ EVIDENCE_PER_SCRIPT = 12
 EVIDENCE_MIN_HOOK_MATCH = 4   # below this, top up with top-of-pool fallback
 
 
+def _evidence_pool_slice(
+    pool: list[dict[str, Any]],
+    script_index: int,
+    script_count: int,
+) -> list[dict[str, Any]]:
+    """Fair, non-overlapping slice of the grounding pool for one ritual row.
+
+    Grounding caps at ``TARGET_GROUNDING_VIDEOS`` (20) while each strip
+    wants up to ``EVIDENCE_PER_SCRIPT`` (12) — three rows cannot each
+    show 12 unique videos. Partitioning guarantees row 2/3 still get
+    evidence instead of starving after row 1 claims the global top-12.
+    """
+    n = len(pool)
+    if n == 0 or script_count <= 0:
+        return []
+    base, rem = divmod(n, script_count)
+    offset = script_index * base + min(script_index, rem)
+    size = base + (1 if script_index < rem else 0)
+    return pool[offset : offset + size]
+
+
 def _pick_evidence_for_script(
     pool: list[dict[str, Any]],
     hook_type_en: str,
     *,
     limit: int = EVIDENCE_PER_SCRIPT,
+    exclude_ids: set[str] | None = None,
 ) -> list[str]:
     """Pick up to ``limit`` corpus video_ids that prove the hook works.
 
@@ -589,6 +611,10 @@ def _pick_evidence_for_script(
       2. If the filtered set is < ``EVIDENCE_MIN_HOOK_MATCH``, top up with
          the highest-views videos from ``pool`` that aren't already in the
          filtered set. Better to show a mixed-hook strip than nothing.
+
+    Callers should pass a per-row slice from ``_evidence_pool_slice`` and
+    a ``limit`` capped to that slice's length so three ritual rows share
+    the grounding pool without duplicate strips or row-3 starvation.
 
     The pool itself is already DESC-sorted by views (see
     ``_fetch_grounding_videos``), so taking-from-the-top preserves the
@@ -600,12 +626,13 @@ def _pick_evidence_for_script(
     if not pool:
         return []
     target = (hook_type_en or "").strip().lower()
+    exclude = exclude_ids or set()
 
     matched: list[str] = []
     fallback: list[str] = []
     for v in pool:
         vid = v.get("video_id")
-        if not isinstance(vid, str) or not vid:
+        if not isinstance(vid, str) or not vid or vid in exclude:
             continue
         v_hook = str(v.get("hook_type") or "").strip().lower()
         if target and v_hook == target:
@@ -621,7 +648,8 @@ def _pick_evidence_for_script(
     for vid in fallback:
         if len(out) >= limit:
             break
-        out.append(vid)
+        if vid not in out:
+            out.append(vid)
     return out[:limit]
 
 
@@ -742,15 +770,15 @@ def generate_ritual_for_user(
         scripts_out[i].update(rec)
 
     # L2.2 Sprint 4 — per-script evidence strip. Each ritual row gets up
-    # to 12 video_ids from the grounding pool that match the script's
-    # hook_type, so the FE can hydrate thumbnails on-demand and prove
-    # "this hook is winning right now in your niche". Falls back to top-
-    # of-pool when fewer than 4 hook-matched videos exist. Pre-Sprint-4
-    # ritual rows have no ``evidence_video_ids`` field and the FE
-    # gracefully omits the strip.
-    for item in scripts_out:
+    # to 12 video_ids from its slice of the grounding pool (fair split
+    # across 3 rows — the pool only has 10–20 videos total). Hook-matched
+    # picks first; sparse match tops up from that row's slice only.
+    for i, item in enumerate(scripts_out):
+        row_pool = _evidence_pool_slice(videos, i, len(scripts_out))
         item["evidence_video_ids"] = _pick_evidence_for_script(
-            videos, item.get("hook_type_en", ""),
+            row_pool,
+            item.get("hook_type_en", ""),
+            limit=min(EVIDENCE_PER_SCRIPT, len(row_pool)),
         )
 
     return RitualResult(

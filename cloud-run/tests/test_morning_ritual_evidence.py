@@ -12,6 +12,7 @@ from typing import Any
 
 from getviews_pipeline.morning_ritual import (
     EVIDENCE_PER_SCRIPT,
+    _evidence_pool_slice,
     _pick_evidence_for_script,
 )
 
@@ -132,3 +133,37 @@ def test_empty_target_hook_returns_top_of_pool() -> None:
     pool = [_v(f"o{i}", "pov") for i in range(3)]
     out = _pick_evidence_for_script(pool, "")
     assert out == ["o0", "o1", "o2"]
+
+
+def test_exclude_ids_skips_already_assigned_videos() -> None:
+    pool = [_v(f"o{i}", "pov") for i in range(6)]
+    out = _pick_evidence_for_script(pool, "pov", limit=3, exclude_ids={"o0", "o1"})
+    assert out == ["o2", "o3", "o4"]
+
+
+def test_evidence_pool_slice_partitions_without_overlap() -> None:
+    """20-video grounding pool → 7 + 7 + 6 across three ritual rows."""
+    pool = [_v(f"v{i}", "pov") for i in range(20)]
+    slices = [_evidence_pool_slice(pool, i, 3) for i in range(3)]
+    assert [len(s) for s in slices] == [7, 7, 6]
+    all_ids = [v["video_id"] for s in slices for v in s]
+    assert len(all_ids) == len(set(all_ids)) == 20
+
+
+def test_three_rows_get_distinct_strips_from_shared_pool() -> None:
+    """Simulates sparse hook match on a 20-video pool — rows must not
+    converge on the same top-12 fallback thumbs."""
+    pool = [_v(f"v{i}", "pov") for i in range(20)]
+    strips: list[list[str]] = []
+    for i in range(3):
+        row_pool = _evidence_pool_slice(pool, i, 3)
+        strips.append(
+            _pick_evidence_for_script(
+                row_pool,
+                "warning",  # zero hook matches → slice fallback only
+                limit=min(EVIDENCE_PER_SCRIPT, len(row_pool)),
+            )
+        )
+    assert [len(s) for s in strips] == [7, 7, 6]
+    flat = [vid for strip in strips for vid in strip]
+    assert len(flat) == len(set(flat)) == 20
