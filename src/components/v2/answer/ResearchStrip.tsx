@@ -396,7 +396,7 @@ export function LivePipelineStrip({
     );
   }
 
-  if (steps.length === 0 && done) return null;
+  if (steps.length === 0) return null;
 
   const cardMap = new Map<string, ToolCardState>();
   const statusByIteration = new Map<number, string>();
