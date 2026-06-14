@@ -1870,6 +1870,14 @@ def finalize_video_narrative_layer(
     user_stats["engagement_rate"] = float(user_er)
     if retention_end_pct is not None:
         user_stats["retention_end_pct"] = retention_end_pct
+    # DIAGNOSIS_WIDE_CONTEXT reads the full curves off user_stats; without these
+    # the wide-context digest injection silently never fires (curves live on the
+    # report ``out`` dict, not the trimmed stats).
+    if isinstance(curve_raw, list) and curve_raw:
+        user_stats["retention_curve"] = curve_raw
+    bench_raw = out.get("niche_benchmark_curve")
+    if isinstance(bench_raw, list) and bench_raw:
+        user_stats["niche_benchmark_curve"] = bench_raw
     meta_ret_src = meta.get("retention_source")
     if meta_ret_src:
         user_stats["retention_source"] = str(meta_ret_src)

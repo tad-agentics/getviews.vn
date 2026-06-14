@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   STRUCTURE_AXIS_TITLES,
   VIDEO_STRUCTURE_SECTION_TITLE,
   mergeVideoStructureSections,
 } from "./mergeVideoStructureSections";
+import * as presentationV2 from "./presentationV2";
 
 describe("mergeVideoStructureSections", () => {
   it("merges sound + script_structure after hook_analysis with structure_axes", () => {
@@ -200,5 +201,35 @@ describe("mergeVideoStructureSections", () => {
       },
     ]);
     expect(out[0].findings?.map((f) => f.title_vi)).toEqual(["S1", "A1", "P1", "S2", "A2"]);
+  });
+
+  describe("presentation v2 (A1b closing relocation)", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("moves script prose to block closing and clears rhythm text", () => {
+      vi.spyOn(presentationV2, "isReportPresentationV2").mockReturnValue(true);
+      const out = mergeVideoStructureSections([
+        { section_id: "script_structure", text_vi: "Tóm lại nên dồn payoff sớm." },
+        { section_id: "sound", text_vi: "Sound prose." },
+      ]);
+      // Block-level closing carries the script prose.
+      expect(out[0].text_vi).toBe("Tóm lại nên dồn payoff sớm.");
+      // Rhythm axis is dropped (no text/findings/tiles left); sound axis remains.
+      expect(out[0].structure_axes?.map((a) => a.axis_id)).toEqual(["sound"]);
+    });
+
+    it("keeps rhythm axis when it still has findings", () => {
+      vi.spyOn(presentationV2, "isReportPresentationV2").mockReturnValue(true);
+      const out = mergeVideoStructureSections([
+        {
+          section_id: "script_structure",
+          text_vi: "Closing.",
+          findings: [{ title_vi: "Nhịp chậm", fix_vi: "Cắt nhanh hơn." }],
+        },
+      ]);
+      expect(out[0].text_vi).toBe("Closing.");
+      expect(out[0].structure_axes?.map((a) => a.axis_id)).toEqual(["rhythm"]);
+      expect(out[0].structure_axes?.[0]?.text_vi).toBe("");
+    });
   });
 });

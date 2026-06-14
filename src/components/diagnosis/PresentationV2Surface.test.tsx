@@ -1,6 +1,6 @@
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import { ExpandableList } from "./ExpandableList";
 import { RetentionCurveChart } from "./RetentionCurveChart";
@@ -47,6 +47,10 @@ describe("ExpandableList", () => {
     expect(screen.getByText("a")).toBeTruthy();
     expect(screen.getByText("b")).toBeTruthy();
     expect(screen.queryByText("c")).toBeNull();
-    expect(screen.getByRole("button", { name: /Xem thêm \(2\)/i })).toBeTruthy();
+    const trigger = screen.getByRole("button", { name: /Xem thêm \(2\)/i });
+    expect(trigger).toBeTruthy();
+
+    fireEvent.click(trigger);
+    expect(screen.getByRole("button", { name: /Thu gọn/i })).toBeTruthy();
   });
 });

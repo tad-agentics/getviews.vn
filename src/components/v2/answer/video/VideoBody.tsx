@@ -204,12 +204,18 @@ export function VideoBody({
     preSynth?.bright_spot_signal ??
     report.bright_spot_signal;
   const leadFinding = narrativeVi?.diagnosis_vi?.lead_finding;
-  const headerLeadText =
+  const headerLeadCandidate =
     (isReportPresentationV2() &&
       (leadFinding?.body_vi?.trim() ||
         leadFinding?.title_vi?.trim() ||
         brightEffective?.message_vi?.trim())) ||
     null;
+  // Drop the lead chip if it just echoes the headline (prompt forbids it, but
+  // guard the UI so a model slip never renders the same line twice).
+  const headerLeadText =
+    headerLeadCandidate && headerLeadCandidate !== narrativeVi?.headline_vi?.trim()
+      ? headerLeadCandidate
+      : null;
   const viewScenariosEffective: ViewScenario[] | undefined =
     narrativeReady?.view_scenarios ?? report.view_scenarios;
   const channelEffective: ChannelContext | undefined =

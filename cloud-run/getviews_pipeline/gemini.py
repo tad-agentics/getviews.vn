@@ -2115,10 +2115,6 @@ def _synthesize_diagnosis_v6_section_pool(
             _validate_anchor_signal_ids(diag_vi, manifest)
             from getviews_pipeline.settings import settings as _diag_settings
 
-            _normalize_proposed_findings(
-                diag_vi,
-                enabled=bool(_diag_settings.diagnosis_proposed_findings),
-            )
             _dur_raw = user_stats.get("duration_sec") or user_analysis.get("duration_sec")
             try:
                 _clip_duration = float(_dur_raw) if _dur_raw is not None else None
@@ -2126,9 +2122,14 @@ def _synthesize_diagnosis_v6_section_pool(
                 _clip_duration = None
             # humanize_narrative_vi_dict() deep-copies narrative_vi, so by this
             # point diag_vi is orphaned from the object that gets persisted/streamed.
-            # Clamp the PERSISTED diagnosis_vi (fall back to diag_vi defensively).
+            # Mutate the PERSISTED diagnosis_vi (fall back to diag_vi defensively)
+            # for both proposed-finding stripping and evidence-ref clamping.
             _persisted_diag = (
                 narrative_vi.get("diagnosis_vi") if isinstance(narrative_vi, dict) else None
+            )
+            _normalize_proposed_findings(
+                _persisted_diag if isinstance(_persisted_diag, dict) else diag_vi,
+                enabled=bool(_diag_settings.diagnosis_proposed_findings),
             )
             _clamp_finding_evidence_refs(
                 _persisted_diag if isinstance(_persisted_diag, dict) else diag_vi,

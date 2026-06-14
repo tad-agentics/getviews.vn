@@ -47,9 +47,7 @@ export function ExpandableList<T>({
           ))}
         </CollapsibleContent>
         <CollapsibleTrigger className="flex min-h-[44px] w-full items-center gap-2 text-sm font-medium text-[color:var(--gv-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]/40">
-          <span>
-            {expandLabel} ({hidden.length})
-          </span>
+          <span>{open ? "Thu gọn" : `${expandLabel} (${hidden.length})`}</span>
           <ChevronDown
             className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
             aria-hidden

@@ -19,6 +19,15 @@ def test_scrub_forbidden_copy_soft_scrubs_guru_words() -> None:
     assert lint_forbidden_copy(cleaned) == []
 
 
+def test_scrub_forbidden_copy_respects_word_boundaries() -> None:
+    # "hack" inside "hackathon" must survive; the standalone "bùng nổ" is scrubbed.
+    raw = "Dùng hackathon để bùng nổ view."
+    cleaned, violations = scrub_forbidden_copy(raw)
+    assert "hackathon" in cleaned
+    assert "bùng nổ" not in cleaned.lower()
+    assert lint_forbidden_copy(cleaned) == []
+
+
 def test_wide_context_digest_includes_retention_and_benchmark() -> None:
     digest = build_user_evidence_digest(
         {"scenes": [{"start_s": 0, "end_s": 2, "framing": "close_up"}]},

@@ -242,20 +242,58 @@ _SOFT_SCRUB_WORDS: dict[str, str] = {
 }
 
 
+def _replace_phrase_word_boundary(text: str, phrase: str, replacement: str) -> str:
+    """Replace ``phrase`` in ``text`` only at loose word boundaries.
+
+    Mirrors the boundary check in ``lint_forbidden_copy`` so a substring inside
+    a larger word (e.g. ``"hack"`` inside ``"hackathon"``) is never scrubbed.
+    Operates on an NFC-normalized copy so casefolded indices align with the
+    original codepoints (Vietnamese lowercase casefold preserves length).
+    """
+    base = unicodedata.normalize("NFC", text)
+    folded = base.casefold()
+    pf = unicodedata.normalize("NFC", phrase).casefold()
+    if not pf:
+        return base
+    out_parts: list[str] = []
+    i = 0
+    n = len(pf)
+    while True:
+        idx = folded.find(pf, i)
+        if idx < 0:
+            out_parts.append(base[i:])
+            break
+        before = folded[idx - 1] if idx > 0 else " "
+        after = folded[idx + n] if idx + n < len(folded) else " "
+        if _is_word_char(before) or _is_word_char(after):
+            out_parts.append(base[i : idx + n])
+        else:
+            out_parts.append(base[i:idx])
+            out_parts.append(replacement)
+        i = idx + n
+    return "".join(out_parts)
+
+
 def scrub_forbidden_copy(text: str) -> tuple[str, list[CopyViolation]]:
-    """Return ``text`` with forbidden *words* soft-scrubbed; openers are logged only."""
+    """Return ``text`` with forbidden *words* soft-scrubbed; openers are logged only.
+
+    Only phrases that actually violated (boundary-valid hits from
+    ``lint_forbidden_copy``) are replaced, and replacement itself is
+    word-boundary aware — so legit words containing a forbidden substring stay
+    intact. Phrases without a soft replacement (e.g. ``"kỷ lục"``) are logged only.
+    """
     violations = lint_forbidden_copy(text)
     if not violations:
         return text, []
+    word_phrases = {
+        v.phrase for v in violations if v.kind == "word" and v.phrase in _SOFT_SCRUB_WORDS
+    }
+    if not word_phrases:
+        return text, violations
     out = text
-    for phrase, replacement in _SOFT_SCRUB_WORDS.items():
-        pf = _casefold_strip(phrase)
-        while True:
-            m = re.search(re.escape(pf), _casefold_strip(out))
-            if not m:
-                break
-            a, b = m.start(), m.end()
-            out = out[:a] + replacement + out[b:]
+    # Longest phrases first so multi-word hits win over any nested shorter ones.
+    for phrase in sorted(word_phrases, key=len, reverse=True):
+        out = _replace_phrase_word_boundary(out, phrase, _SOFT_SCRUB_WORDS[phrase])
     return out, violations
 
 
