@@ -35,6 +35,7 @@ from getviews_pipeline.corpus_windows import (
 )
 from getviews_pipeline.diagnosis_synthesis_contract import diagnosis_synthesis_kwargs
 from getviews_pipeline.enum_labels_vi import carousel_subformat_vi
+from getviews_pipeline.extraction_quality import peer_recency_tiebreak, peer_row_days_ago
 from getviews_pipeline.gemini import (
     synthesize_diagnosis_carousel_v2,
     synthesize_diagnosis_v2,
@@ -967,6 +968,7 @@ def _select_by_proximity_then_er(
             # Visible tile beats invisible at equal proximity (2026-06-11).
             1 if _ref_has_visible_thumbnail(v) else 0,
             _ref_rank_er(v),
+            peer_recency_tiebreak(peer_row_days_ago(v)),
         ),
         reverse=True,
     )

@@ -124,12 +124,62 @@ def test_global_p50_breakout_fallback_when_cohort_missing():
     from getviews_pipeline.corpus_instructiveness import GlobalViewStats, _breakout_for_aweme
 
     ctx = IngestBatchContext(
-        global_stats=GlobalViewStats(p50_views=10_000, organic_avg_views=12_000, corpus_count=500),
+        global_stats=GlobalViewStats(p50_views=10_000, p75_views=15_000, corpus_count=500),
     )
     aweme = {"authorStats": {}, "statistics": {"play_count": 25_000}}
     br, src = _breakout_for_aweme(aweme, 25_000, niche_id=99, ctx=ctx, content_class_id=1)
     assert br == 2.5
-    assert src == "global_p50"
+    assert src == "global_p50_fallback"
+
+
+def test_global_p50_fallback_for_thin_new_cohort_without_median():
+    from getviews_pipeline.corpus_instructiveness import GlobalViewStats, _breakout_for_aweme
+
+    ctx = IngestBatchContext(
+        niche_stats={
+            99: NicheViewStats(
+                niche_id=99,
+                p50_views=0.0,
+                organic_avg_views=8_000,
+                corpus_count=5,
+            ),
+        },
+        global_stats=GlobalViewStats(p50_views=12_000, p75_views=18_000, corpus_count=800),
+    )
+    aweme = {"authorStats": {}, "statistics": {"play_count": 24_000}}
+    br, src = _breakout_for_aweme(aweme, 24_000, niche_id=99, ctx=ctx)
+    assert br == 2.0
+    assert src == "global_p50_fallback"
+
+
+def test_niche_p50_breakout_unchanged_when_cohort_has_p50():
+    from getviews_pipeline.corpus_instructiveness import GlobalViewStats, _breakout_for_aweme
+
+    ctx = IngestBatchContext(
+        niche_stats={
+            3: NicheViewStats(niche_id=3, p50_views=10_000, corpus_count=200),
+        },
+        global_stats=GlobalViewStats(p50_views=12_000, p75_views=18_000, corpus_count=800),
+    )
+    aweme = {"authorStats": {}, "statistics": {"play_count": 30_000}}
+    br, src = _breakout_for_aweme(aweme, 30_000, niche_id=3, ctx=ctx)
+    assert br == 3.0
+    assert src == "niche_p50"
+
+
+def test_author_median_breakout_unchanged():
+    from getviews_pipeline.corpus_instructiveness import GlobalViewStats, _breakout_for_aweme
+
+    ctx = IngestBatchContext(
+        global_stats=GlobalViewStats(p50_views=12_000, corpus_count=800),
+    )
+    aweme = {
+        "authorStats": {"medianPlayCount": 5_000},
+        "statistics": {"play_count": 20_000},
+    }
+    br, src = _breakout_for_aweme(aweme, 20_000, niche_id=3, ctx=ctx)
+    assert br == 4.0
+    assert src == "author_median"
 
 
 def test_diversity_cap_per_creator():

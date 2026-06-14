@@ -32,7 +32,7 @@ BreakoutSource = Literal[
     "class_p50",
     "niche_avg_fallback",
     "class_avg_fallback",
-    "global_p50",
+    "global_p50_fallback",
     "none",
 ]
 
@@ -95,6 +95,7 @@ class ContentClassTierViewStats:
 @dataclass
 class GlobalViewStats:
     p50_views: float = 0.0
+    p75_views: float = 0.0
     organic_avg_views: float = 0.0
     corpus_count: int = 0
 
@@ -284,7 +285,7 @@ def _breakout_for_aweme(
         return round(views / ns.organic_avg_views, 2), avg_src
     gs = ctx.global_stats
     if gs.p50_views > 0:
-        return round(views / gs.p50_views, 2), "global_p50"
+        return round(views / max(gs.p50_views, 1.0), 2), "global_p50_fallback"
     return 0.0, "none"
 
 
@@ -706,8 +707,10 @@ def _log_shadow(
 
 def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBatchContext:
     """Load niche p50/p75, boost percentiles, sound momentum for batch night."""
+    from getviews_pipeline.corpus_windows import corpus_benchmark_window_days
+
     ctx = IngestBatchContext()
-    since = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=corpus_benchmark_window_days())).isoformat()
     select_cols = (
         "ingest_loop_niche_id, content_class_id, creator_tier, views, comments, save_rate, engagement_rate"
     )
@@ -769,6 +772,7 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
     )
     ctx.global_stats = GlobalViewStats(
         p50_views=_pct(all_views, 0.50),
+        p75_views=_pct(all_views, 0.75),
         organic_avg_views=sum(all_views) / len(all_views) if all_views else 0.0,
         corpus_count=len(rows),
     )

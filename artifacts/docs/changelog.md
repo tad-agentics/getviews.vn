@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Corpus ingest: global p50 breakout fallback + peer recency tiebreak
+
+- **Batch breakout (R3):** `prefetch_ingest_batch_context` loads global p50/p75 on the corpus benchmark window (60d); thin cohorts fall back to `global_p50_fallback` instead of `breakout=0`.
+- **Peer pool:** `peer_pool_quality_rank` + proximity pick add a gentle recency tiebreak (≤14d / ≤30d / ≤60d buckets); boost/extraction/breakout still dominate.
+
 ## 2026-06-14 — Structure-driven retention curve (v1)
 
 - **Python:** `model_retention_curve_from_structure()` in `video_structural.py` — deterministic attention-risk curve from scenes + optional ASR segments; `risk_events` with provenance (`asr`/`scene`/`approx`).
