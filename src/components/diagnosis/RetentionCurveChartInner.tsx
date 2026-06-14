@@ -96,7 +96,7 @@ export function RetentionCurveChartInner({
           <Line
             type="monotone"
             dataKey="niche"
-            stroke="var(--color-niche)"
+            stroke="var(--gv-ink-3)"
             strokeWidth={1.5}
             strokeDasharray="4 4"
             dot={false}
@@ -106,7 +106,7 @@ export function RetentionCurveChartInner({
         <Line
           type="monotone"
           dataKey="user"
-          stroke="var(--color-user)"
+          stroke="var(--gv-accent)"
           strokeWidth={2}
           dot={false}
         />
