@@ -30,10 +30,18 @@ gcloud config set project "$GCP_PROJECT_ID"
 # SA + Cloud Build roles (skip create if SA exists)
 gcloud iam service-accounts create "$SA_NAME" \
   --display-name="GitHub Actions Cloud Run build" 2>/dev/null || true
-for role in roles/cloudbuild.builds.editor roles/storage.admin; do
+for role in roles/cloudbuild.builds.editor roles/storage.admin \
+  roles/iam.serviceAccountUser roles/cloudbuild.builds.viewer roles/logging.viewer; do
   gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
     --member="serviceAccount:${SA_EMAIL}" --role="$role" --quiet
 done
+
+# Allow GitHub SA to act as the project's default Cloud Build runtime SA
+gcloud iam service-accounts add-iam-policy-binding \
+  "${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --project="$GCP_PROJECT_ID" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/iam.serviceAccountUser"
 
 # WIF pool + GitHub OIDC provider
 gcloud iam workload-identity-pools create github \

@@ -54,7 +54,17 @@ jobs:
             --project "$PROJECT_ID" \
             --config=cloud-run/cloudbuild.yaml \
             --substitutions="_TAG=${IMAGE},_TAG_SHA=${IMAGE}:${GITHUB_SHA}" \
-            .
+            --async \
+            --format='value(id)' \
+            . > build_id.txt
+          BUILD_ID="$(cat build_id.txt)"
+          echo "Cloud Build ID: ${BUILD_ID}"
+          gcloud builds wait "$BUILD_ID" --project "$PROJECT_ID"
+          STATUS="$(gcloud builds describe "$BUILD_ID" --project "$PROJECT_ID" --format='value(status)')"
+          if [[ "$STATUS" != "SUCCESS" ]]; then
+            echo "::error::Cloud Build ${BUILD_ID} finished with status ${STATUS}"
+            exit 1
+          fi
 
       - name: Summary
         env:
