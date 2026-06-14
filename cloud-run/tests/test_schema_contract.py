@@ -222,6 +222,14 @@ class TestVideoErrorsExtractionInputContract:
         "content_context_subject_matter",
         "niche_classification_creator_niche_slug",
         "niche_classification_format_axis",
+        "time_to_first_value_sec",
+        "words_per_sec",
+        "dead_air_ratio",
+        "loop_score",
+        "redundancy_runs",
+        "opening_visual_energy",
+        "text_speech_sync",
+        "pattern_interrupt",
     ]
 
     def test_required_fields_in_pydantic(self) -> None:

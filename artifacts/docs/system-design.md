@@ -407,12 +407,27 @@ All business logic lives in `services/`. `pipelines.py` and `video_analyze.py` a
 | `services/performance.py` | Performance tier classification, KPI enrichment |
 | `services/references.py` | `select_synthesis_references_for_video` — corpus pool → proximity → content-targeted ED merge → `_reference_evidence_lines` (stream + finalize parity) |
 | `services/corpus_quality.py` | `promote_on_demand_to_corpus`, `quality_tier`, cohort eligibility |
-| `services/asr_vietnamese.py` | **HI-14:** `sync_prepare_vietnamese_asr_supplement` — GCP STT `vi-VN`, reads/writes `vietnamese_asr_cache` (**video file paths only**; carousels skip) |
+| `services/asr_vietnamese.py` | **HI-14:** `sync_prepare_vietnamese_asr_supplement` — GCP STT `vi-VN`, reads/writes `vietnamese_asr_cache` (**video file paths only**; carousels skip). Segments may include per-word `{w,start,end}` for Tier 1 info-density (extraction signals v2). |
+| `video_structural.py` | Structure-driven retention curve (`model_retention_curve_from_structure`); **Tier 1 extraction signals** (`compute_information_density`, `compute_loopability`) |
 
 ### Supplemental ASR and hook-window video sampling (HI-14, HI-15)
 
 - **HI-14:** Before the main Gemini vision pass on **videos**, the pipeline may fetch a short Vietnamese transcript via Google Cloud Speech-to-Text (`vi-VN`), formatted into the extraction user turn. Results are cached per `video_id` in `vietnamese_asr_cache` so later calls reuse one ASR pass. **Carousels do not invoke this path** (image-only `analyze_carousel`).
 - **HI-15:** `analyze_video` may send **two** `Part` payloads: full clip at `GEMINI_VIDEO_BASE_FPS` and the first `GEMINI_HOOK_WINDOW_END_SEC` at clamped `GEMINI_HOOK_WINDOW_FPS` (3–5), so hook timing sees sharper frames without raising cost on the whole file. `GEMINI_HOOK_WINDOW_DUAL_PART=false` restores single-Part behaviour.
+
+### Extraction signals v2 (Tier 1 + Tier 2; Tier 3 deferred)
+
+Measured structural signals feed **existing** diagnosis prose boundaries — no new UI sections or chips.
+
+| Tier | Source | Signals | Surface |
+|------|--------|---------|---------|
+| **1** | Deterministic (`video_structural.py`) | `words_per_sec`, front/mid/back arc, `time_to_first_value_sec`, `dead_air_ratio`, `loop_score`, `redundancy_runs` | Call 1 `VideoErrorsExtractionInput` + Call 2 `extraction_signals_note` («Nhịp & cắt» + hook) |
+| **2** | Gemini extraction (`HookAnalysis`) | `opening_visual_energy`, `text_speech_sync`, `pattern_interrupt` | Same grounding path (share/save triggers already on model) |
+| **3** | Audio DSP (deferred) | beat-sync, voice-energy | Flag `EXTRACTION_AUDIO_DSP` only — not wired |
+
+- **Join point:** `_resolve_user_retention_curve` (live) already has scenes + ASR segments; Tier 1 stashed on `analysis` dict in-place when `EXTRACTION_SIGNALS_V2=true`. Batch: `_build_corpus_row` writes nullable benchmark columns (`time_to_first_value_sec`, `loop_score`, `words_per_sec`).
+- **Word budget:** synthesis limits unchanged; LLM instructed to surface **1–2 most decisive** signals by deviation magnitude (Loop B `predictive_strength` ranking deferred until calibration registers these signals).
+- **Flag:** `EXTRACTION_SIGNALS_V2` (default off) — compute always, shadow log when off. Spec: [`diagnosis-extraction-signals-v2.md`](diagnosis-extraction-signals-v2.md).
 
 ### Caption TikTok vs hook in-video
 

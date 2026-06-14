@@ -83,6 +83,15 @@ class VideoErrorsExtractionInput(BaseModel):
     content_context_subject_matter: str | None = Field(default=None, max_length=500)
     niche_classification_creator_niche_slug: str | None = Field(default=None, max_length=48)
     niche_classification_format_axis: str | None = Field(default=None, max_length=48)
+    # Extraction signals v2 — Tier 1 (deterministic) + Tier 2 hook forensics
+    time_to_first_value_sec: float | None = None
+    words_per_sec: float | None = None
+    dead_air_ratio: float | None = None
+    loop_score: float | None = None
+    redundancy_runs: int | None = None
+    opening_visual_energy: str | None = Field(default=None, max_length=16)
+    text_speech_sync: str | None = Field(default=None, max_length=24)
+    pattern_interrupt: bool | None = None
 
 
 # ── Format / presence guards ────────────────────────────────────────────────
@@ -295,6 +304,67 @@ def _format_retention_ts(seconds: float) -> str:
     return f"{m}:{s:02d}"
 
 
+def _summarise_extraction_signals_v2(analysis: dict[str, Any]) -> str:
+    """One-line grounding for Call 1 — compact measured signals only."""
+    info = analysis.get("info_density") if isinstance(analysis.get("info_density"), dict) else {}
+    loop = analysis.get("loopability") if isinstance(analysis.get("loopability"), dict) else {}
+    hook = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else {}
+    parts: list[str] = []
+    wps = info.get("words_per_sec")
+    if wps is not None:
+        try:
+            parts.append(f"Mật độ {float(wps):.1f} từ/s")
+        except (TypeError, ValueError):
+            pass
+    ttfv = info.get("time_to_first_value_sec")
+    if ttfv is not None:
+        try:
+            parts.append(f"giá trị đầu {_format_retention_ts(float(ttfv))}")
+        except (TypeError, ValueError):
+            pass
+    dead = info.get("dead_air_ratio")
+    if dead is not None:
+        try:
+            parts.append(f"dead-air {float(dead) * 100:.0f}%")
+        except (TypeError, ValueError):
+            pass
+    ls = loop.get("loop_score")
+    if ls is not None:
+        try:
+            parts.append(f"loop {float(ls):.2f}")
+        except (TypeError, ValueError):
+            pass
+    rr = loop.get("redundancy_runs")
+    if rr is not None:
+        try:
+            if int(rr) >= 2:
+                parts.append(f"redundancy {int(rr)} cảnh")
+        except (TypeError, ValueError):
+            pass
+    ove = hook.get("opening_visual_energy")
+    if ove:
+        parts.append(f"visual {ove}")
+    tss = hook.get("text_speech_sync")
+    if tss and str(tss) != "none":
+        parts.append(f"sync {tss}")
+    pi = hook.get("pattern_interrupt")
+    if pi is True:
+        parts.append("pattern_interrupt")
+    if not parts:
+        return ""
+    return "Tín hiệu cấu trúc: " + ", ".join(parts) + "."
+
+
+def _extraction_signals_rule_block() -> str:
+    return """
+## Tín hiệu cấu trúc đo được (EXTRACTION_SIGNALS — nếu có trong JSON)
+
+- Dùng `time_to_first_value_sec`, `words_per_sec`, `dead_air_ratio`, `loop_score`, `pattern_interrupt`… để neo lỗi hook/nhịp — KHÔNG bịa số.
+- Chọn 1–2 tín hiệu lệch chuẩn mạnh nhất làm bằng chứng chính; KHÔNG liệt kê hết.
+- Fix phải gắn mốc giây cụ thể khi ASR/word timing có (vd dồn câu chốt trước 0:02 nếu giá trị đầu ở 0:06).
+"""
+
+
 def _summarise_niche_row(row: dict[str, Any] | None) -> str:
     """Pre-format the niche/content_class row as bullets for prompt context.
 
@@ -424,11 +494,21 @@ def extract_video_errors(
         _normalize_response,
         _response_text,
     )
+    from getviews_pipeline.settings import settings as pipeline_settings
 
     _ha = analysis.get("hook_analysis")
     hook = _ha if isinstance(_ha, dict) else {}
     niche_summary = _summarise_niche_row(niche_row)
     retention_summary = _summarise_retention_curve(retention_curve, retention_risk_events)
+    signals_summary = ""
+    signals_rule = ""
+    if pipeline_settings.extraction_signals_v2:
+        signals_summary = _summarise_extraction_signals_v2(analysis)
+        if signals_summary:
+            signals_rule = _extraction_signals_rule_block()
+
+    info = analysis.get("info_density") if isinstance(analysis.get("info_density"), dict) else {}
+    loop = analysis.get("loopability") if isinstance(analysis.get("loopability"), dict) else {}
 
     # Phase 3.7.1 — build typed input model and inject as JSON for auditability.
     # Gemini sees the same field names as the TypeScript/Pydantic schemas.
@@ -468,6 +548,47 @@ def extract_video_errors(
         content_context_subject_matter=_subject,
         niche_classification_creator_niche_slug=_niche_slug,
         niche_classification_format_axis=_fmt_axis,
+        time_to_first_value_sec=(
+            float(info["time_to_first_value_sec"])
+            if pipeline_settings.extraction_signals_v2
+            and info.get("time_to_first_value_sec") is not None
+            else None
+        ),
+        words_per_sec=(
+            float(info["words_per_sec"])
+            if pipeline_settings.extraction_signals_v2 and info.get("words_per_sec") is not None
+            else None
+        ),
+        dead_air_ratio=(
+            float(info["dead_air_ratio"])
+            if pipeline_settings.extraction_signals_v2 and info.get("dead_air_ratio") is not None
+            else None
+        ),
+        loop_score=(
+            float(loop["loop_score"])
+            if pipeline_settings.extraction_signals_v2 and loop.get("loop_score") is not None
+            else None
+        ),
+        redundancy_runs=(
+            int(loop["redundancy_runs"])
+            if pipeline_settings.extraction_signals_v2 and loop.get("redundancy_runs") is not None
+            else None
+        ),
+        opening_visual_energy=(
+            str(hook.get("opening_visual_energy") or "")[:16] or None
+            if pipeline_settings.extraction_signals_v2
+            else None
+        ),
+        text_speech_sync=(
+            str(hook.get("text_speech_sync") or "")[:24] or None
+            if pipeline_settings.extraction_signals_v2
+            else None
+        ),
+        pattern_interrupt=(
+            bool(hook["pattern_interrupt"])
+            if pipeline_settings.extraction_signals_v2 and hook.get("pattern_interrupt") is not None
+            else None
+        ),
     )
     input_json = _json.dumps(input_model.model_dump(exclude_none=True), ensure_ascii=False)
 
@@ -509,6 +630,8 @@ def extract_video_errors(
 
 {niche_summary}
 {retention_summary}
+{signals_summary}
+{signals_rule}
 
 ## Tín hiệu HI-9 (có thể null trong JSON trên)
 

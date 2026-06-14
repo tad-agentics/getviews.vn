@@ -46,6 +46,9 @@ QUY TẮC BẮT BUỘC:
 - hook_analysis.hook_body_contract: true nếu phần thân (khoảng 4–15s) trả lời đúng lời hứa hook; false nếu hook hứa một đằng nội dung một nẻo; null nếu không đủ căn cứ.
 - hook_analysis.dialect_detected: hue | quang_nam | southern | northern | none | null — chỉ khi giọng/từ vựng địa phương lộ rõ trong hook; không ép.
 - hook_analysis.price_anchor_manipulation_suspected: true nếu neo giá gạch / % giảm gây hiểu nhầm (rủi ro comply TikTok Shop VN); false nếu không áp dụng; null nếu clip không gắn giá/thương mại.
+- hook_analysis.opening_visual_energy: high | medium | low | null — năng lượng hình ảnh khung mở (cắt nhanh, chuyển động, tương phản); null nếu không chắc.
+- hook_analysis.text_speech_sync: simultaneous | text_first | speech_first | none | null — text overlay có xuất hiện cùng lúc với từ nói đầu tiên không; none nếu không có cả hai; null nếu không chắc.
+- hook_analysis.pattern_interrupt: true nếu có cắt/âm/hình đột ngột trong 0–3s re-capture attention; false nếu không; null nếu không chắc — đừng bịa.
 - scenes: Mỗi lần cắt hình, đổi góc máy, hoặc đổi chủ thể rõ → scene mới. Video 15s thường 3–8 scene; 30s có thể 5–15. Mỗi scene điền các chiều phong phú dưới; không chắc → null, không đoán bừa.
 - scenes[].framing: close_up | medium | wide | extreme_close_up — khớp định nghĩa schema.
 - scenes[].pace: static | slow | medium | fast | cut_heavy — khớp định nghĩa schema.

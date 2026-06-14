@@ -2014,6 +2014,7 @@ def _synthesize_diagnosis_v6_section_pool(
         hook_leaderboard_block=hook_block,
         comment_signal_block=comment_block,
         calibration_priors_block=calibration_block,
+        extraction_signals_v2=bool(_settings.extraction_signals_v2),
     )
     prompt = _prefix_user_sections(
         [layer0_context or "", creator_format_history_block or ""],

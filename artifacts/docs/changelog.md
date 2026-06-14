@@ -1,5 +1,14 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Extraction signals v2 (Tier 1 + Tier 2)
+
+- **Tier 1 (deterministic):** `compute_information_density` + `compute_loopability` in `video_structural.py` — words/sec arc, `time_to_first_value_sec`, `dead_air_ratio`, `loop_score`, `redundancy_runs`. Computed in `_resolve_user_retention_curve` (live) and `_build_corpus_row` (batch).
+- **ASR word timing:** HI-14 cache segments may carry per-word `{w,start,end}`; helper `asr_words_from_segments`. Old cache rows without `words` fall back to segment-level timing.
+- **Tier 2 (Gemini hook forensics):** Optional `HookAnalysis.opening_visual_energy`, `text_speech_sync`, `pattern_interrupt` + conservative rules in `_VIDEO_EXTRACTION_CORE_VI`.
+- **Grounding (no new UI sections):** Call 1 `VideoErrorsExtractionInput` optional fields + compact summary; Call 2 `extraction_signals_note` weaves 1–2 strongest signals into existing «Nhịp & cắt» + hook prose (word limits unchanged).
+- **Flag:** `EXTRACTION_SIGNALS_V2` (default off). Compute always; surface when on; shadow log `[extraction_signals_shadow]` when off. `EXTRACTION_AUDIO_DSP` declared for deferred Tier 3.
+- **DB:** Migration `20260914000002` — nullable `video_corpus.time_to_first_value_sec`, `loop_score`, `words_per_sec` (batch write only; no backfill block).
+
 ## 2026-06-14 — Corpus ingest: global p50 breakout fallback + peer recency tiebreak
 
 - **Batch breakout (R3):** `prefetch_ingest_batch_context` loads global p50/p75 on the corpus benchmark window (60d); thin cohorts fall back to `global_p50_fallback` instead of `breakout=0`.

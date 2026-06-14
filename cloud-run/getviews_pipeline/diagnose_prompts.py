@@ -279,6 +279,40 @@ def build_user_evidence_digest(user_analysis: dict[str, Any]) -> dict[str, Any]:
     if audio_bits:
         digest["audio_character"] = " · ".join(audio_bits)
 
+    info = user_analysis.get("info_density")
+    if isinstance(info, dict) and info:
+        compact: dict[str, Any] = {}
+        for key in (
+            "words_per_sec",
+            "words_per_sec_front",
+            "words_per_sec_mid",
+            "words_per_sec_back",
+            "time_to_first_value_sec",
+            "dead_air_ratio",
+        ):
+            if info.get(key) is not None:
+                compact[key] = info[key]
+        if compact:
+            digest["info_density"] = compact
+
+    loop = user_analysis.get("loopability")
+    if isinstance(loop, dict) and loop:
+        loop_compact: dict[str, Any] = {}
+        for key in ("loop_score", "redundancy_runs"):
+            if loop.get(key) is not None:
+                loop_compact[key] = loop[key]
+        if loop_compact:
+            digest["loopability"] = loop_compact
+
+    hook_block = user_analysis.get("hook_analysis")
+    if isinstance(hook_block, dict):
+        forensics: dict[str, Any] = {}
+        for key in ("opening_visual_energy", "text_speech_sync", "pattern_interrupt"):
+            if hook_block.get(key) is not None:
+                forensics[key] = hook_block[key]
+        if forensics:
+            digest["hook_forensics"] = forensics
+
     return digest
 
 
@@ -308,6 +342,7 @@ def build_diagnosis_v6_user_prompt(
     hook_leaderboard_block: str = "",
     comment_signal_block: str = "",
     calibration_priors_block: str = "",
+    extraction_signals_v2: bool = False,
 ) -> str:
     tier = str(performance_tier or "unknown").lower()
     default_titles = {
@@ -625,6 +660,21 @@ def build_diagnosis_v6_user_prompt(
             "format_cards (không tạo section mới). Cảm xúc tiêu cực cao → soi nguyên nhân "
             "trong findings. KHÔNG bịa trích dẫn bình luận."
         )
+    extraction_signals_note = ""
+    if extraction_signals_v2:
+        digest = build_user_evidence_digest(user_analysis)
+        has_signals = any(
+            k in digest for k in ("info_density", "loopability", "hook_forensics")
+        )
+        if has_signals:
+            extraction_signals_note = (
+                "\n\nEXTRACTION_SIGNALS (USER_EVIDENCE_DIGEST — info_density / loopability / "
+                "hook_forensics): dệt 1–2 tín hiệu lệch chuẩn mạnh nhất vào prose "
+                "«Nhịp & cắt» (script_structure) và hook_analysis — KHÔNG tạo section mới, "
+                "KHÔNG liệt kê hết. Công thức: số liệu → nhận định → fix cụ thể "
+                "(vd giá trị đầu ở 0:06 → dồn câu chốt lên trước 0:02). "
+                "Chọn tín hiệu có độ lệch/severity cao nhất; số in JetBrains Mono trên UI."
+            )
     blocks.append(
         "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu "
         "chứng minh (≤90 từ; script_structure ≤100 từ). Tổng báo cáo ~350-450 từ. Ưu tiên fix + "
@@ -652,5 +702,6 @@ def build_diagnosis_v6_user_prompt(
         + video_structure_note
         + niche_pattern_note
         + comment_grounding_note
+        + extraction_signals_note
     )
     return "".join(blocks)

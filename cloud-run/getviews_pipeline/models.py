@@ -214,6 +214,11 @@ HookTimelineEventType = Literal[
     "reveal",
 ]
 
+OpeningVisualEnergyType = Literal["high", "medium", "low"]
+TextSpeechSyncType = Literal["simultaneous", "text_first", "speech_first", "none"]
+_OPENING_VISUAL_ENERGY = frozenset(get_args(OpeningVisualEnergyType))
+_TEXT_SPEECH_SYNC = frozenset(get_args(TextSpeechSyncType))
+
 
 class HookTimelineEvent(BaseModel):
     """One notable moment inside the opening hook window (0.0–3.0s).
@@ -244,6 +249,25 @@ class HookAnalysis(BaseModel):
     hook_body_contract: bool | None = None
     dialect_detected: DialectDetected | None = None
     price_anchor_manipulation_suspected: bool | None = None
+    opening_visual_energy: OpeningVisualEnergyType | None = None
+    text_speech_sync: TextSpeechSyncType | None = None
+    pattern_interrupt: bool | None = None
+
+    @field_validator("opening_visual_energy", mode="before")
+    @classmethod
+    def _normalize_opening_visual_energy(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower()
+        return s if s in _OPENING_VISUAL_ENERGY else None
+
+    @field_validator("text_speech_sync", mode="before")
+    @classmethod
+    def _normalize_text_speech_sync(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower()
+        return s if s in _TEXT_SPEECH_SYNC else None
 
     @field_validator("hook_layering", mode="before")
     @classmethod

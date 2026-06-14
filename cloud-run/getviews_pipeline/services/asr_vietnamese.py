@@ -148,6 +148,21 @@ def _protobuf_duration_sec(d: Any) -> float | None:
     return sec + nanos / 1_000_000_000.0
 
 
+def _word_entries_from_stt(words: list[Any]) -> list[dict[str, Any]]:
+    """Flatten GCP STT word objects into ``[{w, start, end}, ...]``."""
+    out: list[dict[str, Any]] = []
+    for w in words:
+        token = str(getattr(w, "word", None) or "").strip()
+        if not token:
+            continue
+        start = _protobuf_duration_sec(getattr(w, "start_time", None))
+        end = _protobuf_duration_sec(getattr(w, "end_time", None))
+        if start is None or end is None or end <= start:
+            continue
+        out.append({"w": token, "start": start, "end": end})
+    return out
+
+
 def _parse_recognition_results(response: Any) -> list[dict[str, Any]]:
     segments: list[dict[str, Any]] = []
     results = getattr(response, "results", None) or []
@@ -161,16 +176,21 @@ def _parse_recognition_results(response: Any) -> list[dict[str, Any]]:
             continue
         start_sec: float | None = None
         end_sec: float | None = None
-        words = getattr(alt, "words", None) or []
-        if words:
+        words_raw = getattr(alt, "words", None) or []
+        word_entries = _word_entries_from_stt(words_raw)
+        if word_entries:
+            start_sec = float(word_entries[0]["start"])
+            end_sec = float(word_entries[-1]["end"])
+        elif words_raw:
             try:
-                start_sec = _protobuf_duration_sec(getattr(words[0], "start_time", None))
-                end_sec = _protobuf_duration_sec(getattr(words[-1], "end_time", None))
+                start_sec = _protobuf_duration_sec(getattr(words_raw[0], "start_time", None))
+                end_sec = _protobuf_duration_sec(getattr(words_raw[-1], "end_time", None))
             except Exception:  # noqa: BLE001
                 start_sec, end_sec = None, None
-        segments.append(
-            {"start_sec": start_sec, "end_sec": end_sec, "text": text},
-        )
+        seg: dict[str, Any] = {"start_sec": start_sec, "end_sec": end_sec, "text": text}
+        if word_entries:
+            seg["words"] = word_entries
+        segments.append(seg)
     return segments
 
 
@@ -286,6 +306,38 @@ def fetch_asr_segments(video_id: str) -> list[dict[str, Any]]:
                 "start_sec": seg.get("start_sec"),
                 "end_sec": seg.get("end_sec"),
                 "text": text,
+                **({"words": seg["words"]} if isinstance(seg.get("words"), list) else {}),
             }
         )
     return out
+
+
+def asr_words_from_segments(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Flatten per-segment ``words`` lists into one chronologically ordered list."""
+    flat: list[dict[str, Any]] = []
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        raw = seg.get("words")
+        if not isinstance(raw, list):
+            continue
+        for w in raw:
+            if not isinstance(w, dict):
+                continue
+            token = str(w.get("w") or "").strip()
+            try:
+                start = float(w.get("start"))
+                end = float(w.get("end"))
+            except (TypeError, ValueError):
+                continue
+            if not token or end <= start:
+                continue
+            flat.append({"w": token, "start": start, "end": end})
+    flat.sort(key=lambda x: x["start"])
+    return flat
+
+
+def asr_transcript_from_segments(segments: list[dict[str, Any]]) -> str:
+    """Join segment text in order (fallback when word timing absent)."""
+    parts = [str(s.get("text") or "").strip() for s in segments if isinstance(s, dict)]
+    return " ".join(p for p in parts if p)

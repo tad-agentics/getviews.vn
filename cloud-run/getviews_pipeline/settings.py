@@ -222,6 +222,14 @@ class _PipelineSettings(BaseSettings):
         default=False,
         description="Adopt corpus-learned viral weights + salience demotion + synthesis priors",
     )
+    extraction_signals_v2: bool = Field(
+        default=False,
+        description="Ground Tier 1/2 extraction signals into diagnosis prose (shadow compute when off)",
+    )
+    extraction_audio_dsp: bool = Field(
+        default=False,
+        description="Audio DSP beat-sync + voice-energy (batch-only; Tier 3 deferred)",
+    )
     corpus_postextract_hook_cap: int = Field(default=3, ge=1)
     corpus_hook_cap_breakout_bypass: float = Field(default=3.0, ge=0.0)
     corpus_purity_vpn_default: int = Field(default=15, ge=1)

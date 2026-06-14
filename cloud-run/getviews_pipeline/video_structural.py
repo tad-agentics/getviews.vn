@@ -693,3 +693,260 @@ def model_retention_curve_from_structure(
         risks=risks,
         n_points=n_points,
     )
+
+
+# ── Extraction signals v2 — Tier 1 (deterministic) ───────────────────────────
+
+HOOK_WINDOW_SEC: Final[float] = 3.0
+
+_VN_FILLER_TOKENS: Final[frozenset[str]] = frozenset(
+    {
+        "ừ",
+        "à",
+        "ơi",
+        "nè",
+        "nhé",
+        "ừm",
+        "um",
+        "uh",
+        "ha",
+        "haha",
+        "hehe",
+        "thì",
+        "mà",
+        "và",
+        "là",
+        "nha",
+        "ạ",
+        "dạ",
+        "em",
+        "anh",
+        "chị",
+        "bạn",
+        "mọi",
+        "người",
+    }
+)
+
+
+def _normalize_token(w: str) -> str:
+    return re.sub(r"[^\w]", "", w.lower(), flags=re.UNICODE)
+
+
+def _is_content_word(token: str) -> bool:
+    norm = _normalize_token(token)
+    if len(norm) < 2:
+        return False
+    return norm not in _VN_FILLER_TOKENS
+
+
+def _scene_field(sc: dict[str, Any], key: str) -> str:
+    return str(sc.get(key) or "").strip().lower()
+
+
+def _words_in_window(
+    asr_words: list[dict[str, Any]],
+    lo: float,
+    hi: float,
+) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for w in asr_words:
+        try:
+            start = float(w.get("start"))
+        except (TypeError, ValueError):
+            continue
+        if lo <= start < hi:
+            out.append(w)
+    return out
+
+
+def compute_information_density(
+    scenes: list[dict[str, Any]],
+    asr_words: list[dict[str, Any]] | None,
+    duration: float,
+    *,
+    hook_window_sec: float = HOOK_WINDOW_SEC,
+    asr_segments: list[dict[str, Any]] | None = None,
+    audio_track_role: str | None = None,
+    transcript: str = "",
+) -> dict[str, Any]:
+    """Info-density metrics from scenes + ASR word timing (fallback: transcript length)."""
+    dur = max(float(duration), 0.1)
+    words = list(asr_words or [])
+    total_words = len(words)
+    if total_words == 0 and transcript.strip():
+        split = [t for t in transcript.split() if t.strip()]
+        total_words = len(split)
+        words_per_sec = round(total_words / dur, 2) if total_words else 0.0
+        return {
+            "words_per_sec": words_per_sec,
+            "words_per_sec_front": words_per_sec,
+            "words_per_sec_mid": words_per_sec,
+            "words_per_sec_back": words_per_sec,
+            "time_to_first_value_sec": None,
+            "dead_air_ratio": 0.0,
+            "word_timing": "segment_fallback",
+        }
+
+    third = dur / 3.0
+    front = _words_in_window(words, 0.0, third)
+    mid = _words_in_window(words, third, 2 * third)
+    back = _words_in_window(words, 2 * third, dur + 0.001)
+
+    def _wps(count: int, span: float) -> float:
+        return round(count / max(span, 0.1), 2)
+
+    time_to_first: float | None = None
+    for w in words:
+        try:
+            start = float(w.get("start"))
+        except (TypeError, ValueError):
+            continue
+        if start < hook_window_sec:
+            continue
+        token = str(w.get("w") or "")
+        if _is_content_word(token):
+            time_to_first = round(start, 2)
+            break
+
+    dead_air = 0.0
+    role = str(audio_track_role or "").strip().lower()
+    if role != "silent" and asr_segments:
+        gaps = _asr_silence_gaps(asr_segments, duration_sec=dur)
+        dead_air = round(sum(hi - lo for lo, hi in gaps) / dur, 3)
+
+    return {
+        "words_per_sec": _wps(total_words, dur),
+        "words_per_sec_front": _wps(len(front), third),
+        "words_per_sec_mid": _wps(len(mid), third),
+        "words_per_sec_back": _wps(len(back), third),
+        "time_to_first_value_sec": time_to_first,
+        "dead_air_ratio": dead_air,
+        "word_timing": "words" if words else "none",
+    }
+
+
+def _hook_echo_score(hook_phrase: str, closing_text: str) -> float:
+    hook_tokens = {_normalize_token(t) for t in hook_phrase.split() if _normalize_token(t)}
+    close_tokens = [_normalize_token(t) for t in closing_text.split() if _normalize_token(t)]
+    if not hook_tokens or not close_tokens:
+        return 0.0
+    tail = close_tokens[-min(8, len(close_tokens)) :]
+    overlap = sum(1 for t in tail if t in hook_tokens)
+    return min(1.0, overlap / max(len(hook_tokens), 1))
+
+
+def compute_loopability(
+    scenes: list[dict[str, Any]],
+    transcript: str,
+    audio_track_role: str | None,
+    hook_phrase: str,
+    *,
+    caption: str | None = None,
+) -> dict[str, Any]:
+    """Loop-ability + redundancy from scene grammar and closing echo."""
+    scene_list = [s for s in scenes if isinstance(s, dict)]
+    if len(scene_list) < 2:
+        return {"loop_score": 0.0, "redundancy_runs": 0}
+
+    first = scene_list[0]
+    last = scene_list[-1]
+    scene_pts = 0.0
+    for key in ("type", "subject", "framing"):
+        a = _scene_field(first, key)
+        b = _scene_field(last, key)
+        if a and b and a == b:
+            scene_pts += 1.0 / 3.0
+
+    closing = (transcript or "").strip()
+    if caption and str(caption).strip():
+        closing = f"{closing} {caption}".strip()
+    if not closing and scene_list:
+        closing = str(last.get("description") or "")
+    echo = _hook_echo_score(hook_phrase, closing[-120:] if closing else "")
+
+    role = str(audio_track_role or "").strip().lower()
+    audio_pts = 0.3 if role and role != "silent" else 0.0
+
+    loop_score = round(min(1.0, scene_pts * 0.5 + echo * 0.35 + audio_pts), 3)
+
+    max_run = 0
+    run = 1
+    for i in range(1, len(scene_list)):
+        prev = scene_list[i - 1]
+        cur = scene_list[i]
+        if (
+            _scene_field(prev, "type") == _scene_field(cur, "type")
+            and _scene_field(prev, "subject") == _scene_field(cur, "subject")
+            and _scene_field(prev, "type")
+            and _scene_field(prev, "subject")
+        ):
+            run += 1
+            max_run = max(max_run, run)
+        else:
+            run = 1
+
+    return {"loop_score": loop_score, "redundancy_runs": max_run}
+
+
+def compute_tier1_extraction_signals(
+    *,
+    scenes: list[dict[str, Any]],
+    duration_sec: float,
+    asr_segments: list[dict[str, Any]] | None,
+    hook_phrase: str = "",
+    audio_track_role: str | None = None,
+    caption: str | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return (info_density, loopability) dicts for live + batch paths."""
+    from getviews_pipeline.services.asr_vietnamese import (
+        asr_transcript_from_segments,
+        asr_words_from_segments,
+    )
+
+    segs = list(asr_segments or [])
+    words = asr_words_from_segments(segs)
+    transcript = asr_transcript_from_segments(segs)
+    info = compute_information_density(
+        scenes,
+        words or None,
+        duration_sec,
+        asr_segments=segs or None,
+        audio_track_role=audio_track_role,
+        transcript=transcript,
+    )
+    loop = compute_loopability(
+        scenes,
+        transcript,
+        audio_track_role,
+        hook_phrase,
+        caption=caption,
+    )
+    return info, loop
+
+
+def tier1_corpus_columns(
+    info_density: dict[str, Any],
+    loopability: dict[str, Any],
+) -> dict[str, Any]:
+    """Nullable video_corpus benchmark columns."""
+    out: dict[str, Any] = {}
+    ttfv = info_density.get("time_to_first_value_sec")
+    if ttfv is not None:
+        try:
+            out["time_to_first_value_sec"] = round(float(ttfv), 2)
+        except (TypeError, ValueError):
+            pass
+    wps = info_density.get("words_per_sec")
+    if wps is not None:
+        try:
+            out["words_per_sec"] = round(float(wps), 2)
+        except (TypeError, ValueError):
+            pass
+    ls = loopability.get("loop_score")
+    if ls is not None:
+        try:
+            out["loop_score"] = round(float(ls), 3)
+        except (TypeError, ValueError):
+            pass
+    return out

@@ -250,6 +250,32 @@ def _resolve_user_retention_curve(
 
     asr_segments = fetch_asr_segments(video_id) if video_id else []
     hook_tl = hook.get("hook_timeline") if isinstance(hook.get("hook_timeline"), list) else []
+
+    from getviews_pipeline.video_structural import compute_tier1_extraction_signals
+
+    try:
+        info_density, loopability = compute_tier1_extraction_signals(
+            scenes=scenes,
+            duration_sec=dur,
+            asr_segments=asr_segments or None,
+            hook_phrase=str(hook.get("hook_phrase") or ""),
+            audio_track_role=str(analysis.get("audio_track_role") or "").strip() or None,
+        )
+        if pipeline_settings.extraction_signals_v2:
+            analysis["info_density"] = info_density
+            analysis["loopability"] = loopability
+        else:
+            logger.info(
+                "[extraction_signals_shadow] video_id=%s ttfv=%s wps=%.2f loop=%.2f dead_air=%.2f",
+                video_id or "",
+                info_density.get("time_to_first_value_sec"),
+                float(info_density.get("words_per_sec") or 0),
+                float(loopability.get("loop_score") or 0),
+                float(info_density.get("dead_air_ratio") or 0),
+            )
+    except Exception:
+        logger.debug("[extraction_signals] compute failed", exc_info=True)
+
     structural_curve, risk_events = model_retention_curve_from_structure(
         dur,
         scenes,

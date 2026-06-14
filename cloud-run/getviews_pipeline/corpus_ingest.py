@@ -1927,6 +1927,37 @@ def _build_corpus_row(
         and int(_loop_cc) != int(_final_cc)
     )
 
+    tier1_cols: dict[str, Any] = {}
+    if content_type == "video" and scenes:
+        try:
+            dur_t1 = float(scenes[-1].get("end") or 0)
+        except (TypeError, ValueError):
+            dur_t1 = 0.0
+        if dur_t1 > 0 and video_id:
+            try:
+                from getviews_pipeline.services.asr_vietnamese import fetch_asr_segments
+                from getviews_pipeline.video_structural import (
+                    compute_tier1_extraction_signals,
+                    tier1_corpus_columns,
+                )
+
+                asr_segs = fetch_asr_segments(video_id)
+                info_t1, loop_t1 = compute_tier1_extraction_signals(
+                    scenes=scenes,
+                    duration_sec=dur_t1,
+                    asr_segments=asr_segs or None,
+                    hook_phrase=str(hook_info.get("hook_phrase") or ""),
+                    audio_track_role=str(analysis_json.get("audio_track_role") or "").strip() or None,
+                    caption=desc or None,
+                )
+                tier1_cols = tier1_corpus_columns(info_t1, loop_t1)
+            except Exception:
+                logger.debug(
+                    "[corpus] tier1 extraction signals failed video_id=%s",
+                    video_id,
+                    exc_info=True,
+                )
+
     return {
         # ── Core columns (existing 17) ──
         "video_id": video_id,
@@ -2022,6 +2053,7 @@ def _build_corpus_row(
         "ingest_loop_content_class_id": _loop_cc,
         "score_cohort_mismatch": _cohort_mismatch,
         "extraction_quality": extraction_quality,
+        **tier1_cols,
     }
 
 
