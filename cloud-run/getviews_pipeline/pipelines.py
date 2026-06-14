@@ -1157,8 +1157,9 @@ def _peer_hook_window_s(
             if not isinstance(sc, dict):
                 continue
             try:
-                t0 = float(sc.get("start_s") or 0)
-                t1 = float(sc.get("end_s") or t0 + 2.0)
+                t0 = float(sc.get("start_s") if sc.get("start_s") is not None else sc.get("start") or 0)
+                t1_raw = sc.get("end_s") if sc.get("end_s") is not None else sc.get("end")
+                t1 = float(t1_raw if t1_raw is not None else t0 + 2.0)
                 return round(t0, 2), round(max(t1, t0 + 0.5), 2)
             except (TypeError, ValueError):
                 continue

@@ -238,6 +238,23 @@ def test_reference_evidence_lines_omit_peer_timestamps_when_flag_off() -> None:
     assert 'hook' in block.lower() or "Hook" in block
 
 
+def test_reference_evidence_lines_scene_fallback_uses_start_end() -> None:
+    from getviews_pipeline.pipelines import _reference_evidence_lines
+
+    refs = [{
+        "aweme_id": "777",
+        "creator_handle": "scene_peer",
+        "statistics": {"play_count": 3000},
+        "analysis": {
+            "hook_analysis": {"hook_phrase": "Hook", "hook_type": "story"},
+            "scenes": [{"type": "face_to_camera", "start": 1.2, "end": 3.8}],
+        },
+    }]
+    with patch("getviews_pipeline.pipelines._peer_hook_timestamps_enabled", return_value=True):
+        block = _reference_evidence_lines(refs, "corpus")
+    assert "mốc hook peer: @scene_peer mở hook ~1.2s" in block
+
+
 def test_reference_evidence_lines_without_peer_timestamps_still_renders() -> None:
     from getviews_pipeline.pipelines import _reference_evidence_lines
 
