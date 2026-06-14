@@ -1,9 +1,23 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DiagnosisReferenceVideoCards } from "./DiagnosisReferenceVideoCards";
 
-afterEach(() => cleanup());
+const modalSpy = vi.hoisted(() =>
+  vi.fn((_props: { startSec?: number }) => null),
+);
+
+vi.mock("@/components/explore/VideoPlayerModal", () => ({
+  VideoPlayerModal: (props: { startSec?: number }) => {
+    modalSpy(props);
+    return null;
+  },
+}));
+
+afterEach(() => {
+  cleanup();
+  modalSpy.mockClear();
+});
 
 describe("DiagnosisReferenceVideoCards", () => {
   it("renders narrative, views, and handle per card", () => {
@@ -73,5 +87,30 @@ describe("DiagnosisReferenceVideoCards", () => {
     const shell = container.querySelector(".rounded-xl.border");
     expect(shell).toBeTruthy();
     expect(shell?.className).toContain("bg-[color:var(--gv-canvas-2)]");
+  });
+
+  it("passes peer_hook_start_sec to VideoPlayerModal when playing inline", async () => {
+    render(
+      <DiagnosisReferenceVideoCards
+        tiles={[
+          {
+            aweme_id: "1",
+            video_url: "https://tiktok.com/@a/video/1",
+            thumbnail_url: "",
+            views: 1000,
+            caption_snippet: "",
+            posted_at: "",
+            narrative_vi: "Peer hook contrast.",
+            author_handle: "peer",
+            playback_url: "https://cdn/videos/1.mp4",
+            peer_hook_start_sec: 0.4,
+          },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Video tham chiếu @peer/i }));
+    await waitFor(() => expect(modalSpy).toHaveBeenCalled());
+    const lastCall = modalSpy.mock.calls.at(-1)?.[0];
+    expect(lastCall?.startSec).toBe(0.4);
   });
 });

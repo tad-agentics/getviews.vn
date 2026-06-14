@@ -12,7 +12,7 @@ Pins the four behaviours added after the analysis-quality audit:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # ── 1. Matcher topic gate ────────────────────────────────────────────
 
@@ -202,6 +202,7 @@ def test_reference_evidence_lines_include_peer_hook_timestamps() -> None:
 
     refs = [{
         "aweme_id": "999",
+        "creator_handle": "peer_creator",
         "statistics": {"play_count": 9000},
         "analysis": {
             "hook_analysis": {
@@ -211,8 +212,48 @@ def test_reference_evidence_lines_include_peer_hook_timestamps() -> None:
             },
         },
     }]
-    block = _reference_evidence_lines(refs, "corpus")
-    assert "mốc hook peer: 0.4–3.4s" in block
+    with patch("getviews_pipeline.pipelines._peer_hook_timestamps_enabled", return_value=True):
+        block = _reference_evidence_lines(refs, "corpus")
+    assert "@peer_creator" in block
+    assert "mốc hook peer: @peer_creator mở hook ~0.4s" in block
+    assert "cite: «@peer_creator mở ở 0.4s»" in block
+
+
+def test_reference_evidence_lines_omit_peer_timestamps_when_flag_off() -> None:
+    from getviews_pipeline.pipelines import _reference_evidence_lines
+
+    refs = [{
+        "aweme_id": "999",
+        "statistics": {"play_count": 9000},
+        "analysis": {
+            "hook_analysis": {
+                "hook_phrase": "Hook",
+                "hook_timeline": [{"event": "face_enter", "t": 0.4}],
+            },
+        },
+    }]
+    with patch("getviews_pipeline.pipelines._peer_hook_timestamps_enabled", return_value=False):
+        block = _reference_evidence_lines(refs, "corpus")
+    assert "mốc hook peer" not in block
+    assert 'hook' in block.lower() or "Hook" in block
+
+
+def test_reference_evidence_lines_without_peer_timestamps_still_renders() -> None:
+    from getviews_pipeline.pipelines import _reference_evidence_lines
+
+    refs = [{
+        "aweme_id": "888",
+        "creator_handle": "no_ts",
+        "statistics": {"play_count": 5000},
+        "analysis": {
+            "hook_analysis": {"hook_phrase": "Chỉ hook phrase", "hook_type": "story"},
+        },
+    }]
+    with patch("getviews_pipeline.pipelines._peer_hook_timestamps_enabled", return_value=True):
+        block = _reference_evidence_lines(refs, "corpus")
+    assert "@no_ts" in block
+    assert "mốc hook peer" not in block
+    assert 'hook (story): "Chỉ hook phrase"' in block
 
 
 # ── 4. Winning hook lines in the script prompt ───────────────────────

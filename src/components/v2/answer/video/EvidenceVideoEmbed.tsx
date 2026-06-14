@@ -180,6 +180,13 @@ export function EvidenceVideoEmbed({
           <VideoPlayerModal
             video={refToPlayerVideo(video)}
             allVideos={[refToPlayerVideo(video)]}
+            startSec={
+              video.peer_hook_start_sec != null &&
+              Number.isFinite(video.peer_hook_start_sec) &&
+              video.peer_hook_start_sec > 0
+                ? video.peer_hook_start_sec
+                : undefined
+            }
             onClose={() => setPlaying(false)}
           />
         </Suspense>

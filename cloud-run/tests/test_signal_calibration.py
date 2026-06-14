@@ -10,8 +10,11 @@ import pytest
 from getviews_pipeline.diagnose_prompts import _signal_payload, build_diagnosis_v6_user_prompt
 from getviews_pipeline.settings import settings
 from getviews_pipeline.signal_calibration import (
+    CALIBRATION_READER_TTL_S,
     CLASS_SAMPLE_FLOOR,
     CalibrationFeature,
+    _clear_reader_caches,
+    _ttl_cache,
     adopt_guard,
     build_calibration_priors,
     run_signal_calibration,
@@ -346,3 +349,48 @@ def test_build_diagnosis_prompt_includes_calibration_block() -> None:
     )
     assert "CALIBRATION_PRIORS" in prompt
     assert "ρ_holdout=0.44" in prompt
+
+
+def test_ttl_cache_refetches_after_ttl_expires(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    @_ttl_cache(60)
+    def bump(x: int) -> int:
+        calls.append(x)
+        return x + 1
+
+    t = 1000.0
+    monkeypatch.setattr("time.monotonic", lambda: t)
+    assert bump(1) == 2
+    assert bump(1) == 2
+    assert calls == [1]
+
+    monkeypatch.setattr("time.monotonic", lambda: t + CALIBRATION_READER_TTL_S + 1)
+    assert bump(1) == 2
+    assert calls == [1, 1]
+
+
+@patch.object(settings, "signal_calibration_adaptive", True)
+def test_clear_reader_caches_forces_viral_weights_refresh() -> None:
+    viral_score_weights.cache_clear()
+    fetch_calls = 0
+
+    def _fetch(*_a: Any, **_kw: Any) -> dict[str, Any]:
+        nonlocal fetch_calls
+        fetch_calls += 1
+        return {"w_hook": 0.5, "w_format": 0.3, "w_time": 0.2, "adopted": True}
+
+    with patch(
+        "getviews_pipeline.signal_calibration._service_client_cached",
+        return_value=MagicMock(),
+    ), patch(
+        "getviews_pipeline.signal_calibration._fetch_latest_calibration",
+        side_effect=_fetch,
+    ):
+        assert viral_score_weights(3) == (0.5, 0.3, 0.2)
+        assert fetch_calls == 1
+        assert viral_score_weights(3) == (0.5, 0.3, 0.2)
+        assert fetch_calls == 1
+        _clear_reader_caches()
+        assert viral_score_weights(3) == (0.5, 0.3, 0.2)
+        assert fetch_calls == 2

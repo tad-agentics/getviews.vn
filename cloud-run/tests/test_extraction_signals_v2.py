@@ -20,6 +20,9 @@ from getviews_pipeline.services.extraction import (
     _summarise_extraction_signals_v2,
 )
 from getviews_pipeline.video_structural import (
+    DEAD_AIR_GAP_SEC,
+    _asr_silence_gaps,
+    _hook_echo_score,
     compute_information_density,
     compute_loopability,
     compute_tier1_extraction_signals,
@@ -90,6 +93,47 @@ def test_dead_air_ratio_excludes_silent_track() -> None:
         audio_track_role="silent",
     )
     assert info["dead_air_ratio"] == 0.0
+
+
+def test_asr_silence_gaps_detects_leading_and_trailing_dead_air() -> None:
+    segs = [
+        {"start_sec": 2.0, "end_sec": 4.0, "text": "A"},
+        {"start_sec": 6.0, "end_sec": 7.0, "text": "B"},
+    ]
+    gaps = _asr_silence_gaps(segs, duration_sec=10.0, min_gap=DEAD_AIR_GAP_SEC)
+    assert (0.0, 2.0) in gaps
+    assert (4.0, 6.0) in gaps
+    assert (7.0, 10.0) in gaps
+
+
+def test_asr_silence_gaps_ignored_for_silent_track_via_info_density() -> None:
+    segs = [{"start_sec": 0.0, "end_sec": 2.0, "text": "A"}]
+    words = [_word(0.0, 2.0, "hello")]
+    info = compute_information_density(
+        [],
+        words,
+        10.0,
+        asr_segments=segs,
+        audio_track_role="silent",
+    )
+    assert info["dead_air_ratio"] == 0.0
+
+
+def test_hook_echo_score_zero_when_no_overlap() -> None:
+    assert _hook_echo_score("câu hỏi mở đầu", "kết bằng lời kêu mua") == 0.0
+
+
+def test_hook_echo_score_high_when_closing_repeats_hook_tokens() -> None:
+    score = _hook_echo_score(
+        "mở bằng câu hỏi",
+        "và kết lại bằng câu hỏi mở",
+    )
+    assert score >= 0.5
+
+
+def test_hook_echo_score_empty_inputs_return_zero() -> None:
+    assert _hook_echo_score("", "closing line") == 0.0
+    assert _hook_echo_score("hook phrase", "") == 0.0
 
 
 def test_loop_score_high_when_first_last_match_and_hook_echo() -> None:

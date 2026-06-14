@@ -19,6 +19,8 @@ export interface DiagnosisReferenceTile extends ChannelPerformerTile {
   hook_type?: string | null;
   /** R2-hosted MP4 — present ⇒ play inline instead of linking to TikTok. */
   playback_url?: string | null;
+  /** Seek target when opening inline peer playback (hook window). */
+  peer_hook_start_sec?: number | null;
 }
 
 const EMBED_PROSE_TRAIL_RE =
@@ -80,6 +82,7 @@ export function mapDiagnosisEmbeddedTiles(
       author_handle: src.author_handle ?? null,
       hook_type: src.hook_type ?? null,
       playback_url: src.playback_url ?? null,
+      peer_hook_start_sec: src.peer_hook_start_sec ?? null,
     });
   }
   return out;
@@ -326,6 +329,7 @@ export function fallbackNichePatternReferenceTiles(
       author_handle: src.author_handle ?? null,
       hook_type: src.hook_type ?? null,
       playback_url: src.playback_url ?? null,
+      peer_hook_start_sec: src.peer_hook_start_sec ?? null,
     };
     return {
       ...tile,

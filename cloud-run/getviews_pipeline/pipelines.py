@@ -212,6 +212,12 @@ def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str
     }
     if prox is not None:
         out["content_proximity_score"] = int(prox)
+    if _peer_hook_timestamps_enabled():
+        analysis = r.get("analysis") if isinstance(r.get("analysis"), dict) else {}
+        shot_ref = r.get("_shot_reference") if isinstance(r.get("_shot_reference"), dict) else None
+        start_s, _end_s = _peer_hook_window_s(analysis, shot_ref=shot_ref)
+        if start_s is not None:
+            out["peer_hook_start_sec"] = start_s
     return out
 
 
@@ -1166,6 +1172,23 @@ def _peer_hook_window_s(
     return None, None
 
 
+def _peer_hook_timestamps_enabled() -> bool:
+    """BE gate aligned with presentation/wide-context synthesis (B2)."""
+    from getviews_pipeline.settings import settings
+
+    return bool(settings.diagnosis_wide_context)
+
+
+def _format_hook_sec_label(sec: float) -> str:
+    """Short label for prompt/FE cite (e.g. 0.4 -> '0.4s', 62 -> '1:02')."""
+    if sec < 60:
+        rounded = round(sec, 1)
+        return f"{rounded:g}s"
+    minutes = int(sec // 60)
+    seconds = sec - minutes * 60
+    return f"{minutes}:{seconds:04.1f}"
+
+
 def _reference_evidence_project(ref: dict[str, Any]) -> dict[str, str | int | float | None]:
     meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
     analysis = ref.get("analysis") if isinstance(ref.get("analysis"), dict) else {}
@@ -1202,13 +1225,16 @@ def _reference_evidence_project(ref: dict[str, Any]) -> dict[str, str | int | fl
     hook_type = str(hook_block.get("hook_type") or "")
     opening_line = str(analysis.get("audio_transcript") or "").strip()[:90]
     shot_ref = ref.get("_shot_reference") if isinstance(ref.get("_shot_reference"), dict) else None
-    peer_start_s, peer_end_s = _peer_hook_window_s(analysis, shot_ref=shot_ref)
+    hook_start_sec: float | None = None
+    hook_end_sec: float | None = None
+    if _peer_hook_timestamps_enabled():
+        hook_start_sec, hook_end_sec = _peer_hook_window_s(analysis, shot_ref=shot_ref)
     return {
         "aid": aid, "vc": vc, "dsc": dsc, "fmt": str(fmt), "niche": niche,
         "handle": handle, "hook_phrase": hook_phrase, "hook_type": hook_type,
         "opening_line": opening_line,
-        "peer_start_s": peer_start_s,
-        "peer_end_s": peer_end_s,
+        "hook_start_sec": hook_start_sec,
+        "hook_end_sec": hook_end_sec,
     }
 
 
@@ -1235,8 +1261,20 @@ def _reference_evidence_lines(
             line += f"\n  hook ({p['hook_type'] or '?'}): \"{p['hook_phrase']}\""
         if p["opening_line"] and p["opening_line"][:40] != str(p["hook_phrase"])[:40]:
             line += f"\n  lời mở (transcript): \"{p['opening_line']}…\""
-        if p.get("peer_start_s") is not None:
-            line += f"\n  mốc hook peer: {p['peer_start_s']}–{p.get('peer_end_s')}s"
+        hook_start = p.get("hook_start_sec")
+        if hook_start is not None:
+            handle = p["handle"] or "?"
+            start_lbl = _format_hook_sec_label(float(hook_start))
+            end_raw = p.get("hook_end_sec")
+            end_lbl = (
+                f"–{_format_hook_sec_label(float(end_raw))}"
+                if end_raw is not None
+                else ""
+            )
+            line += (
+                f"\n  mốc hook peer: @{handle} mở hook ~{start_lbl}{end_lbl} "
+                f"(cite: «@{handle} mở ở {start_lbl}»)"
+            )
         lines.append(line)
     return "\n".join(lines)
 
