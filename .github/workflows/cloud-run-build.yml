@@ -50,21 +50,37 @@ jobs:
             echo "::error::Set GCP_WIF_* + GCP_PROJECT_ID secrets. See cloud-run/docs/ci-cloud-run-build.md"
             exit 1
           fi
-          gcloud builds submit \
+          BUILD_ID="$(gcloud builds submit \
             --project "$PROJECT_ID" \
             --config=cloud-run/cloudbuild.yaml \
             --substitutions="_TAG=${IMAGE},_TAG_SHA=${IMAGE}:${GITHUB_SHA}" \
             --async \
             --format='value(id)' \
-            . > build_id.txt
-          BUILD_ID="$(cat build_id.txt)"
+            .)"
           echo "Cloud Build ID: ${BUILD_ID}"
-          gcloud builds wait "$BUILD_ID" --project "$PROJECT_ID"
-          STATUS="$(gcloud builds describe "$BUILD_ID" --project "$PROJECT_ID" --format='value(status)')"
-          if [[ "$STATUS" != "SUCCESS" ]]; then
-            echo "::error::Cloud Build ${BUILD_ID} finished with status ${STATUS}"
-            exit 1
-          fi
+          deadline=$(( $(date +%s) + 1800 ))
+          while true; do
+            STATUS="$(gcloud builds describe "${BUILD_ID}" --project "${PROJECT_ID}" --format='value(status)')"
+            echo "Status: ${STATUS}"
+            case "${STATUS}" in
+              SUCCESS) break ;;
+              FAILURE|INTERNAL_ERROR|TIMEOUT|CANCELLED|EXPIRED)
+                echo "::error::Cloud Build ${BUILD_ID} finished with status ${STATUS}"
+                exit 1
+                ;;
+              QUEUED|WORKING|PENDING|STATUS_UNKNOWN)
+                if (( $(date +%s) > deadline )); then
+                  echo "::error::Timed out waiting for Cloud Build ${BUILD_ID}"
+                  exit 1
+                fi
+                sleep 15
+                ;;
+              *)
+                echo "::error::Unexpected Cloud Build status: ${STATUS}"
+                exit 1
+                ;;
+            esac
+          done
 
       - name: Summary
         env:
