@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
@@ -54,8 +55,43 @@ def is_suspect_low_attribution(attribution: str | None) -> bool:
     return (attribution or "").strip() == "suspect_low"
 
 
-def peer_pool_quality_rank(row: dict[str, Any]) -> tuple[int, int, float, float]:
-    """Sort key: prefer clean boost, ok extraction, higher breakout/ER."""
+def peer_row_days_ago(row: dict[str, Any]) -> int:
+    """Days since publish/index; prefers ``_corpus_days_ago`` when annotated."""
+    raw = row.get("_corpus_days_ago")
+    if raw is not None:
+        try:
+            return max(0, int(raw))
+        except (TypeError, ValueError):
+            pass
+    now = datetime.now(UTC)
+    for field in ("posted_at", "indexed_at"):
+        ts = row.get(field)
+        if not ts:
+            continue
+        try:
+            dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+            return max(0, int((now - dt).total_seconds() // 86400))
+        except (TypeError, ValueError, OSError):
+            continue
+    return 60
+
+
+def peer_recency_tiebreak(days_ago: int) -> int:
+    """Gentle recency bucket (higher = newer). Last sort key only."""
+    days = max(0, int(days_ago))
+    if days <= 14:
+        return 3
+    if days <= 30:
+        return 2
+    if days <= 60:
+        return 1
+    return 0
+
+
+def peer_pool_quality_rank(row: dict[str, Any]) -> tuple[int, int, float, float, int]:
+    """Sort key: prefer clean boost, ok extraction, higher breakout/ER, then recency."""
     boost = str(row.get("boost_attribution") or "unknown")
     if boost in _SUSPECT_BOOST:
         boost_rank = 2 if boost == "suspect_low" else 3
@@ -72,4 +108,5 @@ def peer_pool_quality_rank(row: dict[str, Any]) -> tuple[int, int, float, float]
 
     breakout = float(row.get("breakout_multiplier") or row.get("breakout_ratio") or 0)
     er = float(row.get("engagement_rate") or 0)
-    return (boost_rank, eq_rank, -breakout, -er)
+    recency = peer_recency_tiebreak(peer_row_days_ago(row))
+    return (boost_rank, eq_rank, -breakout, -er, -recency)

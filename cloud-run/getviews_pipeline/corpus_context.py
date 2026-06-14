@@ -896,7 +896,7 @@ _REFERENCE_POOL_SELECT = (
     "video_id, creator_handle, views, likes, comments, shares, "
     "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
     "video_url, boost_attribution, extraction_quality, "
-    "indexed_at, content_format, content_type, content_class_id, analysis_json"
+    "indexed_at, posted_at, content_format, content_type, content_class_id, analysis_json"
 )
 # Widen cohort when class-scoped pool is too thin (parity with REF_N / proximity pick).
 _REFERENCE_POOL_MIN_SCOPE_ROWS = 5
@@ -937,6 +937,15 @@ def _reference_pool_query(
     return q
 
 
+def _annotate_reference_pool_recency(rows: list[dict[str, Any]]) -> None:
+    """Stamp ``_corpus_days_ago`` for peer-pool ranking (posted_at → indexed_at)."""
+    for row in rows:
+        if row.get("_corpus_days_ago") is not None:
+            continue
+        days_ago, _ = _reference_recency_fields(row)
+        row["_corpus_days_ago"] = days_ago
+
+
 def _merge_eligible_reference_rows(
     client: Any,
     *,
@@ -966,6 +975,7 @@ def _merge_eligible_reference_rows(
         or []
     )
     clean = [r for r in clean if is_clean_boost_attribution(r.get("boost_attribution"))]
+    _annotate_reference_pool_recency(clean)
     clean.sort(key=peer_pool_quality_rank)
 
     merged: list[dict[str, Any]] = []
@@ -1002,6 +1012,7 @@ def _merge_eligible_reference_rows(
         or []
     )
     suspect_low = [r for r in suspect_low if is_suspect_low_attribution(r.get("boost_attribution"))]
+    _annotate_reference_pool_recency(suspect_low)
     suspect_low.sort(key=peer_pool_quality_rank)
     _append(suspect_low)
     if len(merged) >= limit:
@@ -1026,6 +1037,7 @@ def _merge_eligible_reference_rows(
         or []
     )
     ineligible = [r for r in ineligible if not is_clean_boost_attribution(r.get("boost_attribution"))]
+    _annotate_reference_pool_recency(ineligible)
     ineligible.sort(key=peer_pool_quality_rank)
     _append(ineligible)
     return merged[:limit]
