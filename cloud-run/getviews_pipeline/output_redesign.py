@@ -18,6 +18,8 @@ import json
 from typing import Any
 
 from getviews_pipeline.claim_tiers import CLAIM_TIERS, should_cite_niche_norms
+from getviews_pipeline.corpus_windows import corpus_citation_window_days
+from getviews_pipeline.formatters import timeframe_vi
 
 _HI9_SYNTHESIS_HINT = """---
 ## Tín hiệu HI-9 / HI-16 trong JSON phân tích (content_context / niche_classification)
@@ -586,6 +588,7 @@ def build_diagnosis_narrative_prompt(
         reference_evidence_block: Pre-rendered lines of allowed aweme_ids for citations.
     """
     analysis_focus = get_analysis_focus(content_format)
+    corpus_window_label = timeframe_vi(corpus_citation_window_days())
     niche_meta_json = json.dumps(niche_meta, ensure_ascii=False, indent=2)
     niche_meta_adequacy = _niche_norms_adequacy_block(corpus_size)
     ref_videos_json = json.dumps(reference_videos, ensure_ascii=False, indent=2)
@@ -728,7 +731,7 @@ Format được phát hiện: **{content_format}**
 ## DỮ LIỆU ĐẦU VÀO
 
 **Niche:** {niche_name}
-**Quy mô kho video (30 ngày):** {corpus_size} video
+**Quy mô kho video ({corpus_window_label}):** {corpus_size} video
 
 {niche_meta_adequacy}
 **Niche norms (từ niche_intelligence):**
@@ -950,6 +953,7 @@ def build_carousel_diagnosis_narrative_prompt(
         wants_directions:          If True, appends direction generation instruction.
     """
     analysis_focus = get_carousel_analysis_focus(carousel_format)
+    corpus_window_label = timeframe_vi(corpus_citation_window_days())
     niche_meta_json = json.dumps(niche_meta, ensure_ascii=False, indent=2)
     niche_meta_adequacy = _niche_norms_adequacy_block(corpus_size)
     ref_carousels_json = json.dumps(reference_carousels, ensure_ascii=False, indent=2)
@@ -1004,7 +1008,7 @@ Format được phát hiện: **{carousel_format}**
 ## DỮ LIỆU ĐẦU VÀO
 
 **Ngách:** {niche_name}
-**Quy mô kho video (30 ngày):** {corpus_size} carousel
+**Quy mô kho video ({corpus_window_label}):** {corpus_size} carousel
 
 {niche_meta_adequacy}
 **Niche norms (carousel):**

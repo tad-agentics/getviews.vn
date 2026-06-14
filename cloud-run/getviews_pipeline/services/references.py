@@ -16,6 +16,10 @@ from getviews_pipeline.pipelines import (  # noqa: E402
     _select_by_proximity_then_er,
     _slim_reference_video,
 )
+from getviews_pipeline.corpus_windows import (
+    corpus_reference_fetch_days,
+    corpus_reference_pick_days,
+)
 
 
 def _proximity_score_for_ref(
@@ -148,10 +152,12 @@ async def select_synthesis_references_for_video(
         return [], [], ""
 
     ref_limit = ref_n if ref_n is not None and ref_n > 0 else REF_N
+    fetch_days = corpus_reference_fetch_days()
+    pick_days = corpus_reference_pick_days()
 
     corpus_pool = await fetch_corpus_reference_pool(
         niche,
-        days=30,
+        days=fetch_days,
         limit=40,
         exclude_video_id=target_id,
         content_class_id=content_class_id,
@@ -183,12 +189,12 @@ async def select_synthesis_references_for_video(
             video_hashtags=video_hashtags,
             cached_ids=cached_ids,
             n=ref_limit,
-            recency_days=30,
+            recency_days=pick_days,
             user_subject_matter=user_subject_matter,
         )
     else:
         corpus_source = "live_search" if len(corpus_pool) == 0 else "sparse_fallback"
-        live_pool = await _niche_aweme_pool(niche, period=30)
+        live_pool = await _niche_aweme_pool(niche, period=fetch_days)
         for v in live_pool:
             v.setdefault("niche_label", niche)
         pool = corpus_pool + [v for v in live_pool if v.get("aweme_id") not in cached_ids]
@@ -198,7 +204,7 @@ async def select_synthesis_references_for_video(
             video_hashtags=video_hashtags,
             cached_ids=cached_ids,
             n=ref_limit,
-            recency_days=30,
+            recency_days=pick_days,
             user_subject_matter=user_subject_matter,
         )
 
@@ -210,7 +216,7 @@ async def select_synthesis_references_for_video(
         niche=niche,
         cached_ids=cached_ids,
         n=ref_limit,
-        recency_days=30,
+        recency_days=pick_days,
         user_subject_matter=user_subject_matter,
     )
 

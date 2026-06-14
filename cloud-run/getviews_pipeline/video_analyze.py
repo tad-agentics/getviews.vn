@@ -26,6 +26,11 @@ from getviews_pipeline.corpus_context import (
     format_creator_format_history_for_diagnosis,
     get_creator_format_history_sync,
 )
+from getviews_pipeline.corpus_windows import (
+    corpus_benchmark_window_days,
+    corpus_reference_fetch_days,
+    corpus_reference_pick_days,
+)
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
     fetch_video_benchmark_with_axis,
@@ -309,7 +314,7 @@ def fetch_niche_save_share_pct_quantiles_sync(
         return cached[1]
 
     try:
-        since = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+        since = (datetime.now(UTC) - timedelta(days=corpus_benchmark_window_days())).isoformat()
         res = (
             sb.table("video_corpus")
             .select("views, shares, saves")
@@ -1015,10 +1020,10 @@ async def _live_search_references_for_finalize(
     from getviews_pipeline.pipelines import REF_N, _niche_aweme_pool, _slim_reference_video
     from getviews_pipeline.runtime import get_analysis_semaphore
 
-    pool = await _niche_aweme_pool(niche_name, period=30)
+    pool = await _niche_aweme_pool(niche_name, period=corpus_reference_fetch_days())
     skip = {target_video_id} if target_video_id else set()
     picks = select_reference_videos(
-        pool, recency_days=30, n=REF_N, cached_ids=skip, rank_by="er"
+        pool, recency_days=corpus_reference_pick_days(), n=REF_N, cached_ids=skip, rank_by="er"
     )
     if not picks:
         return [], []

@@ -4,7 +4,7 @@ Floors match ``phase-c-plan.md`` §C.0.3: Pattern 30, Ideas 60, Timing 80.
 2026-05-07: extended with Lifecycle 80 (same density needs as timing —
 per-format aggregates over week-over-week windows) and Diagnostic 30
 (niche benchmarks are aggregate + forgiving; same floor as pattern).
-Prefer 7d → widen to 14d → 30d until the floor is met.
+Prefer 7d → widen to 14d → 30d → 60d until the floor is met.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
+from getviews_pipeline.corpus_windows import corpus_adaptive_max_days
 from getviews_pipeline.postgrest_time import indexed_at_cutoff_iso
 from getviews_pipeline.supabase_client import get_service_client
 
@@ -54,10 +55,10 @@ def count_video_corpus_for_niche(niche_id: int, days: int) -> int:
 
 
 def choose_adaptive_window_days(niche_id: int, report_kind: ReportKind) -> int:
-    """Return 7, 14, or 30 — smallest window where corpus count ≥ format floor.
+    """Return 7, 14, 30, or 60 — smallest window where corpus count ≥ format floor.
 
     Unknown/no niche → **7** (caller uses stubs; strip still reflects policy).
-    If all windows are below floor, returns **30** (widest honest window).
+    If all windows are below floor, returns **60** (widest honest window).
     """
     floors: dict[ReportKind, int] = {
         "pattern": PATTERN_SAMPLE_FLOOR,
@@ -70,8 +71,14 @@ def choose_adaptive_window_days(niche_id: int, report_kind: ReportKind) -> int:
     if niche_id <= 0:
         return 7
 
-    for days in (7, 14, 30):
+    max_days = corpus_adaptive_max_days()
+    ladder = (7, 14, 30, max_days)
+    seen: set[int] = set()
+    for days in ladder:
+        if days in seen:
+            continue
+        seen.add(days)
         n = count_video_corpus_for_niche(niche_id, days)
         if n >= floor:
             return days
-    return 30
+    return max_days

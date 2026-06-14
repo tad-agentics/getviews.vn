@@ -5,8 +5,8 @@ real corpus counts into the Gemini prompt. The count is cached in-session so
 follow-up questions don't re-query Supabase.
 
 Usage pattern (P0-1):
-    count, niche_name = await get_corpus_count(niche_id=3, days=30)
-    citation = citation_vi(count, niche_name, days=30)
+    count, niche_name = await get_corpus_count(niche_id=3)
+    citation = citation_vi(count, niche_name, days=corpus_citation_window_days())
     # → "Dựa trên 412 video review đồ gia dụng tháng này"
     # Inject into synthesis prompt context block.
 """
@@ -23,6 +23,10 @@ from getviews_pipeline.claim_tiers import (
     CLAIM_TIERS,
     HOOK_EFFECTIVENESS_MIN_PER_BUCKET,
     should_cite_hook_effectiveness,
+)
+from getviews_pipeline.corpus_windows import (
+    corpus_citation_window_days,
+    corpus_reference_fetch_days,
 )
 from getviews_pipeline.extraction_quality import (
     is_clean_boost_attribution,
@@ -147,7 +151,7 @@ def _resolve_niche_id(client: Any, niche_name: str) -> int | None:
 async def get_corpus_count(
     niche_id: int | None,
     *,
-    days: int = 30,
+    days: int | None = None,
     niche_name: str = "",
 ) -> tuple[int, str]:
     """Query video_corpus count for a niche within the given recency window.
@@ -160,10 +164,12 @@ async def get_corpus_count(
 
     Args:
         niche_id:   Niche PK from niche_taxonomy. None = count across all niches.
-        days:       Recency window in days (default 30).
+        days:       Recency window in days (default: corpus_citation_window_days()).
         niche_name: Human-readable Vietnamese niche label (e.g. "review đồ gia dụng").
                     Used as the name in the citation string.
     """
+    if days is None:
+        days = corpus_citation_window_days()
     try:
         client = _anon_client()
         query = (
@@ -348,7 +354,7 @@ async def get_corpus_count_cached(
     session: dict[str, Any],
     niche_id: int | None,
     *,
-    days: int = 30,
+    days: int | None = None,
     niche_name: str = "",
 ) -> tuple[int, str]:
     """get_corpus_count with in-session caching.
@@ -766,15 +772,37 @@ async def get_cached_analysis(video_id: str) -> dict[str, Any] | None:
         return None
 
 
+def _reference_recency_fields(row: dict[str, Any]) -> tuple[int, int]:
+    """Return (days_ago, create_time_unix) for peer pick filter.
+
+    Prefer ``posted_at`` (TikTok publish date) over ``indexed_at`` so re-indexed
+    older posts stay citable when still within the pick window.
+    """
+    import math
+    from datetime import datetime
+
+    now = datetime.now(UTC)
+    for field in ("posted_at", "indexed_at"):
+        raw = row.get(field)
+        if not raw:
+            continue
+        try:
+            dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+            days_ago = max(0, math.floor((now - dt).total_seconds() / 86400))
+            return days_ago, int(dt.timestamp())
+        except (TypeError, ValueError, OSError):
+            continue
+    return 0, 0
+
+
 def _build_reference_awemes_from_rows(
     rows: list[dict[str, Any]],
     *,
     exclude_video_id: str | None,
 ) -> list[dict[str, Any]]:
     """Map ``video_corpus`` PostgREST rows → aweme-shaped dicts for ref selection."""
-    import math
-    from datetime import datetime
-
     awemes: list[dict[str, Any]] = []
     for row in rows:
         vid = row.get("video_id") or ""
@@ -793,17 +821,7 @@ def _build_reference_awemes_from_rows(
             )
             continue
 
-        indexed_at_str = row.get("indexed_at") or ""
-        try:
-            indexed_dt = datetime.fromisoformat(indexed_at_str.replace("Z", "+00:00"))
-            days_ago = max(
-                0,
-                math.floor((datetime.now(UTC) - indexed_dt).total_seconds() / 86400),
-            )
-            create_time = int(indexed_dt.timestamp())
-        except Exception:
-            days_ago = 0
-            create_time = 0
+        days_ago, create_time = _reference_recency_fields(row)
 
         breakout = float(row.get("breakout_multiplier") or 0.0)
 
@@ -1055,13 +1073,15 @@ def _fetch_corpus_reference_rows(
 def fetch_corpus_reference_pool_sync(
     niche_name: str,
     *,
-    days: int = 30,
+    days: int | None = None,
     limit: int = 40,
     exclude_video_id: str | None = None,
     content_class_id: int | None = None,
     legacy_niche_id: int | None = None,
 ) -> list[dict[str, Any]]:
     """Sync corpus ref pool (no thumbnail repair) for ``finalize_video_narrative_layer``."""
+    if days is None:
+        days = corpus_reference_fetch_days()
     try:
         client = _anon_client()
         niche_id = int(legacy_niche_id) if legacy_niche_id else _resolve_niche_id(client, niche_name)
@@ -1095,7 +1115,7 @@ def fetch_corpus_reference_pool_sync(
 async def fetch_corpus_reference_pool(
     niche_name: str,
     *,
-    days: int = 30,
+    days: int | None = None,
     limit: int = 20,
     exclude_video_id: str | None = None,
     content_class_id: int | None = None,
@@ -1112,6 +1132,8 @@ async def fetch_corpus_reference_pool(
     consume them. Falls back to [] on any error so callers can fall through
     to the live search pool.
     """
+    if days is None:
+        days = corpus_reference_fetch_days()
     try:
         client = _anon_client()
         niche_id = int(legacy_niche_id) if legacy_niche_id else _resolve_niche_id(client, niche_name)

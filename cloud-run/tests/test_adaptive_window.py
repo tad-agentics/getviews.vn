@@ -49,12 +49,12 @@ def test_ideas_needs_higher_count(monkeypatch: pytest.MonkeyPatch) -> None:
     assert choose_adaptive_window_days(3, "ideas") == 14
 
 
-def test_returns_30_when_never_meets_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_returns_max_window_when_never_meets_floor(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "getviews_pipeline.adaptive_window.count_video_corpus_for_niche",
         lambda _n, _d: 5,
     )
-    assert choose_adaptive_window_days(3, "pattern") == 30
+    assert choose_adaptive_window_days(3, "pattern") == 60
 
 
 # ── Lifecycle + diagnostic report kinds (2026-05-07) ────────────────────────
@@ -91,6 +91,20 @@ def test_lifecycle_widens_further_when_14d_still_thin(
     )
     # Lifecycle needs 80 — only 30d clears it.
     assert choose_adaptive_window_days(3, "lifecycle") == 30
+
+
+def test_lifecycle_widens_to_60_when_only_max_clears_floor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake(niche_id: int, days: int) -> int:
+        _ = niche_id
+        return {7: 40, 14: 60, 30: 70, 60: 120}.get(days, 0)
+
+    monkeypatch.setattr(
+        "getviews_pipeline.adaptive_window.count_video_corpus_for_niche",
+        fake,
+    )
+    assert choose_adaptive_window_days(3, "lifecycle") == 60
 
 
 def test_diagnostic_uses_pattern_floor_30(monkeypatch: pytest.MonkeyPatch) -> None:

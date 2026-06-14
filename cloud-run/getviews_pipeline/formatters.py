@@ -32,6 +32,7 @@ _TIMEFRAME_VI: dict[int, str] = {
     7: "tuần này",
     14: "2 tuần qua",
     30: "tháng này",
+    60: "2 tháng qua",
     90: "3 tháng qua",
 }
 
@@ -45,7 +46,8 @@ def timeframe_vi(days: int) -> str:
         7  → "tuần này"
         30 → "tháng này"
         14 → "2 tuần qua"
-        60 → "3 tháng qua"  (snaps to nearest bucket above)
+        60 → "2 tháng qua"
+        90 → "3 tháng qua"  (snaps to nearest bucket above)
     """
     for threshold, phrase in sorted(_TIMEFRAME_VI.items()):
         if days <= threshold:

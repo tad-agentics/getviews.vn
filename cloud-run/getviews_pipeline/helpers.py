@@ -83,13 +83,17 @@ def _engagement_rate(aweme: dict[str, Any]) -> float:
 def select_reference_videos(
     search_results: list[dict[str, Any]],
     *,
-    recency_days: int = 30,
+    recency_days: int | None = None,
     n: int = 3,
     cached_ids: set[str] | None = None,
     now: float | None = None,
     rank_by: str = "er",
 ) -> list[dict[str, Any]]:
     """Rank by ER or velocity; enforce creator diversity; recency window; skip cached ids."""
+    if recency_days is None:
+        from getviews_pipeline.corpus_windows import corpus_reference_pick_days
+
+        recency_days = corpus_reference_pick_days()
     t = now if now is not None else time.time()
     cutoff = t - (recency_days * 86400)
     skip = cached_ids or set()

@@ -359,6 +359,37 @@ async def batch_douyin_ingest(
     })
 
 
+@router.post("/batch/backfill-boost-attribution")
+async def batch_backfill_boost_attribution(
+    request: Request,
+    dry_run: bool = Query(False),
+    limit: int = Query(0, ge=0),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Reclassify legacy ``unknown`` boost_attribution rows (metadata-only, no Gemini)."""
+    from getviews_pipeline.boost_attribution_backfill import run_boost_attribution_backfill_sync
+    from getviews_pipeline.runtime import run_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info(
+        "POST /batch/backfill-boost-attribution dry_run=%s limit=%d",
+        dry_run,
+        limit,
+    )
+    try:
+        stats = await run_sync(
+            run_boost_attribution_backfill_sync,
+            get_service_client(),
+            limit=limit,
+            dry_run=dry_run,
+        )
+    except Exception as exc:
+        logger.exception("boost attribution backfill failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({"ok": True, **stats})
+
+
 @router.post("/batch/reingest-videos")
 async def batch_reingest_videos(
     request: Request,

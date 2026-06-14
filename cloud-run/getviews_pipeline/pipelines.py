@@ -26,6 +26,12 @@ from getviews_pipeline.corpus_context import (
     lookup_trending_sound_profile_for_diagnosis,
     resolve_niche_id_cached,
 )
+from getviews_pipeline.corpus_windows import (
+    corpus_benchmark_window_days,
+    corpus_citation_window_days,
+    corpus_reference_fetch_days,
+    corpus_reference_pick_days,
+)
 from getviews_pipeline.corpus_ingest import classify_format
 from getviews_pipeline.enum_labels_vi import carousel_subformat_vi
 from getviews_pipeline.gemini import (
@@ -644,7 +650,7 @@ def _format_avg_views_for_diagnosis(niche_id: int, content_format: str) -> float
                 v_mv = mv_med if mv_med is not None else mv_avg
                 if v_mv is not None and float(v_mv) > 0:
                     return float(v_mv)
-        since_dt = datetime.now(UTC) - timedelta(days=30)
+        since_dt = datetime.now(UTC) - timedelta(days=corpus_benchmark_window_days())
         since_iso = since_dt.isoformat()
         client = get_service_client()
 
@@ -689,7 +695,7 @@ def fetch_format_corpus_enrichment_sync(
     if not content_format or not niche_id:
         return None, None, []
     try:
-        since_dt = datetime.now(UTC) - timedelta(days=30)
+        since_dt = datetime.now(UTC) - timedelta(days=corpus_benchmark_window_days())
         since_iso = since_dt.isoformat()
         client = get_service_client()
         res = (
@@ -929,10 +935,12 @@ def _select_by_proximity_then_er(
     video_hashtags: list[str],
     cached_ids: set[str],
     n: int,
-    recency_days: int = 30,
+    recency_days: int | None = None,
     user_subject_matter: str | None = None,
 ) -> list[dict[str, Any]]:
     """Like select_reference_videos but primary sort is content proximity."""
+    if recency_days is None:
+        recency_days = corpus_reference_pick_days()
     t = time.time()
     cutoff = t - (recency_days * 86400)
     skip = cached_ids
@@ -982,10 +990,12 @@ async def _maybe_merge_content_targeted_refs_async(
     niche: str,
     cached_ids: set[str],
     n: int,
-    recency_days: int = 30,
+    recency_days: int | None = None,
     user_subject_matter: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """If all top picks have zero proximity, supplement pool from ED (user-video keywords)."""
+    if recency_days is None:
+        recency_days = corpus_reference_pick_days()
     if not picks or not (video_desc.strip() or video_hashtags):
         return pool, picks
     topn = picks[: min(3, len(picks))]
@@ -1513,9 +1523,11 @@ async def _load_corpus_ref_pool_and_picks(
     legacy_niche_id: int | None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], str]:
     """Corpus ref pool + proximity picks (+ content-targeted merge)."""
+    fetch_days = corpus_reference_fetch_days()
+    pick_days = corpus_reference_pick_days()
     corpus_pool = await fetch_corpus_reference_pool(
         niche,
-        days=30,
+        days=fetch_days,
         limit=40,
         exclude_video_id=uid or None,
         content_class_id=content_class_id,
@@ -1532,7 +1544,7 @@ async def _load_corpus_ref_pool_and_picks(
             video_hashtags=video_hashtags,
             cached_ids=cached_ids,
             n=REF_N,
-            recency_days=30,
+            recency_days=pick_days,
         )
         logger.info(
             "[ref_source] niche=%s class=%s corpus_hit=true corpus_size=%d",
@@ -1551,7 +1563,7 @@ async def _load_corpus_ref_pool_and_picks(
             REF_N,
             corpus_source,
         )
-        pool = await _niche_aweme_pool(niche, period=30)
+        pool = await _niche_aweme_pool(niche, period=fetch_days)
         for v in pool:
             v.setdefault("niche_label", niche)
         picks = _select_by_proximity_then_er(
@@ -1560,7 +1572,7 @@ async def _load_corpus_ref_pool_and_picks(
             video_hashtags=video_hashtags,
             cached_ids=cached_ids,
             n=REF_N,
-            recency_days=30,
+            recency_days=pick_days,
         )
 
     pool, picks = await _maybe_merge_content_targeted_refs_async(
@@ -1571,7 +1583,7 @@ async def _load_corpus_ref_pool_and_picks(
         niche=niche,
         cached_ids=cached_ids,
         n=REF_N,
-        recency_days=30,
+        recency_days=pick_days,
     )
     return corpus_pool, pool, picks, corpus_source
 
@@ -1803,13 +1815,14 @@ async def run_video_diagnosis(
     except (TypeError, ValueError) as exc:
         logger.debug("[corpus_queue] skip enqueue niche_id=%r: %s", niche_id, exc)
 
+    citation_days = corpus_citation_window_days()
     count, niche_name = await get_corpus_count_cached(
-        session, niche_id=niche_id, days=30, niche_name=niche
+        session, niche_id=niche_id, days=citation_days, niche_name=niche
     )
     citation = build_corpus_citation_block(
         count,
         niche_name,
-        days=30,
+        days=citation_days,
         reference_count=len(references),
         source=corpus_source,
     )

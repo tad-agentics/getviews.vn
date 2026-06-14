@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Corpus window 60d (split-window + peer pool extension)
+
+- **Split-window:** MV/benchmarks, peer fetch/pick, citation copy, and adaptive max default to **60 days** (env: `CORPUS_BENCHMARK_WINDOW_DAYS`, `CORPUS_REFERENCE_FETCH_DAYS`, `CORPUS_REFERENCE_PICK_DAYS`, `CORPUS_CITATION_WINDOW_DAYS`, `CORPUS_ADAPTIVE_MAX_DAYS`). Ingest discovery stays `BATCH_RECENCY_DAYS=30`.
+- **Peer pick:** `_reference_recency_fields()` prefers `posted_at` over `indexed_at` so 31–60d indexed rows can surface as inline references when posted recently.
+- **Boost backfill:** SQL + `POST /batch/backfill-boost-attribution` reclassify legacy `unknown` rows before widening pool (migration `20260915000000`).
+- **Copy:** `timeframe_vi(60)` → «2 tháng qua»; adaptive ladder adds 60d step.
+
 ## 2026-06-14 — Corpus extraction quality + synthesis-context hygiene
 
 - **Batch pod verified:** `CORPUS_INGEST_MODE=purity` live on `getviews-pipeline-batch` (Tier-3 post-extract gates active).

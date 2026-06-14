@@ -176,6 +176,36 @@ class _PipelineSettings(BaseSettings):
         description="Phase 4: when false, skip nightly refresh_niche_intelligence RPC",
     )
     corpus_boost_hard_reject: bool = Field(default=False)
+    corpus_benchmark_window_days: int = Field(
+        default=60,
+        ge=7,
+        le=180,
+        description="content_class_intelligence MV indexed_at window (days)",
+    )
+    corpus_reference_fetch_days: int = Field(
+        default=60,
+        ge=7,
+        le=180,
+        description="Reference pool PostgREST query window (indexed_at)",
+    )
+    corpus_reference_pick_days: int = Field(
+        default=60,
+        ge=7,
+        le=180,
+        description="Proximity pick recency filter (posted_at, else indexed_at)",
+    )
+    corpus_citation_window_days: int = Field(
+        default=60,
+        ge=7,
+        le=180,
+        description="get_corpus_count + synthesis citation timeframe",
+    )
+    corpus_adaptive_max_days: int = Field(
+        default=60,
+        ge=7,
+        le=180,
+        description="Adaptive report window ladder cap (after 7/14/30)",
+    )
     corpus_postextract_hook_cap: int = Field(default=3, ge=1)
     corpus_hook_cap_breakout_bypass: float = Field(default=3.0, ge=0.0)
     corpus_purity_vpn_default: int = Field(default=15, ge=1)
