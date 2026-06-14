@@ -1254,6 +1254,31 @@ async def batch_analytics(
     })
 
 
+@router.post("/batch/signal-calibration")
+async def batch_signal_calibration(
+    request: Request,
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Weekly outcome-driven viral-score weight + lever ρ calibration."""
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.runtime import run_sync
+    from getviews_pipeline.signal_calibration import run_signal_calibration
+    from getviews_pipeline.supabase_client import get_service_client
+
+    client = get_service_client()
+    logger.info("POST /batch/signal-calibration triggered")
+
+    async with record_job_run(client, "batch/signal-calibration") as obs_summary:
+        try:
+            summary = await run_sync(run_signal_calibration, client)
+        except Exception as exc:
+            logger.exception("Batch signal calibration failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(summary)
+
+    return JSONResponse({"ok": True, **summary})
+
+
 @router.post("/batch/layer0")
 async def batch_layer0(
     request: Request,

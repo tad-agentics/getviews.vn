@@ -125,10 +125,46 @@ def _mode_hour(rows: list[dict[str, Any]]) -> int | None:
     return Counter(hours).most_common(1)[0][0]
 
 
+def _circular_hour_diff(h1: int, h2: int) -> int:
+    raw = abs(h1 - h2)
+    return min(raw, 24 - raw)
+
+
+def compute_alignment_components(
+    *,
+    hook_type: str | None,
+    content_format: str | None,
+    posting_hour: int | None,
+    niche_top30: list[dict[str, Any]],
+    niche_peak_hour: int | None,
+) -> tuple[float, float, float] | None:
+    """Shared alignment math for backtest + calibration (TD-7 parity)."""
+    if len(niche_top30) < NICHE_MIN_SAMPLE:
+        return None
+    if not hook_type or not content_format:
+        return None
+
+    pool = niche_top30[:TOP_N]
+    hook_hits = sum(1 for r in pool if r.get("hook_type") == hook_type)
+    format_hits = sum(1 for r in pool if r.get("content_format") == content_format)
+    hook_align = hook_hits / TOP_N
+    format_align = format_hits / TOP_N
+
+    if posting_hour is None or niche_peak_hour is None:
+        time_align = 0.0
+    else:
+        diff_h = _circular_hour_diff(int(posting_hour), int(niche_peak_hour))
+        time_align = max(0.0, 1.0 - diff_h / TIME_DECAY_WINDOW_H)
+
+    return hook_align, format_align, time_align
+
+
 def compute_viral_score(
     inputs: ViralScoreInputs,
     niche_top30: list[dict[str, Any]],
     niche_peak_hour: int | None,
+    *,
+    weights: tuple[float, float, float] | None = None,
 ) -> ViralScoreResult:
     """Score one video against its niche's top-30 reference pool.
 
@@ -136,6 +172,8 @@ def compute_viral_score(
     an ``insufficient_reason`` string so callers can surface the right
     "Chưa đủ data" message instead of a misleading zero.
     """
+    wh, wf, wt = weights if weights is not None else (W_HOOK, W_FORMAT, W_TIME)
+
     # Niche sample gate — the single most important graceful-fail path.
     if len(niche_top30) < NICHE_MIN_SAMPLE:
         return ViralScoreResult(
@@ -158,24 +196,27 @@ def compute_viral_score(
             insufficient_reason="missing_content_format",
         )
 
-    # Use exactly the first TOP_N rows of niche_top30 (caller pre-sorted
-    # DESC by breakout). Extra rows would inflate the denominator.
-    pool = niche_top30[:TOP_N]
+    align = compute_alignment_components(
+        hook_type=inputs.hook_type,
+        content_format=inputs.content_format,
+        posting_hour=inputs.posting_hour,
+        niche_top30=niche_top30,
+        niche_peak_hour=niche_peak_hour,
+    )
+    if align is None:
+        return ViralScoreResult(
+            score=None, hook_alignment=None, format_alignment=None,
+            time_alignment=None, reasons=[],
+            insufficient_reason="insufficient_niche_sample",
+        )
 
-    hook_hits = sum(1 for r in pool if r.get("hook_type") == inputs.hook_type)
-    format_hits = sum(1 for r in pool if r.get("content_format") == inputs.content_format)
-
-    hook_align = hook_hits / TOP_N
-    format_align = format_hits / TOP_N
+    hook_align, format_align, time_align = align
 
     if inputs.posting_hour is None or niche_peak_hour is None:
-        time_align = 0.0
         time_reason = "Chưa có giờ đăng — bỏ qua tín hiệu thời điểm."
     else:
-        # Circular clock distance — 23h vs 0h is 1 hour, not 23.
         raw_diff = abs(inputs.posting_hour - niche_peak_hour)
         diff_h = min(raw_diff, 24 - raw_diff)
-        time_align = max(0.0, 1 - diff_h / TIME_DECAY_WINDOW_H)
         if diff_h == 0:
             time_reason = f"Đăng đúng giờ đỉnh của ngách ({niche_peak_hour}h)."
         else:
@@ -183,7 +224,11 @@ def compute_viral_score(
                 f"Đăng lệch {diff_h}h so với giờ đỉnh ngách ({niche_peak_hour}h)."
             )
 
-    score = round(100 * (W_HOOK * hook_align + W_FORMAT * format_align + W_TIME * time_align))
+    pool = niche_top30[:TOP_N]
+    hook_hits = sum(1 for r in pool if r.get("hook_type") == inputs.hook_type)
+    format_hits = sum(1 for r in pool if r.get("content_format") == inputs.content_format)
+
+    score = round(100 * (wh * hook_align + wf * format_align + wt * time_align))
 
     reasons = [
         f"Hook {inputs.hook_type!r}: {hook_hits}/{TOP_N} top video ngách dùng cùng kiểu.",
@@ -307,7 +352,7 @@ def _fetch_scoreable_rows_sync(
         client.table("video_corpus")
         .select(
             # niche_id dropped (Phase C); alias legacy-niche surrogate to the old key.
-            "video_id,niche_id:ingest_loop_niche_id,hook_type,content_format,"
+            "video_id,niche_id:ingest_loop_niche_id,content_class_id,hook_type,content_format,"
             "posting_hour,breakout_multiplier"
         )
         .not_.is_("breakout_multiplier", "null")
@@ -336,6 +381,8 @@ def _score_one(
     sample: dict[str, Any],
     niche_pool: list[dict[str, Any]],
     peak_hour: int | None,
+    *,
+    weights: tuple[float, float, float] | None = None,
 ) -> ViralScoreResult:
     inputs = ViralScoreInputs(
         niche_id=int(sample["niche_id"]),
@@ -343,7 +390,7 @@ def _score_one(
         content_format=sample.get("content_format"),
         posting_hour=sample.get("posting_hour"),
     )
-    return compute_viral_score(inputs, niche_pool[:TOP_N], peak_hour)
+    return compute_viral_score(inputs, niche_pool[:TOP_N], peak_hour, weights=weights)
 
 
 async def run_viral_score_backtest(
@@ -374,12 +421,23 @@ async def run_viral_score_backtest(
     sampled = rng.sample(all_rows, k=min(sample_size, len(all_rows)))
 
     scored: list[tuple[float, int]] = []  # (breakout_multiplier, score)
+    scored_static: list[tuple[float, int]] = []
     by_niche_scored: dict[int, list[int]] = {}
     insufficient_reasons: Counter[str] = Counter()
+    from getviews_pipeline.signal_calibration import viral_score_weights
+
     for sample in sampled:
         nid = int(sample["niche_id"])
         pool = by_niche.get(nid, [])
-        result = _score_one(sample, pool, peak_hour_by_niche.get(nid))
+        cc_raw = sample.get("content_class_id")
+        cc_id = int(cc_raw) if cc_raw is not None else None
+        adopted_weights = viral_score_weights(cc_id)
+        result = _score_one(
+            sample, pool, peak_hour_by_niche.get(nid), weights=adopted_weights,
+        )
+        static_result = _score_one(
+            sample, pool, peak_hour_by_niche.get(nid), weights=(W_HOOK, W_FORMAT, W_TIME),
+        )
         if result.score is None:
             insufficient_reasons[result.insufficient_reason or "unknown"] += 1
             continue
@@ -389,11 +447,20 @@ async def run_viral_score_backtest(
             # through, don't corrupt the correlation.
             continue
         scored.append((float(mult), result.score))
+        if static_result.score is not None:
+            scored_static.append((float(mult), static_result.score))
         by_niche_scored.setdefault(nid, []).append(result.score)
 
     scores = [s for _, s in scored]
     mults = [m for m, _ in scored]
     rho = round(spearman_rho(mults, [float(s) for s in scores]), 4)
+    rho_static = round(
+        spearman_rho(
+            [m for m, _ in scored_static],
+            [float(s) for s, _ in scored_static],
+        ),
+        4,
+    ) if len(scored_static) >= 2 else None
 
     per_niche: list[dict[str, Any]] = []
     for nid, ss in sorted(by_niche_scored.items()):
@@ -417,6 +484,7 @@ async def run_viral_score_backtest(
         "distribution": histogram(scores),
         "quantiles": quantiles(scores),
         "spearman_rho_vs_breakout": rho,
+        "spearman_rho_static_weights": rho_static,
         "spearman_gate": 0.35,
         "spearman_gate_met": rho >= 0.35,
         "per_niche": per_niche,

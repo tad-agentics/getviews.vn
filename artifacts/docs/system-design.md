@@ -308,6 +308,7 @@ See [`artifacts/integrations/marketing-corpus-pick.md`](../integrations/marketin
 | `cron-batch-scene-intelligence` | Daily 21:30 | 04:30+1 | Scene-level corpus analysis |
 | `cron-batch-ingest` | Daily 20:00 | 03:00+1 | Nightly EnsembleData TikTok ingest |
 | `cron-batch-analytics` | Weekly Sunday 21:00 | Mon 04:00 | Weekly analytics roll-up |
+| `cron-batch-signal-calibration` | Weekly Sunday 20:00 | Mon 03:00 | Outcome-driven viral-score weight + lever ρ calibration |
 | `cron-batch-sound-aggregate` | Weekly Monday 21:30 | Tue 04:30 | Sound trending aggregate |
 | `cron-batch-trend-velocity` | Weekly Monday 22:30 | Tue 05:30 | Trend velocity refresh |
 | `cron-pg-net-batch-http-4xx-watch` | Hourly | — | Monitors for 4xx responses to batch pod (Vault misconfiguration alert) |
@@ -540,6 +541,8 @@ Nightly `/batch/ingest` ranks EnsembleData pool candidates with **`instructivene
 **§4.7 M4 — `stats_history` time-series (Launch Phase 2b):** `video_corpus.stats_history` (JSONB, `[{at, phase, views, likes, comments, shares}]`) + `distribution_shape` (`null` | `spike_then_flat`). Batch ingest writes `t0` via `corpus_ingest.make_stats_snapshot`; **`POST /batch/stats-history-refetch`** (batch pod, hourly pg_cron `cron-batch-stats-history-refetch`) appends `t6h`/`t24h` via EnsembleData metadata-only refetch. `engagement_rate` on refetch uses **0–100%** scale (matches `_safe_engagement_rate`). `compute_distribution_shape()` sets `spike_then_flat` when views ≥2× t0→t6h and ER or comments/view drop ≥30% t6h→t24h. Live diagnosis reads history via `video_analyze.py` → `distribution_spike_then_flat` signal (`signals/distribution.py`). Migrations `20260827000002_video_corpus_stats_history_m4.sql` + `20260827000003_cron_batch_stats_history_refetch.sql` — **applied + batch pod `00132-4sg` @ 2026-05-23**.
 
 **Consumers (Phase 4):** `morning_ritual` grounding pool sorts `breakout_multiplier`; ref pool (`corpus_context`) sorts breakout + optional `reference_eligible` filter; `hook_effectiveness_compute` weights by breakout; Trends rail (`useTrendsRailVideos`) class-first 14d `posted_at` breakouts + `reference_eligible` first, pool rotation offset from Home.
+
+**Signal calibration loop (2026-06-14):** Weekly `POST /batch/signal-calibration` learns viral-score weights (`w_hook/w_format/w_time`) + per-lever predictive ρ from corpus `breakout_multiplier`. Append-only tables `signal_calibration` / `signal_predictive_value`; readers ladder class→global→static. Flag `SIGNAL_CALIBRATION_ADAPTIVE` gates adoption: Loop A → `compute_viral_score` weights; Loop B → salience demotion in `build_signal_manifest`; Loop C → `predictive_strength` + `CALIBRATION_PRIORS` in diagnosis synthesis (no new UI).
 
 **Phase 5b (optional):** top-niche ED comment fetch → `comment_radar` when `ED_BATCH_COMMENT_FETCH_ENABLED=true` (gated by shadow overlap metrics in v1 spec §13).
 

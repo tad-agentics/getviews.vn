@@ -58,7 +58,7 @@ Quy tắc:
 
 FINDINGS (đơn vị hiển thị chính của section issue-based):
 - Section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure, commerce): 2-3 findings — đây là phần creator đọc kỹ nhất. Mỗi finding: title_vi (≤10 từ, "Vấn đề — hậu quả"), body_vi (1 câu + số liệu), fix_vi (1 hành động copy-paste: hook template, con số, thao tác cụ thể — KHÔNG "cải thiện hook").
-- BÁM SIGNAL_MANIFEST: salience (0-1) là độ quan trọng đã đo — findings của mỗi section viết từ các signal salience CAO NHẤT của section đó, không chọn signal yếu khi còn signal mạnh chưa dùng. Mỗi finding khớp đúng 1 signal_id trong evidence_anchors; section có signal thì KHÔNG viết finding ngoài manifest.
+- BÁM SIGNAL_MANIFEST: salience (0-1) là độ quan trọng đã đo — findings của mỗi section viết từ các signal salience CAO NHẤT của section đó, không chọn signal yếu khi còn signal mạnh chưa dùng. Mỗi finding khớp đúng 1 signal_id trong evidence_anchors; section có signal thì KHÔNG viết finding ngoài manifest. Khi signal có predictive_strength: dùng để làm sâu lý do «vì sao fix này quan trọng trong ngách» — ưu tiên lever có ρ/trọng số cao; KHÔNG mở section mới.
 - KHÔNG tạo finding về tiết lộ thương mại / #qc / #ad / Luật Quảng cáo disclosure — ngoài phạm vi sản phẩm video diagnosis.
 - Section không issue-based (niche_pattern, channel_pattern, douyin_origin, boost_attribution): findings: [].
 - persona: khi emit riêng hoặc cùng script_structure — section.text 2-3 câu (≤55 từ) về giọng/chân thực; tối đa 2 findings; UI gộp vào trục «Giọng & persona» trong «Phân tích cấu trúc Video».
@@ -107,12 +107,17 @@ BẮT BUỘC RÚT GỌN: Bản trước quá dài. Trả lại JSON đầy đủ
 """
 
 
-def _signal_payload(manifest_trim: dict[str, list[Signal]]) -> list[dict[str, Any]]:
+def _signal_payload(
+    manifest_trim: dict[str, list[Signal]],
+    *,
+    content_class_id: int | None = None,
+) -> list[dict[str, Any]]:
+    from getviews_pipeline.signal_calibration import predictive_strength_for_signal
+
     rows: list[dict[str, Any]] = []
     for sid, sigs in sorted(manifest_trim.items(), key=lambda x: x[0]):
         for s in sigs:
-            rows.append(
-                {
+            row: dict[str, Any] = {
                     "section_id": sid,
                     "signal_id": s.id,
                     "salience": round(s.salience, 3),
@@ -124,7 +129,10 @@ def _signal_payload(manifest_trim: dict[str, list[Signal]]) -> list[dict[str, An
                     ],
                     "suggested_fix": s.suggested_fix,
                 }
-            )
+            ps = predictive_strength_for_signal(s.id, content_class_id)
+            if ps is not None:
+                row["predictive_strength"] = round(ps, 3)
+            rows.append(row)
     return rows
 
 
@@ -299,6 +307,7 @@ def build_diagnosis_v6_user_prompt(
     video_creator_handle: str | None = None,
     hook_leaderboard_block: str = "",
     comment_signal_block: str = "",
+    calibration_priors_block: str = "",
 ) -> str:
     tier = str(performance_tier or "unknown").lower()
     default_titles = {
@@ -318,10 +327,17 @@ def build_diagnosis_v6_user_prompt(
                 for h in (cross_format_signal.get("top_hooks") or [])[:3]
             ],
         }
+    cc_id: int | None = None
+    raw_cc = ctx.get("content_class_id")
+    if raw_cc is not None:
+        try:
+            cc_id = int(raw_cc)
+        except (TypeError, ValueError):
+            cc_id = None
     payload = {
         "SECTIONS_TO_EMIT": sections_to_emit,
         "DEFAULT_TITLES_HINT": default_titles,
-        "SIGNAL_MANIFEST": _signal_payload(manifest_for_llm),
+        "SIGNAL_MANIFEST": _signal_payload(manifest_for_llm, content_class_id=cc_id),
         "CTX_SUMMARY": {
             "niche_name": niche_name,
             "content_format": content_format,
@@ -400,6 +416,8 @@ def build_diagnosis_v6_user_prompt(
         blocks.append(f"\n\n{hook_leaderboard_block}")
     if comment_signal_block:
         blocks.append(f"\n\n{comment_signal_block}")
+    if calibration_priors_block:
+        blocks.append(f"\n\n{calibration_priors_block}")
     if wants_directions:
         blocks.append(
             "\n\nBổ sung sau diagnosis_vi: trong format_cards để 1-4 gợi ý hướng "

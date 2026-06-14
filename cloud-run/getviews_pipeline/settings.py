@@ -218,6 +218,10 @@ class _PipelineSettings(BaseSettings):
         default=False,
         description="Structure-driven retention curve + risk_events (else synthetic decay)",
     )
+    signal_calibration_adaptive: bool = Field(
+        default=False,
+        description="Adopt corpus-learned viral weights + salience demotion + synthesis priors",
+    )
     corpus_postextract_hook_cap: int = Field(default=3, ge=1)
     corpus_hook_cap_breakout_bypass: float = Field(default=3.0, ge=0.0)
     corpus_purity_vpn_default: int = Field(default=15, ge=1)

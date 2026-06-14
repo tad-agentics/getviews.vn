@@ -1977,6 +1977,16 @@ def _synthesize_diagnosis_v6_section_pool(
         video_id=str(user_stats.get("video_id") or "") or None,
     )
 
+    calibration_block = ""
+    if _settings.signal_calibration_adaptive:
+        from getviews_pipeline.signal_calibration import build_calibration_priors
+
+        raw_cc = niche_meta.get("content_class_id") if isinstance(niche_meta, dict) else None
+        cc_id = int(raw_cc) if raw_cc is not None else None
+        priors = build_calibration_priors(cc_id)
+        if priors:
+            calibration_block = priors
+
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
     sys_inst = build_voice_domain_system_instruction(include_diagnosis_examples=True)
     user_prompt = build_diagnosis_v6_user_prompt(
@@ -2003,6 +2013,7 @@ def _synthesize_diagnosis_v6_section_pool(
         video_creator_handle=video_creator_handle,
         hook_leaderboard_block=hook_block,
         comment_signal_block=comment_block,
+        calibration_priors_block=calibration_block,
     )
     prompt = _prefix_user_sections(
         [layer0_context or "", creator_format_history_block or ""],

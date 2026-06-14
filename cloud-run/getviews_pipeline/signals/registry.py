@@ -67,7 +67,16 @@ def build_diagnosis_ctx(
     corpus_size: int = 0,
     comment_radar: dict | None = None,
     hook_effectiveness: list[dict] | None = None,
+    content_class_id: int | None = None,
 ) -> dict:
+    cc_id = content_class_id
+    if cc_id is None and isinstance(niche_meta, dict):
+        raw = niche_meta.get("content_class_id")
+        if raw is not None:
+            try:
+                cc_id = int(raw)
+            except (TypeError, ValueError):
+                cc_id = None
     return {
         "user_analysis": user_analysis,
         "user_stats": user_stats,
@@ -81,13 +90,22 @@ def build_diagnosis_ctx(
         "corpus_size": corpus_size,
         "comment_radar": comment_radar if isinstance(comment_radar, dict) else None,
         "hook_effectiveness": list(hook_effectiveness or []),
+        "content_class_id": cc_id,
     }
 
 
 def build_signal_manifest(ctx: dict) -> dict[str, list[Signal]]:
+    from getviews_pipeline.signal_calibration import signal_salience_multiplier
+
+    content_class_id = ctx.get("content_class_id")
+    cc_id = int(content_class_id) if content_class_id is not None else None
+
     manifest: dict[str, list[Signal]] = defaultdict(list)
     for ex in _EXTRACTORS:
         for sig in ex(ctx):
+            multiplier = signal_salience_multiplier(sig.id, cc_id)
+            if multiplier != 1.0:
+                sig.salience = round(sig.salience * multiplier, 4)
             manifest[sig.section_id].append(sig)
 
     for sid in manifest:

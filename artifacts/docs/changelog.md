@@ -5,6 +5,15 @@
 - **Batch breakout (R3):** `prefetch_ingest_batch_context` loads global p50/p75 on the corpus benchmark window (60d); thin cohorts fall back to `global_p50_fallback` instead of `breakout=0`.
 - **Peer pool:** `peer_pool_quality_rank` + proximity pick add a gentle recency tiebreak (≤14d / ≤30d / ≤60d buckets); boost/extraction/breakout still dominate.
 
+## 2026-06-14 — Signal calibration loop (outcome-driven re-weighting) v1
+
+- **DB:** Append-only `signal_calibration` + `signal_predictive_value` tables (migration `20260912000000`); weekly cron `cron-batch-signal-calibration` (`20260912000001`).
+- **Batch:** `POST /batch/signal-calibration` → `run_signal_calibration()` — simplex weight sweep, adopt-only-if-better holdout guard, per-lever predictive ρ.
+- **Flag:** `SIGNAL_CALIBRATION_ADAPTIVE` (default off). When off: shadow job still writes rows; readers return static weights / multiplier 1.0 / no synthesis priors.
+- **Loop A:** `viral_score_weights(class→global→static)` threads into `compute_viral_score` + backtest summary.
+- **Loop B:** `signal_salience_multiplier` applied in `build_signal_manifest` (demote-only, floor 0.5).
+- **Loop C:** `predictive_strength` on `SIGNAL_MANIFEST` + `CALIBRATION_PRIORS` block in diagnosis prompt (deepen existing blocks, no new UI).
+
 ## 2026-06-14 — Structure-driven retention curve (v1)
 
 - **Python:** `model_retention_curve_from_structure()` in `video_structural.py` — deterministic attention-risk curve from scenes + optional ASR segments; `risk_events` with provenance (`asr`/`scene`/`approx`).
