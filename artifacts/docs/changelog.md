@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Diagnosis arc flags promoted (default on)
+
+- **FE:** `VITE_REPORT_PRESENTATION_V2=true` — retention chart, hook timeline strip, header lead chip, cross-format strip, comment next-step, «Xem thêm», structure closing.
+- **Cloud Run (live + batch defaults):** `DIAGNOSIS_HOOK_LEADERBOARD`, `DIAGNOSIS_COMMENT_GROUNDING`, `DIAGNOSIS_RETENTION_STRUCTURAL`, `SIGNAL_CALIBRATION_ADAPTIVE`, `EXTRACTION_SIGNALS_V2`, `DIAGNOSIS_VOICE_LINT_RUNTIME`, `DIAGNOSIS_LEAD_LEVER`, `DIAGNOSIS_WIDE_CONTEXT`, `DIAGNOSIS_SALIENCE_RANK_ONLY`, `DIAGNOSIS_PROPOSED_FINDINGS`.
+- **Still off:** `EXTRACTION_AUDIO_DSP` (Tier 3 deferred). Rollback: set any flag `false` in Cloud Run env or Vercel.
+
 ## 2026-06-14 — Presentation & synthesis-surface quality (v1)
 
 - **FE (`VITE_REPORT_PRESENTATION_V2`):** Retention curve chart (lazy recharts), hook timeline strip, bright-spot / `lead_finding` header chip, cross-format strip in metadata, comment next-step bullet, «Xem thêm» collapsible for capped lists, structure-block closing prose at bottom of «Phân tích cấu trúc Video».
