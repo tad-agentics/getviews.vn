@@ -23,6 +23,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
+from typing import Any
 
 # Mirrors .cursor/rules/copy-rules.mdc — keep in sync. When adding here,
 # also update the doc. The order matters only for deterministic test
@@ -220,6 +221,70 @@ def _is_word_char(ch: str) -> bool:
         return False
     cat = unicodedata.category(ch)
     return cat[0] in ("L", "N")
+
+
+# Soft replacements for runtime scrub (words only — openers need rewrite).
+_SOFT_SCRUB_WORDS: dict[str, str] = {
+    "bùng nổ": "tăng mạnh",
+    "công thức vàng": "cách làm",
+    "triệu view": "view cao",
+    "bí mật": "điểm khác",
+    "tuyệt vời": "ổn",
+    "hoàn hảo": "đủ dùng",
+    "đột phá": "khác biệt",
+    "siêu hot": "đang chạy",
+    "thần thánh": "hiệu quả",
+    "hack": "mẹo",
+    "chiến lược độc quyền": "cách riêng",
+    "ai cũng phải biết": "nên thử",
+    "không thể bỏ qua": "đáng chú ý",
+    "chắc chắn thành công": "có cơ hội",
+}
+
+
+def scrub_forbidden_copy(text: str) -> tuple[str, list[CopyViolation]]:
+    """Return ``text`` with forbidden *words* soft-scrubbed; openers are logged only."""
+    violations = lint_forbidden_copy(text)
+    if not violations:
+        return text, []
+    out = text
+    for phrase, replacement in _SOFT_SCRUB_WORDS.items():
+        pf = _casefold_strip(phrase)
+        while True:
+            m = re.search(re.escape(pf), _casefold_strip(out))
+            if not m:
+                break
+            a, b = m.start(), m.end()
+            out = out[:a] + replacement + out[b:]
+    return out, violations
+
+
+def scrub_vi_strings_in_obj(obj: Any, *, path: str = "") -> tuple[Any, int]:
+    """Walk dict/list; scrub string values whose key ends with ``_vi``."""
+    hits = 0
+    if isinstance(obj, str):
+        if path.endswith("_vi") or path.endswith("_vi]"):
+            cleaned, v = scrub_forbidden_copy(obj)
+            if v:
+                hits += len(v)
+            return cleaned, hits
+        return obj, hits
+    if isinstance(obj, dict):
+        out: dict[str, Any] = {}
+        for k, v in obj.items():
+            child_path = f"{path}.{k}" if path else k
+            cleaned, n = scrub_vi_strings_in_obj(v, path=child_path)
+            out[k] = cleaned
+            hits += n
+        return out, hits
+    if isinstance(obj, list):
+        items: list[Any] = []
+        for i, v in enumerate(obj):
+            cleaned, n = scrub_vi_strings_in_obj(v, path=f"{path}[{i}]")
+            items.append(cleaned)
+            hits += n
+        return items, hits
+    return obj, hits
 
 
 def assert_copy_clean(text: str, *, label: str = "copy") -> None:

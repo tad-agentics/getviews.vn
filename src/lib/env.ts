@@ -32,6 +32,9 @@ const clientEnvSchema = z.object({
    *  Off by default (PayOS is the live payment gateway). Set to ``"true"``
    *  in ``.env.local`` to surface ZaloPay alongside PayOS. */
   VITE_ZALOPAY_ENABLED: VITE_BOOL,
+  /** Feature flag: retention chart, hook timeline strip, bright-spot lead,
+   *  cross-format strip, comment next-steps, and "xem thêm" expand affordances. */
+  VITE_REPORT_PRESENTATION_V2: VITE_BOOL,
 });
 
 export type ClientEnv = z.infer<typeof clientEnvSchema>;
@@ -75,6 +78,7 @@ function loadClientEnv(): ClientEnv {
     VITE_CLOUD_RUN_BATCH_URL: import.meta.env.VITE_CLOUD_RUN_BATCH_URL,
     VITE_R2_PUBLIC_URL: import.meta.env.VITE_R2_PUBLIC_URL,
     VITE_ZALOPAY_ENABLED: import.meta.env.VITE_ZALOPAY_ENABLED,
+    VITE_REPORT_PRESENTATION_V2: import.meta.env.VITE_REPORT_PRESENTATION_V2,
   });
 
   if (!parsed.success) {

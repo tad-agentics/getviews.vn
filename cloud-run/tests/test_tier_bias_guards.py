@@ -230,8 +230,9 @@ def test_v6_lightreel_generative_rules_pinned() -> None:
 
     # Headline names the mechanism with a timestamp, not the symptom.
     assert "gọi đúng CƠ CHẾ kèm mốc giây" in v6
-    # Diagnosis: coined archetype reused downstream + keep-one-thing rule.
-    assert "tên archetype 2-4 từ tự đặt" in v6
+    # Diagnosis: optional coined pattern name + keep-one-thing rule.
+    assert "tên hình mẫu 2-4 từ" in v6
+    assert "KHÔNG bịa archetype" in v6
     assert "GIỮ NGUYÊN có bằng chứng" in v6
     # Niche pattern: induced common denominator of the cited tiles only.
     assert "KHÓA PATTERN" in v6

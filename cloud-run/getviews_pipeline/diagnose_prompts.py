@@ -50,7 +50,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
 Quy tắc:
 
 ĐỘ DÀI & CẤU TRÚC (ưu tiên cao nhất — audience là creator, đọc lướt trên mobile):
-- TỔNG báo cáo ~400-480 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu chứng minh (≤90 từ; script_structure ≤120 từ; hook_analysis ≤100 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 5 câu prose.
+- TỔNG báo cáo ~430-520 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu chứng minh (≤90 từ; script_structure ≤120 từ; hook_analysis ≤100 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 5 câu prose.
 - VERDICT-FIRST: câu đầu mỗi section là kết luận in đậm — đọc các câu đậm xuyên suốt bài là hiểu toàn bộ. Phần còn lại chỉ chứng minh + fix + reference.
 - ĐƠN VỊ CHÍNH là FINDINGS + REFERENCE, KHÔNG phải prose. Khi phân vân giữa viết thêm 1 đoạn giải thích và đưa thêm 1 finding/1 reference tile → luôn chọn finding/reference. Prose chỉ là 1 câu verdict dẫn vào.
 - DẠY VIỆC CẦN LÀM > chẩn đoán. Nén chẩn đoán còn 1 câu; dồn không gian cho fix cụ thể và reference video.
@@ -67,10 +67,12 @@ FINDINGS (đơn vị hiển thị chính của section issue-based):
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
 - Khi USER_EVIDENCE_DIGEST có hook_timeline / scene_pattern: body_vi của finding về hook/editing phải trích đúng mốc giây từ digest («text overlay chỉ xuất hiện 3.2s») — bằng chứng đến từng giây, không phỏng đoán.
 - evidence_ref (BẰNG CHỨNG TRONG CHÍNH CLIP): với mỗi finding ĐIỂM MẠNH (fix_vi «Tiếp tục»/«Giữ») và mỗi finding về hook/nhịp/cảnh, gắn evidence_ref {start_sec, end_sec, label_vi} = khoảng giây TRONG CLIP ĐANG PHÂN TÍCH chứng minh nhận định — lấy từ hook_timeline/scene_pattern trong USER_EVIDENCE_DIGEST. start_sec/end_sec phải nằm trong độ dài video; end_sec > start_sec; label_vi ≤6 từ tiếng Việt. KHÔNG bịa mốc giây khi digest không có timestamp tương ứng → bỏ evidence_ref (null). evidence_ref CHỈ trỏ vào clip đang phân tích, KHÔNG phải video peer.
+- STRIP/DATA (retention_curve, hook_timeline, info_density trong digest): mỗi loại data có → thêm 1 finding (body_vi 1-2 câu đọc số; fix_vi CTA copy-paste; evidence_ref neo mốc giây). KHÔNG dump số trần trong section.text.
+- script_structure KẾT KHỐI: section.text = verdict **in đậm** tóm lại đòn bẩy + khuyến nghị cụ thể + dẫn ≥1 peer tile — phân tích nhịp/retention đi vào findings.
 - CHỐNG pad: mỗi câu advance argument; không lặp ý. evidence_anchors khớp claim trong text.
 
 DIAGNOSIS (2 yêu cầu thêm — Lightreel contract):
-- Câu verdict đặt **tên archetype 2-4 từ tự đặt** cho cách video này làm nội dung («Ảnh catalog tĩnh», «Quy trình đóng hộp», «Mặt người kể chuyện») — findings gọi lại đúng tên đó để hành động bám chẩn đoán.
+- Khi video có pattern rõ: câu verdict có thể đặt **tên hình mẫu 2-4 từ** («Ảnh catalog tĩnh», «Quy trình đóng hộp») — findings gọi lại tên đó. KHÔNG bịa archetype khi video đa dạng/eclectic.
 - Nêu 1 điểm GIỮ NGUYÊN có bằng chứng (kể cả khi video yếu — vd nhịp cắt, giọng đọc, texture cận) — fix không được phá cái đang chạy.
 
 REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
@@ -84,7 +86,7 @@ CHANNEL_PATTERN (Ref-style: kênh tự chứng minh):
 - Nếu channel_context.recent_content_audit có mặt: được trích số đếm thật để nối video này với pattern kênh («video này không có mặt người — X/Y video gần nhất của kênh cũng vậy»; avg_views_with_face vs without nếu có). KHÔNG suy đoán ngoài số đếm.
 
 NICHE_PATTERN:
-- **BẮT BUỘC** embedded_tiles ≥1 (ưu tiên đủ 3) từ REFERENCE_EVIDENCE — video cùng format/công thức hoặc top view ngách; section KHÔNG hợp lệ nếu thiếu tile khi pool có peer. findings: [].
+- **BẮT BUỘC** embedded_tiles ≥1 (ưu tiên đủ 3) từ REFERENCE_EVIDENCE — video cùng format/công thức hoặc top view ngách; section KHÔNG hợp lệ nếu thiếu tile khi pool có peer. Cho phép tối đa **1** finding actionable (title_vi + body_vi + fix_vi) khi có insight cụ thể từ tile — không bắt buộc findings:[].
 - section.text: 1 verdict **in đậm** + 2-3 câu (≤90 từ) nêu công thức đang chiếm view; **1 câu cuối** dẫn sang lưới clip tham chiếu («X clip dưới là video dẫn đầu ngách cùng công thức…»).
 - narrative_vi mỗi tile: 1 câu — peer làm format/hook/nhịp tốt hơn clip đang phân tích ở điểm nào.
 - Nếu có cross_format_signal: 1 câu verdict in đậm — "format X đang chạy ở N ngách / hook nào đạt view cao nhất" + creator học gì. Phải ra conclusion, không chỉ mô tả.
@@ -101,7 +103,7 @@ KHÁCH QUAN VỚI PERFORMANCE_TIER (chống bias kết quả):
 
 DIAGNOSIS_V6_SHORTEN_RETRY_APPEND = """
 BẮT BUỘC RÚT GỌN: Bản trước quá dài. Trả lại JSON đầy đủ cùng schema.
-- TỔNG ≤560 từ (mọi section.text + findings) — ưu tiên giữ đủ 3 trục cấu trúc (script_structure + sound + persona khi có trong SECTIONS_TO_EMIT).
+- TỔNG ≤600 từ (mọi section.text + findings) — ưu tiên giữ đủ 3 trục cấu trúc (script_structure + sound + persona khi có trong SECTIONS_TO_EMIT).
 - Mỗi section.text: ≤90 từ; script_structure ≤120; hook_analysis ≤100; sound/persona ≤55 — 1 verdict **in đậm** + tối đa 4 câu.
 - Giữ đủ findings và embedded_tiles (≥1 tile / thiếu sót rhythm); cắt prose thừa, KHÔNG bỏ fix_vi.
 """
@@ -200,6 +202,8 @@ def build_user_evidence_digest(
     user_analysis: dict[str, Any],
     *,
     extraction_signals_v2: bool = False,
+    wide_context: bool = False,
+    user_stats: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Synthesize the heavy extraction arrays into a compact evidence digest.
 
@@ -209,6 +213,8 @@ def build_user_evidence_digest(
     scene grammar) inside the sections it already writes.
     """
     digest: dict[str, Any] = {}
+    max_scenes = 16 if wide_context else _DIGEST_MAX_SCENES
+    timeline_cap = 12 if wide_context else 6
 
     # Hook timeline → one ordered line: "face_enter 0.2s → first_word 0.5s → text 0.9s"
     # Schema home is hook_analysis.hook_timeline (models.py HookAnalysis);
@@ -219,7 +225,7 @@ def build_user_evidence_digest(
     ) or user_analysis.get("hook_timeline")
     if isinstance(timeline, list) and timeline:
         steps = []
-        for ev in timeline[:6]:
+        for ev in timeline[:timeline_cap]:
             if not isinstance(ev, dict):
                 continue
             # Translate the raw event enum (face_enter, text_overlay…) to its
@@ -234,12 +240,16 @@ def build_user_evidence_digest(
                 steps.append(label)
         if steps:
             digest["hook_timeline"] = " → ".join(steps)
+        if wide_context:
+            digest["hook_timeline_events"] = [
+                ev for ev in timeline if isinstance(ev, dict)
+            ][:timeline_cap]
 
     # Scene grammar → one line per scene: "0.0–2.5s close_up/fast/bold_center: desc"
     scenes = user_analysis.get("scenes")
     if isinstance(scenes, list) and scenes:
         scene_lines: list[str] = []
-        for sc in scenes[:_DIGEST_MAX_SCENES]:
+        for sc in scenes[:max_scenes]:
             if not isinstance(sc, dict):
                 continue
             t0, t1 = sc.get("start_s"), sc.get("end_s")
@@ -264,8 +274,8 @@ def build_user_evidence_digest(
             scene_lines.append(f"{span} {dims}: {desc}".strip())
         if scene_lines:
             digest["scene_pattern"] = scene_lines
-        if len(scenes) > _DIGEST_MAX_SCENES:
-            digest["scene_pattern_note"] = f"({len(scenes)} cảnh, hiển thị {_DIGEST_MAX_SCENES} đầu)"
+        if len(scenes) > max_scenes:
+            digest["scene_pattern_note"] = f"({len(scenes)} cảnh, hiển thị {max_scenes} đầu)"
 
     # What the creator actually SAID — the opening matters most.
     transcript = str(user_analysis.get("audio_transcript") or "").strip()
@@ -323,6 +333,20 @@ def build_user_evidence_digest(
             if forensics:
                 digest["hook_forensics"] = forensics
 
+    if wide_context and isinstance(user_stats, dict):
+        curve = user_stats.get("retention_curve")
+        if isinstance(curve, list) and curve:
+            digest["retention_curve"] = curve[:24]
+        bench = user_stats.get("niche_benchmark_curve")
+        if isinstance(bench, list) and bench:
+            digest["niche_benchmark_curve"] = bench[:24]
+        shape = user_stats.get("distribution_shape")
+        if shape:
+            digest["distribution_shape"] = shape
+        risks = user_stats.get("retention_risk_events")
+        if isinstance(risks, list) and risks:
+            digest["retention_risk_events"] = risks[:5]
+
     return digest
 
 
@@ -353,6 +377,9 @@ def build_diagnosis_v6_user_prompt(
     comment_signal_block: str = "",
     calibration_priors_block: str = "",
     extraction_signals_v2: bool = False,
+    wide_context: bool = False,
+    lead_lever_enabled: bool = False,
+    proposed_findings_enabled: bool = False,
 ) -> str:
     tier = str(performance_tier or "unknown").lower()
     default_titles = {
@@ -410,8 +437,13 @@ def build_diagnosis_v6_user_prompt(
         "cross_format_signal": cross_format_trim,
         "errors_head": (errors or [])[:3],
         "USER_EVIDENCE_DIGEST": build_user_evidence_digest(
-            user_analysis, extraction_signals_v2=extraction_signals_v2
+            user_analysis,
+            extraction_signals_v2=extraction_signals_v2,
+            wide_context=wide_context,
+            user_stats=user_stats,
         ),
+        "lead_lever_enabled": lead_lever_enabled,
+        "proposed_findings_enabled": proposed_findings_enabled,
     }
     # Honesty gate: the retention curve is heuristic until real telemetry
     # exists — the synthesis must never present it as a measurement.
@@ -657,7 +689,7 @@ def build_diagnosis_v6_user_prompt(
             "\n- section.text: 1 verdict **in đậm** + 2-3 câu (≤90 từ) — công thức/format đang chiếm view "
             "trong ngách + video này bám hay lệch; **1 câu cuối** dẫn sang lưới clip («X clip dưới là video "
             "dẫn đầu ngách cùng công thức…»)."
-            "\n- findings: [] (bắt buộc)."
+            "\n- findings: cho phép tối đa **1** finding actionable khi có insight cụ thể từ tile — không bắt buộc findings: []."
             "\n- embedded_tiles: **BẮT BUỘC** ≥1 clip (ưu tiên 3) từ REFERENCE_EVIDENCE — cùng format/công thức "
             "hoặc top view ngách; lưới clip là phần chính của section."
             "\n- narrative_vi: 1 câu/tile — peer làm format/hook/nhịp tốt hơn clip đang phân tích ở điểm nào; "
@@ -674,7 +706,12 @@ def build_diagnosis_v6_user_prompt(
         )
     extraction_signals_note = ""
     if extraction_signals_v2:
-        digest = build_user_evidence_digest(user_analysis, extraction_signals_v2=True)
+        digest = build_user_evidence_digest(
+            user_analysis,
+            extraction_signals_v2=True,
+            wide_context=wide_context,
+            user_stats=user_stats,
+        )
         has_signals = any(
             k in digest for k in ("info_density", "loopability", "hook_forensics")
         )
@@ -687,9 +724,24 @@ def build_diagnosis_v6_user_prompt(
                 "(vd giá trị đầu ở 0:06 → dồn câu chốt lên trước 0:02). "
                 "Chọn tín hiệu có độ lệch/severity cao nhất; số in JetBrains Mono trên UI."
             )
+    lead_lever_note = ""
+    if lead_lever_enabled:
+        lead_lever_note = (
+            "\n\nLEAD_FINDING (bắt buộc khi lead_lever_enabled=true): thêm top-level "
+            '"lead_finding": {"title_vi","body_vi","fix_vi","rationale_vi"} — đòn bẩy lớn nhất '
+            "của video + vì sao quan trọng (1 câu). Không trùng headline_vi."
+        )
+    proposed_findings_note = ""
+    if proposed_findings_enabled:
+        proposed_findings_note = (
+            "\n\nPROPOSED_FINDINGS (shadow): mỗi section được thêm tối đa 1 finding với "
+            '"confidence_tier":"proposed" khi insight đến từ USER_EVIDENCE_DIGEST/raw số '
+            "nhưng không khớp signal_id — phải trích số/mốc giây cụ thể trong body_vi. "
+            "KHÔNG thay finding signal-backed."
+        )
     blocks.append(
         "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu "
-        "chứng minh (≤90 từ; script_structure ≤120 từ; hook_analysis ≤100 từ). Tổng báo cáo ~400-480 từ. Ưu tiên fix + "
+        "chứng minh (≤90 từ; script_structure ≤120 từ; hook_analysis ≤100 từ). Tổng báo cáo ~430-520 từ. Ưu tiên fix + "
         "reference video hơn giải thích dài. KHÔNG tạo section timing/giờ đăng. Mỗi câu phải "
         "advance argument."
         "\n\nQUY TẮC ĐỘ SÂU (bắt buộc):"
@@ -715,5 +767,7 @@ def build_diagnosis_v6_user_prompt(
         + niche_pattern_note
         + comment_grounding_note
         + extraction_signals_note
+        + lead_lever_note
+        + proposed_findings_note
     )
     return "".join(blocks)

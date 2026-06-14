@@ -230,6 +230,26 @@ class _PipelineSettings(BaseSettings):
         default=False,
         description="Audio DSP beat-sync + voice-energy (batch-only; Tier 3 deferred)",
     )
+    diagnosis_voice_lint_runtime: bool = Field(
+        default=False,
+        description="Run lint_forbidden_copy on synthesis *_vi fields (log + soft-scrub)",
+    )
+    diagnosis_lead_lever: bool = Field(
+        default=False,
+        description="Emit lead_finding in diagnosis_vi JSON + elevate in FE",
+    )
+    diagnosis_wide_context: bool = Field(
+        default=False,
+        description="Widen USER_EVIDENCE_DIGEST (more scenes, full hook_timeline)",
+    )
+    diagnosis_salience_rank_only: bool = Field(
+        default=False,
+        description="Demote salience from emit-gate to ranking-only (no section cap drop)",
+    )
+    diagnosis_proposed_findings: bool = Field(
+        default=False,
+        description="Allow LLM-proposed findings beyond fired signals (lower confidence)",
+    )
     corpus_postextract_hook_cap: int = Field(default=3, ge=1)
     corpus_hook_cap_breakout_bypass: float = Field(default=3.0, ge=0.0)
     corpus_purity_vpn_default: int = Field(default=15, ge=1)

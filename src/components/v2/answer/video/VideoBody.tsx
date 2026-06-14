@@ -49,6 +49,9 @@ import {
 } from "@/components/v2/answer/video/blocks/ChannelProofBlock";
 import { reconcileViewKpiWithTierRatio } from "@/lib/videoKpis";
 import { isV5Report } from "@/lib/v5-compat";
+import { resolveHookTimeline } from "@/lib/resolveHookTimeline";
+import { buildCommentNextStepBullet } from "@/lib/commentNextSteps";
+import { isReportPresentationV2 } from "@/lib/presentationV2";
 import {
   maxFindingsForTier,
   tierIsGapHeavy,
@@ -98,20 +101,21 @@ function retentionEndPct(curve: { t: number; pct: number }[] | null | undefined)
  * The BE may return newline-delimited bullets (with or without leading "• ").
  * We split, strip leading bullet chars, and render as <ul>.
  */
-function NextStepsSection({ text }: { text: string }) {
+function NextStepsSection({ text, extraBullets = [] }: { text: string; extraBullets?: string[] }) {
   const lines = text
     .split(/\n/)
     .map((l) => l.replace(/^[•\-\*]\s*/, "").trim())
     .filter(Boolean);
+  const allLines = [...lines, ...extraBullets.filter(Boolean)];
 
   return (
     <section className="mb-6">
       <h3 className="gv-mono mb-3 text-[11px] font-semibold gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-4)]">
         Làm gì tiếp theo
       </h3>
-      {lines.length > 1 ? (
+      {allLines.length === 0 ? null : allLines.length > 1 || extraBullets.length > 0 ? (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
-          {lines.map((line, i) => (
+          {allLines.map((line, i) => (
             <li
               key={i}
               className="flex items-start gap-2 text-[14px] leading-relaxed text-foreground"
@@ -125,7 +129,9 @@ function NextStepsSection({ text }: { text: string }) {
           ))}
         </ul>
       ) : (
-        <p className="max-w-[680px] text-[14px] leading-relaxed text-foreground">{text}</p>
+        <p className="max-w-[680px] text-[14px] leading-relaxed text-foreground">
+          {allLines[0] ?? text}
+        </p>
       )}
     </section>
   );
@@ -197,6 +203,13 @@ export function VideoBody({
     narrativeReady?.bright_spot_signal ??
     preSynth?.bright_spot_signal ??
     report.bright_spot_signal;
+  const leadFinding = narrativeVi?.diagnosis_vi?.lead_finding;
+  const headerLeadText =
+    (isReportPresentationV2() &&
+      (leadFinding?.body_vi?.trim() ||
+        leadFinding?.title_vi?.trim() ||
+        brightEffective?.message_vi?.trim())) ||
+    null;
   const viewScenariosEffective: ViewScenario[] | undefined =
     narrativeReady?.view_scenarios ?? report.view_scenarios;
   const channelEffective: ChannelContext | undefined =
@@ -294,11 +307,20 @@ export function VideoBody({
     report.comment_radar != null && report.comment_radar.sampled > 0
       ? report.comment_radar
       : null;
+  const commentNextStepBullet =
+    isReportPresentationV2() ? buildCommentNextStepBullet(commentRadar) : null;
+  const hookTimelineEvents = resolveHookTimeline(report);
   const videoSectionEmbeds = useMemo((): VideoDiagnosisSectionEmbeds => {
     const embeds: VideoDiagnosisSectionEmbeds = {};
     if (shouldShowMetadataBlock(meta, report.enrichment, commentRadar)) {
-      embeds.metadata = { meta, enrichment: report.enrichment, commentRadar };
+      embeds.metadata = {
+        meta,
+        enrichment: report.enrichment,
+        commentRadar,
+        crossFormatSignal: report.cross_format_signal ?? null,
+      };
     }
+    embeds.crossFormatSignal = report.cross_format_signal ?? null;
     if (report.video_id) {
       embeds.analyzedClip = {
         videoId: report.video_id,
@@ -307,7 +329,21 @@ export function VideoBody({
       };
     }
     if ((report.segments?.length ?? 0) > 0 && duration > 0) {
-      embeds.structureTimeline = { segments: report.segments, durationSec: duration };
+      embeds.structureTimeline = {
+        segments: report.segments,
+        durationSec: duration,
+        retentionCurve:
+          isReportPresentationV2() && userCurve.length > 0
+            ? {
+                userCurve,
+                nicheCurve: report.niche_benchmark_curve,
+                riskEvents: report.retention_risk_events ?? null,
+              }
+            : null,
+      };
+    }
+    if (hookTimelineEvents.length > 0) {
+      embeds.hookTimeline = hookTimelineEvents;
     }
     if (report.thumbnail_analysis) {
       embeds.thumbnailAnalysis = {
@@ -316,7 +352,7 @@ export function VideoBody({
       };
     }
     return embeds;
-  }, [report, meta, duration, commentRadar]);
+  }, [report, meta, duration, commentRadar, userCurve, hookTimelineEvents]);
   const showCarouselIntel = (report.carousel_intel?.slides?.length ?? 0) > 0;
   const showBoostFallback =
     !hasBoostAttribution &&
@@ -522,6 +558,14 @@ export function VideoBody({
           <h1 className="gv-tight m-0 max-w-[820px] text-[clamp(26px,3vw,36px)] font-semibold leading-[1.05] tracking-tight text-[color:var(--gv-ink)]">
             {narrativeVi?.headline_vi?.trim() || "—"}
           </h1>
+          {headerLeadText ? (
+            <p
+              className="mt-3 max-w-[680px] rounded-md border border-[color:var(--gv-accent)]/25 bg-[color:var(--gv-accent)]/8 px-3 py-2.5 text-sm font-medium leading-snug text-[color:var(--gv-ink)]"
+              role="status"
+            >
+              {headerLeadText}
+            </p>
+          ) : null}
         </header>
 
         {gapHeavy && viewScenariosEffective && viewScenariosEffective.length > 0 ? (
@@ -676,7 +720,12 @@ export function VideoBody({
         ) : null}
 
         {narrativeVi?.dinh_huong_chien_luoc ? (
-          <NextStepsSection text={narrativeVi.dinh_huong_chien_luoc} />
+          <NextStepsSection
+            text={narrativeVi.dinh_huong_chien_luoc}
+            extraBullets={commentNextStepBullet ? [commentNextStepBullet] : []}
+          />
+        ) : commentNextStepBullet ? (
+          <NextStepsSection text="" extraBullets={[commentNextStepBullet]} />
         ) : null}
 
         {!sectionIds.has("script_structure") && shouldShowScriptStructureBlock(report) ? (

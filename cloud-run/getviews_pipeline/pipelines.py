@@ -1127,7 +1127,46 @@ async def _reference_ingest_enqueue_and_mirror(
     await _mirror_queue_thumbnails_for_rows(client=client, rows_payload=mirror_pairs)
 
 
-def _reference_evidence_project(ref: dict[str, Any]) -> dict[str, str | int]:
+def _peer_hook_window_s(
+    analysis: dict[str, Any],
+    *,
+    shot_ref: dict[str, Any] | None = None,
+) -> tuple[float | None, float | None]:
+    """Best-effort hook/opening window for peer contrast (mirrors shot_reference_matcher)."""
+    hook_block = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else {}
+    timeline = hook_block.get("hook_timeline")
+    if isinstance(timeline, list):
+        for ev in timeline:
+            if not isinstance(ev, dict):
+                continue
+            raw_t = ev.get("t") if ev.get("t") is not None else ev.get("at_s")
+            try:
+                t0 = float(raw_t)
+                return t0, round(t0 + 3.0, 2)
+            except (TypeError, ValueError):
+                continue
+    scenes = analysis.get("scenes")
+    if isinstance(scenes, list):
+        for sc in scenes:
+            if not isinstance(sc, dict):
+                continue
+            try:
+                t0 = float(sc.get("start_s") or 0)
+                t1 = float(sc.get("end_s") or t0 + 2.0)
+                return round(t0, 2), round(max(t1, t0 + 0.5), 2)
+            except (TypeError, ValueError):
+                continue
+    if isinstance(shot_ref, dict):
+        try:
+            t0 = float(shot_ref.get("start_s") or 0)
+            t1 = float(shot_ref.get("end_s") or t0 + 2.0)
+            return round(t0, 2), round(t1, 2)
+        except (TypeError, ValueError):
+            pass
+    return None, None
+
+
+def _reference_evidence_project(ref: dict[str, Any]) -> dict[str, str | int | float | None]:
     meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
     analysis = ref.get("analysis") if isinstance(ref.get("analysis"), dict) else {}
     aid = str(ref.get("aweme_id") or meta.get("video_id") or "")
@@ -1162,10 +1201,14 @@ def _reference_evidence_project(ref: dict[str, Any]) -> dict[str, str | int]:
     hook_phrase = str(hook_block.get("hook_phrase") or "")[:110]
     hook_type = str(hook_block.get("hook_type") or "")
     opening_line = str(analysis.get("audio_transcript") or "").strip()[:90]
+    shot_ref = ref.get("_shot_reference") if isinstance(ref.get("_shot_reference"), dict) else None
+    peer_start_s, peer_end_s = _peer_hook_window_s(analysis, shot_ref=shot_ref)
     return {
         "aid": aid, "vc": vc, "dsc": dsc, "fmt": str(fmt), "niche": niche,
         "handle": handle, "hook_phrase": hook_phrase, "hook_type": hook_type,
         "opening_line": opening_line,
+        "peer_start_s": peer_start_s,
+        "peer_end_s": peer_end_s,
     }
 
 
@@ -1192,6 +1235,8 @@ def _reference_evidence_lines(
             line += f"\n  hook ({p['hook_type'] or '?'}): \"{p['hook_phrase']}\""
         if p["opening_line"] and p["opening_line"][:40] != str(p["hook_phrase"])[:40]:
             line += f"\n  lời mở (transcript): \"{p['opening_line']}…\""
+        if p.get("peer_start_s") is not None:
+            line += f"\n  mốc hook peer: {p['peer_start_s']}–{p.get('peer_end_s')}s"
         lines.append(line)
     return "\n".join(lines)
 

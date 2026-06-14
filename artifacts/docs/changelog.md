@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Presentation & synthesis-surface quality (v1)
+
+- **FE (`VITE_REPORT_PRESENTATION_V2`):** Retention curve chart (lazy recharts), hook timeline strip, bright-spot / `lead_finding` header chip, cross-format strip in metadata, comment next-step bullet, «Xem thêm» collapsible for capped lists, structure-block closing prose at bottom of «Phân tích cấu trúc Video».
+- **Prose contract:** Strip/data findings (retention, hook timeline, info density) + structure closing in `script_structure.text`; total word budget **520** target / **600** retry.
+- **BE flags (default off):** `diagnosis_voice_lint_runtime`, `diagnosis_lead_lever`, `diagnosis_wide_context`, `diagnosis_salience_rank_only`, `diagnosis_proposed_findings`.
+- **Synthesis:** Runtime soft-scrub on `*_vi`; peer reference `peer_start_s`/`peer_end_s` in REFERENCE_EVIDENCE; optional archetype; niche_pattern may carry 1 actionable finding.
+
 ## 2026-06-14 — Diagnosis word budget: Path B (wider structure + hook)
 
 - **Caps raised** so extraction-signals-v2 evidence fits the two densest sections: «Nhịp & cắt» (`script_structure`) ≤100→**≤120**, hook (`hook_analysis`) ≤90→**≤100**.

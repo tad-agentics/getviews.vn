@@ -69,7 +69,11 @@ function buildStructureAxes(
   commerce: DiagnosisSectionVi | undefined,
 ): VideoStructureAxisBlock[] {
   const axes: VideoStructureAxisBlock[] = [];
-  const rhythm = buildAxisBlock("rhythm", script);
+  // script_structure.text is the block-level closing — rhythm axis uses findings/tiles only.
+  const rhythmSource = script
+    ? { ...script, text: "", text_vi: "" }
+    : undefined;
+  const rhythm = buildAxisBlock("rhythm", rhythmSource);
   if (rhythm) axes.push(rhythm);
   const editingAxis = buildAxisBlock("editing", editing);
   if (editingAxis) axes.push(editingAxis);
@@ -152,12 +156,14 @@ function mergeDiagnosisSection(
     Array.isArray(commerce?.embedded_tiles) ? commerce.embedded_tiles : [],
   );
 
+  const closingText = script ? sectionBody(script) : "";
+
   return {
     section_id: "script_structure",
     title_vi: VIDEO_STRUCTURE_SECTION_TITLE,
     title: VIDEO_STRUCTURE_SECTION_TITLE,
-    text_vi: "",
-    text: "",
+    text_vi: closingText,
+    text: closingText,
     structure_axes: structureAxes.length > 0 ? structureAxes : undefined,
     findings: findings.length > 0 ? findings : undefined,
     embedded_tiles: tiles.length > 0 ? tiles : undefined,

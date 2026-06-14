@@ -23,7 +23,10 @@ import type {
   DiagnosisEvidenceAnchorVi,
   DiagnosisFinding,
   DiagnosisSectionVi,
+  HookTimelineEvent,
   ReferenceVideoCard,
+  RetentionPoint,
+  RetentionRiskEvent,
   VideoSegment,
   VideoStructureAxisBlock,
 } from "@/lib/api-types";
@@ -67,7 +70,17 @@ import {
 import { hasContextStripContent } from "@/lib/videoAdjunctSections";
 import { DiagnosisReferenceVideoCards } from "@/components/diagnosis/DiagnosisReferenceVideoCards";
 import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
+import { HookTimelineStrip } from "@/routes/_app/components/HookTimelineStrip";
+import { RetentionCurveChart } from "@/components/diagnosis/RetentionCurveChart";
+import { ExpandableList } from "@/components/diagnosis/ExpandableList";
+import { HOOK_TIMELINE_LEGEND_VI } from "@/lib/hookTimelineLegend";
+import {
+  buildCrossFormatStripProse,
+  shouldShowCrossFormatSignal,
+} from "@/lib/crossFormatProse";
+import { isReportPresentationV2 } from "@/lib/presentationV2";
 import type {
+  CrossFormatSignal,
   VideoAnalyzeMeta,
   VideoEnrichment,
 } from "@/lib/api-types";
@@ -78,12 +91,14 @@ function MetadataContextEmbed({
   sectionText,
   fallbackProse,
   commentRadar,
+  crossFormatSignal,
 }: {
   meta: VideoAnalyzeMeta;
   enrichment?: VideoEnrichment | null;
   sectionText: string;
   fallbackProse?: string;
   commentRadar?: CommentRadarData | null;
+  crossFormatSignal?: CrossFormatSignal | null;
 }) {
   const hasContextGrid = hasContextStripContent(meta, enrichment);
   const { contextProse: resolvedContext, statsProse } = resolveMetadataStripProse({
@@ -100,6 +115,10 @@ function MetadataContextEmbed({
   const showStats = hasStatsHistorySnapshots(meta.stats_history);
   const showContext = hasContextGrid || Boolean(contextProse);
   const commentProse = buildCommentRadarProse(commentRadar);
+  const crossFormatProse =
+    isReportPresentationV2() && shouldShowCrossFormatSignal(crossFormatSignal)
+      ? buildCrossFormatStripProse(crossFormatSignal)
+      : "";
 
   return (
     <div className="mt-4 flex flex-col gap-3">
@@ -121,6 +140,11 @@ function MetadataContextEmbed({
       ) : null}
       {commentProse ? (
         <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink-2)]">{commentProse}</p>
+      ) : null}
+      {crossFormatProse ? (
+        <p className="m-0 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-sm leading-relaxed text-[color:var(--gv-ink-2)]">
+          {crossFormatProse}
+        </p>
       ) : null}
       {commentRadar ? <CommentRadarTile data={commentRadar} embedded /> : null}
     </div>
@@ -235,7 +259,15 @@ function StrengthGapSectionLayout({
   /** Omit outer section heading/wrapper — used inside multi-axis structure block. */
   compact?: boolean;
   /** Eight-beat bar — flat script_structure layout only (multi-axis renders on rhythm). */
-  structureTimeline?: { segments: VideoSegment[]; durationSec: number };
+  structureTimeline?: {
+    segments: VideoSegment[];
+    durationSec: number;
+    retentionCurve?: {
+      userCurve: RetentionPoint[];
+      nicheCurve?: RetentionPoint[] | null;
+      riskEvents?: RetentionRiskEvent[] | null;
+    } | null;
+  };
   /** Evidence tile under verdict prose (e.g. cover stop-power). */
   supportEmbed?: ReactNode;
 }) {
@@ -251,12 +283,16 @@ function StrengthGapSectionLayout({
     !inlineGapRefs && gapLinkedTiles.length > 0
       ? formatReferenceBridgeProse(gaps, gapLinkedTiles.length, bridgeTopic)
       : "";
-  let findingRank = 0;
+  const expandFindings = isReportPresentationV2();
+  const strengthBase = 0;
 
   const body = (
     <>
       {!compact && structureTimeline ? (
-        <StructureTimelineEmbed timeline={structureTimeline} />
+        <StructureTimelineEmbed
+          timeline={structureTimeline}
+          retentionCurve={structureTimeline.retentionCurve}
+        />
       ) : null}
       {text ? <SectionVerdictBlock text={text} /> : null}
       {supportEmbed}
@@ -266,17 +302,18 @@ function StrengthGapSectionLayout({
             ĐIỂM MẠNH
           </p>
           <div className="flex flex-col gap-3">
-            {strengths.map((f, i) => {
-              findingRank += 1;
-              return (
+            <ExpandableList
+              items={strengths}
+              initialCount={expandFindings ? 3 : strengths.length}
+              itemKey={(f, i) => `s-${f.title_vi ?? i}`}
+              renderItem={(f, i) => (
                 <SectionFindingCard
-                  key={`s-${f.title_vi ?? i}`}
-                  rank={findingRank}
+                  rank={strengthBase + i + 1}
                   finding={f}
                   analyzedClip={analyzedClip}
                 />
-              );
-            })}
+              )}
+            />
           </div>
         </div>
       ) : null}
@@ -286,31 +323,31 @@ function StrengthGapSectionLayout({
             {gapKicker}
           </p>
           <div className="flex flex-col gap-3">
-            {gaps.map((f, i) => {
-              findingRank += 1;
+          <ExpandableList
+            items={gaps}
+            initialCount={expandFindings ? 3 : gaps.length}
+            itemKey={(f, i) => `g-${f.title_vi ?? i}`}
+            renderItem={(f, i) => {
               const pairedTile = inlineGapRefs ? gapLinkedTiles[i] : undefined;
               return (
-                <div key={`g-${f.title_vi ?? i}`} className="flex flex-col gap-3">
-                  <SectionFindingCard rank={findingRank} finding={f} />
+                <div className="flex flex-col gap-3">
+                  <SectionFindingCard rank={strengths.length + i + 1} finding={f} />
                   {pairedTile ? (
                     <>
                       <p className="m-0 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">
                         {formatSingleGapBridgeProse(f.title_vi ?? "", bridgeTopic)}
                       </p>
-                      <DiagnosisReferenceVideoCards
-                        tiles={[pairedTile]}
-                        embedded
-                        showLabel={false}
-                      />
+                      <DiagnosisReferenceVideoCards tiles={[pairedTile]} embedded showLabel={false} />
                     </>
-                  ) : (
+                  ) : inlineGapRefs ? (
                     <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
                       {GAP_PEER_MISSING_VI}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               );
-            })}
+            }}
+          />
           </div>
         </div>
       ) : null}
@@ -320,17 +357,18 @@ function StrengthGapSectionLayout({
             QUAN SÁT
           </p>
           <div className="flex flex-col gap-3">
-            {observations.map((f, i) => {
-              findingRank += 1;
-              return (
-                <SectionFindingCard
-                  key={`o-${f.title_vi ?? i}`}
-                  rank={findingRank}
-                  finding={f}
-                  analyzedClip={analyzedClip}
-                />
-              );
-            })}
+          <ExpandableList
+            items={observations}
+            initialCount={expandFindings ? 3 : observations.length}
+            itemKey={(f, i) => `o-${f.title_vi ?? i}`}
+            renderItem={(f, i) => (
+              <SectionFindingCard
+                rank={strengths.length + gaps.length + i + 1}
+                finding={f}
+                analyzedClip={analyzedClip}
+              />
+            )}
+          />
           </div>
         </div>
       ) : null}
@@ -340,12 +378,24 @@ function StrengthGapSectionLayout({
         </p>
       ) : null}
       {!inlineGapRefs && gapLinkedTiles.length > 0 ? (
-        <DiagnosisReferenceVideoCards
-          tiles={gapLinkedTiles}
-          label="VÍ DỤ TRONG NGÁCH"
-          embedded
-          showLabel={!refBridge}
-        />
+        expandFindings && gapLinkedTiles.length > 3 ? (
+          <ExpandableList
+            items={gapLinkedTiles}
+            initialCount={3}
+            itemKey={(t, i) => `ref-${t.aweme_id ?? i}`}
+            renderItem={(tile) => (
+              <DiagnosisReferenceVideoCards tiles={[tile]} embedded showLabel={false} />
+            )}
+            expandLabel="Xem thêm ví dụ ngách"
+          />
+        ) : (
+          <DiagnosisReferenceVideoCards
+            tiles={gapLinkedTiles}
+            label="VÍ DỤ TRONG NGÁCH"
+            embedded
+            showLabel={!refBridge}
+          />
+        )
       ) : null}
     </>
   );
@@ -381,19 +431,51 @@ function StrengthGapSectionLayout({
   );
 }
 
-function StructureTimelineEmbed({
-  timeline,
-}: {
-  timeline: { segments: VideoSegment[]; durationSec: number };
-}) {
-  if (!timeline.segments.length || !isInformativeStructureTimeline(timeline.segments)) {
-    return null;
-  }
-  const summary = buildStructureTimelineSummary(timeline.segments, timeline.durationSec);
+function HookTimelineEmbed({ events }: { events: HookTimelineEvent[] }) {
+  if (!isReportPresentationV2() || !events.length) return null;
   return (
     <div className="mt-3">
-      <Timeline segments={timeline.segments} durationSec={timeline.durationSec} />
-      <p className="mt-2 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">{summary}</p>
+      <HookTimelineStrip events={events} />
+      <p className="mt-2 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+        {HOOK_TIMELINE_LEGEND_VI}
+      </p>
+    </div>
+  );
+}
+
+function StructureTimelineEmbed({
+  timeline,
+  retentionCurve,
+}: {
+  timeline: { segments: VideoSegment[]; durationSec: number };
+  retentionCurve?: {
+    userCurve: RetentionPoint[];
+    nicheCurve?: RetentionPoint[] | null;
+    riskEvents?: RetentionRiskEvent[] | null;
+  } | null;
+}) {
+  if (!timeline.segments.length || !isInformativeStructureTimeline(timeline.segments)) {
+    if (!retentionCurve?.userCurve?.length) return null;
+  }
+  const summary = buildStructureTimelineSummary(timeline.segments, timeline.durationSec);
+  const showBar =
+    timeline.segments.length > 0 && isInformativeStructureTimeline(timeline.segments);
+  return (
+    <div className="mt-3">
+      {showBar ? (
+        <>
+          <Timeline segments={timeline.segments} durationSec={timeline.durationSec} />
+          <p className="mt-2 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">{summary}</p>
+        </>
+      ) : null}
+      {isReportPresentationV2() && retentionCurve?.userCurve?.length ? (
+        <RetentionCurveChart
+          userCurve={retentionCurve.userCurve}
+          nicheCurve={retentionCurve.nicheCurve}
+          durationSec={timeline.durationSec}
+          riskEvents={retentionCurve.riskEvents}
+        />
+      ) : null}
     </div>
   );
 }
@@ -432,21 +514,36 @@ function VideoStructureAxesLayout({
   analyzedClip,
   structureTimeline,
   analyzedContentFormat,
+  blockClosing,
+  closingTiles,
 }: {
   title: string;
   axes: VideoStructureAxisBlock[];
   referenceVideos: ReferenceVideoCard[];
   evidenceAnchors?: DiagnosisEvidenceAnchorVi[];
   analyzedClip?: AnalyzedClipContext | null;
-  structureTimeline?: { segments: VideoSegment[]; durationSec: number };
+  structureTimeline?: {
+    segments: VideoSegment[];
+    durationSec: number;
+    retentionCurve?: {
+      userCurve: RetentionPoint[];
+      nicheCurve?: RetentionPoint[] | null;
+      riskEvents?: RetentionRiskEvent[] | null;
+    } | null;
+  };
   analyzedContentFormat?: string | null;
+  blockClosing?: string;
+  closingTiles?: DiagnosisReferenceTile[];
 }) {
   const hasRhythmAxis = axes.some((axis) => axis.axis_id === "rhythm");
   return (
     <div className="mb-6">
       <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">{title}</h3>
       {structureTimeline && !hasRhythmAxis ? (
-        <StructureTimelineEmbed timeline={structureTimeline} />
+        <StructureTimelineEmbed
+          timeline={structureTimeline}
+          retentionCurve={structureTimeline.retentionCurve}
+        />
       ) : null}
       {axes.map((axis) => {
         const axisSection: DiagnosisSectionVi = {
@@ -471,7 +568,10 @@ function VideoStructureAxesLayout({
               {axis.title_vi}
             </p>
             {axis.axis_id === "rhythm" && structureTimeline ? (
-              <StructureTimelineEmbed timeline={structureTimeline} />
+              <StructureTimelineEmbed
+                timeline={structureTimeline}
+                retentionCurve={structureTimeline.retentionCurve}
+              />
             ) : null}
             <StrengthGapSectionLayout
               sectionId="script_structure"
@@ -488,6 +588,24 @@ function VideoStructureAxesLayout({
           </div>
         );
       })}
+      {blockClosing?.trim() ? (
+        <div className="mt-5 border-t border-[color:var(--gv-rule)] pt-4">
+          <p className="gv-mono m-0 mb-2 text-[11px] gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
+            TÓM LẠI &amp; KHUYẾN NGHỊ
+          </p>
+          <SectionVerdictBlock text={humanizeStatsProse(blockClosing.trim())} />
+          {closingTiles && closingTiles.length > 0 ? (
+            <div className="mt-3">
+              <DiagnosisReferenceVideoCards
+                tiles={closingTiles.slice(0, 1)}
+                label="VÍ DỤ ÁP DỤNG"
+                embedded
+                showLabel
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -557,16 +675,28 @@ export interface VideoDiagnosisSectionEmbeds {
     meta: VideoAnalyzeMeta;
     enrichment?: VideoEnrichment | null;
     commentRadar?: CommentRadarData | null;
+    crossFormatSignal?: CrossFormatSignal | null;
   };
   /** Analyzed clip context for per-finding "Xem đoạn này" deep-links. */
   analyzedClip?: AnalyzedClipContext | null;
   /** Eight-beat segment bar — shown under «Nhịp & cắt» in the structure block. */
-  structureTimeline?: { segments: VideoSegment[]; durationSec: number };
+  structureTimeline?: {
+    segments: VideoSegment[];
+    durationSec: number;
+    retentionCurve?: {
+      userCurve: RetentionPoint[];
+      nicheCurve?: RetentionPoint[] | null;
+      riskEvents?: RetentionRiskEvent[] | null;
+    } | null;
+  };
   /** Cover stop-power — rendered under hook or diagnosis prose (not standalone). */
   thumbnailAnalysis?: {
     data: ThumbnailAnalysisData;
     frameUrl?: string | null;
   };
+  /** 0–3s hook micro-events — under hook_analysis. */
+  hookTimeline?: HookTimelineEvent[];
+  crossFormatSignal?: CrossFormatSignal | null;
 }
 
 interface DiagnosisSectionRendererProps {
@@ -655,6 +785,7 @@ export function DiagnosisSectionRenderer({
       : [];
 
   if (isVideoStructureSection && structureAxes.length > 0) {
+    const closingTiles = buildDiagnosisReferenceTiles(section, referenceVideos, evidenceAnchors);
     return (
       <VideoStructureAxesLayout
         title={title}
@@ -664,6 +795,8 @@ export function DiagnosisSectionRenderer({
         analyzedClip={videoEmbeds?.analyzedClip}
         structureTimeline={videoEmbeds?.structureTimeline}
         analyzedContentFormat={analyzedContentFormat}
+        blockClosing={sectionText(section)}
+        closingTiles={closingTiles.length > 0 ? closingTiles : undefined}
       />
     );
   }
@@ -697,7 +830,14 @@ export function DiagnosisSectionRenderer({
           isVideoStructureSection ? videoEmbeds?.structureTimeline : undefined
         }
         supportEmbed={
-          (isHookSection || isDiagnosisSection) ? thumbnailSupportEmbed : undefined
+          isHookSection || isDiagnosisSection ? (
+            <>
+              {isHookSection && videoEmbeds?.hookTimeline?.length ? (
+                <HookTimelineEmbed events={videoEmbeds.hookTimeline} />
+              ) : null}
+              {thumbnailSupportEmbed}
+            </>
+          ) : undefined
         }
       />
     );
@@ -759,6 +899,9 @@ export function DiagnosisSectionRenderer({
           sectionText={sectionOnlyText}
           fallbackProse={fallbackProse}
           commentRadar={videoEmbeds.metadata.commentRadar}
+          crossFormatSignal={
+            videoEmbeds.metadata.crossFormatSignal ?? videoEmbeds.crossFormatSignal
+          }
         />
       ) : null}
     </div>

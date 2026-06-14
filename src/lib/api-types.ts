@@ -173,6 +173,14 @@ export interface RetentionPoint {
   pct: number;
 }
 
+/** Structural retention drop from Cloud Run (``DIAGNOSIS_RETENTION_STRUCTURAL``). */
+export interface RetentionRiskEvent {
+  t: number;
+  severity?: number;
+  reason_vi?: string;
+  source?: string;
+}
+
 export interface VideoNicheMeta {
   /** Null / omitted when cohort has no positive benchmark (avoid showing "0"). */
   avg_views: number | null;
@@ -294,6 +302,8 @@ export interface VideoAnalyzeResponse {
   structural_errors?: VideoFlopIssue[];
   retention_curve: RetentionPoint[] | null;
   niche_benchmark_curve: RetentionPoint[] | null;
+  /** Top structural drop-offs when retention curve is structure-modeled. */
+  retention_risk_events?: RetentionRiskEvent[] | null;
   niche_meta: VideoNicheMeta | null;
   /** Corpus thumbnail_analysis (Gemini on t=0 frame); null when unavailable. */
   thumbnail_analysis?: ThumbnailAnalysisData | null;
@@ -1025,6 +1035,9 @@ export interface DiagnosisFinding {
   fix_vi?: string;
   /** Optional moment in the analyzed video proving this finding (strengths cite own clip, not peers). */
   evidence_ref?: FindingEvidenceRef | null;
+  /** When BE enables diagnosis_proposed_findings — lower-confidence digest-backed insight. */
+  confidence_tier?: "signal_backed" | "proposed";
+  rationale_vi?: string;
 }
 
 /** One axis inside the merged «Phân tích cấu trúc Video» block. */
@@ -1066,6 +1079,8 @@ export interface DiagnosisViV6 {
   headline_vi: string;
   sections: DiagnosisSectionVi[];
   evidence_anchors?: DiagnosisEvidenceAnchorVi[];
+  /** Flag-gated (`diagnosis_lead_lever`) — biggest lever elevated in header zone. */
+  lead_finding?: DiagnosisFinding;
 }
 
 /**

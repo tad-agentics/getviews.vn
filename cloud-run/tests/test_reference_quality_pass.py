@@ -197,6 +197,24 @@ def test_reference_evidence_lines_carry_hook_and_opening() -> None:
     assert "lời mở (transcript)" in block
 
 
+def test_reference_evidence_lines_include_peer_hook_timestamps() -> None:
+    from getviews_pipeline.pipelines import _reference_evidence_lines
+
+    refs = [{
+        "aweme_id": "999",
+        "statistics": {"play_count": 9000},
+        "analysis": {
+            "hook_analysis": {
+                "hook_phrase": "Hook",
+                "hook_type": "question",
+                "hook_timeline": [{"event": "face_enter", "t": 0.4}],
+            },
+        },
+    }]
+    block = _reference_evidence_lines(refs, "corpus")
+    assert "mốc hook peer: 0.4–3.4s" in block
+
+
 # ── 4. Winning hook lines in the script prompt ───────────────────────
 
 

@@ -1688,6 +1688,45 @@ def _validate_diagnosis_vi_citations(
         )
 
 
+def _normalize_proposed_findings(
+    diagnosis_vi: dict[str, Any] | None,
+    *,
+    enabled: bool,
+) -> None:
+    """Strip or telemetry-tag two-tier proposed findings (shadow-first)."""
+    if not isinstance(diagnosis_vi, dict):
+        return
+    proposed_n = 0
+    stripped = 0
+    for sec in diagnosis_vi.get("sections") or []:
+        if not isinstance(sec, dict):
+            continue
+        findings = sec.get("findings")
+        if not isinstance(findings, list):
+            continue
+        kept: list[dict[str, Any]] = []
+        for f in findings:
+            if not isinstance(f, dict):
+                continue
+            if str(f.get("confidence_tier") or "") == "proposed":
+                proposed_n += 1
+                if enabled:
+                    kept.append(f)
+                else:
+                    stripped += 1
+                continue
+            kept.append(f)
+        if len(kept) != len(findings):
+            sec["findings"] = kept
+    if proposed_n or stripped:
+        logger.info(
+            "[diagnosis_proposed] proposed=%d stripped=%d enabled=%s",
+            proposed_n,
+            stripped,
+            enabled,
+        )
+
+
 def _validate_anchor_signal_ids(
     diagnosis_vi: dict[str, Any] | None,
     manifest: dict[str, list[Any]],
@@ -1783,7 +1822,23 @@ def _normalize_narrative_vi_dict(narrative_vi: dict[str, Any] | None) -> dict[st
     lessons_raw = narrative_vi.get("lessons")
     if lessons_raw is None or not isinstance(lessons_raw, list):
         narrative_vi = {**narrative_vi, "lessons": []}
-    return humanize_narrative_vi_dict(narrative_vi)
+    narrative_vi = humanize_narrative_vi_dict(narrative_vi)
+    if not narrative_vi:
+        return narrative_vi
+    from getviews_pipeline.settings import settings as _settings
+
+    if _settings.diagnosis_voice_lint_runtime:
+        from getviews_pipeline.voice_lint import scrub_vi_strings_in_obj
+
+        scrubbed, hit_n = scrub_vi_strings_in_obj(narrative_vi)
+        if hit_n:
+            logger.info(
+                "[diagnosis_voice_lint] soft-scrubbed %d forbidden copy hit(s) on *_vi fields",
+                hit_n,
+            )
+        if isinstance(scrubbed, dict):
+            narrative_vi = scrubbed
+    return narrative_vi
 
 
 def _v6_section_body_and_narrative(
@@ -2015,6 +2070,9 @@ def _synthesize_diagnosis_v6_section_pool(
         comment_signal_block=comment_block,
         calibration_priors_block=calibration_block,
         extraction_signals_v2=bool(_settings.extraction_signals_v2),
+        wide_context=bool(_settings.diagnosis_wide_context),
+        lead_lever_enabled=bool(_settings.diagnosis_lead_lever),
+        proposed_findings_enabled=bool(_settings.diagnosis_proposed_findings),
     )
     prompt = _prefix_user_sections(
         [layer0_context or "", creator_format_history_block or ""],
@@ -2055,6 +2113,12 @@ def _synthesize_diagnosis_v6_section_pool(
         )
         if diag_vi:
             _validate_anchor_signal_ids(diag_vi, manifest)
+            from getviews_pipeline.settings import settings as _diag_settings
+
+            _normalize_proposed_findings(
+                diag_vi,
+                enabled=bool(_diag_settings.diagnosis_proposed_findings),
+            )
             _dur_raw = user_stats.get("duration_sec") or user_analysis.get("duration_sec")
             try:
                 _clip_duration = float(_dur_raw) if _dur_raw is not None else None

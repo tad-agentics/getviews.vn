@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 
 from getviews_pipeline.signals.base import Signal
 from getviews_pipeline.signals.salience import SECTION_EMIT_THRESHOLD, section_emit_threshold
+
+logger = logging.getLogger(__name__)
 
 _CTX_SECTION_EMIT_THRESHOLD = "__section_emit_threshold"
 
@@ -59,7 +62,15 @@ def _emit_threshold_from_ctx(ctx: dict) -> float:
     return SECTION_EMIT_THRESHOLD
 
 
+def _salience_rank_only() -> bool:
+    from getviews_pipeline.settings import settings
+
+    return bool(settings.diagnosis_salience_rank_only)
+
+
 def _has_gate(manifest: Manifest, section_id: str, ctx: dict) -> bool:
+    if _salience_rank_only():
+        return bool(manifest.get(section_id))
     threshold = _emit_threshold_from_ctx(ctx)
     return any(s.salience >= threshold for s in manifest.get(section_id, []))
 
@@ -425,6 +436,23 @@ def _reorder_and_cap_sections(
     pri = [s for s in _REDESIGN_PRIORITY_ORDER if s in sections]
     rest = [s for s in sections if s not in _REDESIGN_PRIORITY_ORDER]
     order_map = _section_display_order()
+    if _salience_rank_only():
+        if manifest is not None:
+
+            def _max_salience(sid: str) -> float:
+                return max((s.salience for s in manifest.get(sid, [])), default=0.0)
+
+            rest.sort(key=lambda sid: (-_max_salience(sid), order_map.get(sid, 999)))
+        else:
+            rest.sort(key=lambda s: order_map.get(s, 999))
+        out = pri + rest
+        if len(out) > DEEP_SECTION_CAP:
+            logger.info(
+                "[diagnosis_salience] rank_only kept all %d sections (legacy cap=%d)",
+                len(out),
+                DEEP_SECTION_CAP,
+            )
+        return out
     rest.sort(key=lambda s: order_map.get(s, 999))
     out = pri + rest
     if len(out) <= DEEP_SECTION_CAP:
