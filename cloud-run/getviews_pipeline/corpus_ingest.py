@@ -53,6 +53,7 @@ from getviews_pipeline.corpus_instructiveness import (
 )
 from getviews_pipeline.creator_blocklist import is_blocklisted_handle, niche_override_for_handle
 from getviews_pipeline.ed_budget import theoretical_ed_pool_requests
+from getviews_pipeline.extraction_quality import classify_extraction_quality
 from getviews_pipeline.gemini import (
     analyze_video,
     build_video_corpus_batch_jsonl_record,
@@ -1876,8 +1877,6 @@ def _build_corpus_row(
 
     transcript: str = analysis_json.get("audio_transcript") or ""
 
-    from getviews_pipeline.extraction_quality import classify_extraction_quality
-
     extraction_quality = classify_extraction_quality(
         analysis_json,
         content_type=content_type,
@@ -2823,8 +2822,14 @@ async def _ingest_candidate_awemes(
             if isinstance(video_result, str) and video_result:
                 row["video_url"] = video_result
                 logger.info("[corpus] %s — video uploaded to R2: %s", row["video_id"], video_result)
-            elif isinstance(video_result, Exception):
-                logger.warning("[corpus] video upload error for %s: %s", row["video_id"], video_result)
+            else:
+                # Upload failed (None) or raised — never persist the ephemeral ED
+                # CDN link. Drop it; _merge_existing_provenance_sync restores a
+                # prior permanent R2 URL when one exists (re-ingest case).
+                if isinstance(video_result, Exception):
+                    logger.warning(
+                        "[corpus] video upload error for %s: %s", row["video_id"], video_result
+                    )
                 row.pop("video_url", None)
 
         for row, thumb_result in zip(rows, thumb_results):

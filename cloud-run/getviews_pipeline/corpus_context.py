@@ -24,11 +24,33 @@ from getviews_pipeline.claim_tiers import (
     HOOK_EFFECTIVENESS_MIN_PER_BUCKET,
     should_cite_hook_effectiveness,
 )
+from getviews_pipeline.extraction_quality import (
+    is_clean_boost_attribution,
+    is_suspect_low_attribution,
+    peer_pool_quality_rank,
+)
 from getviews_pipeline.formatters import citation_vi, timeframe_vi
 from getviews_pipeline.postgrest_time import indexed_at_cutoff_iso
 from getviews_pipeline.settings import settings as _settings
 
 logger = logging.getLogger(__name__)
+
+# Retain fire-and-forget background tasks so the event loop does not GC them
+# mid-flight (see _spawn_background / refresh_stale_video_urls).
+_BACKGROUND_TASKS: set[asyncio.Task[Any]] = set()
+
+
+def _spawn_background(coro: Any) -> None:
+    """Schedule *coro* detached from the request so heavy I/O never blocks SSE."""
+    try:
+        task = asyncio.create_task(coro)
+    except RuntimeError:
+        # No running loop (sync caller) — skip; repair happens on a later async hit.
+        coro.close()
+        return
+    _BACKGROUND_TASKS.add(task)
+    task.add_done_callback(_BACKGROUND_TASKS.discard)
+
 
 # ---------------------------------------------------------------------------
 # Supabase anon client (read-only — corpus_count uses RLS-allowed SELECT)
@@ -908,12 +930,6 @@ def _merge_eligible_reference_rows(
     junction_class_ids: list[int],
 ) -> list[dict[str, Any]]:
     """Eligible-first ref rows with 3-tier boost preference (§4.7 M2)."""
-    from getviews_pipeline.extraction_quality import (
-        is_clean_boost_attribution,
-        is_suspect_low_attribution,
-        peer_pool_quality_rank,
-    )
-
     clean_boosts = ["organic_confident", "unknown"]
     clean = (
         _reference_pool_query(
@@ -1142,10 +1158,14 @@ async def fetch_corpus_reference_pool(
         )
         if stale_videos:
             logger.info(
-                "[corpus_context] %d/%d reference videos have stale video_url — repairing",
+                "[corpus_context] %d/%d reference videos have stale video_url — "
+                "repairing in background",
                 stale_videos, len(awemes),
             )
-            await refresh_stale_video_urls(awemes)
+            # Video-clip repair (download + ffmpeg + R2 upload) is heavy; run it
+            # detached so it never adds latency to time-to-first-token. The DB is
+            # self-healed for subsequent requests.
+            _spawn_background(refresh_stale_video_urls(awemes))
 
         return awemes
     except Exception as exc:

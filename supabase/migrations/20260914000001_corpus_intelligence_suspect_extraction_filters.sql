@@ -1,5 +1,11 @@
 -- Recreate benchmark MVs: exclude boost-suspect from base (views/ER hygiene);
 -- structural aggregates skip degraded extraction only (keep sample_size for min-sample gate).
+--
+-- CASCADE on content_class_intelligence drops the dependent
+-- creator_niche_content_class_stats MV (LEFT JOIN cci) — it is recreated below.
+-- Grants mirror the post-advisor state (20260826000000): content_class_intelligence
+-- keeps authenticated (read client-side by useTopNiches etc.), anon revoked; the
+-- tier + creator_niche stats MVs are service_role-only (anon + authenticated revoked).
 
 BEGIN;
 
@@ -76,11 +82,10 @@ tone_dist AS (
   ) x
   GROUP BY content_class_id
 ),
-struct_ok AS (
-  SELECT * FROM base
-  WHERE COALESCE(extraction_quality, 'ok') <> 'degraded'
-),
 agg AS (
+  -- ``_ok`` filters keep structural aggregates (scene/transition/duration/face)
+  -- clean of degraded extractions, while sample_size / views / ER use every
+  -- non-suspect row so thin classes stay above the 15-row benchmark gate.
   SELECT
     b.content_class_id,
     COUNT(*) AS sample_size,
@@ -89,14 +94,30 @@ agg AS (
     AVG(b.views) AS avg_views,
     AVG(b.engagement_rate) AS avg_engagement_rate,
     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.engagement_rate) AS median_er,
-    (SELECT AVG(s.face_appears_at) FILTER (WHERE s.face_appears_at IS NOT NULL) FROM struct_ok s WHERE s.content_class_id = b.content_class_id) AS avg_face_appears_at,
-    (SELECT COUNT(*) FILTER (WHERE s.face_appears_at IS NOT NULL AND s.face_appears_at <= 0.5) * 100.0 /
-      NULLIF(COUNT(*) FILTER (WHERE s.face_appears_at IS NOT NULL), 0) FROM struct_ok s WHERE s.content_class_id = b.content_class_id) AS pct_face_in_half_sec,
-    (SELECT AVG(s.transitions_per_second) FROM struct_ok s WHERE s.content_class_id = b.content_class_id) AS avg_transitions_per_second,
-    (SELECT AVG(s.video_duration) FROM struct_ok s WHERE s.content_class_id = b.content_class_id) AS avg_duration,
-    (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.video_duration) FROM struct_ok s WHERE s.content_class_id = b.content_class_id) AS median_duration,
-    (SELECT MIN(s.video_duration) FROM struct_ok s WHERE s.content_class_id = b.content_class_id) AS min_duration,
-    (SELECT MAX(s.video_duration) FROM struct_ok s WHERE s.content_class_id = b.content_class_id) AS max_duration,
+    AVG(b.face_appears_at) FILTER (
+      WHERE b.face_appears_at IS NOT NULL AND COALESCE(b.extraction_quality, 'ok') <> 'degraded'
+    ) AS avg_face_appears_at,
+    COUNT(*) FILTER (
+      WHERE b.face_appears_at IS NOT NULL AND b.face_appears_at <= 0.5
+        AND COALESCE(b.extraction_quality, 'ok') <> 'degraded'
+    ) * 100.0 / NULLIF(COUNT(*) FILTER (
+      WHERE b.face_appears_at IS NOT NULL AND COALESCE(b.extraction_quality, 'ok') <> 'degraded'
+    ), 0) AS pct_face_in_half_sec,
+    AVG(b.transitions_per_second) FILTER (
+      WHERE COALESCE(b.extraction_quality, 'ok') <> 'degraded'
+    ) AS avg_transitions_per_second,
+    AVG(b.video_duration) FILTER (
+      WHERE COALESCE(b.extraction_quality, 'ok') <> 'degraded'
+    ) AS avg_duration,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.video_duration) FILTER (
+      WHERE COALESCE(b.extraction_quality, 'ok') <> 'degraded'
+    ) AS median_duration,
+    MIN(b.video_duration) FILTER (
+      WHERE COALESCE(b.extraction_quality, 'ok') <> 'degraded'
+    ) AS min_duration,
+    MAX(b.video_duration) FILTER (
+      WHERE COALESCE(b.extraction_quality, 'ok') <> 'degraded'
+    ) AS max_duration,
     AVG(b.text_overlay_count) AS avg_text_overlays,
     COUNT(*) FILTER (WHERE b.is_commerce) * 100.0 / NULLIF(COUNT(*), 0) AS commerce_pct,
     AVG(b.views) FILTER (WHERE b.is_commerce) AS commerce_avg_views,
@@ -111,7 +132,9 @@ agg AS (
     AVG(b.hashtag_count) AS avg_hashtag_count,
     COUNT(*) FILTER (WHERE b.is_original_sound = TRUE) * 100.0 /
       NULLIF(COUNT(*) FILTER (WHERE b.is_original_sound IS NOT NULL), 0) AS pct_original_sound,
-    (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.scene_count) FROM struct_ok s WHERE s.content_class_id = b.content_class_id) AS median_scene_count
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.scene_count) FILTER (
+      WHERE COALESCE(b.extraction_quality, 'ok') <> 'degraded'
+    ) AS median_scene_count
   FROM base b
   GROUP BY b.content_class_id
 )
@@ -176,12 +199,52 @@ LEFT JOIN velocity v ON v.content_class_id = a.content_class_id;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_content_class_intelligence_pk
   ON content_class_intelligence(content_class_id);
 
+-- Post-advisor grant state: authenticated keeps SELECT, anon revoked.
 GRANT SELECT ON content_class_intelligence TO authenticated;
+REVOKE SELECT ON content_class_intelligence FROM anon;
 
 COMMENT ON MATERIALIZED VIEW content_class_intelligence IS
   'Class cohort stats; base excludes boost-suspect; structural fields exclude degraded extraction.';
 
--- Tier MV: suspect filter on base only (views/ER aggregates).
+-- Recreate dependent dropped by CASCADE (def from 20260823000004); service_role-only grants.
+CREATE MATERIALIZED VIEW creator_niche_content_class_stats AS
+SELECT
+  j.creator_niche_id,
+  j.content_class_id,
+  j.is_primary,
+  COALESCE(cci.sample_size, 0)::integer AS sample_size,
+  COALESCE(cci.claim_tier, 'thin') AS claim_tier,
+  COALESCE(cci.avg_views, 0)::bigint AS avg_views,
+  COALESCE(cci.median_er, 0)::numeric AS median_er,
+  NOW() AS computed_at
+FROM creator_niche_content_classes j
+LEFT JOIN content_class_intelligence cci ON cci.content_class_id = j.content_class_id;
+
+CREATE UNIQUE INDEX idx_creator_niche_cc_stats_pk
+  ON creator_niche_content_class_stats(creator_niche_id, content_class_id);
+
+CREATE INDEX idx_creator_niche_cc_stats_niche_sample
+  ON creator_niche_content_class_stats(creator_niche_id, sample_size DESC);
+
+REVOKE SELECT ON creator_niche_content_class_stats FROM anon, authenticated;
+
+CREATE OR REPLACE FUNCTION refresh_creator_niche_content_class_stats()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY creator_niche_content_class_stats;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION refresh_creator_niche_content_class_stats() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION refresh_creator_niche_content_class_stats() FROM anon;
+REVOKE EXECUTE ON FUNCTION refresh_creator_niche_content_class_stats() FROM authenticated;
+GRANT EXECUTE ON FUNCTION refresh_creator_niche_content_class_stats() TO service_role;
+
+-- Tier MV: suspect filter on base only (views/ER aggregates). Service_role-only.
 DROP MATERIALIZED VIEW IF EXISTS content_class_tier_intelligence CASCADE;
 
 CREATE MATERIALIZED VIEW content_class_tier_intelligence AS
@@ -211,7 +274,7 @@ GROUP BY b.content_class_id, b.creator_tier;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_content_class_tier_intelligence_pk
   ON content_class_tier_intelligence (content_class_id, creator_tier);
 
-GRANT SELECT ON content_class_tier_intelligence TO authenticated;
+REVOKE SELECT ON content_class_tier_intelligence FROM anon, authenticated;
 
 CREATE OR REPLACE FUNCTION refresh_content_class_tier_intelligence()
 RETURNS void

@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 ExtractionQuality = Literal["ok", "degraded_scenes", "degraded"]
 
 _SUSPECT_BOOST = frozenset({"suspect_low", "suspect_medium"})
-_CLEAN_BOOST = frozenset({"organic_confident", "unknown", ""})
 
 
 def classify_extraction_quality(
