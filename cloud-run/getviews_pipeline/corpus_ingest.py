@@ -979,6 +979,19 @@ def _classify_format_core(analysis_json: dict[str, Any], legacy_niche_id: int) -
     if haul_regex_matches(combined, analysis_json, is_reup=is_reup):
         return "haul"
     if re.search(
+        r"shopee|lazada|tiktok shop",
+        combined,
+    ) and re.search(
+        r"săn được|mua mấy món|trên sàn|shopee mall",
+        combined,
+    ):
+        return "haul"
+    if re.search(
+        r"\bmua\b[^.]{0,120}(?:\d{1,3}[.,]\d{3}|\d+\s000|\blà\s+\d[\d.,]*)",
+        combined,
+    ):
+        return "haul"
+    if re.search(
         r"review|chấm điểm|đánh giá|dùng thử|trải nghiệm|"
         r"ăn đứt|đỉnh hơn|đẳng cấp|phần trình diễn|màn trình diễn",
         combined,
@@ -994,7 +1007,8 @@ def _classify_format_core(analysis_json: dict[str, Any], legacy_niche_id: int) -
     ):
         return "tutorial"
     if re.search(
-        r"vs |so sánh|versus|cái nào|nào hơn|nào tốt|khác nhau|phân biệt|khác biệt",
+        r"vs |so sánh|versus|cái nào|nào hơn|nào tốt|khác nhau|phân biệt|khác biệt|"
+        r"nghề .{0,50} và nghề",
         combined,
     ):
         return "comparison"
@@ -1046,8 +1060,17 @@ def _classify_format_core(analysis_json: dict[str, Any], legacy_niche_id: int) -
         return "pov"
     if re.search(r"outfit|ootd|biến hình|transition|mix đồ|phối đồ", combined):
         return "outfit_transition"
+    parenting_vlog_re = re.compile(
+        r"baby care|parenting|infant care|bath time",
+    )
+    if (
+        parenting_vlog_re.search(topics)
+        and tone in ("entertaining", "conversational")
+        and any(s.get("type") == "face_to_camera" for s in scenes)
+    ):
+        return "vlog"
     if re.search(
-        r"vlog|daily|thường ngày|một ngày|hôm nay mình|ngày của|"
+        r"\bvlog\b|thường ngày|một ngày|hôm nay mình|ngày của|"
         r"sau khi tốt nghiệp|sau khi đi làm|dựng sạp|mở quán|khởi nghiệp",
         combined,
     ):
@@ -1062,17 +1085,15 @@ def _classify_format_core(analysis_json: dict[str, Any], legacy_niche_id: int) -
     # Wave 5+ taxonomy expansion — highlight (position 18, last
     # positive match). Short music-driven reaction/moment clips.
     # Intentionally loose heuristic: runs AFTER dance + faceless so
-    # tighter buckets claim their rows first. Niche set: Ô tô / Xe máy (14,
-    # includes former moto culture 25) / travel (16) / gaming (17) /
-    # sports (21). Niche 6 (Chị đẹp) and niche 22 (K-pop / Âm nhạc) were
-    # removed when those niches were retired (2026-04-25, 2026-05-07) —
-    # both had traffic dominated by aggregator/repost accounts rather
-    # than creator highlight content.
+    # tighter buckets claim their rows first. Niche set: Chị đẹp (6) /
+    # Ô tô / Xe máy (14, includes former moto culture 25) / travel (16) /
+    # gaming (17) / sports (21). Niche 22 (K-pop / Âm nhạc) was removed
+    # when that niche was retired (2026-05-07).
     # Scene count ≥ 4 filters out single-shot videos. Short-transcript
     # gate (≤ 80 chars OR music-only marker) distinguishes from vlog
     # / storytelling (transcript-heavy).
     if (
-        legacy_niche_id in (14, 16, 17, 21)
+        legacy_niche_id in (6, 14, 16, 17, 21)
         and tone in ("entertaining", "humorous", "inspirational")
         and len(scenes) >= 4
         and (

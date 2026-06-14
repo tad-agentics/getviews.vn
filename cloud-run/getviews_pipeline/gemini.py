@@ -1305,17 +1305,26 @@ def _inject_fallback_embedded_tiles(
     if not isinstance(sections, list):
         return
 
+    ref_order = {
+        str(r.get("aweme_id") or r.get("video_id") or ""): idx
+        for idx, r in enumerate(reference_videos)
+    }
     ranked = sorted(
         embed_allowed,
-        key=lambda aid: -max(
-            (
-                int(
-                    r.get("content_proximity_score") or r.get("_proximity_score") or 0
-                )
-                for r in reference_videos
-                if str(r.get("aweme_id") or r.get("video_id") or "") == aid
+        key=lambda aid: (
+            -max(
+                (
+                    int(
+                        r.get("content_proximity_score")
+                        or r.get("_proximity_score")
+                        or 0
+                    )
+                    for r in reference_videos
+                    if str(r.get("aweme_id") or r.get("video_id") or "") == aid
+                ),
+                default=0,
             ),
-            default=0,
+            ref_order.get(aid, 10_000),
         ),
     )
     by_sid: dict[str, dict[str, Any]] = {}

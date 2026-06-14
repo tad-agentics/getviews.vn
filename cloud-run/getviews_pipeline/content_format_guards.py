@@ -183,7 +183,14 @@ def guard_content_format(fmt: str, analysis: dict[str, Any]) -> str:
         # Strong unboxing markers still count; weak ``mua…về`` alone does not.
         if re.search(r"haul|đập hộp|unbox|mở hộp", combined):
             return fmt
-        if re.search(r"\bmua\b.{0,15}\bvề\b|\bđặt\b.{0,15}\bgửi\b", combined):
+        if re.search(
+            r"\bmua\b[^.]{0,120}(?:\d{1,3}[.,]\d{3}|\d+\s000|\blà\s+\d[\d.,]*)",
+            combined,
+        ):
+            return fmt
+        if re.search(r"\bđặt\b.{0,15}\bgửi\b", combined):
+            return fmt
+        if re.search(r"\bmua\b.{0,15}\bvề\b", combined):
             if not re.search(
                 r"shopee|tiktok shop|affiliate|sản phẩm|đồ mình mua|đập hộp|unbox|haul",
                 combined,
@@ -206,7 +213,9 @@ def haul_regex_matches(combined: str, analysis: dict[str, Any], *, is_reup: bool
         return False
     if re.search(r"haul|đập hộp|unbox|mở hộp", combined):
         return True
-    if re.search(r"\bmua\b.{0,15}\bvề\b|\bđặt\b.{0,15}\bgửi\b", combined):
+    if re.search(r"\bđặt\b.{0,15}\bgửi\b", combined):
+        return True
+    if re.search(r"\bmua\b.{0,15}\bvề\b", combined):
         if _commerce_intent_is_commerce(analysis):
             return True
         return bool(
