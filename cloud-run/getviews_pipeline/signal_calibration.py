@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import logging
 import random
+import time
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from functools import lru_cache
+from functools import lru_cache, wraps
 from typing import Any
 
 from getviews_pipeline.claim_tiers import CLAIM_TIERS
@@ -47,6 +49,34 @@ LEVER_SIGNAL_TYPES = ("viral_hook", "viral_format", "viral_time")
 SALIENCE_MULTIPLIER_FLOOR = 0.5
 DEMOTE_RHO_THRESHOLD = 0.05
 PREDICTIVE_SAMPLE_FLOOR = CLASS_SAMPLE_FLOOR
+
+# Reader TTL — the user pod is long-lived (min-instances:1), so an unbounded
+# lru_cache would serve last cycle's calibration until pod restart. A short
+# TTL lets a weekly run's new rows surface within the pod's lifetime while
+# still collapsing the per-diagnosis read storm. ~83 keys max (classes + None).
+CALIBRATION_READER_TTL_S = 6 * 3600
+
+
+def _ttl_cache(ttl_seconds: int) -> Callable:
+    """Minimal TTL memoization with an lru_cache-compatible ``cache_clear``."""
+
+    def decorator(fn: Callable) -> Callable:
+        store: dict[tuple, tuple[float, Any]] = {}
+
+        @wraps(fn)
+        def wrapper(*args: Any) -> Any:
+            now = time.monotonic()
+            hit = store.get(args)
+            if hit is not None and now - hit[0] < ttl_seconds:
+                return hit[1]
+            value = fn(*args)
+            store[args] = (now, value)
+            return value
+
+        wrapper.cache_clear = store.clear  # type: ignore[attr-defined]
+        return wrapper
+
+    return decorator
 
 # Map manifest signal id prefixes → lever for salience demotion.
 _SIGNAL_PREFIX_TO_LEVER: tuple[tuple[str, str], ...] = (
@@ -379,8 +409,6 @@ def run_signal_calibration(client: Any) -> dict[str, Any]:
             floor=GLOBAL_SAMPLE_FLOOR,
             computed_at=computed_at,
         )
-        if global_result["adopted"]:
-            classes_adopted += 1
 
     rho_deltas = [
         r["rho_holdout"] - r["rho_baseline"]
@@ -393,6 +421,7 @@ def run_signal_calibration(client: Any) -> dict[str, Any]:
         "feature_count": len(all_features),
         "classes_calibrated": len(class_results),
         "classes_adopted": classes_adopted,
+        "global_adopted": bool(global_result and global_result["adopted"]),
         "mean_rho_delta": mean_delta,
         "global": global_result,
         "per_class": class_results,
@@ -465,7 +494,7 @@ def _clear_reader_caches() -> None:
     predictive_rho_for_lever.cache_clear()
 
 
-@lru_cache(maxsize=256)
+@_ttl_cache(CALIBRATION_READER_TTL_S)
 def viral_score_weights(content_class_id: int | None) -> tuple[float, float, float]:
     """Class → global → static ladder. Flag-off returns static constants."""
     if not settings.signal_calibration_adaptive:
@@ -485,7 +514,7 @@ def viral_score_weights(content_class_id: int | None) -> tuple[float, float, flo
     return _static_weights()
 
 
-@lru_cache(maxsize=512)
+@_ttl_cache(CALIBRATION_READER_TTL_S)
 def predictive_rho_for_lever(
     lever: str,
     content_class_id: int | None,
@@ -510,7 +539,7 @@ def _lever_for_signal_id(signal_id: str) -> str | None:
     return None
 
 
-@lru_cache(maxsize=512)
+@_ttl_cache(CALIBRATION_READER_TTL_S)
 def signal_salience_multiplier(
     signal_id: str,
     content_class_id: int | None,
@@ -532,7 +561,7 @@ def signal_salience_multiplier(
     return min(1.0, demotion)
 
 
-@lru_cache(maxsize=128)
+@_ttl_cache(CALIBRATION_READER_TTL_S)
 def calibration_row_for_class(content_class_id: int | None) -> dict[str, Any] | None:
     """Latest adopted calibration metadata for synthesis priors."""
     if not settings.signal_calibration_adaptive:

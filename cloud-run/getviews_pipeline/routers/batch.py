@@ -1261,7 +1261,6 @@ async def batch_signal_calibration(
 ) -> JSONResponse:
     """Weekly outcome-driven viral-score weight + lever ρ calibration."""
     from getviews_pipeline.batch_observability import record_job_run
-    from getviews_pipeline.runtime import run_sync
     from getviews_pipeline.signal_calibration import run_signal_calibration
     from getviews_pipeline.supabase_client import get_service_client
 
