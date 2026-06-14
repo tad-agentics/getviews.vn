@@ -1,5 +1,18 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Diagnosis synthesis kwargs contract (drift guard)
+
+- **Python:** `diagnosis_synthesis_contract.py` — all `synthesize_diagnosis_v2` params required keyword-only; both single-video (`finalize_video_narrative_layer`) and compare (`run_video_diagnosis`) call sites build kwargs through `diagnosis_synthesis_kwargs(**...)`.
+- **Tests:** `test_diagnosis_synthesis_contract.py` — signature parity vs engine; missing kwarg raises `TypeError`.
+- **Output:** unchanged — previously-defaulted params set explicitly to same values on each path.
+
+## 2026-06-14 — Diagnosis grounding: hook leaderboard + comment signal (v1)
+
+- **Python:** Measured `content_class_hook_effectiveness` / `hook_effectiveness` rows fetched on live video path; claim-tier-gated `HOOK_LEADERBOARD` + `COMMENT_SIGNAL` prompt blocks (`diagnosis_grounding.py`).
+- **Flags:** `DIAGNOSIS_HOOK_LEADERBOARD`, `DIAGNOSIS_COMMENT_GROUNDING` (default off); shadow `[diagnosis_grounding]` telemetry always logs coverage.
+- **Cost:** Prompt tokens only — zero new Gemini/ED calls on hot path.
+- **Compare-path parity:** `run_video_diagnosis` (the two-URL compare builder) now resolves `comment_radar` before synthesis and fetches `hook_effectiveness`, threading both into `synthesize_diagnosis_v2`. Gating/flags/telemetry are inherited from the shared synthesis core, so both videos in a compare get the same evidence-backed hook/comment grounding as the single-video path. comment_radar resolution was hoisted (single cache-backed fetch reused for synthesis + out payload).
+
 ## 2026-06-14 — Corpus window 60d (split-window + peer pool extension)
 
 - **Split-window:** MV/benchmarks, peer fetch/pick, citation copy, and adaptive max default to **60 days** (env: `CORPUS_BENCHMARK_WINDOW_DAYS`, `CORPUS_REFERENCE_FETCH_DAYS`, `CORPUS_REFERENCE_PICK_DAYS`, `CORPUS_CITATION_WINDOW_DAYS`, `CORPUS_ADAPTIVE_MAX_DAYS`). Ingest discovery stays `BATCH_RECENCY_DAYS=30`.

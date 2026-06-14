@@ -531,6 +531,75 @@ def fetch_video_benchmark_with_axis(
     return None, "none"
 
 
+_HE_SELECT = (
+    "hook_type, avg_views, avg_engagement_rate, avg_completion_rate, "
+    "sample_size, trend_direction, computed_at"
+)
+
+
+def fetch_class_hook_effectiveness_sync(
+    sb: Any,
+    *,
+    content_class_id: int | None,
+    niche_id: int | None,
+) -> tuple[list[dict[str, Any]], str]:
+    """Fetch hook-effectiveness rows for diagnosis grounding (class → niche ladder).
+
+    Returns ``(deduped_rows, axis)`` where ``axis`` is ``content_class``,
+    ``niche``, or ``none``.
+    """
+    from getviews_pipeline.script_data import latest_hook_effectiveness_rows
+
+    if content_class_id is not None:
+        try:
+            cc_res = (
+                sb.table("content_class_hook_effectiveness")
+                .select(_HE_SELECT)
+                .eq("content_class_id", int(content_class_id))
+                .order("computed_at", desc=True)
+                .limit(300)
+                .execute()
+            )
+            cc_raw = cc_res.data or []
+            cc_latest = latest_hook_effectiveness_rows(
+                cc_raw if isinstance(cc_raw, list) else []
+            )
+            if cc_latest:
+                return cc_latest, "content_class"
+        except Exception as exc:
+            logger.warning(
+                "[niche_benchmark] content_class_hook_effectiveness class=%s: %s",
+                content_class_id,
+                exc,
+            )
+
+    pin = int(niche_id or 0)
+    if pin > 0:
+        try:
+            n_res = (
+                sb.table("hook_effectiveness")
+                .select(_HE_SELECT)
+                .eq("niche_id", pin)
+                .order("computed_at", desc=True)
+                .limit(300)
+                .execute()
+            )
+            n_raw = n_res.data or []
+            n_latest = latest_hook_effectiveness_rows(
+                n_raw if isinstance(n_raw, list) else []
+            )
+            if n_latest:
+                return n_latest, "niche"
+        except Exception as exc:
+            logger.warning(
+                "[niche_benchmark] hook_effectiveness niche=%s: %s",
+                pin,
+                exc,
+            )
+
+    return [], "none"
+
+
 def peer_percentile(
     value: float,
     *,

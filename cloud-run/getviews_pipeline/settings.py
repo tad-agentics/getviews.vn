@@ -206,6 +206,14 @@ class _PipelineSettings(BaseSettings):
         le=180,
         description="Adaptive report window ladder cap (after 7/14/30)",
     )
+    diagnosis_hook_leaderboard: bool = Field(
+        default=False,
+        description="Inject measured hook-effectiveness block into live diagnosis prompt",
+    )
+    diagnosis_comment_grounding: bool = Field(
+        default=False,
+        description="Inject comment_radar block into live diagnosis prompt",
+    )
     corpus_postextract_hook_cap: int = Field(default=3, ge=1)
     corpus_hook_cap_breakout_bypass: float = Field(default=3.0, ge=0.0)
     corpus_purity_vpn_default: int = Field(default=15, ge=1)

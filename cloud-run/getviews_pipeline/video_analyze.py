@@ -164,6 +164,59 @@ def _ensure_comment_radar_on_out(out: dict[str, Any]) -> None:
         )
 
 
+def _attach_hook_effectiveness_for_diagnosis(
+    out: dict[str, Any],
+    *,
+    user_sb: Any | None,
+) -> None:
+    """Load measured hook lift for diagnosis grounding (always — shadow telemetry)."""
+    if user_sb is None:
+        out["hook_effectiveness"] = []
+        out["hook_effectiveness_axis"] = "none"
+        return
+    meta = out.get("meta") if isinstance(out.get("meta"), dict) else {}
+    niche_meta = out.get("niche_meta") if isinstance(out.get("niche_meta"), dict) else {}
+    content_class_id: int | None = None
+    for raw_cc in (
+        niche_meta.get("content_class_id"),
+        meta.get("content_class_id"),
+    ):
+        if raw_cc is None:
+            continue
+        try:
+            content_class_id = int(raw_cc)
+            break
+        except (TypeError, ValueError):
+            continue
+    niche_id: int | None = None
+    for raw_n in (
+        niche_meta.get("niche_id"),
+        meta.get("niche_id"),
+        meta.get("ingest_loop_niche_id"),
+    ):
+        if raw_n is None:
+            continue
+        try:
+            niche_id = int(raw_n)
+            break
+        except (TypeError, ValueError):
+            continue
+    try:
+        from getviews_pipeline.video_niche_benchmark import fetch_class_hook_effectiveness_sync
+
+        rows, axis = fetch_class_hook_effectiveness_sync(
+            user_sb,
+            content_class_id=content_class_id,
+            niche_id=niche_id,
+        )
+        out["hook_effectiveness"] = rows
+        out["hook_effectiveness_axis"] = axis
+    except Exception as exc:
+        logger.warning("[video_analyze] hook_effectiveness fetch failed: %s", exc)
+        out["hook_effectiveness"] = []
+        out["hook_effectiveness_axis"] = "none"
+
+
 # ── Gemini output schemas (Call 1 — structured errors only) ─────────────
 
 # Moved to services/extraction.py — re-exported here for backward compatibility.
@@ -1421,6 +1474,7 @@ def finalize_video_narrative_layer(
         _strip_on_demand_client_cache_fields(out)
         return
 
+    from getviews_pipeline.diagnosis_synthesis_contract import diagnosis_synthesis_kwargs
     from getviews_pipeline.gemini import synthesize_diagnosis_v2
     from getviews_pipeline.pipelines import (
         _estimate_er_percentile_rank,
@@ -1556,6 +1610,7 @@ def finalize_video_narrative_layer(
     out["reference_videos"] = slim_refs
 
     _ensure_comment_radar_on_out(out)
+    _attach_hook_effectiveness_for_diagnosis(out, user_sb=user_sb)
 
     views = int(meta.get("views") or 0)
     corpus_avg_views = float(niche_meta.get("avg_views") or 0.0)
@@ -1810,29 +1865,43 @@ def finalize_video_narrative_layer(
     format_cards_out: list[dict[str, Any]] | None = None
     try:
         diagnosis_md, narrative_vi_out, format_cards_out = synthesize_diagnosis_v2(
-            content_format=content_format or "unknown",
-            niche_name=niche_name or "unknown",
-            corpus_size=corpus_size,
-            niche_meta=niche_meta,
-            reference_videos=_truncate_transcripts(synthesis_refs),
-            user_analysis=analysis,
-            user_stats=user_stats,
-            performance_tier=performance_tier,
-            channel_context=channel_context_payload,
-            errors=errors_prompt or None,
-            reference_evidence_block=evidence_block,
-            creator_format_history_block=creator_format_history_block,
-            cross_format_signal=(
-                out.get("cross_format_signal")
-                if isinstance(out.get("cross_format_signal"), dict)
-                else None
+            **diagnosis_synthesis_kwargs(
+                content_format=content_format or "unknown",
+                niche_name=niche_name or "unknown",
+                corpus_size=corpus_size,
+                niche_meta=niche_meta,
+                reference_videos=_truncate_transcripts(synthesis_refs),
+                user_analysis=analysis,
+                user_stats=user_stats,
+                collapsed_questions=None,
+                wants_directions=False,
+                layer0_context="",
+                corpus_citation="",
+                persona_block="",
+                performance_tier=performance_tier,
+                channel_context=channel_context_payload,
+                errors=errors_prompt or None,
+                reference_evidence_block=evidence_block,
+                creator_format_history_block=creator_format_history_block,
+                cross_format_signal=(
+                    out.get("cross_format_signal")
+                    if isinstance(out.get("cross_format_signal"), dict)
+                    else None
+                ),
+                niche_posting_context_block="",
+                comment_radar=(
+                    out.get("comment_radar")
+                    if isinstance(out.get("comment_radar"), dict)
+                    else None
+                ),
+                hook_effectiveness=(
+                    out.get("hook_effectiveness")
+                    if isinstance(out.get("hook_effectiveness"), list)
+                    else None
+                ),
+                addressing_mode=addressing_mode,
+                video_creator_handle=creator_handle or None,
             ),
-            niche_posting_context_block="",
-            comment_radar=(
-                out.get("comment_radar") if isinstance(out.get("comment_radar"), dict) else None
-            ),
-            addressing_mode=addressing_mode,
-            video_creator_handle=creator_handle or None,
         )
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")

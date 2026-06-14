@@ -189,6 +189,20 @@ def hook_type_vi(value: str | None, *, default: str | None = None) -> str:
     return _lookup(HOOK_TYPE_VI, value, default)
 
 
+_TREND_VI: dict[str, str] = {
+    "rising": "đang tăng",
+    "stable": "ổn định",
+    "declining": "đang giảm",
+}
+
+
+def trend_vi(value: str | None, *, default: str | None = None) -> str:
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return default or ""
+    return _TREND_VI.get(raw, default if default is not None else raw)
+
+
 def hook_timeline_event_vi(value: str | None, *, default: str | None = None) -> str:
     return _lookup(HOOK_TIMELINE_EVENT_VI, value, default)
 

@@ -1907,6 +1907,7 @@ def _synthesize_diagnosis_v6_section_pool(
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
     comment_radar: dict[str, Any] | None = None,
+    hook_effectiveness: list[dict[str, Any]] | None = None,
     addressing_mode: str = "third_party",
     video_creator_handle: str | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
@@ -1917,11 +1918,16 @@ def _synthesize_diagnosis_v6_section_pool(
         build_diagnosis_v6_user_prompt,
     )
     from getviews_pipeline.diagnose_sections import select_sections_to_emit
+    from getviews_pipeline.diagnosis_grounding import (
+        compute_diagnosis_grounding,
+        log_diagnosis_grounding_telemetry,
+    )
     from getviews_pipeline.diagnosis_quality import (
         diagnosis_v6_word_budget_exceeded,
         diagnosis_v6_word_counts,
         score_diagnosis_output_v6,
     )
+    from getviews_pipeline.settings import settings as _settings
     from getviews_pipeline.signals.registry import (
         build_diagnosis_ctx,
         build_signal_manifest,
@@ -1947,6 +1953,7 @@ def _synthesize_diagnosis_v6_section_pool(
         niche_name=niche_name,
         corpus_size=corpus_size,
         comment_radar=comment_radar,
+        hook_effectiveness=hook_effectiveness,
     )
     manifest = build_signal_manifest(ctx_dict)
     sections_ordered = select_sections_to_emit(manifest, ctx_dict)
@@ -1956,6 +1963,19 @@ def _synthesize_diagnosis_v6_section_pool(
         video_id=str(user_stats.get("video_id") or "") or None,
     )
     manifest_trim = manifest_for_prompt(manifest)
+
+    hook_block, comment_block, grounding_telemetry = compute_diagnosis_grounding(
+        hook_effectiveness=hook_effectiveness,
+        user_analysis=user_analysis,
+        comment_radar=comment_radar,
+        class_label=niche_name or str(niche_meta.get("niche_label") or ""),
+        emit_hook=bool(_settings.diagnosis_hook_leaderboard),
+        emit_comment=bool(_settings.diagnosis_comment_grounding),
+    )
+    log_diagnosis_grounding_telemetry(
+        grounding_telemetry,
+        video_id=str(user_stats.get("video_id") or "") or None,
+    )
 
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
     sys_inst = build_voice_domain_system_instruction(include_diagnosis_examples=True)
@@ -1981,6 +2001,8 @@ def _synthesize_diagnosis_v6_section_pool(
         niche_posting_context_block="",
         addressing_mode=addressing_mode,
         video_creator_handle=video_creator_handle,
+        hook_leaderboard_block=hook_block,
+        comment_signal_block=comment_block,
     )
     prompt = _prefix_user_sections(
         [layer0_context or "", creator_format_history_block or ""],
@@ -2118,6 +2140,7 @@ def synthesize_diagnosis_v2(
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
     comment_radar: dict[str, Any] | None = None,
+    hook_effectiveness: list[dict[str, Any]] | None = None,
     addressing_mode: str = "third_party",
     video_creator_handle: str | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
@@ -2145,6 +2168,7 @@ def synthesize_diagnosis_v2(
             cross_format_signal=cross_format_signal,
             niche_posting_context_block=niche_posting_context_block,
             comment_radar=comment_radar,
+            hook_effectiveness=hook_effectiveness,
             addressing_mode=addressing_mode,
             video_creator_handle=video_creator_handle,
         )

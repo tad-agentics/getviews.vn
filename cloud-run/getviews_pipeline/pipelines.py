@@ -26,13 +26,14 @@ from getviews_pipeline.corpus_context import (
     lookup_trending_sound_profile_for_diagnosis,
     resolve_niche_id_cached,
 )
+from getviews_pipeline.corpus_ingest import classify_format
 from getviews_pipeline.corpus_windows import (
     corpus_benchmark_window_days,
     corpus_citation_window_days,
     corpus_reference_fetch_days,
     corpus_reference_pick_days,
 )
-from getviews_pipeline.corpus_ingest import classify_format
+from getviews_pipeline.diagnosis_synthesis_contract import diagnosis_synthesis_kwargs
 from getviews_pipeline.enum_labels_vi import carousel_subformat_vi
 from getviews_pipeline.gemini import (
     synthesize_diagnosis_carousel_v2,
@@ -71,6 +72,7 @@ from getviews_pipeline.step_events import (
     step_start,
 )
 from getviews_pipeline.supabase_client import get_service_client
+from getviews_pipeline.video_niche_benchmark import fetch_class_hook_effectiveness_sync
 
 logger = logging.getLogger(__name__)
 
@@ -1902,6 +1904,25 @@ async def run_video_diagnosis(
     refined_performance_tier_out: str | None = None
     diagnosis_errors_out: list[dict[str, Any]] | None = None
     diagnosis_kpi_out: dict[str, Any] | None = None
+
+    # Comment radar resolved up front (cache-backed, fail-open) so the video
+    # synthesis path can ground diagnosis in real audience signal — parity with
+    # the single-video finalize path. Also feeds the out payload below.
+    user_video_id = str(user_metadata_dict.get("video_id") or "")
+    comment_radar: dict[str, Any] | None = None
+    try:
+        from getviews_pipeline.comment_radar_cache import resolve_comment_radar
+
+        comment_count_hint = int(
+            (user_metadata_dict.get("metrics") or {}).get("comments") or 0
+        )
+        if user_video_id:
+            comment_radar = await resolve_comment_radar(
+                user_video_id, comment_count_hint=comment_count_hint,
+            )
+    except Exception as exc:
+        logger.warning("[video_diagnosis] comment_radar resolve failed: %s", exc)
+
     if include_diagnosis:
         if user_content_type == "carousel":
             # ch_task is not used by the carousel path — cancel immediately to avoid leak.
@@ -2109,26 +2130,48 @@ async def run_video_diagnosis(
                 int(niche_id) if niche_id is not None else 0,
             )
 
+            # Diagnosis grounding parity: measured hook lift for this class/niche.
+            # Fail-open — feature-flag + claim-tier gating applied inside synthesis.
+            hook_effectiveness_rows: list[dict[str, Any]] = []
+            try:
+                hook_effectiveness_rows, _he_axis = await run_sync(
+                    fetch_class_hook_effectiveness_sync,
+                    get_service_client(),
+                    content_class_id=ref_content_class_id,
+                    niche_id=int(niche_id) if niche_id is not None else None,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[video_diagnosis] hook_effectiveness fetch failed: %s", exc
+                )
+
             diagnosis_md, narrative_vi_out, format_cards_out = await run_sync(
                 synthesize_diagnosis_v2,
-                content_format=content_format,
-                niche_name=niche,
-                corpus_size=count,
-                niche_meta=niche_meta,
-                reference_videos=_truncate_transcripts(references),
-                user_analysis=_truncate_analysis(user_analysis_dict),
-                user_stats=user_stats,
-                collapsed_questions=questions if questions and len(questions) > 1 else None,
-                wants_directions=_wants_directions(user_message),
-                layer0_context=layer0_context,
-                corpus_citation=citation,
-                persona_block=persona_block,
-                performance_tier=refined_tier,
-                channel_context=channel_context_payload,
-                errors=errors_prompt,
-                reference_evidence_block=evidence_block,
-                creator_format_history_block=creator_format_history_block_v,
-                niche_posting_context_block="",
+                **diagnosis_synthesis_kwargs(
+                    content_format=content_format,
+                    niche_name=niche,
+                    corpus_size=count,
+                    niche_meta=niche_meta,
+                    reference_videos=_truncate_transcripts(references),
+                    user_analysis=_truncate_analysis(user_analysis_dict),
+                    user_stats=user_stats,
+                    collapsed_questions=questions if questions and len(questions) > 1 else None,
+                    wants_directions=_wants_directions(user_message),
+                    layer0_context=layer0_context,
+                    corpus_citation=citation,
+                    persona_block=persona_block,
+                    performance_tier=refined_tier,
+                    channel_context=channel_context_payload,
+                    errors=errors_prompt,
+                    reference_evidence_block=evidence_block,
+                    creator_format_history_block=creator_format_history_block_v,
+                    cross_format_signal=None,
+                    niche_posting_context_block="",
+                    comment_radar=comment_radar,
+                    hook_effectiveness=hook_effectiveness_rows,
+                    addressing_mode="third_party",
+                    video_creator_handle=None,
+                ),
             )
             if format_cards_out and niche_id:
                 format_cards_out = enrich_format_cards_from_corpus(
@@ -2202,25 +2245,8 @@ async def run_video_diagnosis(
     emit_sentinel(step_queue)
 
     # Parallel side-queries — each fails open so a miss never blocks the
-    # primary diagnosis path. Share the resolved video_id so both reads hit
-    # the same row.
-    user_video_id = str((user_res.get("metadata") or {}).get("video_id") or "")
-
-    # Comment radar — sentiment + purchase intent from the video's comment
-    # section. Fails open: any fetch / parse error leaves the field unset.
-    comment_radar: dict[str, Any] | None = None
-    try:
-        from getviews_pipeline.comment_radar_cache import resolve_comment_radar
-
-        comment_count_hint = int(
-            ((user_res.get("metadata") or {}).get("metrics") or {}).get("comments") or 0
-        )
-        if user_video_id:
-            comment_radar = await resolve_comment_radar(
-                user_video_id, comment_count_hint=comment_count_hint,
-            )
-    except Exception as exc:
-        logger.warning("[video_diagnosis] comment_radar resolve failed: %s", exc)
+    # primary diagnosis path. ``user_video_id`` + ``comment_radar`` were already
+    # resolved before synthesis (grounding parity); reuse them here.
 
     # Thumbnail tile — one Gemini image call on the t=0 frame URL stored in
     # video_corpus.frame_urls. Resolves to None for user-submitted videos not

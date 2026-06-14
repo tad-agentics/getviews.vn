@@ -66,6 +66,7 @@ def build_diagnosis_ctx(
     niche_name: str = "",
     corpus_size: int = 0,
     comment_radar: dict | None = None,
+    hook_effectiveness: list[dict] | None = None,
 ) -> dict:
     return {
         "user_analysis": user_analysis,
@@ -79,6 +80,7 @@ def build_diagnosis_ctx(
         "niche_name": niche_name,
         "corpus_size": corpus_size,
         "comment_radar": comment_radar if isinstance(comment_radar, dict) else None,
+        "hook_effectiveness": list(hook_effectiveness or []),
     }
 
 

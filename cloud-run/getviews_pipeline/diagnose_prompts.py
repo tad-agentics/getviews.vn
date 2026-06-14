@@ -297,6 +297,8 @@ def build_diagnosis_v6_user_prompt(
     cross_format_signal: dict[str, Any] | None = None,
     addressing_mode: str = "third_party",
     video_creator_handle: str | None = None,
+    hook_leaderboard_block: str = "",
+    comment_signal_block: str = "",
 ) -> str:
     tier = str(performance_tier or "unknown").lower()
     default_titles = {
@@ -389,6 +391,10 @@ def build_diagnosis_v6_user_prompt(
         blocks.append(f"\n\nPERSONA_BLOCK:\n{persona_block}")
     if reference_evidence_block:
         blocks.append(f"\n\nREFERENCE_EVIDENCE:\n{reference_evidence_block}")
+    if hook_leaderboard_block:
+        blocks.append(f"\n\n{hook_leaderboard_block}")
+    if comment_signal_block:
+        blocks.append(f"\n\n{comment_signal_block}")
     if wants_directions:
         blocks.append(
             "\n\nBổ sung sau diagnosis_vi: trong format_cards để 1-4 gợi ý hướng "
@@ -461,6 +467,12 @@ def build_diagnosis_v6_user_prompt(
             "\n- Dệt 1-2 câu cuối section.text dẫn sang thẻ tham chiếu (hook cụ thể); "
             "không lặp nguyên văn narrative_vi trên thẻ."
         )
+        if hook_leaderboard_block:
+            hook_analysis_note += (
+                "\n- Nếu có HOOK_LEADERBOARD: dệt lift đo được vào fix_vi — "
+                "hook hiện tại vs hook mạnh nhất ngách (n= thật); gợi ý mở bằng pattern "
+                "hook views TB cao hơn, không bịa hạng/bội số."
+            )
     video_structure_note = ""
     has_script_structure = "script_structure" in sections_to_emit
     has_editing = "editing" in sections_to_emit
@@ -577,6 +589,15 @@ def build_diagnosis_v6_user_prompt(
             "\n- narrative_vi: 1 câu/tile — peer làm format/hook/nhịp tốt hơn clip đang phân tích ở điểm nào; "
             "KHÔNG «Được chọn vì format» chung chung."
         )
+    comment_grounding_note = ""
+    if comment_signal_block:
+        comment_grounding_note = (
+            "\n\nCOMMENT_SIGNAL (nếu có khối trên): phản ánh khán giả thực — "
+            "dệt sentiment vào section metadata khi có stats_history/distribution; "
+            "nếu questions_asked cao, gợi ý 1 video tiếp theo trong diagnosis hoặc "
+            "format_cards (không tạo section mới). Cảm xúc tiêu cực cao → soi nguyên nhân "
+            "trong findings. KHÔNG bịa trích dẫn bình luận."
+        )
     blocks.append(
         "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu "
         "chứng minh (≤90 từ; script_structure ≤100 từ). Tổng báo cáo ~350-450 từ. Ưu tiên fix + "
@@ -603,5 +624,6 @@ def build_diagnosis_v6_user_prompt(
         + hook_analysis_note
         + video_structure_note
         + niche_pattern_note
+        + comment_grounding_note
     )
     return "".join(blocks)
