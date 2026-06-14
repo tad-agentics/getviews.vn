@@ -97,10 +97,10 @@ def test_v6_prompt_includes_video_structure_note_when_script_structure_emits() -
         wants_directions=False,
     )
     assert "TRỤC 1 — script_structure" in prompt
-    assert "≤100 từ" in prompt
+    assert "≤120 từ" in prompt
     assert "thiếu sót" in prompt.lower()
     assert "TRỤC 2 — sound" in prompt
-    assert "script_structure ≤100 từ" in prompt
+    assert "script_structure ≤120 từ" in prompt
 
 
 def test_v6_prompt_sound_only_video_structure_note() -> None:

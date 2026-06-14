@@ -50,7 +50,7 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
 Quy tắc:
 
 ĐỘ DÀI & CẤU TRÚC (ưu tiên cao nhất — audience là creator, đọc lướt trên mobile):
-- TỔNG báo cáo ~350-450 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu chứng minh (≤90 từ; script_structure ≤100 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 5 câu prose.
+- TỔNG báo cáo ~400-480 từ. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu chứng minh (≤90 từ; script_structure ≤120 từ; hook_analysis ≤100 từ). KHÔNG đoạn 150-200 từ, KHÔNG section nào dài hơn 5 câu prose.
 - VERDICT-FIRST: câu đầu mỗi section là kết luận in đậm — đọc các câu đậm xuyên suốt bài là hiểu toàn bộ. Phần còn lại chỉ chứng minh + fix + reference.
 - ĐƠN VỊ CHÍNH là FINDINGS + REFERENCE, KHÔNG phải prose. Khi phân vân giữa viết thêm 1 đoạn giải thích và đưa thêm 1 finding/1 reference tile → luôn chọn finding/reference. Prose chỉ là 1 câu verdict dẫn vào.
 - DẠY VIỆC CẦN LÀM > chẩn đoán. Nén chẩn đoán còn 1 câu; dồn không gian cho fix cụ thể và reference video.
@@ -101,8 +101,8 @@ KHÁCH QUAN VỚI PERFORMANCE_TIER (chống bias kết quả):
 
 DIAGNOSIS_V6_SHORTEN_RETRY_APPEND = """
 BẮT BUỘC RÚT GỌN: Bản trước quá dài. Trả lại JSON đầy đủ cùng schema.
-- TỔNG ≤520 từ (mọi section.text + findings) — ưu tiên giữ đủ 3 trục cấu trúc (script_structure + sound + persona khi có trong SECTIONS_TO_EMIT).
-- Mỗi section.text: ≤90 từ; script_structure ≤100; sound/persona ≤55 — 1 verdict **in đậm** + tối đa 4 câu.
+- TỔNG ≤560 từ (mọi section.text + findings) — ưu tiên giữ đủ 3 trục cấu trúc (script_structure + sound + persona khi có trong SECTIONS_TO_EMIT).
+- Mỗi section.text: ≤90 từ; script_structure ≤120; hook_analysis ≤100; sound/persona ≤55 — 1 verdict **in đậm** + tối đa 4 câu.
 - Giữ đủ findings và embedded_tiles (≥1 tile / thiếu sót rhythm); cắt prose thừa, KHÔNG bỏ fix_vi.
 """
 
@@ -525,7 +525,7 @@ def build_diagnosis_v6_user_prompt(
     if "hook_analysis" in sections_to_emit:
         hook_analysis_note = (
             "\n\nSECTION hook_analysis («Phân tích hook»):"
-            "\n- section.text: ưu tiên ≤90 từ (1 verdict **in đậm** + tối đa 4 câu "
+            "\n- section.text: ưu tiên ≤100 từ (1 verdict **in đậm** + tối đa 4 câu "
             "về 3 giây đầu: loại hook, text overlay, lời thoại, visual layering, mute-safe). "
             "Mật độ prose tương đương block «Đang làm tốt» — đọc xong hiểu hook mạnh/yếu thế nào."
             "\n- findings: đúng 1 điểm mạnh (fix_vi «Tiếp tục»/«Giữ»/«Duy trì») + "
@@ -569,7 +569,7 @@ def build_diagnosis_v6_user_prompt(
             f"\n\nBLOCK «Phân tích cấu trúc Video»{merge_hint} — {axis_n} TRỤC RIÊNG trên UI "
             "(mỗi trục = section BE riêng; FE gộp sau hook):"
             "\n\nTRỤC 1 — script_structure («Nhịp & cắt»):"
-            "\n- section.text: 2-3 câu (≤100 từ): 1 verdict **in đậm** + câu về nhịp cắt, "
+            "\n- section.text: 2-4 câu (≤120 từ): 1 verdict **in đậm** + câu về nhịp cắt, "
             "pattern interrupt, dead air, góc quay/framing, chuyển cảnh — KHÔNG lẫn hook 3s đầu."
             "\n- findings: đúng 1 điểm mạnh (fix_vi «Tiếp tục»/«Giữ»/«Duy trì») + "
             "1-2 thiếu sót nhịp/cảnh/cách quay (fix_vi copy-paste, có mốc giây/scene)."
@@ -689,7 +689,7 @@ def build_diagnosis_v6_user_prompt(
             )
     blocks.append(
         "\n\nViết JSON đầy đủ theo schema. Mỗi section.text: 1 câu verdict in đậm + tối đa 4 câu "
-        "chứng minh (≤90 từ; script_structure ≤100 từ). Tổng báo cáo ~350-450 từ. Ưu tiên fix + "
+        "chứng minh (≤90 từ; script_structure ≤120 từ; hook_analysis ≤100 từ). Tổng báo cáo ~400-480 từ. Ưu tiên fix + "
         "reference video hơn giải thích dài. KHÔNG tạo section timing/giờ đăng. Mỗi câu phải "
         "advance argument."
         "\n\nQUY TẮC ĐỘ SÂU (bắt buộc):"
@@ -705,7 +705,7 @@ def build_diagnosis_v6_user_prompt(
         "mốc thời gian, hoặc tên video/creator cụ thể — câu không có bằng chứng thì cắt."
         "\n- CẤM câu đệm: 'có thể thấy rằng', 'nhìn chung', 'điều này cho thấy', "
         "'một điều đáng chú ý là'. Verdict trước, bằng chứng ngay sau."
-        "\n- Nhịp đúng (≤90 từ; script_structure ≤100): '**Hình mẫu X đang kéo view tốt** so với "
+        "\n- Nhịp đúng (≤90 từ; script_structure ≤120; hook_analysis ≤100): '**Hình mẫu X đang kéo view tốt** so với "
         "chuẩn ngách. ASMR + trắc nghiệm tạo tò mò. Vượt 1,8× mức view thường kênh. "
         "Hai clip tham chiếu dưới minh họa cách xử lý hook và nhịp.'"
         + tier_note

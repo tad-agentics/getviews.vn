@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Diagnosis word budget: Path B (wider structure + hook)
+
+- **Caps raised** so extraction-signals-v2 evidence fits the two densest sections: «Nhịp & cắt» (`script_structure`) ≤100→**≤120**, hook (`hook_analysis`) ≤90→**≤100**.
+- **Totals:** report target ~350-450→**~400-480**; code-enforced retry ceiling 520→**560** (`diagnosis_quality.py`).
+- **Synced everywhere:** `diagnosis_quality.py` (soft maxes + `_section_text_soft_max` now handles `hook_analysis`), prompt copy in `diagnose_prompts.py`, `voice_guide.py` system instruction, `structure_axis_contract.py` retry append.
+- Discipline unchanged: LLM still picks 1–2 most decisive signals, doesn't list all.
+
 ## 2026-06-14 — Extraction signals v2 (Tier 1 + Tier 2)
 
 - **Tier 1 (deterministic):** `compute_information_density` + `compute_loopability` in `video_structural.py` — words/sec arc, `time_to_first_value_sec`, `dead_air_ratio`, `loop_score`, `redundancy_runs`. Computed in `_resolve_user_retention_curve` (live) and `_build_corpus_row` (batch).

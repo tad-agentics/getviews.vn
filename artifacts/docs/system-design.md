@@ -426,7 +426,7 @@ Measured structural signals feed **existing** diagnosis prose boundaries — no 
 | **3** | Audio DSP (deferred) | beat-sync, voice-energy | Flag `EXTRACTION_AUDIO_DSP` only — not wired |
 
 - **Join point:** `_resolve_user_retention_curve` (live) already has scenes + ASR segments; Tier 1 stashed on `analysis` dict in-place when `EXTRACTION_SIGNALS_V2=true`. Batch: `_build_corpus_row` writes nullable benchmark columns (`time_to_first_value_sec`, `loop_score`, `words_per_sec`).
-- **Word budget:** synthesis limits unchanged; LLM instructed to surface **1–2 most decisive** signals by deviation magnitude (Loop B `predictive_strength` ranking deferred until calibration registers these signals).
+- **Word budget (Path B, 2026-06-14):** «Nhịp & cắt» (`script_structure`) ≤100→**≤120**, hook (`hook_analysis`) ≤90→**≤100**, total report ~350-450→**~400-480** (retry ceiling 520→560) to give the measured signals room. Caps live in `diagnosis_quality.py` (code-enforced shorten-retry) + prompt copy in `diagnose_prompts.py` / `voice_guide.py` / `structure_axis_contract.py` — keep all in sync. LLM still surfaces **1–2 most decisive** signals by deviation magnitude (Loop B `predictive_strength` ranking deferred until calibration registers these signals).
 - **Flag:** `EXTRACTION_SIGNALS_V2` (default off) — compute always, shadow log when off. Spec: [`diagnosis-extraction-signals-v2.md`](diagnosis-extraction-signals-v2.md).
 
 ### Caption TikTok vs hook in-video

@@ -6,20 +6,26 @@ from typing import Any
 from getviews_pipeline.diagnose_parse import approximate_word_count_vi
 
 # Report redesign 2026-05 — prompt targets; retry uses soft ceiling.
-# Aligned with diagnose_prompts.py section.text cap (≤90 từ, 2026-06-12).
+# Aligned with diagnose_prompts.py section.text caps. Path B (2026-06-14):
+# script_structure «Nhịp & cắt» → 120, hook_analysis → 100 so the measured
+# extraction-signals-v2 evidence has room in the two densest sections.
 DIAGNOSIS_V6_SECTION_MAX_WORDS = 90
 DIAGNOSIS_V6_SECTION_SOFT_MAX = 95
-DIAGNOSIS_V6_SCRIPT_STRUCTURE_MAX_WORDS = 100
-DIAGNOSIS_V6_SCRIPT_STRUCTURE_SOFT_MAX = 105
+DIAGNOSIS_V6_SCRIPT_STRUCTURE_MAX_WORDS = 120
+DIAGNOSIS_V6_SCRIPT_STRUCTURE_SOFT_MAX = 125
+DIAGNOSIS_V6_HOOK_MAX_WORDS = 100
+DIAGNOSIS_V6_HOOK_SOFT_MAX = 105
 DIAGNOSIS_V6_SOUND_PERSONA_MAX_WORDS = 55
 DIAGNOSIS_V6_SOUND_PERSONA_SOFT_MAX = 60
-DIAGNOSIS_V6_TOTAL_TARGET_MAX = 450
-DIAGNOSIS_V6_TOTAL_RETRY_MAX = 520
+DIAGNOSIS_V6_TOTAL_TARGET_MAX = 480
+DIAGNOSIS_V6_TOTAL_RETRY_MAX = 560
 
 
 def _section_text_soft_max(section_id: str) -> int:
     if section_id == "script_structure":
         return DIAGNOSIS_V6_SCRIPT_STRUCTURE_SOFT_MAX
+    if section_id == "hook_analysis":
+        return DIAGNOSIS_V6_HOOK_SOFT_MAX
     if section_id in ("sound", "persona", "editing"):
         return DIAGNOSIS_V6_SOUND_PERSONA_SOFT_MAX
     return DIAGNOSIS_V6_SECTION_SOFT_MAX

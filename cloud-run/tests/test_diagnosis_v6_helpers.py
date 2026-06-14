@@ -178,17 +178,33 @@ def test_diagnosis_v6_word_budget_exceeded_on_long_section() -> None:
     assert diagnosis_v6_word_budget_exceeded(diag) is True
 
 
-def test_diagnosis_v6_script_structure_allows_100_word_prose() -> None:
+def test_diagnosis_v6_script_structure_allows_120_word_prose() -> None:
     diag = {
         "sections": [
-            {"section_id": "script_structure", "text": "word " * 102},
+            {"section_id": "script_structure", "text": "word " * 120},
         ],
     }
     assert diagnosis_v6_word_budget_exceeded(diag) is False
 
     diag_long = {
         "sections": [
-            {"section_id": "script_structure", "text": "word " * 110},
+            {"section_id": "script_structure", "text": "word " * 130},
+        ],
+    }
+    assert diagnosis_v6_word_budget_exceeded(diag_long) is True
+
+
+def test_diagnosis_v6_hook_analysis_allows_100_word_prose() -> None:
+    diag = {
+        "sections": [
+            {"section_id": "hook_analysis", "text": "word " * 100},
+        ],
+    }
+    assert diagnosis_v6_word_budget_exceeded(diag) is False
+
+    diag_long = {
+        "sections": [
+            {"section_id": "hook_analysis", "text": "word " * 112},
         ],
     }
     assert diagnosis_v6_word_budget_exceeded(diag_long) is True

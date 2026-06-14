@@ -178,7 +178,7 @@ def build_structure_axis_retry_append(violations: list[str]) -> str:
         "\n\nBẮT BUỘC SỬA TRỤC CẤU TRÚC (lần retry): Block «Phân tích cấu trúc Video» gồm "
         "5 trục riêng trên UI — mỗi section BE phải đủ prose + findings:\n"
         f"{bullet}\n"
-        "- script_structure (Nhịp & cắt): section.text 2-3 câu (≤100 từ) + 1 điểm mạnh "
+        "- script_structure (Nhịp & cắt): section.text 2-4 câu (≤120 từ) + 1 điểm mạnh "
         "+ 1-2 thiếu sót nhịp/cảnh/cách quay + embedded_tiles (≥1 tile / thiếu sót).\n"
         "- editing (Hậu kỳ & hình): section.text 2-3 câu (≤55 từ) về color grade, chữ overlay, "
         "cách quay/hậu kỳ — KHÔNG để trống khi editing có trong SECTIONS_TO_EMIT.\n"
