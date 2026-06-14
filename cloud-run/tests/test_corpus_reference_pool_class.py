@@ -79,7 +79,7 @@ def test_ladder_widens_to_junction_when_class_thin(monkeypatch: pytest.MonkeyPat
     assert scopes_called == ["content_class", "junction"]
 
 
-def test_merge_eligible_prefers_reference_eligible_rows() -> None:
+def test_merge_eligible_prefers_clean_boost_then_ineligible() -> None:
     client = MagicMock()
     query = MagicMock()
     client.table.return_value = query
@@ -87,12 +87,21 @@ def test_merge_eligible_prefers_reference_eligible_rows() -> None:
     query.gt.return_value = query
     query.gte.return_value = query
     query.eq.return_value = query
+    query.in_.return_value = query
     query.order.return_value = query
     query.limit.return_value = query
 
-    eligible = [{"video_id": "e1", "views": 100}]
-    fallback = [{"video_id": "e1", "views": 100}, {"video_id": "f1", "views": 50}]
-    query.execute.side_effect = [MagicMock(data=eligible), MagicMock(data=fallback)]
+    clean = [{"video_id": "e1", "views": 100, "boost_attribution": "organic_confident"}]
+    suspect_low: list[dict] = []
+    ineligible = [
+        {"video_id": "e1", "views": 100, "boost_attribution": "organic_confident"},
+        {"video_id": "f1", "views": 50, "boost_attribution": "suspect_medium"},
+    ]
+    query.execute.side_effect = [
+        MagicMock(data=clean),
+        MagicMock(data=suspect_low),
+        MagicMock(data=ineligible),
+    ]
 
     with patch(
         "getviews_pipeline.corpus_context._settings",
@@ -109,8 +118,6 @@ def test_merge_eligible_prefers_reference_eligible_rows() -> None:
         )
 
     assert [r["video_id"] for r in rows] == ["e1", "f1"]
-    eligible_calls = [c for c in query.eq.call_args_list if c.args == ("reference_eligible", True)]
-    assert eligible_calls
 
 
 def test_sync_pool_builds_awemes_with_class_scope(monkeypatch: pytest.MonkeyPatch) -> None:

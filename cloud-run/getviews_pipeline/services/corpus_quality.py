@@ -28,6 +28,8 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
+from getviews_pipeline.extraction_quality import classify_extraction_quality
+
 logger = logging.getLogger(__name__)
 
 # Minimum view count for a user-diagnosed video to qualify for corpus promotion.
@@ -119,6 +121,10 @@ def promote_on_demand_to_corpus(
         "first_seen_at": datetime.now(UTC).isoformat(),
         "last_refreshed_at": datetime.now(UTC).isoformat(),
         "indexed_at": datetime.now(UTC).isoformat(),
+        "extraction_quality": classify_extraction_quality(
+            analysis_json,
+            content_type=content_type,
+        ),
     }
 
     tier = quality_tier({**row, "ingest_source": "user_diagnosis"})

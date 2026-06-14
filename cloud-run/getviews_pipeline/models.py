@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Literal, get_args
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -11,6 +12,8 @@ from getviews_pipeline.two_axis_taxonomy import (
     CreatorNicheSlug,
     FormatAxisSlug,
 )
+
+logger = logging.getLogger(__name__)
 
 # Post format (video vs photo carousel) — used on VideoMetadata and analyze payloads.
 ContentType = Literal["video", "carousel"]
@@ -1102,6 +1105,8 @@ class VideoAnalysis(BaseModel):
         s = str(v or "organic").strip().lower()
         if s in ("organic", "brand_deal", "affiliate", "self_promotion"):
             return s
+        if v not in (None, "", "organic"):
+            logger.warning("[models] unknown promotion_type %r coerced to organic", v)
         return "organic"
 
 

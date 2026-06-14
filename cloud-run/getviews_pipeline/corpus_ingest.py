@@ -21,7 +21,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import (
@@ -1876,18 +1876,22 @@ def _build_corpus_row(
 
     transcript: str = analysis_json.get("audio_transcript") or ""
 
-    # ── Post-extraction quality checks (warnings only — row is still ingested) ──
-    # These catch degraded Gemini extractions that pollute corpus and skew niche_norms.
-    # They do NOT block ingest; use the warnings to decide whether to re-run or discard.
+    from getviews_pipeline.extraction_quality import classify_extraction_quality
+
+    extraction_quality = classify_extraction_quality(
+        analysis_json,
+        content_type=content_type,
+    )
+
+    # ── Post-extraction quality checks (persist flag; row is still ingested) ──
     _video_duration_approx = scenes[-1].get("end") if scenes else None
-    if _video_duration_approx and _video_duration_approx > 10 and len(scenes) <= 1:
+    if extraction_quality == "degraded_scenes":
         logger.warning(
             "[corpus_quality] video_id=%s: only %d scene(s) for %.0fs video — "
             "likely coarse extraction; transitions_per_second will be wrong",
-            video_id, len(scenes), _video_duration_approx,
+            video_id, len(scenes), float(_video_duration_approx or 0),
         )
-    _tps = analysis_json.get("transitions_per_second") or 0
-    if len(scenes) > 1 and _tps == 0:
+    elif extraction_quality == "degraded":
         logger.warning(
             "[corpus_quality] video_id=%s: %d scenes but transitions_per_second=0 — "
             "extraction inconsistency",
@@ -2018,6 +2022,7 @@ def _build_corpus_row(
         "ingest_loop_niche_id": aweme.get("_ingest_loop_niche_id"),
         "ingest_loop_content_class_id": _loop_cc,
         "score_cohort_mismatch": _cohort_mismatch,
+        "extraction_quality": extraction_quality,
     }
 
 
@@ -2820,6 +2825,7 @@ async def _ingest_candidate_awemes(
                 logger.info("[corpus] %s — video uploaded to R2: %s", row["video_id"], video_result)
             elif isinstance(video_result, Exception):
                 logger.warning("[corpus] video upload error for %s: %s", row["video_id"], video_result)
+                row.pop("video_url", None)
 
         for row, thumb_result in zip(rows, thumb_results):
             if isinstance(thumb_result, str) and thumb_result:
@@ -3325,11 +3331,27 @@ def _enrich_breakout_ratio_for_row(
         row["breakout_ratio"] = br
 
 
+def _is_permanent_r2_media_url(url: str | None, *, kind: Literal["video", "thumbnail"]) -> bool:
+    if not url:
+        return False
+    path_marker = "/videos/" if kind == "video" else "/thumbnails/"
+    from getviews_pipeline.config import R2_PUBLIC_URL, R2_VIDEO_PUBLIC_URL
+
+    bases = [R2_VIDEO_PUBLIC_URL, R2_PUBLIC_URL] if kind == "video" else [R2_PUBLIC_URL]
+    for base in bases:
+        if not base:
+            continue
+        b = base.rstrip("/")
+        if (url.startswith(b + "/") or url == b) and path_marker in url:
+            return True
+    return url.startswith("https://pub-") and path_marker in url
+
+
 def _merge_existing_provenance_sync(
     client: Any,
     rows: list[dict[str, Any]],
 ) -> None:
-    """COALESCE ingest provenance + stats_history like upsert_video_corpus_batch RPC."""
+    """COALESCE ingest provenance + stats_history + permanent media URLs."""
     ids = [str(r.get("video_id") or "") for r in rows if r.get("video_id")]
     if not ids:
         return
@@ -3339,7 +3361,10 @@ def _merge_existing_provenance_sync(
         chunk = ids[start : start + chunk_size]
         res = (
             client.table("video_corpus")
-            .select("video_id, ingest_source, first_seen_at, quality_tier, stats_history")
+            .select(
+                "video_id, ingest_source, first_seen_at, quality_tier, stats_history, "
+                "video_url, thumbnail_url"
+            )
             .in_("video_id", chunk)
             .execute()
         )
@@ -3360,6 +3385,18 @@ def _merge_existing_provenance_sync(
         prior_sh = prior.get("stats_history")
         if isinstance(prior_sh, list) and len(prior_sh) > 0:
             row["stats_history"] = prior_sh
+
+        prior_video = prior.get("video_url")
+        new_video = row.get("video_url")
+        if prior_video and _is_permanent_r2_media_url(str(prior_video), kind="video"):
+            if not new_video or not _is_permanent_r2_media_url(str(new_video), kind="video"):
+                row["video_url"] = prior_video
+
+        prior_thumb = prior.get("thumbnail_url")
+        new_thumb = row.get("thumbnail_url")
+        if prior_thumb and _is_permanent_r2_media_url(str(prior_thumb), kind="thumbnail"):
+            if not new_thumb or not _is_permanent_r2_media_url(str(new_thumb), kind="thumbnail"):
+                row["thumbnail_url"] = prior_thumb
 
 
 def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:

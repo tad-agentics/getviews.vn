@@ -529,7 +529,13 @@ Nightly `/batch/ingest` ranks EnsembleData pool candidates with **`instructivene
 
 **Post-extract (Tier 3):** hard failures block upsert when `CORPUS_POSTEXTRACT_HARD_REJECT=true` (non-VN caption, uninstructive structure, hook–content mismatch). Hook-type soft cap (`CORPUS_POSTEXTRACT_HOOK_CAP_ENFORCE`) is env-gated when shadow metrics pass; breakout ≥3.0 bypass.
 
-**Columns:** `boost_attribution`, `reference_eligible`, `ingest_relaxation_tier` (migration `20260520000000_corpus_ingest_criteria_columns.sql`).
+**Columns:** `boost_attribution`, `reference_eligible`, `ingest_relaxation_tier` (migration `20260520000000_corpus_ingest_criteria_columns.sql`); `extraction_quality` (migration `20260914000000_video_corpus_extraction_quality.sql`).
+
+**Benchmark MV hygiene (2026-06-14):** `content_class_intelligence` / `content_class_tier_intelligence` base CTE excludes `boost_attribution IN (suspect_low, suspect_medium)` so paid-boost skew does not inflate views/ER medians. Structural fields (`median_scene_count`, `avg_transitions_per_second`, duration/face) aggregate only rows with `extraction_quality <> 'degraded'`; `sample_size` still counts all non-suspect rows. Peer pool (`corpus_context._merge_eligible_reference_rows`) prefers clean boost → `suspect_low` (thin-cohort floor) → ineligible.
+
+**R3 global fallback:** when author median and class/niche p50/avg miss, `_breakout_for_aweme` uses corpus-wide p50 (`global_p50`).
+
+**Media permanence:** batch upsert preserves prior R2 `video_url`/`thumbnail_url` on re-ingest failure; reference pool repairs stale CDN video clips via `refresh_stale_video_urls`.
 
 **§4.7 M4 — `stats_history` time-series (Launch Phase 2b):** `video_corpus.stats_history` (JSONB, `[{at, phase, views, likes, comments, shares}]`) + `distribution_shape` (`null` | `spike_then_flat`). Batch ingest writes `t0` via `corpus_ingest.make_stats_snapshot`; **`POST /batch/stats-history-refetch`** (batch pod, hourly pg_cron `cron-batch-stats-history-refetch`) appends `t6h`/`t24h` via EnsembleData metadata-only refetch. `engagement_rate` on refetch uses **0–100%** scale (matches `_safe_engagement_rate`). `compute_distribution_shape()` sets `spike_then_flat` when views ≥2× t0→t6h and ER or comments/view drop ≥30% t6h→t24h. Live diagnosis reads history via `video_analyze.py` → `distribution_spike_then_flat` signal (`signals/distribution.py`). Migrations `20260827000002_video_corpus_stats_history_m4.sql` + `20260827000003_cron_batch_stats_history_refetch.sql` — **applied + batch pod `00132-4sg` @ 2026-05-23**.
 

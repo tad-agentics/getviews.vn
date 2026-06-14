@@ -1,5 +1,13 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Corpus extraction quality + synthesis-context hygiene
+
+- **Batch pod verified:** `CORPUS_INGEST_MODE=purity` live on `getviews-pipeline-batch` (Tier-3 post-extract gates active).
+- **DB:** `video_corpus.extraction_quality` + MV suspect/degraded filters (migrations `20260914000000`, `20260914000001`).
+- **Python:** 3-tier peer pool, global p50 breakout (R3), R2 video_url repair, TD-7 extraction_quality parity.
+- **Docs:** `corpus-ingest-criteria-v1.md` §3 save_rate deferred; `system-design.md` §12.1 updated.
+- **Accepted risk:** canonical PostgREST upsert bypasses atomic `stats_history` RPC by design.
+
 ## 2026-06-13 — Phase 1 `content_format` FP audit (recipe / tutorial / haul regex)
 
 - **Lý do:** Audit corpus 9.322 row (2026-06-13) — sau backfill mukbang, ~354 row rơi vào `recipe` vì bare `hấp` khớp substring trong `thấp` / `hấp thu`; ~45% bucket `tutorial` từ bare `cách`; ~58% bucket `haul` từ greedy `mua.*về` / `đặt.*gửi`.

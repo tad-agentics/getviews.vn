@@ -32,6 +32,7 @@ BreakoutSource = Literal[
     "class_p50",
     "niche_avg_fallback",
     "class_avg_fallback",
+    "global_p50",
     "none",
 ]
 
@@ -92,12 +93,20 @@ class ContentClassTierViewStats:
 
 
 @dataclass
+class GlobalViewStats:
+    p50_views: float = 0.0
+    organic_avg_views: float = 0.0
+    corpus_count: int = 0
+
+
+@dataclass
 class IngestBatchContext:
     """Prefetched stats for one batch night."""
 
     niche_stats: dict[int, NicheViewStats] = field(default_factory=dict)
     class_stats: dict[int, ContentClassViewStats] = field(default_factory=dict)
     class_tier_stats: dict[tuple[int, str], ContentClassTierViewStats] = field(default_factory=dict)
+    global_stats: GlobalViewStats = field(default_factory=GlobalViewStats)
     global_boost: BoostPercentiles = field(default_factory=BoostPercentiles)
     niche_boost: dict[int, BoostPercentiles] = field(default_factory=dict)
     class_boost: dict[int, BoostPercentiles] = field(default_factory=dict)
@@ -273,6 +282,9 @@ def _breakout_for_aweme(
     if ns and ns.organic_avg_views > 0 and ns.corpus_count >= 20:
         avg_src: BreakoutSource = "class_avg_fallback" if used_class else "niche_avg_fallback"
         return round(views / ns.organic_avg_views, 2), avg_src
+    gs = ctx.global_stats
+    if gs.p50_views > 0:
+        return round(views / gs.p50_views, 2), "global_p50"
     return 0.0, "none"
 
 
@@ -754,6 +766,11 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
         p75_views=_pct(all_views, 0.75) or 10_000.0,
         p90_views=_pct(all_views, 0.90) or 50_000.0,
         thin=len(rows) < 50 * max(1, len(niche_ids)),
+    )
+    ctx.global_stats = GlobalViewStats(
+        p50_views=_pct(all_views, 0.50),
+        organic_avg_views=sum(all_views) / len(all_views) if all_views else 0.0,
+        corpus_count=len(rows),
     )
 
     for nid, nrows in by_niche.items():

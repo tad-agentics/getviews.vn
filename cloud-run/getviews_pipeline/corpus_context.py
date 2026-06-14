@@ -855,7 +855,7 @@ def content_class_id_for_reference_pool(
 _REFERENCE_POOL_SELECT = (
     "video_id, creator_handle, views, likes, comments, shares, "
     "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
-    "video_url, "  # R2 MP4 when ingested — powers inline reference playback
+    "video_url, boost_attribution, extraction_quality, "
     "indexed_at, content_format, content_type, content_class_id, analysis_json"
 )
 # Widen cohort when class-scoped pool is too thin (parity with REF_N / proximity pick).
@@ -873,6 +873,7 @@ def _reference_pool_query(
     content_class_id: int | None,
     junction_class_ids: list[int],
     eligible_only: bool,
+    boost_attributions: list[str] | None = None,
 ) -> Any:
     q = (
         client.table("video_corpus")
@@ -891,6 +892,8 @@ def _reference_pool_query(
         q = q.eq("ingest_loop_niche_id", niche_id)
     if eligible_only:
         q = q.eq("reference_eligible", True)
+    if boost_attributions:
+        q = q.in_("boost_attribution", boost_attributions)
     return q
 
 
@@ -904,34 +907,81 @@ def _merge_eligible_reference_rows(
     content_class_id: int | None,
     junction_class_ids: list[int],
 ) -> list[dict[str, Any]]:
-    """Eligible-first ref rows for one cohort scope (§4.7 M2 + class-first browse)."""
-    eligible = (
+    """Eligible-first ref rows with 3-tier boost preference (§4.7 M2)."""
+    from getviews_pipeline.extraction_quality import (
+        is_clean_boost_attribution,
+        is_suspect_low_attribution,
+        peer_pool_quality_rank,
+    )
+
+    clean_boosts = ["organic_confident", "unknown"]
+    clean = (
         _reference_pool_query(
             client,
             niche_id=niche_id,
             days=days,
-            limit=limit,
+            limit=limit * 2,
             scope=scope,
             content_class_id=content_class_id,
             junction_class_ids=junction_class_ids,
             eligible_only=True,
+            boost_attributions=clean_boosts,
         )
         .execute()
         .data
         or []
     )
-    if len(eligible) >= limit:
-        return eligible
-    if _settings.corpus_boost_hard_reject:
-        return eligible
-    seen = {str(r.get("video_id")) for r in eligible if r.get("video_id")}
-    merged = list(eligible)
-    fallback = (
+    clean = [r for r in clean if is_clean_boost_attribution(r.get("boost_attribution"))]
+    clean.sort(key=peer_pool_quality_rank)
+
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def _append(rows: list[dict[str, Any]]) -> None:
+        for row in rows:
+            vid = str(row.get("video_id") or "")
+            if not vid or vid in seen:
+                continue
+            seen.add(vid)
+            merged.append(row)
+            if len(merged) >= limit:
+                break
+
+    _append(clean)
+    if len(merged) >= limit:
+        return merged[:limit]
+
+    suspect_low = (
         _reference_pool_query(
             client,
             niche_id=niche_id,
             days=days,
-            limit=limit,
+            limit=limit * 2,
+            scope=scope,
+            content_class_id=content_class_id,
+            junction_class_ids=junction_class_ids,
+            eligible_only=True,
+            boost_attributions=["suspect_low"],
+        )
+        .execute()
+        .data
+        or []
+    )
+    suspect_low = [r for r in suspect_low if is_suspect_low_attribution(r.get("boost_attribution"))]
+    suspect_low.sort(key=peer_pool_quality_rank)
+    _append(suspect_low)
+    if len(merged) >= limit:
+        return merged[:limit]
+
+    if _settings.corpus_boost_hard_reject:
+        return merged[:limit]
+
+    ineligible = (
+        _reference_pool_query(
+            client,
+            niche_id=niche_id,
+            days=days,
+            limit=limit * 2,
             scope=scope,
             content_class_id=content_class_id,
             junction_class_ids=junction_class_ids,
@@ -941,15 +991,10 @@ def _merge_eligible_reference_rows(
         .data
         or []
     )
-    for row in fallback:
-        vid = str(row.get("video_id") or "")
-        if not vid or vid in seen:
-            continue
-        seen.add(vid)
-        merged.append(row)
-        if len(merged) >= limit:
-            break
-    return merged
+    ineligible = [r for r in ineligible if not is_clean_boost_attribution(r.get("boost_attribution"))]
+    ineligible.sort(key=peer_pool_quality_rank)
+    _append(ineligible)
+    return merged[:limit]
 
 
 def _fetch_corpus_reference_rows(
@@ -1091,6 +1136,17 @@ async def fetch_corpus_reference_pool(
             )
             await refresh_stale_thumbnails(awemes)
 
+        stale_videos = sum(
+            1 for a in awemes
+            if a.get("_corpus_video_url") and not _is_r2_video_url(a.get("_corpus_video_url"))
+        )
+        if stale_videos:
+            logger.info(
+                "[corpus_context] %d/%d reference videos have stale video_url — repairing",
+                stale_videos, len(awemes),
+            )
+            await refresh_stale_video_urls(awemes)
+
         return awemes
     except Exception as exc:
         logger.warning("[corpus_context] fetch_corpus_reference_pool failed: %s", exc)
@@ -1176,6 +1232,96 @@ def _is_r2_url(url: str | None) -> bool:
             return True
     # Fallback: default Cloudflare R2 public URL pattern
     return url.startswith("https://pub-")
+
+
+def _is_r2_video_url(url: str | None) -> bool:
+    """True when ``video_url`` points at permanent R2 ``videos/{id}.mp4``."""
+    if not url:
+        return False
+    from getviews_pipeline.config import R2_PUBLIC_URL, R2_VIDEO_PUBLIC_URL
+
+    for base in (R2_VIDEO_PUBLIC_URL, R2_PUBLIC_URL):
+        if not base:
+            continue
+        b = base.rstrip("/")
+        if (url.startswith(b + "/") or url == b) and "/videos/" in url:
+            return True
+    return url.startswith("https://pub-") and "/videos/" in url
+
+
+async def _refresh_video_url_async(video_id: str, fresh_cdn_urls: list[str]) -> str | None:
+    try:
+        from getviews_pipeline.r2 import download_and_upload_video, r2_configured
+        if not r2_configured() or not fresh_cdn_urls:
+            return None
+        r2_url = await download_and_upload_video(fresh_cdn_urls, video_id)
+        if r2_url:
+            try:
+                from getviews_pipeline.supabase_client import get_service_client
+                sb = get_service_client()
+                sb.table("video_corpus").update({"video_url": r2_url}).eq("video_id", video_id).execute()
+                logger.info("[corpus_context] repaired video_url %s → %s", video_id, r2_url)
+            except Exception as db_exc:
+                logger.warning(
+                    "[corpus_context] DB update after video repair failed for %s: %s",
+                    video_id,
+                    db_exc,
+                )
+        return r2_url
+    except Exception as exc:
+        logger.debug("[corpus_context] video refresh failed for %s: %s", video_id, exc)
+        return None
+
+
+async def refresh_stale_video_urls(awemes: list[dict[str, Any]]) -> None:
+    """Repair expiring TikTok CDN ``video_url`` values on reference awemes."""
+    stale = [
+        a for a in awemes
+        if a.get("_corpus_video_url") and not _is_r2_video_url(a.get("_corpus_video_url"))
+    ]
+    if not stale:
+        return
+
+    try:
+        from getviews_pipeline.ensemble import extract_video_urls, fetch_post_multi_info
+
+        stale_ids = [str(a["aweme_id"]) for a in stale if a.get("aweme_id")]
+        if not stale_ids:
+            return
+
+        fresh_posts = await fetch_post_multi_info(stale_ids)
+        fresh_by_id: dict[str, dict] = {}
+        for post in fresh_posts:
+            detail = post.get("aweme_detail") or post
+            vid_id = str(detail.get("aweme_id") or "")
+            if vid_id:
+                fresh_by_id[vid_id] = detail
+
+        repair_tasks = []
+        repair_awemes = []
+        for aweme in stale:
+            vid_id = str(aweme.get("aweme_id") or "")
+            detail = fresh_by_id.get(vid_id)
+            if not detail:
+                continue
+            fresh_urls = extract_video_urls(detail)
+            if not fresh_urls:
+                continue
+            repair_tasks.append(_refresh_video_url_async(vid_id, fresh_urls))
+            repair_awemes.append(aweme)
+
+        if not repair_tasks:
+            return
+
+        results = await asyncio.gather(*repair_tasks, return_exceptions=True)
+        for aweme, result in zip(repair_awemes, results):
+            if isinstance(result, str) and result:
+                aweme["_corpus_video_url"] = result
+
+        refreshed = sum(1 for r in results if isinstance(r, str) and r)
+        logger.info("[corpus_context] video_url refresh: %d/%d repaired", refreshed, len(stale))
+    except Exception as exc:
+        logger.warning("[corpus_context] refresh_stale_video_urls failed: %s", exc)
 
 
 async def _refresh_thumbnail_async(video_id: str, fresh_cdn_url: str) -> str | None:

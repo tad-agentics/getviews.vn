@@ -99,3 +99,23 @@ def test_exact_base_url_match_with_trailing_slash_configured() -> None:
         "https://media.getviews.vn",
         public_url="https://media.getviews.vn/",
     ) is True
+
+
+def _call_video(url: str | None, public_url: str = "", video_public_url: str = "") -> bool:
+    with (
+        patch("getviews_pipeline.config.R2_PUBLIC_URL", public_url),
+        patch("getviews_pipeline.config.R2_VIDEO_PUBLIC_URL", video_public_url),
+    ):
+        from getviews_pipeline.corpus_context import _is_r2_video_url
+        return _is_r2_video_url(url)
+
+
+def test_r2_video_url_recognised() -> None:
+    assert _call_video(
+        "https://media.getviews.vn/videos/vid1.mp4",
+        public_url="https://media.getviews.vn",
+    ) is True
+
+
+def test_tiktok_cdn_video_not_r2() -> None:
+    assert _call_video("https://v16-webapp.tiktok.com/video/tos/abc") is False

@@ -120,6 +120,18 @@ def test_instructiveness_prefers_breakout_over_flat_views():
     assert s_breakout.breakout_value >= 2.0
 
 
+def test_global_p50_breakout_fallback_when_cohort_missing():
+    from getviews_pipeline.corpus_instructiveness import GlobalViewStats, _breakout_for_aweme
+
+    ctx = IngestBatchContext(
+        global_stats=GlobalViewStats(p50_views=10_000, organic_avg_views=12_000, corpus_count=500),
+    )
+    aweme = {"authorStats": {}, "statistics": {"play_count": 25_000}}
+    br, src = _breakout_for_aweme(aweme, 25_000, niche_id=99, ctx=ctx, content_class_id=1)
+    assert br == 2.5
+    assert src == "global_p50"
+
+
 def test_diversity_cap_per_creator():
     from getviews_pipeline.corpus_boost_suspect import BoostSuspectResult
     from getviews_pipeline.corpus_instructiveness import CandidateScore

@@ -86,13 +86,13 @@ Must pass **all**:
 
 ### Tier 2 — Rank & cap (pre-Gemini)
 
-**Canonical instructiveness score (0–100):**
+**Canonical instructiveness score (effective max ~95 until save_rate is wired pre-Gemini):**
 
 ```
 instructiveness_score =
   25 * norm(breakout, cap=10)      # breakout_ratio or R3 proxy
 + Wv * norm(velocity_score)        # Wv=15 default; 25 when missing_median
-+ 15 * norm(save_rate vs niche)
++ 15 * norm(save_rate vs niche)    # DEFERRED — ED search has no per-video saves; save_rate=None at Tier 2
 + 12 * norm(comment_rate vs niche p50)
 + 12 * norm(ER)
 + 10 * recency_bonus(7d)           # 1.0 if ≤7d else decays
@@ -103,7 +103,7 @@ instructiveness_score =
 
 Sort DESC → take top **K** (`BATCH_VIDEOS_PER_NICHE`, purity default **15**). Apply creator/sound caps after sort.
 
-**Save-rate soft floor:** only when niche has **≥100** corpus rows with `save_rate` populated **and** candidate `views ≥ niche_p75` → require ED `save_rate ≥ 1%`. Thin niches: rank only, no floor.
+**Save-rate soft floor (not live):** spec target — only when niche has **≥100** corpus rows with `save_rate` populated **and** candidate `views ≥ niche_p75` → require ED `save_rate ≥ 1%`. Blocked until post-Gemini or ED exposes saves at search time.
 
 ---
 
@@ -245,7 +245,7 @@ Exempt: `ingest_source=user_diagnosis` promotion path.
 ## 11. Flip checklist (Phase 2 + D1)
 
 - [ ] Shadow matrix green OR documented human exceptions
-- [ ] `CORPUS_INGEST_MODE=purity` on batch pod
+- [x] `CORPUS_INGEST_MODE=purity` on batch pod *(verified 2026-06-14 on `getviews-pipeline-batch`)*
 - [ ] `BATCH_VIDEOS_PER_NICHE=15`
 - [ ] `KEYWORD_SEARCH_AUTHOR_STATS=true`
 - [ ] `system-design.md` §12.1 live + changelog + `.env.example`
