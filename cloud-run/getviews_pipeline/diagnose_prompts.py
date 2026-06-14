@@ -196,7 +196,11 @@ _DIGEST_MAX_SCENES = 8
 _DIGEST_RAW_KEYS = frozenset({"scenes", "audio_transcript", "key_timestamps", "hook_timeline"})
 
 
-def build_user_evidence_digest(user_analysis: dict[str, Any]) -> dict[str, Any]:
+def build_user_evidence_digest(
+    user_analysis: dict[str, Any],
+    *,
+    extraction_signals_v2: bool = False,
+) -> dict[str, Any]:
     """Synthesize the heavy extraction arrays into a compact evidence digest.
 
     Design constraint (CEO direction 2026-06-11): this data must DEEPEN the
@@ -279,39 +283,45 @@ def build_user_evidence_digest(user_analysis: dict[str, Any]) -> dict[str, Any]:
     if audio_bits:
         digest["audio_character"] = " · ".join(audio_bits)
 
-    info = user_analysis.get("info_density")
-    if isinstance(info, dict) and info:
-        compact: dict[str, Any] = {}
-        for key in (
-            "words_per_sec",
-            "words_per_sec_front",
-            "words_per_sec_mid",
-            "words_per_sec_back",
-            "time_to_first_value_sec",
-            "dead_air_ratio",
-        ):
-            if info.get(key) is not None:
-                compact[key] = info[key]
-        if compact:
-            digest["info_density"] = compact
+    # Extraction signals v2 — surfaced into the digest ONLY when the flag is on.
+    # Tier 2 hook forensics are emitted by Gemini regardless of the flag (they
+    # accrue as shadow corpus data), so without this gate `hook_forensics` would
+    # leak into the synthesis digest even with EXTRACTION_SIGNALS_V2 off,
+    # breaking shadow-first parity for Call 2.
+    if extraction_signals_v2:
+        info = user_analysis.get("info_density")
+        if isinstance(info, dict) and info:
+            compact: dict[str, Any] = {}
+            for key in (
+                "words_per_sec",
+                "words_per_sec_front",
+                "words_per_sec_mid",
+                "words_per_sec_back",
+                "time_to_first_value_sec",
+                "dead_air_ratio",
+            ):
+                if info.get(key) is not None:
+                    compact[key] = info[key]
+            if compact:
+                digest["info_density"] = compact
 
-    loop = user_analysis.get("loopability")
-    if isinstance(loop, dict) and loop:
-        loop_compact: dict[str, Any] = {}
-        for key in ("loop_score", "redundancy_runs"):
-            if loop.get(key) is not None:
-                loop_compact[key] = loop[key]
-        if loop_compact:
-            digest["loopability"] = loop_compact
+        loop = user_analysis.get("loopability")
+        if isinstance(loop, dict) and loop:
+            loop_compact: dict[str, Any] = {}
+            for key in ("loop_score", "redundancy_runs"):
+                if loop.get(key) is not None:
+                    loop_compact[key] = loop[key]
+            if loop_compact:
+                digest["loopability"] = loop_compact
 
-    hook_block = user_analysis.get("hook_analysis")
-    if isinstance(hook_block, dict):
-        forensics: dict[str, Any] = {}
-        for key in ("opening_visual_energy", "text_speech_sync", "pattern_interrupt"):
-            if hook_block.get(key) is not None:
-                forensics[key] = hook_block[key]
-        if forensics:
-            digest["hook_forensics"] = forensics
+        hook_block = user_analysis.get("hook_analysis")
+        if isinstance(hook_block, dict):
+            forensics: dict[str, Any] = {}
+            for key in ("opening_visual_energy", "text_speech_sync", "pattern_interrupt"):
+                if hook_block.get(key) is not None:
+                    forensics[key] = hook_block[key]
+            if forensics:
+                digest["hook_forensics"] = forensics
 
     return digest
 
@@ -399,7 +409,9 @@ def build_diagnosis_v6_user_prompt(
         "channel_context": _trim_channel_context(channel_context),
         "cross_format_signal": cross_format_trim,
         "errors_head": (errors or [])[:3],
-        "USER_EVIDENCE_DIGEST": build_user_evidence_digest(user_analysis),
+        "USER_EVIDENCE_DIGEST": build_user_evidence_digest(
+            user_analysis, extraction_signals_v2=extraction_signals_v2
+        ),
     }
     # Honesty gate: the retention curve is heuristic until real telemetry
     # exists — the synthesis must never present it as a measurement.
@@ -662,7 +674,7 @@ def build_diagnosis_v6_user_prompt(
         )
     extraction_signals_note = ""
     if extraction_signals_v2:
-        digest = build_user_evidence_digest(user_analysis)
+        digest = build_user_evidence_digest(user_analysis, extraction_signals_v2=True)
         has_signals = any(
             k in digest for k in ("info_density", "loopability", "hook_forensics")
         )

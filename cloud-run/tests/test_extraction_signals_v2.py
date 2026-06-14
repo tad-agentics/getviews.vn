@@ -235,8 +235,28 @@ def test_build_diagnosis_prompt_includes_extraction_note_when_flag_on() -> None:
         extraction_signals_v2=True,
     )
     assert "EXTRACTION_SIGNALS" in prompt
-    digest = build_user_evidence_digest(user_analysis)
+    digest = build_user_evidence_digest(user_analysis, extraction_signals_v2=True)
     assert "info_density" in digest
+
+
+def test_digest_omits_hook_forensics_when_flag_off() -> None:
+    # Tier 2 fields are emitted by Gemini regardless of the flag; the digest
+    # must NOT surface them when EXTRACTION_SIGNALS_V2 is off (Call 2 parity).
+    user_analysis = {
+        "hook_analysis": {
+            "opening_visual_energy": "high",
+            "pattern_interrupt": True,
+        },
+        "info_density": {"words_per_sec": 2.0},
+        "loopability": {"loop_score": 0.3},
+    }
+    off = build_user_evidence_digest(user_analysis, extraction_signals_v2=False)
+    assert "hook_forensics" not in off
+    assert "info_density" not in off
+    assert "loopability" not in off
+    on = build_user_evidence_digest(user_analysis, extraction_signals_v2=True)
+    assert "hook_forensics" in on
+    assert "info_density" in on
 
 
 def test_build_diagnosis_prompt_flag_off_no_extraction_note() -> None:
