@@ -282,8 +282,73 @@ describe("video structure strength-gap layout", () => {
     expect(screen.getByText("Âm thanh")).toBeTruthy();
     expect(screen.getAllByText("ĐIỂM MẠNH").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("THIẾU SÓT").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/Thiếu sót «Dead air giữa clip»/)).toBeTruthy();
+    expect(screen.getAllByText(/Clip @struct|Đối chiếu nhịp cắt/).length).toBeGreaterThanOrEqual(1);
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
+  });
+
+  it("renders two inline peer thumbs under one structure-axis gap when two embedded_tiles exist", () => {
+    const { container } = render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "script_structure",
+          title_vi: "Phân tích cấu trúc Video",
+          structure_axes: [
+            {
+              axis_id: "rhythm",
+              title_vi: "Nhịp & cắt",
+              text_vi: "Dead air ở giữa clip làm rớt retention.",
+              findings: [
+                {
+                  title_vi: "Dead air giữa clip",
+                  body_vi: "4s tĩnh ở 8-12s.",
+                  fix_vi: "Xen cận hoặc text overlay mỗi 2s.",
+                },
+              ],
+              embedded_tiles: [
+                {
+                  aweme_id: "222",
+                  narrative_vi: "Xen cận sản phẩm mỗi 2s — không để cảnh tĩnh quá 1,5s.",
+                },
+                {
+                  aweme_id: "333",
+                  narrative_vi: "Text overlay xen kẽ mỗi 2s thay dead air.",
+                },
+              ],
+            },
+          ],
+        }}
+        referenceVideos={[
+          {
+            aweme_id: "222",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 200_000,
+            engagement_rate: null,
+            author_handle: "@struct",
+            thumbnail_url: "https://t/2.jpg",
+            tiktok_url: "https://tiktok.com/@struct/video/222",
+            source: "corpus",
+          },
+          {
+            aweme_id: "333",
+            desc: "",
+            hook_type: null,
+            content_format: null,
+            views: 150_000,
+            engagement_rate: null,
+            author_handle: "@struct2",
+            thumbnail_url: "https://t/3.jpg",
+            tiktok_url: "https://tiktok.com/@struct2/video/333",
+            source: "corpus",
+          },
+        ]}
+      />,
+    );
+    expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(2);
+    expect(screen.getAllByText(/Clip @struct/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Clip @struct2/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Với «Dead air giữa clip»/)).toBeTruthy();
   });
 
   it("falls back to corpus peers under structure axis gaps when embedded_tiles are empty", () => {
@@ -318,7 +383,7 @@ describe("video structure strength-gap layout", () => {
         analyzedContentFormat="outfit_transition"
       />,
     );
-    expect(screen.getByText(/Thiếu sót «Chữ nhỏ»/)).toBeTruthy();
+    expect(screen.getAllByText(/Clip @peer|Đối chiếu nhịp cắt/).length).toBeGreaterThanOrEqual(1);
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
   });
 
@@ -376,7 +441,7 @@ describe("video structure strength-gap layout", () => {
     expect(screen.getByLabelText("Dòng thời gian cấu trúc video")).toBeTruthy();
     expect(screen.getByText(/Hook kéo dài/)).toBeTruthy();
     expect(screen.queryByText("KHOẢNG TRỐNG")).toBeNull();
-    expect(screen.getByText(/Thiếu sót «Dead air giữa clip»/)).toBeTruthy();
+    expect(screen.getAllByText(/Clip @struct|Đối chiếu nhịp cắt/).length).toBeGreaterThanOrEqual(1);
     expect(container.querySelector("a[href*='tiktok.com']")).toBeTruthy();
   });
 
@@ -430,8 +495,8 @@ describe("hook_analysis strength-gap layout (#1)", () => {
     );
     expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
     expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
-    expect(screen.getByText(/Thiếu sót «Overlay trễ»/)).toBeTruthy();
-    expect(screen.getByText(/So cắt, chữ overlay và hình mở với clip của bạn/)).toBeTruthy();
+    expect(screen.getAllByText(/Clip @hook/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/đối chiếu text overlay, lời thoại và visual layering/)).toBeTruthy();
     expect(screen.queryByText(/Để xử lý «Overlay trễ»/)).toBeNull();
     // Peer card inline under the gap (one gap → one tile).
     expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(1);
@@ -542,7 +607,8 @@ describe("hook_analysis strength-gap layout (#1)", () => {
       />,
     );
     expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(2);
-    expect(screen.getAllByText(/Thiếu sót «/).length).toBe(2);
+    expect(screen.getAllByText(/Clip @hook/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Clip @hook2/).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/Để xử lý «Overlay trễ»/)).toBeNull();
   });
 

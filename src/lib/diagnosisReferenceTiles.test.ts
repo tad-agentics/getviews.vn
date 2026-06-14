@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildDiagnosisReferenceTiles,
+  buildFindingInlinePeerProse,
   buildGapLinkedTileNarrative,
   embeddedTilesFromEvidenceAnchors,
   enrichReferenceTilesForGaps,
@@ -11,6 +12,7 @@ import {
   fallbackNichePatternReferenceTiles,
   mapDiagnosisEmbeddedTiles,
   partitionFindingsByChip,
+  peerTilesForGapAtIndex,
   resolvePeerReferenceTiles,
   referenceTileNarrative,
   stripGenericReferenceBoilerplate,
@@ -303,6 +305,106 @@ describe("formatSingleGapBridgeProse", () => {
     expect(text).toContain("Thiếu sót «Nhịp độ mở đầu — Cần nhanh»");
     expect(text).toContain("So cắt, chữ overlay");
     expect(text).not.toContain("Để khắc phục");
+  });
+});
+
+describe("buildFindingInlinePeerProse", () => {
+  it("weaves peer lesson and compare line into finding body prose", () => {
+    const text = buildFindingInlinePeerProse(
+      { title_vi: "Thiếu nhịp cắt", fix_vi: "Thêm cú cắt giật." },
+      [
+        {
+          video_url: "https://tiktok.com/@peer/video/1",
+          thumbnail_url: "https://t/1.jpg",
+          views: 100_000,
+          caption_snippet: "",
+          posted_at: "",
+          author_handle: "peer",
+          narrative_vi:
+            "Cấu trúc định dạng và nhịp dẫn nhất quán suốt clip. Áp dụng: thêm cú cắt.",
+        },
+      ],
+      "hook",
+    );
+    expect(text).toContain("@peer");
+    expect(text).toContain("So 3 giây đầu");
+    expect(text).not.toContain("Áp dụng:");
+  });
+
+  it("weaves per-tile lessons when multiple peers attach to one gap", () => {
+    const text = buildFindingInlinePeerProse(
+      { title_vi: "Dead air", fix_vi: "Xen cận." },
+      [
+        {
+          video_url: "https://tiktok.com/@peer1/video/1",
+          thumbnail_url: "https://t/1.jpg",
+          views: 100_000,
+          caption_snippet: "",
+          posted_at: "",
+          author_handle: "peer1",
+          narrative_vi: "Xen cận mỗi 2 giây suốt clip.",
+        },
+        {
+          video_url: "https://tiktok.com/@peer2/video/2",
+          thumbnail_url: "https://t/2.jpg",
+          views: 80_000,
+          caption_snippet: "",
+          posted_at: "",
+          author_handle: "peer2",
+          narrative_vi: "Text overlay thay dead air ở giữa clip.",
+        },
+      ],
+      "structure",
+    );
+    expect(text).toContain("Với «Dead air»");
+    expect(text).toContain("@peer1");
+    expect(text).toContain("@peer2");
+    expect(text).toContain("xen cận");
+    expect(text).toContain("Đối chiếu nhịp cắt");
+  });
+});
+
+describe("peerTilesForGapAtIndex", () => {
+  it("returns all reference tiles when section has a single gap", () => {
+    const tiles = [
+      {
+        aweme_id: "1",
+        video_url: "",
+        thumbnail_url: "",
+        views: 1,
+        caption_snippet: "",
+        posted_at: "",
+      },
+      {
+        aweme_id: "2",
+        video_url: "",
+        thumbnail_url: "",
+        views: 2,
+        caption_snippet: "",
+        posted_at: "",
+      },
+    ];
+    const gaps = [{ title_vi: "Gap A", fix_vi: "Fix A." }];
+    const out = peerTilesForGapAtIndex(0, gaps, tiles, "structure", true);
+    expect(out).toHaveLength(2);
+  });
+
+  it("inline enrich omits gap-title bridge framing on tile narratives", () => {
+    const tiles = [
+      {
+        aweme_id: "1",
+        video_url: "",
+        thumbnail_url: "",
+        views: 1,
+        caption_snippet: "",
+        posted_at: "",
+        narrative_vi: "Nhịp cắt chặt suốt clip.",
+      },
+    ];
+    const gaps = [{ title_vi: "Dead air", fix_vi: "Xen cận." }];
+    const out = peerTilesForGapAtIndex(0, gaps, tiles, "structure", true);
+    expect(out[0].narrative_vi).not.toContain("Để xử lý «");
+    expect(out[0].narrative_vi).not.toMatch(/^Thiếu sót «/);
   });
 });
 

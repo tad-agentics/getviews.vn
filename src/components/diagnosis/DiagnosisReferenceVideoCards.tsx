@@ -59,10 +59,16 @@ function ReferenceVideoCard({
   tile,
   idx,
   onPlay,
+  hideNarrative = false,
+  thumbOnly = false,
 }: {
   tile: DiagnosisReferenceTile;
   idx: number;
   onPlay?: () => void;
+  /** Omit narrative paragraph — parent renders prose in the finding body. */
+  hideNarrative?: boolean;
+  /** Thumbnail-only tile inside a finding card (parity with evidence clip). */
+  thumbOnly?: boolean;
 }) {
   const href = tile.video_url || undefined;
   const playable = Boolean(tile.playback_url) && onPlay != null;
@@ -158,12 +164,13 @@ function ReferenceVideoCard({
     </div>
   );
 
-  const cardShellClass =
-    "flex h-full flex-col gap-2.5 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-3 transition-colors duration-[120ms] group-hover:border-[color:var(--gv-ink)]";
+  const cardShellClass = thumbOnly
+    ? "block w-full max-w-[168px]"
+    : "flex h-full flex-col gap-2.5 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-3 transition-colors duration-[120ms] group-hover:border-[color:var(--gv-ink)]";
 
   const inner = (
     <div className={cardShellClass}>
-      {narrative ? (
+      {!hideNarrative && narrative ? (
         <p className="m-0 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">
           {narrative}
         </p>
@@ -172,12 +179,16 @@ function ReferenceVideoCard({
     </div>
   );
 
+  const interactiveClass = thumbOnly
+    ? "group block w-full max-w-[168px] rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
+    : "group block h-full w-full min-w-0 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]";
+
   if (playable) {
     return (
       <button
         type="button"
         onClick={onPlay}
-        className="group block h-full w-full min-w-0 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
+        className={interactiveClass}
         aria-label={tileLabel}
       >
         {inner}
@@ -191,7 +202,7 @@ function ReferenceVideoCard({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="group block h-full w-full min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
+        className={interactiveClass}
         aria-label={tileLabel}
       >
         {inner}
@@ -199,7 +210,7 @@ function ReferenceVideoCard({
     );
   }
 
-  return <div className="h-full w-full min-w-0">{inner}</div>;
+  return <div className={thumbOnly ? "w-full max-w-[168px]" : "h-full w-full min-w-0"}>{inner}</div>;
 }
 
 export function DiagnosisReferenceVideoCards({
@@ -207,6 +218,7 @@ export function DiagnosisReferenceVideoCards({
   label = "Video tham chiếu",
   showLabel = true,
   embedded = false,
+  inlineInFinding = false,
 }: {
   tiles: DiagnosisReferenceTile[];
   label?: string;
@@ -214,6 +226,8 @@ export function DiagnosisReferenceVideoCards({
   showLabel?: boolean;
   /** Inline in a parent section — no kicker/border chrome; spacing via ``mt-4`` when label hidden. */
   embedded?: boolean;
+  /** Compact thumb row inside a gap finding card — prose lives on the finding body. */
+  inlineInFinding?: boolean;
 }) {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   // Player list = the playable tiles of this card set, so prev/next moves
@@ -239,20 +253,34 @@ export function DiagnosisReferenceVideoCards({
 
   return (
     <div
-      className={embedded && showLabel ? undefined : "mt-4"}
+      className={
+        inlineInFinding
+          ? "mt-3 flex flex-wrap gap-2"
+          : embedded && showLabel
+            ? undefined
+            : "mt-4"
+      }
       aria-label={showLabel ? undefined : label || "Video tham chiếu"}
     >
-      {showLabel && label ? (
+      {showLabel && label && !inlineInFinding ? (
         <p className="gv-mono mb-3 text-[11px] gv-kicker tracking-[0.18em] text-[color:var(--gv-ink-3)]">
           {label}
         </p>
       ) : null}
-      <div className="grid grid-cols-2 gap-3 min-[640px]:grid-cols-3 min-[1100px]:grid-cols-4">
+      <div
+        className={
+          inlineInFinding
+            ? "contents"
+            : "grid grid-cols-2 gap-3 min-[640px]:grid-cols-3 min-[1100px]:grid-cols-4"
+        }
+      >
         {tiles.map((tile, i) => (
           <ReferenceVideoCard
             key={tile.aweme_id || tile.video_url || i}
             tile={tile}
             idx={i}
+            hideNarrative={inlineInFinding}
+            thumbOnly={inlineInFinding}
             onPlay={tile.playback_url ? () => setPlayingIndex(i) : undefined}
           />
         ))}

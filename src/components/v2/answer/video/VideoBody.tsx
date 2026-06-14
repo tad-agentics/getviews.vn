@@ -483,9 +483,6 @@ export function VideoBody({
               ) : null}
             </div>
           </div>
-          <p className="min-[900px]:hidden text-center gv-kicker text-[color:var(--gv-ink-3)]">
-            Cuộn xuống để xem báo cáo
-          </p>
         </div>
       </aside>
 

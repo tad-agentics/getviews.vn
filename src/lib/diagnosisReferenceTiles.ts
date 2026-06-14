@@ -344,6 +344,101 @@ function sentenceCaseVi(text: string): string {
   return t.charAt(0).toLowerCase() + t.slice(1);
 }
 
+function inlineCompareLine(topic: ReferenceBridgeTopic): string {
+  if (topic === "hook") {
+    return "So 3 giây đầu (cắt, chữ overlay, hình mở) với clip của bạn.";
+  }
+  if (topic === "structure") {
+    return "Đối chiếu nhịp cắt, cảnh và âm thanh với clip đang phân tích.";
+  }
+  return "Đối chiếu cách mở đầu và giữ nhịp với clip của bạn.";
+}
+
+/** Strip gap framing / fix chip from tile narrative before inline finding prose. */
+function inlinePeerLessonFromTile(
+  tile: DiagnosisReferenceTile,
+  topic: ReferenceBridgeTopic,
+): string {
+  let lesson = tile.narrative_vi?.trim() ?? "";
+  lesson = stripGenericReferenceBoilerplate(lesson);
+  lesson = stripGapTitleFrame(lesson);
+  lesson = lesson.replace(/\s*Áp dụng:.*$/isu, "").trim();
+  if (lesson.length < 20) {
+    lesson = referenceFallbackNarrative(tile, topic);
+  }
+  return sentenceCaseVi(lesson.replace(/\.$/, ""));
+}
+
+/** Prose inside a gap finding card — peer lesson woven after the finding body. */
+export function buildFindingInlinePeerProse(
+  gap: DiagnosisFinding,
+  tiles: DiagnosisReferenceTile[],
+  topic: ReferenceBridgeTopic,
+): string {
+  if (!tiles.length) return "";
+
+  const compare = inlineCompareLine(topic);
+
+  if (tiles.length === 1) {
+    const tile = tiles[0];
+    const handle = formatCreatorHandle(tile.author_handle);
+    const body = inlinePeerLessonFromTile(tile, topic);
+    const peerLead = handle
+      ? `Clip ${handle} trong ngách ${body}.`
+      : `Clip tham chiếu ${body}.`;
+    if (/đối chiếu|so 3 giây/i.test(body)) {
+      return peerLead;
+    }
+    return `${peerLead} ${compare}`;
+  }
+
+  const segments = tiles.map((tile) => {
+    const handle = formatCreatorHandle(tile.author_handle);
+    const body = inlinePeerLessonFromTile(tile, topic);
+    const who = handle ? `Clip ${handle}` : "Clip tham chiếu";
+    return `${who} — ${body}.`;
+  });
+  const gapTitle = gap.title_vi?.trim();
+  const prefix = gapTitle ? `Với «${gapTitle}», ` : "";
+  const core = segments.join(" ");
+  if (/đối chiếu|so 3 giây/i.test(core)) {
+    return `${prefix}${core}`.trim();
+  }
+  return `${prefix}${core} ${compare}`.trim();
+}
+
+/**
+ * Peer tiles for one gap row (inline finding cards).
+ *
+ * Pairing contract (synthesis → FE):
+ * - **One gap** in the section/axis → every `embedded_tiles` entry renders under that gap.
+ * - **Multiple gaps** → `embedded_tiles[i]` pairs with corrective finding `gaps[i]` (same order
+ *   as `findings` after strength/gap partition). Extra tiles are ignored; extra gaps show
+ *   `GAP_PEER_MISSING_VI`.
+ * - Enrichment (`buildGapLinkedTileNarrative` with `inlineBridge`) runs here only — callers must
+ *   pass raw `buildDiagnosisReferenceTiles` output, not pre-enriched tiles.
+ */
+export function peerTilesForGapAtIndex(
+  gapIndex: number,
+  gaps: DiagnosisFinding[],
+  allReferenceTiles: DiagnosisReferenceTile[],
+  topic: ReferenceBridgeTopic,
+  inlineGapRefs: boolean,
+): DiagnosisReferenceTile[] {
+  if (!inlineGapRefs || !gaps.length || !allReferenceTiles.length) return [];
+  if (gaps.length === 1) {
+    return enrichReferenceTilesForGaps(allReferenceTiles, gaps, topic, true);
+  }
+  const enriched = enrichReferenceTilesForGaps(
+    allReferenceTiles.slice(0, gaps.length),
+    gaps,
+    topic,
+    true,
+  );
+  const tile = enriched[gapIndex];
+  return tile ? [tile] : [];
+}
+
 /** Card copy: peer lesson framed as evidence for one gap (+ optional fix). */
 export function buildGapLinkedTileNarrative(
   tile: DiagnosisReferenceTile,

@@ -43,6 +43,13 @@ The BE payload carries insight the report never shows. Each below is verified in
 - **Now:** findings capped per tier (hit=3, flop=6, `videoReportCoherence.ts`), reference tiles `slice(0,3)` (`diagnosisReferenceTiles.ts:123`), merged structure findings/tiles capped 6/3 (`mergeVideoStructureSections.ts:31-32`). All silent.
 - **Fix:** keep the default view bounded but add an **"xem thêm"** affordance to reach findings 4–N / extra peers. For a paid diagnosis, recovering dropped value matters.
 
+### A7. Inline gap peer tiles — pairing contract (hook + structure axes)
+- **Surface:** `SectionFindingCard` + `peerTilesForGapAtIndex` (`diagnosisReferenceTiles.ts`) when `inlineGapRefs` is on (`hook_analysis`, `script_structure` flat + multi-axis).
+- **One corrective gap** in the section/axis → every `embedded_tiles[]` entry renders **inside** that gap card (thumbnail row + woven prose).
+- **Multiple corrective gaps** → `embedded_tiles[i]` pairs with `gaps[i]` (same order as synthesis `findings` after strength/gap partition). Extra tiles ignored; unpaired gaps show `GAP_PEER_MISSING_VI`.
+- **Enrichment** (`buildGapLinkedTileNarrative` with `inlineBridge`) runs only in `peerTilesForGapAtIndex` — axis/section builders must pass raw `buildDiagnosisReferenceTiles` output (no pre-slice, no pre-enrich).
+- **Prose:** `buildFindingInlinePeerProse` merges `body_vi` + per-peer lesson; multi-peer gaps prefix `Với «{gap title}»,` then one sentence per `@handle`.
+
 ---
 
 ## Part B — Synthesis surface: prompt, prose, references (verified)

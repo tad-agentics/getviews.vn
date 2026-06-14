@@ -34,13 +34,14 @@ import type { CommentRadarData } from "@/lib/types/corpus-sidecars";
 import { buildCommentRadarProse } from "@/lib/commentRadarProse";
 import {
   buildDiagnosisReferenceTiles,
+  buildFindingInlinePeerProse,
   enrichReferenceTilesForGaps,
   fallbackNichePatternReferenceTiles,
   formatNichePatternBridgeProse,
   formatReferenceBridgeProse,
-  formatSingleGapBridgeProse,
   GAP_PEER_MISSING_VI,
   partitionFindingsByChip,
+  peerTilesForGapAtIndex,
   resolvePeerReferenceTiles,
   sectionProseHasNichePatternBridge,
   stripSectionProseForEmbeddedRefs,
@@ -172,16 +173,31 @@ function SectionFindingCard({
   rank,
   finding,
   analyzedClip,
+  peerReferenceTiles,
+  bridgeTopic = "general",
+  showPeerMissing = false,
 }: {
   rank: number;
   finding: DiagnosisFinding;
   /** When present, a strength/observation can show a "Xem đoạn này" clip from the analyzed video. */
   analyzedClip?: AnalyzedClipContext | null;
+  /** Gap-linked peer clips rendered inline (thumbnail + hover), prose on the body. */
+  peerReferenceTiles?: DiagnosisReferenceTile[];
+  bridgeTopic?: ReferenceBridgeTopic;
+  showPeerMissing?: boolean;
 }) {
   const title_vi = finding.title_vi ? humanizeStatsProse(finding.title_vi) : "";
   const body_vi = finding.body_vi ? humanizeStatsProse(finding.body_vi) : "";
   const fix_vi = finding.fix_vi ? humanizeStatsProse(finding.fix_vi) : "";
-  if (!title_vi && !body_vi && !fix_vi) return null;
+  const peerTiles = peerReferenceTiles ?? [];
+  const peerProse =
+    peerTiles.length > 0
+      ? buildFindingInlinePeerProse(finding, peerTiles, bridgeTopic)
+      : "";
+  const combinedBody = [body_vi, peerProse].filter(Boolean).join(" ");
+  if (!title_vi && !combinedBody && !fix_vi && !finding.evidence_ref && peerTiles.length === 0) {
+    return null;
+  }
   return (
     <div className="flex items-start gap-4 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5">
       <div className="gv-mono mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--gv-canvas-2)] text-sm font-bold text-[color:var(--gv-ink)]">
@@ -193,9 +209,14 @@ function SectionFindingCard({
             {title_vi}
           </h4>
         ) : null}
-        {body_vi ? (
+        {combinedBody ? (
           <p className="mt-1.5 max-w-[640px] text-sm leading-relaxed text-foreground">
-            {body_vi}
+            {combinedBody}
+          </p>
+        ) : null}
+        {showPeerMissing && peerTiles.length === 0 ? (
+          <p className="mt-1.5 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
+            {GAP_PEER_MISSING_VI}
           </p>
         ) : null}
         {fix_vi ? (
@@ -227,6 +248,14 @@ function SectionFindingCard({
           })()
         ) : null}
         <FindingEvidenceClip evidenceRef={finding.evidence_ref} clip={analyzedClip} />
+        {peerTiles.length > 0 ? (
+          <DiagnosisReferenceVideoCards
+            tiles={peerTiles}
+            embedded
+            showLabel={false}
+            inlineInFinding
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -328,23 +357,23 @@ function StrengthGapSectionLayout({
             initialCount={expandFindings ? 3 : gaps.length}
             itemKey={(f, i) => `g-${f.title_vi ?? i}`}
             renderItem={(f, i) => {
-              const pairedTile = inlineGapRefs ? gapLinkedTiles[i] : undefined;
+              const peerTiles = inlineGapRefs
+                ? peerTilesForGapAtIndex(
+                    i,
+                    gaps,
+                    referenceTiles,
+                    bridgeTopic,
+                    inlineGapRefs,
+                  )
+                : [];
               return (
-                <div className="flex flex-col gap-3">
-                  <SectionFindingCard rank={strengths.length + i + 1} finding={f} />
-                  {pairedTile ? (
-                    <>
-                      <p className="m-0 text-[15px] leading-relaxed text-[color:var(--gv-ink-2)]">
-                        {formatSingleGapBridgeProse(f.title_vi ?? "", bridgeTopic)}
-                      </p>
-                      <DiagnosisReferenceVideoCards tiles={[pairedTile]} embedded showLabel={false} />
-                    </>
-                  ) : inlineGapRefs ? (
-                    <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
-                      {GAP_PEER_MISSING_VI}
-                    </p>
-                  ) : null}
-                </div>
+                <SectionFindingCard
+                  rank={strengths.length + i + 1}
+                  finding={f}
+                  peerReferenceTiles={peerTiles}
+                  bridgeTopic={bridgeTopic}
+                  showPeerMissing={inlineGapRefs}
+                />
               );
             }}
           />
@@ -488,22 +517,15 @@ function resolveStructureAxisPeerTiles(
   analyzedContentFormat: string | null | undefined,
 ): DiagnosisReferenceTile[] {
   const built = buildDiagnosisReferenceTiles(axisSection, referenceVideos, evidenceAnchors);
-  const linked = resolvePeerReferenceTiles(
-    "script_structure",
-    built,
-    axisFindings,
-    "structure",
-    true,
-  );
-  if (linked.length > 0) return linked;
+  if (built.length > 0) return built;
   const { gaps } = partitionFindingsByChip(axisFindings);
   if (!gaps.length || !referenceVideos.length) return [];
-  const fallback = fallbackNichePatternReferenceTiles(
+  const fallbackLimit = gaps.length === 1 ? 3 : gaps.length;
+  return fallbackNichePatternReferenceTiles(
     referenceVideos,
-    gaps.length,
+    fallbackLimit,
     analyzedContentFormat,
   );
-  return enrichReferenceTilesForGaps(fallback, gaps, "structure", true);
 }
 
 function VideoStructureAxesLayout({

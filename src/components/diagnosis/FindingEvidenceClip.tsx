@@ -102,60 +102,61 @@ function FindingEvidenceClipPlayer({
   caption: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [hoverPlaying, setHoverPlaying] = useState(false);
+
+  const seekToStart = useCallback(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    try {
+      el.currentTime = startSec;
+    } catch {
+      // metadata not ready
+    }
+  }, [startSec]);
 
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    setAutoplayBlocked(false);
-    const applySeek = () => {
-      try {
-        el.currentTime = startSec;
-      } catch {
-        // metadata not ready
-      }
-    };
-    el.addEventListener("loadedmetadata", applySeek, { once: true });
-    const playResult = el.play();
-    if (playResult && typeof playResult.catch === "function") {
-      void playResult.catch(() => setAutoplayBlocked(true));
-    }
-    return () => el.removeEventListener("loadedmetadata", applySeek);
-  }, [clipUrl, startSec]);
+    el.addEventListener("loadedmetadata", seekToStart, { once: true });
+    return () => el.removeEventListener("loadedmetadata", seekToStart);
+  }, [clipUrl, seekToStart]);
 
   useEffect(() => {
-    if (endSec == null) return;
+    if (endSec == null || !hoverPlaying) return;
     const el = videoRef.current;
     if (!el) return;
     const onTimeUpdate = () => {
       if (el.currentTime >= endSec) {
-        try {
-          el.currentTime = startSec;
-        } catch {
-          // ignore
-        }
+        seekToStart();
       }
     };
     el.addEventListener("timeupdate", onTimeUpdate);
     return () => el.removeEventListener("timeupdate", onTimeUpdate);
-  }, [clipUrl, startSec, endSec]);
+  }, [clipUrl, endSec, hoverPlaying, seekToStart]);
 
-  const handlePlayClick = useCallback(() => {
+  const startHoverClip = useCallback(() => {
     const el = videoRef.current;
     if (!el) return;
-    const playResult = el.play();
-    if (playResult && typeof playResult.then === "function") {
-      void playResult.then(() => setAutoplayBlocked(false));
-    } else {
-      setAutoplayBlocked(false);
-    }
-  }, []);
+    seekToStart();
+    void el.play().catch(() => {});
+    setHoverPlaying(true);
+  }, [seekToStart]);
+
+  const stopHoverClip = useCallback(() => {
+    setHoverPlaying(false);
+    const el = videoRef.current;
+    if (!el) return;
+    el.pause();
+    seekToStart();
+  }, [seekToStart]);
 
   return (
     <figure className="mt-3 max-w-[168px]">
       <div
         className="relative overflow-hidden rounded-lg border border-[color:var(--gv-rule)] bg-black"
         style={{ aspectRatio: "9/16" }}
+        onMouseEnter={startHoverClip}
+        onMouseLeave={stopHoverClip}
       >
         <video
           ref={videoRef}
@@ -168,15 +169,6 @@ function FindingEvidenceClipPlayer({
           aria-label={caption}
           data-start-sec={startSec}
         />
-        {autoplayBlocked ? (
-          <button
-            type="button"
-            onClick={handlePlayClick}
-            className="absolute inset-0 flex min-h-[44px] items-center justify-center bg-black/45 px-3 text-[13px] font-medium text-white"
-          >
-            Nhấn để phát
-          </button>
-        ) : null}
       </div>
       <figcaption className="mt-1.5 gv-mono text-[11px] leading-snug text-[color:var(--gv-ink-2)]">
         {caption}
