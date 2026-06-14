@@ -26,47 +26,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Skip when GCP auth secrets are not configured (see ci-cloud-run-build.md).
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      secrets.GCP_SA_KEY != '' ||
-      secrets.GCP_WIF_PROVIDER != ''
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v6
 
-      - name: Require GCP project id
-        env:
-          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${PROJECT_ID}" ]]; then
-            echo "::error::Set repository secret GCP_PROJECT_ID (e.g. project-ddfb2960-ee81-4c98-b4f). See cloud-run/docs/ci-cloud-run-build.md"
-            exit 1
-          fi
-
-      - name: Authenticate to Google Cloud (WIF)
-        if: ${{ secrets.GCP_WIF_PROVIDER != '' }}
-        uses: google-github-actions/auth@v3
+      - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Authenticate to Google Cloud (service account key)
-        if: ${{ secrets.GCP_WIF_PROVIDER == '' && secrets.GCP_SA_KEY != '' }}
-        uses: google-github-actions/auth@v3
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Require GCP auth secret
-        if: ${{ secrets.GCP_WIF_PROVIDER == '' && secrets.GCP_SA_KEY == '' }}
-        run: |
-          echo "::error::Configure GCP_WIF_PROVIDER + GCP_WIF_SERVICE_ACCOUNT or GCP_SA_KEY. See cloud-run/docs/ci-cloud-run-build.md"
-          exit 1
 
       - uses: google-github-actions/setup-gcloud@v3
 
@@ -76,6 +46,10 @@ jobs:
           IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/getviews-pipeline
         run: |
           set -euo pipefail
+          if [[ -z "${PROJECT_ID}" ]]; then
+            echo "::error::Set GCP_WIF_* + GCP_PROJECT_ID secrets. See cloud-run/docs/ci-cloud-run-build.md"
+            exit 1
+          fi
           gcloud builds submit \
             --project "$PROJECT_ID" \
             --config=cloud-run/cloudbuild.yaml \
