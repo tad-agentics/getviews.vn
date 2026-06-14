@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — CI unblock + staged flag rollback (wide_context, proposed_findings)
+
+- **CI:** `references.py` import order (Ruff I001/E402); retention chart strokes use `--gv-accent` / `--gv-ink-3` (check-tokens).
+- **Flags:** Revert `diagnosis_wide_context` + `diagnosis_proposed_findings` defaults to **off** per shadow-validation runbook steps 5 & 7; other diagnosis-arc flags stay default-on. Production flip via env after shadow checks.
+
 ## 2026-06-14 — Diagnosis arc flags promoted (default on)
 
 - **FE:** `VITE_REPORT_PRESENTATION_V2=true` — retention chart, hook timeline strip, header lead chip, cross-format strip, comment next-step, «Xem thêm», structure closing.
