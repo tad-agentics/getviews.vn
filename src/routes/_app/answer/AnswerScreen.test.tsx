@@ -23,7 +23,7 @@ import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 
 import type { AnswerSessionRow, AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { createAnswerSession } from "@/lib/answerApi";
-import { savePendingAnswerStream } from "@/lib/sseResume";
+import { savePendingAnswerStream, clearPendingAnswerStream } from "@/lib/sseResume";
 
 // ── Module mocks ───────────────────────────────────────────────────────────
 vi.mock("@/lib/env", () => ({
@@ -257,6 +257,7 @@ function renderScreen(initialPath = "/app/answer") {
 // ── Tests ──────────────────────────────────────────────────────────────────
 describe("AnswerScreen state transitions", () => {
   beforeEach(() => {
+    clearPendingAnswerStream();
     mockUseAuth.mockReturnValue({
       user: { id: "user-1" },
       session: { user: { id: "user-1" } },
@@ -533,7 +534,9 @@ describe("AnswerScreen state transitions", () => {
     await waitFor(() => {
       expect(router.state.location.search).toContain("session=new-sess");
     });
-    expect(screen.getByTestId("resume-stream-btn")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByTestId("resume-stream-btn")).toBeTruthy();
+    });
     expect(screen.queryByTestId("error-retry-btn")).toBeNull();
   });
 

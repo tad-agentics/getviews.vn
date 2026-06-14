@@ -374,10 +374,9 @@ export default function AnswerScreen() {
 
   const researchStage = useResearchStage(loading);
 
-  const hasReplayHandles = useMemo(() => {
-    if (!sessionId) return false;
-    return hasAnswerStreamReplayHandles(sessionId, streamId, lastSeq);
-  }, [sessionId, streamId, lastSeq, streamStatus]);
+  const hasReplayHandles =
+    Boolean(sessionId) &&
+    hasAnswerStreamReplayHandles(sessionId!, streamId, lastSeq);
 
   const primaryRetryQuery = useMemo(() => {
     const fromSession = detailQuery.data?.session?.initial_q?.trim();
