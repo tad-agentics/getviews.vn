@@ -260,3 +260,32 @@ def sync_prepare_vietnamese_asr_supplement(
                 wav_path.unlink()
             except OSError:
                 pass
+
+
+def fetch_asr_segments(video_id: str) -> list[dict[str, Any]]:
+    """Cached timed ASR segments by video_id; [] when absent. No STT call."""
+    vid = str(video_id or "").strip()
+    if not vid:
+        return []
+    row = _fetch_cache(vid)
+    if not row:
+        return []
+    payload = _row_to_transcript_payload(row)
+    raw = payload.get("segments")
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for seg in raw:
+        if not isinstance(seg, dict):
+            continue
+        text = str(seg.get("text") or "").strip()
+        if not text:
+            continue
+        out.append(
+            {
+                "start_sec": seg.get("start_sec"),
+                "end_sec": seg.get("end_sec"),
+                "text": text,
+            }
+        )
+    return out

@@ -230,12 +230,15 @@ def _product_led_silent_visual(analysis: dict[str, Any]) -> bool:
 # ── Prompt-context helpers ──────────────────────────────────────────────────
 
 
-def _summarise_retention_curve(curve: list[dict[str, Any]] | None) -> str:
+def _summarise_retention_curve(
+    curve: list[dict[str, Any]] | None,
+    risk_events: list[dict[str, Any]] | None = None,
+) -> str:
     """Compress a retention curve into a 1-line summary for prompt context.
 
     Identifies the steepest drop (timing + magnitude) so Gemini can anchor
-    diagnosis to where viewers actually leave. Returns "" when the curve
-    has fewer than 3 points (not enough signal).
+    diagnosis to where viewers actually leave. When ``risk_events`` are present,
+    names the structural cause. Returns "" when the curve has fewer than 3 points.
     """
     if not curve or len(curve) < 3:
         return ""
@@ -247,23 +250,49 @@ def _summarise_retention_curve(curve: list[dict[str, Any]] | None) -> str:
     if len(points) < 3:
         return ""
     points.sort(key=lambda p: p[0])
-    # Find the largest single-step drop (next - current).
     biggest_drop = 0.0
     drop_at = 0.0
     drop_to = 0.0
     for i in range(len(points) - 1):
         delta = points[i + 1][1] - points[i][1]
-        if delta < biggest_drop:  # delta is negative when retention drops
+        if delta < biggest_drop:
             biggest_drop = delta
             drop_at = points[i][0]
             drop_to = points[i + 1][1]
     end_pct = points[-1][1]
-    if biggest_drop > -3:  # < 3% step drop → no notable drop
+
+    top_risk: dict[str, Any] | None = None
+    if isinstance(risk_events, list) and risk_events:
+        top_risk = risk_events[0] if isinstance(risk_events[0], dict) else None
+
+    if top_risk and biggest_drop <= -3:
+        reason = str(top_risk.get("reason_vi") or "").strip()
+        if reason:
+            # Honesty: cite a precise second only for ASR-timed drops; scene/approx
+            # sources keep the window phrasing already baked into reason_vi.
+            if str(top_risk.get("source") or "").lower() == "asr":
+                t_risk = float(top_risk.get("t") or drop_at)
+                head = f"Drop lớn nhất ~{_format_retention_ts(t_risk)}: {reason}"
+            else:
+                head = f"Drop lớn nhất: {reason}"
+            return (
+                f"Retention end {end_pct:.0f}%. {head} "
+                f"({abs(biggest_drop):.0f}% → {drop_to:.0f}%)."
+            )
+
+    if biggest_drop > -3:
         return f"Retention end {end_pct:.0f}% — không có drop đột biến."
     return (
         f"Retention end {end_pct:.0f}%. Drop lớn nhất: "
         f"{abs(biggest_drop):.0f}% tại {drop_at:.1f}s → {drop_to:.0f}%."
     )
+
+
+def _format_retention_ts(seconds: float) -> str:
+    sec = max(0.0, float(seconds))
+    m = int(sec // 60)
+    s = int(round(sec % 60))
+    return f"{m}:{s:02d}"
 
 
 def _summarise_niche_row(row: dict[str, Any] | None) -> str:
@@ -377,6 +406,7 @@ def extract_video_errors(
     niche_label: str,
     niche_row: dict[str, Any] | None,
     retention_curve: list[dict[str, Any]] | None = None,
+    retention_risk_events: list[dict[str, Any]] | None = None,
     max_findings: int = 3,
 ) -> list[dict[str, Any]]:
     """Call 1 — Gemini extracts ``VideoFlopIssue``-shaped errors (+ ``error_id``)."""
@@ -398,7 +428,7 @@ def extract_video_errors(
     _ha = analysis.get("hook_analysis")
     hook = _ha if isinstance(_ha, dict) else {}
     niche_summary = _summarise_niche_row(niche_row)
-    retention_summary = _summarise_retention_curve(retention_curve)
+    retention_summary = _summarise_retention_curve(retention_curve, retention_risk_events)
 
     # Phase 3.7.1 — build typed input model and inject as JSON for auditability.
     # Gemini sees the same field names as the TypeScript/Pydantic schemas.

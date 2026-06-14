@@ -11,7 +11,7 @@ import type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus
 
 export type VideoAnalyzeMode = "win" | "flop";
 
-export type RetentionCurveSource = "real" | "modeled";
+export type RetentionCurveSource = "real" | "modeled" | "modeled_structural";
 
 /** Core meta; field names align with plan JSON + fixture mapping. */
 export interface VideoAnalyzeMeta {

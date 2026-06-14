@@ -1416,7 +1416,7 @@ class DiagnosisInput(BaseModel):
     # Internal default for channel/diagnostic cores — not user-facing video entry.
     mode: Literal["win", "flop"] = "flop"
     content_format: str = ""
-    retention_source: Literal["real", "modeled"] = "modeled"
+    retention_source: Literal["real", "modeled", "modeled_structural"] = "modeled"
 
 
 class DiagnosisResult(BaseModel):

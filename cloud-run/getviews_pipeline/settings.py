@@ -214,6 +214,10 @@ class _PipelineSettings(BaseSettings):
         default=False,
         description="Inject comment_radar block into live diagnosis prompt",
     )
+    diagnosis_retention_structural: bool = Field(
+        default=False,
+        description="Structure-driven retention curve + risk_events (else synthetic decay)",
+    )
     corpus_postextract_hook_cap: int = Field(default=3, ge=1)
     corpus_hook_cap_breakout_bypass: float = Field(default=3.0, ge=0.0)
     corpus_purity_vpn_default: int = Field(default=15, ge=1)

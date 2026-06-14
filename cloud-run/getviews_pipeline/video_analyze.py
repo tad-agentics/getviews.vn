@@ -40,10 +40,13 @@ from getviews_pipeline.video_structural import (
     decompose_segments,
     extract_hook_phases,
     model_retention_curve,
+    model_retention_curve_from_structure,
     video_duration_sec,
 )
 
 logger = logging.getLogger(__name__)
+
+RetentionSource = Literal["real", "modeled", "modeled_structural"]
 
 DIAGNOSTICS_STALE_AFTER = timedelta(hours=1)
 
@@ -215,6 +218,70 @@ def _attach_hook_effectiveness_for_diagnosis(
         logger.warning("[video_analyze] hook_effectiveness fetch failed: %s", exc)
         out["hook_effectiveness"] = []
         out["hook_effectiveness_axis"] = "none"
+
+
+def _resolve_user_retention_curve(
+    *,
+    duration_sec: float,
+    analysis: dict[str, Any],
+    niche_median_retention: float,
+    breakout_multiplier: float,
+    video_id: str,
+    content_format: str,
+) -> tuple[list[dict[str, float]], RetentionSource | None, list[dict[str, Any]]]:
+    """Build user retention curve; optional structural override + risk_events."""
+    from getviews_pipeline.services.asr_vietnamese import fetch_asr_segments
+    from getviews_pipeline.settings import settings as pipeline_settings
+
+    dur = max(float(duration_sec), 5.0)
+    fmt = str(content_format or "").strip().lower()
+    scenes_raw = analysis.get("scenes") if isinstance(analysis.get("scenes"), list) else []
+    scenes = [s for s in scenes_raw if isinstance(s, dict)]
+    hook = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else {}
+
+    synthetic = model_retention_curve(
+        dur,
+        niche_median_retention=float(niche_median_retention),
+        breakout_multiplier=breakout_multiplier,
+        n_points=20,
+    )
+    if fmt == "carousel" or not scenes:
+        return synthetic, None, []
+
+    asr_segments = fetch_asr_segments(video_id) if video_id else []
+    hook_tl = hook.get("hook_timeline") if isinstance(hook.get("hook_timeline"), list) else []
+    structural_curve, risk_events = model_retention_curve_from_structure(
+        dur,
+        scenes,
+        niche_median_retention=float(niche_median_retention),
+        breakout_multiplier=breakout_multiplier,
+        asr_segments=asr_segments or None,
+        hook_timeline=hook_tl,
+        hook_analysis=hook,
+        audio_track_role=(
+            str(analysis.get("audio_track_role") or "").strip() or None
+        ),
+        n_points=20,
+    )
+
+    if not pipeline_settings.diagnosis_retention_structural:
+        try:
+            syn_end = float(synthetic[-1]["pct"]) if synthetic else 0.0
+            struct_end = float(structural_curve[-1]["pct"]) if structural_curve else 0.0
+            logger.info(
+                "[retention_shadow] video_id=%s syn_end=%.1f struct_end=%.1f "
+                "risk_count=%d top=%s",
+                video_id or "",
+                syn_end,
+                struct_end,
+                len(risk_events),
+                [str(e.get("reason_vi") or "")[:60] for e in risk_events[:3]],
+            )
+        except Exception:
+            logger.debug("[retention_shadow] log failed", exc_info=True)
+        return synthetic, None, []
+
+    return structural_curve, "modeled_structural", risk_events
 
 
 # ── Gemini output schemas (Call 1 — structured errors only) ─────────────
@@ -815,8 +882,9 @@ def _response_from_diagnostics_row(
     niche_benchmark: list[dict[str, float]],
     retention_user: list[dict[str, float]],
     niche_label: str,
-    retention_source: Literal["real", "modeled"] = "modeled",
+    retention_source: RetentionSource = "modeled",
     cross_format_signal: dict[str, Any] | None = None,
+    retention_risk_events: list[dict[str, Any]] | None = None,
     user_sb: Any | None = None,
 ) -> dict[str, Any]:
     analysis = video.get("analysis_json") or {}
@@ -976,6 +1044,8 @@ def _response_from_diagnostics_row(
         "reference_videos": diag.get("reference_videos"),
         "niche_posting_context": diag.get("niche_posting_context"),
     }
+    if retention_risk_events:
+        out["retention_risk_events"] = retention_risk_events
     _attach_carousel_payload(out, video, analysis)
     return out
 
@@ -1774,6 +1844,12 @@ def finalize_video_narrative_layer(
     user_stats["engagement_rate"] = float(user_er)
     if retention_end_pct is not None:
         user_stats["retention_end_pct"] = retention_end_pct
+    meta_ret_src = meta.get("retention_source")
+    if meta_ret_src:
+        user_stats["retention_source"] = str(meta_ret_src)
+    risk_ev = out.get("retention_risk_events")
+    if isinstance(risk_ev, list) and risk_ev:
+        user_stats["retention_risk_events"] = risk_ev
     cmv_raw = meta.get("creator_median_views")
     if cmv_raw is not None:
         try:
@@ -2239,17 +2315,23 @@ def run_video_analyze_pipeline(
             content_format=str(video.get("content_format") or ""),
         )
     rs = bench_payload.get("retention_source") or "modeled"
-    retention_source: Literal["real", "modeled"] = "real" if rs == "real" else "modeled"
+    retention_source: RetentionSource = "real" if rs == "real" else "modeled"
 
     niche_label_resolved = _resolve_niche_label(user_sb, niche_id) if niche_id else ""
 
     bm = float(video.get("breakout_multiplier") or 1.0)
-    retention_user = model_retention_curve(
-        max(dur, 5.0),
-        niche_median_retention=float(niche_meta["avg_retention"]),
-        breakout_multiplier=bm,
-        n_points=20,
+    retention_user, retention_structural_source, retention_risk_events = (
+        _resolve_user_retention_curve(
+            duration_sec=dur,
+            analysis=analysis,
+            niche_median_retention=float(niche_meta["avg_retention"]),
+            breakout_multiplier=bm,
+            video_id=vid,
+            content_format=str(video.get("content_format") or ""),
+        )
     )
+    if retention_structural_source:
+        retention_source = retention_structural_source
 
     if (
         diag_row
@@ -2274,6 +2356,7 @@ def run_video_analyze_pipeline(
             niche_label=niche_label_resolved,
             retention_source=retention_source,
             cross_format_signal=cross_format_signal,
+            retention_risk_events=retention_risk_events or None,
             user_sb=user_sb,
         )
         base["__narrative_analysis"] = analysis
@@ -2341,6 +2424,7 @@ def run_video_analyze_pipeline(
         niche_label=gemini_niche_label,
         niche_row=niche_intel,
         retention_curve=retention_user,
+        retention_risk_events=retention_risk_events or None,
         max_findings=_max_findings,
     )
     content_format_str = str(video.get("content_format") or "")
@@ -2388,6 +2472,7 @@ def run_video_analyze_pipeline(
         niche_label=niche_label_resolved,
         retention_source=retention_source,
         cross_format_signal=cross_format_signal,
+        retention_risk_events=retention_risk_events or None,
         user_sb=user_sb,
     )
     out["__narrative_analysis"] = analysis
@@ -2851,18 +2936,24 @@ def run_video_analyze_on_demand(
             content_format=str(video.get("content_format") or ""),
         )
     rs = bench_payload.get("retention_source") or "modeled"
-    retention_source: Literal["real", "modeled"] = "real" if rs == "real" else "modeled"
+    retention_source: RetentionSource = "real" if rs == "real" else "modeled"
 
     niche_label_resolved = _resolve_niche_label(user_sb, niche_id) if niche_id else ""
     gemini_niche_label = niche_label_resolved or "unknown"
 
     bm = float(video.get("breakout_multiplier") or 1.0)
-    retention_user = model_retention_curve(
-        max(dur, 5.0),
-        niche_median_retention=float(niche_meta["avg_retention"]),
-        breakout_multiplier=bm,
-        n_points=20,
+    retention_user, retention_structural_source, retention_risk_events = (
+        _resolve_user_retention_curve(
+            duration_sec=dur,
+            analysis=analysis,
+            niche_median_retention=float(niche_meta["avg_retention"]),
+            breakout_multiplier=bm,
+            video_id=vid,
+            content_format=str(video.get("content_format") or ""),
+        )
     )
+    if retention_structural_source:
+        retention_source = retention_structural_source
 
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
@@ -2900,6 +2991,7 @@ def run_video_analyze_on_demand(
         niche_label=gemini_niche_label,
         niche_row=niche_intel,
         retention_curve=retention_user,
+        retention_risk_events=retention_risk_events or None,
         max_findings=_max_findings_od,
     )
     content_format_str_od = str(video.get("content_format") or "")
@@ -2938,6 +3030,7 @@ def run_video_analyze_on_demand(
         niche_label=niche_label_resolved,
         retention_source=retention_source,
         cross_format_signal=cross_format_signal,
+        retention_risk_events=retention_risk_events or None,
         user_sb=user_sb,
     )
     out["__narrative_analysis"] = analysis

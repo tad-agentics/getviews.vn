@@ -485,7 +485,7 @@ class VideoMeta(BaseModel):
     niche_label: str | None = None
     is_breakout: bool | None = None
     saves: int | None = None
-    retention_source: Literal["real", "modeled"] | None = None
+    retention_source: Literal["real", "modeled", "modeled_structural"] | None = None
     # Channel-relative breakout — views vs the creator's own median posts.
     # Distinct from CreatorComparison.delta (which is hit / flop within the
     # same channel). target_vs_creator_median answers "is this a hit *for me*"

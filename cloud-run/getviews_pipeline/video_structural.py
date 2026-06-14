@@ -303,3 +303,393 @@ def model_niche_benchmark_curve(
         breakout_multiplier=1.0,
         n_points=n_points,
     )
+
+
+# ── Structure-driven retention (v1) ─────────────────────────────────────
+
+DEAD_AIR_GAP_SEC: Final[float] = 1.2
+STATIC_SCENE_NORM_SEC: Final[float] = 4.0
+OPENING_WINDOW_SEC: Final[float] = 3.0
+_PATTERN_INTERRUPT_EVENTS: Final[frozenset[str]] = frozenset(
+    {"cut", "reveal", "product_enter", "sound_drop"}
+)
+
+
+def _format_mmss(seconds: float) -> str:
+    sec = max(0.0, float(seconds))
+    m = int(sec // 60)
+    s = int(round(sec % 60))
+    return f"{m}:{s:02d}"
+
+
+def _retention_end_pct(
+    niche_median_retention: float | None,
+    breakout_multiplier: float | None,
+) -> tuple[float, float]:
+    end_pct = 100.0 * float(niche_median_retention or 0.45)
+    end_pct = min(max(end_pct, 5.0), 95.0)
+    boost = float(breakout_multiplier or 1.0)
+    boost = min(max(boost, 1.0), 5.0)
+    mid_lift = 1.0 + 0.08 * math.log(boost)
+    return end_pct, mid_lift
+
+
+def _asr_silence_gaps(
+    segments: list[dict[str, Any]],
+    *,
+    duration_sec: float,
+    min_gap: float = DEAD_AIR_GAP_SEC,
+) -> list[tuple[float, float]]:
+    ordered: list[tuple[float, float]] = []
+    for seg in segments:
+        try:
+            st = float(seg.get("start_sec"))
+            en = float(seg.get("end_sec"))
+        except (TypeError, ValueError):
+            continue
+        if en > st:
+            ordered.append((st, en))
+    if not ordered:
+        return []
+    ordered.sort(key=lambda p: p[0])
+    gaps: list[tuple[float, float]] = []
+    prev_end = 0.0
+    for st, en in ordered:
+        if st - prev_end >= min_gap:
+            gaps.append((prev_end, st))
+        prev_end = max(prev_end, en)
+    if duration_sec - prev_end >= min_gap:
+        gaps.append((prev_end, duration_sec))
+    return gaps
+
+
+def _scene_gap_approximations(scenes: list[dict[str, Any]]) -> list[tuple[float, float]]:
+    ordered: list[tuple[float, float]] = []
+    for sc in scenes:
+        if not isinstance(sc, dict):
+            continue
+        st = _floatish(sc.get("start"))
+        en = _floatish(sc.get("end"))
+        if en > st:
+            ordered.append((st, en))
+    if len(ordered) < 2:
+        return []
+    ordered.sort(key=lambda p: p[0])
+    gaps: list[tuple[float, float]] = []
+    for i in range(len(ordered) - 1):
+        gap = ordered[i + 1][0] - ordered[i][1]
+        if gap >= DEAD_AIR_GAP_SEC:
+            gaps.append((ordered[i][1], ordered[i + 1][0]))
+    return gaps
+
+
+def _collect_structural_risks(
+    duration_sec: float,
+    scenes: list[dict[str, Any]],
+    *,
+    asr_segments: list[dict[str, Any]] | None,
+    hook_timeline: list[dict[str, Any]] | None,
+    hook_analysis: dict[str, Any] | None,
+    audio_track_role: str | None,
+) -> list[dict[str, Any]]:
+    """Return weighted risk intervals with provenance for curve allocation."""
+    dur = max(float(duration_sec), 0.1)
+    risks: list[dict[str, Any]] = []
+    role = str(audio_track_role or "").strip().lower()
+    ha = hook_analysis if isinstance(hook_analysis, dict) else {}
+
+    if asr_segments and role != "silent":
+        for lo, hi in _asr_silence_gaps(asr_segments, duration_sec=dur):
+            mid = (lo + hi) / 2.0
+            gap = hi - lo
+            risks.append(
+                {
+                    "start": lo,
+                    "end": hi,
+                    "t": mid,
+                    "weight": 1.2 + gap * 0.35,
+                    "severity": min(1.0, gap / 3.0),
+                    "reason_vi": f"khoảng lặng ~{_format_mmss(mid)} ({gap:.1f}s)",
+                    "source": "asr",
+                }
+            )
+    elif role != "silent":
+        for lo, hi in _scene_gap_approximations(scenes):
+            mid = (lo + hi) / 2.0
+            gap = hi - lo
+            risks.append(
+                {
+                    "start": lo,
+                    "end": hi,
+                    "t": mid,
+                    "weight": 0.8 + gap * 0.25,
+                    "severity": min(0.85, gap / 3.5),
+                    "reason_vi": (
+                        f"khoảng chuyển cảnh ước tính {_format_mmss(lo)}–{_format_mmss(hi)}"
+                    ),
+                    "source": "approx",
+                }
+            )
+
+    for sc in scenes:
+        if not isinstance(sc, dict):
+            continue
+        st = _floatish(sc.get("start"))
+        en = _floatish(sc.get("end"))
+        if en <= st:
+            continue
+        sc_dur = en - st
+        pace = str(sc.get("pace") or "").strip().lower()
+        motion = str(sc.get("motion") or "").strip().lower()
+        if sc_dur > STATIC_SCENE_NORM_SEC and (
+            pace in {"static", "slow"} or motion == "static"
+        ):
+            excess = sc_dur - STATIC_SCENE_NORM_SEC
+            risks.append(
+                {
+                    "start": st,
+                    "end": en,
+                    "t": st + sc_dur / 2.0,
+                    "weight": 1.0 + excess * 0.3,
+                    "severity": min(1.0, excess / 6.0),
+                    "reason_vi": f"cảnh tĩnh dài {_format_mmss(st)}–{_format_mmss(en)}",
+                    "source": "scene",
+                }
+            )
+
+    for i in range(1, len(scenes)):
+        prev = scenes[i - 1] if isinstance(scenes[i - 1], dict) else {}
+        curr = scenes[i] if isinstance(scenes[i], dict) else {}
+        if not prev or not curr:
+            continue
+        if (
+            str(prev.get("type") or "") == str(curr.get("type") or "")
+            and str(prev.get("subject") or "") == str(curr.get("subject") or "")
+            and str(prev.get("type") or "").strip()
+        ):
+            st = _floatish(curr.get("start"))
+            en = _floatish(curr.get("end"))
+            if en > st:
+                risks.append(
+                    {
+                        "start": st,
+                        "end": en,
+                        "t": st,
+                        "weight": 0.9,
+                        "severity": 0.55,
+                        "reason_vi": (
+                            f"lặp cảnh {_format_mmss(st)}–{_format_mmss(en)} "
+                            f"({curr.get('type') or 'cùng chủ thể'})"
+                        ),
+                        "source": "scene",
+                    }
+                )
+
+    if ha.get("hook_body_contract") is False:
+        risks.append(
+            {
+                "start": 0.0,
+                "end": min(OPENING_WINDOW_SEC, dur),
+                "t": 1.5,
+                "weight": 1.4,
+                "severity": 0.75,
+                "reason_vi": "cam kết hook chưa trả trong 3s đầu",
+                "source": "scene",
+            }
+        )
+    first_speech = ha.get("first_speech_at")
+    try:
+        fs = float(first_speech) if first_speech is not None else None
+    except (TypeError, ValueError):
+        fs = None
+    if fs is not None and fs > 2.0:
+        risks.append(
+            {
+                "start": 0.0,
+                "end": min(fs, dur),
+                "t": fs / 2.0,
+                "weight": 1.1,
+                "severity": 0.65,
+                "reason_vi": f"lời đầu tiên muộn (~{_format_mmss(fs)})",
+                "source": "scene",
+            }
+        )
+
+    face_at = ha.get("face_appears_at")
+    try:
+        fa = float(face_at) if face_at is not None else None
+    except (TypeError, ValueError):
+        fa = None
+    weak_open = str(ha.get("first_frame_type") or "").strip().lower() in {
+        "product",
+        "text",
+        "b_roll",
+        "b-roll",
+        "logo",
+    }
+    if fa is not None and fa > 1.5:
+        risks.append(
+            {
+                "start": 0.0,
+                "end": min(fa, dur),
+                "t": fa / 2.0,
+                "weight": 1.0 + (fa - 1.0) * 0.2,
+                "severity": min(1.0, fa / 3.0),
+                "reason_vi": f"mặt xuất hiện muộn (~{_format_mmss(fa)})",
+                "source": "scene",
+            }
+        )
+    elif weak_open:
+        risks.append(
+            {
+                "start": 0.0,
+                "end": min(OPENING_WINDOW_SEC, dur),
+                "t": 1.0,
+                "weight": 0.85,
+                "severity": 0.5,
+                "reason_vi": "mở đầu yếu (không có mặt người ngay)",
+                "source": "scene",
+            }
+        )
+
+    if isinstance(hook_timeline, list):
+        payoff_events = [
+            e
+            for e in hook_timeline
+            if isinstance(e, dict)
+            and str(e.get("event") or "") in {"reveal", "product_enter"}
+        ]
+        for ev in payoff_events:
+            try:
+                t_ev = float(ev.get("t"))
+            except (TypeError, ValueError):
+                continue
+            if t_ev > OPENING_WINDOW_SEC:
+                risks.append(
+                    {
+                        "start": OPENING_WINDOW_SEC,
+                        "end": min(t_ev, dur),
+                        "t": (OPENING_WINDOW_SEC + t_ev) / 2.0,
+                        "weight": 0.95,
+                        "severity": 0.6,
+                        "reason_vi": f"payoff muộn sau {_format_mmss(t_ev)}",
+                        "source": "scene",
+                    }
+                )
+
+    if not risks:
+        risks.append(
+            {
+                "start": 0.0,
+                "end": min(OPENING_WINDOW_SEC, dur),
+                "t": 1.0,
+                "weight": 0.5,
+                "severity": 0.35,
+                "reason_vi": "rủi ro mở đầu mặc định (FYP scroll-stop)",
+                "source": "approx",
+            }
+        )
+    return risks
+
+
+def _allocate_curve_from_risks(
+    duration_sec: float,
+    *,
+    end_pct: float,
+    mid_lift: float,
+    risks: list[dict[str, Any]],
+    n_points: int,
+) -> tuple[list[dict[str, float]], list[dict[str, Any]]]:
+    dur = max(float(duration_sec), 0.1)
+    bins = max(n_points * 4, 40)
+    bin_weights = [0.0] * bins
+    bin_len = dur / max(bins - 1, 1)
+
+    for risk in risks:
+        w = float(risk.get("weight") or 0.0)
+        if w <= 0:
+            continue
+        lo = max(0.0, float(risk.get("start") or 0.0))
+        hi = min(dur, float(risk.get("end") or lo))
+        i0 = max(0, int(lo / bin_len))
+        i1 = min(bins - 1, int(hi / bin_len))
+        span = max(i1 - i0 + 1, 1)
+        share = w / span
+        for i in range(i0, i1 + 1):
+            bin_weights[i] += share
+
+    total_w = sum(bin_weights) or 1.0
+    drop_budget = 100.0 - end_pct
+    fine: list[dict[str, float]] = []
+    pct = 100.0
+    allocated: list[float] = []
+    for i in range(bins):
+        t = dur * i / max(bins - 1, 1)
+        drop = drop_budget * (bin_weights[i] / total_w)
+        allocated.append(drop)
+        u = i / max(bins - 1, 1)
+        bump = mid_lift * 2.0 * u * (1.0 - u)
+        pct = max(end_pct, pct - drop + bump * 0.15)
+        fine.append({"t": round(t, 3), "pct": round(min(100.0, pct), 2)})
+
+    for i in range(1, len(fine)):
+        if fine[i]["pct"] > fine[i - 1]["pct"] + 1.5:
+            fine[i]["pct"] = fine[i - 1]["pct"]
+
+    fine[-1]["pct"] = round(end_pct, 2)
+
+    out: list[dict[str, float]] = []
+    for i in range(n_points):
+        t = dur * i / max(n_points - 1, 1)
+        idx = min(bins - 1, int(round(t / bin_len)))
+        out.append({"t": round(t, 3), "pct": fine[idx]["pct"]})
+
+    risk_ranked = sorted(
+        risks,
+        key=lambda r: float(r.get("weight") or 0.0) * float(r.get("severity") or 0.5),
+        reverse=True,
+    )
+    risk_events: list[dict[str, Any]] = []
+    for r in risk_ranked[:3]:
+        risk_events.append(
+            {
+                "t": round(float(r.get("t") or 0.0), 2),
+                "severity": round(float(r.get("severity") or 0.5), 2),
+                "reason_vi": str(r.get("reason_vi") or "").strip(),
+                "source": str(r.get("source") or "approx"),
+            }
+        )
+    return out, risk_events
+
+
+def model_retention_curve_from_structure(
+    duration_sec: float,
+    scenes: list[dict[str, Any]],
+    *,
+    niche_median_retention: float | None = None,
+    breakout_multiplier: float | None = None,
+    asr_segments: list[dict[str, Any]] | None = None,
+    hook_timeline: list[dict[str, Any]] | None = None,
+    hook_analysis: dict[str, Any] | None = None,
+    audio_track_role: str | None = None,
+    n_points: int = 20,
+) -> tuple[list[dict[str, float]], list[dict[str, Any]]]:
+    """Structure-driven attention-risk curve + top risk events."""
+    dur = max(float(duration_sec), 0.1)
+    scene_list = [s for s in (scenes or []) if isinstance(s, dict)]
+    end_pct, mid_lift = _retention_end_pct(niche_median_retention, breakout_multiplier)
+    risks = _collect_structural_risks(
+        dur,
+        scene_list,
+        asr_segments=asr_segments,
+        hook_timeline=hook_timeline,
+        hook_analysis=hook_analysis,
+        audio_track_role=audio_track_role,
+    )
+    return _allocate_curve_from_risks(
+        dur,
+        end_pct=end_pct,
+        mid_lift=mid_lift,
+        risks=risks,
+        n_points=n_points,
+    )

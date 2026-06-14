@@ -423,3 +423,75 @@ async def run_viral_score_backtest(
         "seed": seed,
     }
     return summary
+
+
+def structural_early_drop_severity(
+    analysis: dict[str, Any],
+    *,
+    duration_sec: float,
+    niche_median_retention: float | None = None,
+) -> float | None:
+    """Early-window drop severity (100 − pct@≤3s) from the structural retention model."""
+    from getviews_pipeline.video_structural import model_retention_curve_from_structure
+
+    scenes_raw = analysis.get("scenes") if isinstance(analysis.get("scenes"), list) else []
+    scenes = [s for s in scenes_raw if isinstance(s, dict)]
+    if not scenes:
+        return None
+    hook = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else {}
+    hook_tl = hook.get("hook_timeline") if isinstance(hook.get("hook_timeline"), list) else None
+    curve, _ = model_retention_curve_from_structure(
+        max(float(duration_sec), 5.0),
+        scenes,
+        niche_median_retention=niche_median_retention,
+        hook_timeline=hook_tl,
+        hook_analysis=hook,
+        audio_track_role=analysis.get("audio_track_role"),
+    )
+    pct_3 = next((float(p["pct"]) for p in curve if float(p.get("t") or 0) <= 3.0), None)
+    if pct_3 is None:
+        return None
+    return round(100.0 - pct_3, 2)
+
+
+def correlate_structural_drop_vs_breakout(
+    rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Calibration helper — expect negative ρ (higher early drop → lower breakout)."""
+    import json
+
+    pairs: list[tuple[float, float]] = []
+    for row in rows:
+        analysis = row.get("analysis_json")
+        if isinstance(analysis, str):
+            try:
+                analysis = json.loads(analysis)
+            except json.JSONDecodeError:
+                continue
+        if not isinstance(analysis, dict):
+            continue
+        dur_raw = row.get("duration_sec") or analysis.get("duration_seconds") or 30.0
+        try:
+            dur = float(dur_raw)
+        except (TypeError, ValueError):
+            dur = 30.0
+        bm = row.get("breakout_multiplier")
+        if bm is None:
+            continue
+        sev = structural_early_drop_severity(
+            analysis,
+            duration_sec=dur,
+            niche_median_retention=float(row.get("avg_retention") or 0.45),
+        )
+        if sev is None:
+            continue
+        pairs.append((float(bm), sev))
+    if len(pairs) < 5:
+        return {"n": len(pairs), "spearman_rho_early_drop_vs_breakout": None}
+    mults = [p[0] for p in pairs]
+    sevs = [p[1] for p in pairs]
+    return {
+        "n": len(pairs),
+        "spearman_rho_early_drop_vs_breakout": round(spearman_rho(mults, sevs), 4),
+        "expect_negative_correlation": True,
+    }

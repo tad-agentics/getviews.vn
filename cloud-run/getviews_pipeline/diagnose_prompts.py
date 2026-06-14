@@ -352,9 +352,14 @@ def build_diagnosis_v6_user_prompt(
     }
     # Honesty gate: the retention curve is heuristic until real telemetry
     # exists — the synthesis must never present it as a measurement.
-    if str(user_stats.get("retention_source") or "").lower() == "modeled":
+    if str(user_stats.get("retention_source") or "").lower() in ("modeled", "modeled_structural"):
+        src_label = (
+            "theo cấu trúc video"
+            if str(user_stats.get("retention_source") or "").lower() == "modeled_structural"
+            else "theo mô hình"
+        )
         payload["retention_note"] = (
-            "Retention/giữ chân là ƯỚC TÍNH theo mô hình, KHÔNG phải số đo thực. "
+            f"Retention/giữ chân là ƯỚC TÍNH {src_label}, KHÔNG phải số đo thực. "
             "Khi nhắc retention phải kèm 'ước tính' và không dùng làm bằng chứng chính."
         )
     from getviews_pipeline.analysis_addressing import (
@@ -507,6 +512,10 @@ def build_diagnosis_v6_user_prompt(
             "nhịp/cảnh tốt hơn. KHÔNG «Được chọn vì format»."
             "\n- Khi nhịp/cắt **đủ tốt** (không có gap rõ): vẫn viết prose + 1 finding điểm mạnh "
             "(fix_vi «Tiếp tục»/«Giữ») — KHÔNG bỏ trống trục chỉ vì signal yếu."
+            "\n- Nếu có điểm tụt giữ chân (retention drop / retention_risk_events): nêu đúng "
+            "mốc hoặc khoảng thời gian + nguyên nhân cấu trúc + cách sửa khi quay lại "
+            "(vd 'cắt 1.5s khoảng lặng trước 0:06'). Nguồn ASR → có thể nêu giây cụ thể; "
+            "nguồn scene/ước tính → dùng khoảng thời gian, không nói giây chính xác."
         )
         truc = 2
         if has_editing:

@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Structure-driven retention curve (v1)
+
+- **Python:** `model_retention_curve_from_structure()` in `video_structural.py` — deterministic attention-risk curve from scenes + optional ASR segments; `risk_events` with provenance (`asr`/`scene`/`approx`).
+- **Wire:** `video_analyze._resolve_user_retention_curve` — flag `DIAGNOSIS_RETENTION_STRUCTURAL` (default off); shadow `[retention_shadow]` when off; `retention_source=modeled_structural` when on.
+- **Prompt:** `_summarise_retention_curve` names biggest structural drop; `diagnose_prompts` structure block cites timestamped fix + approximate-phrasing rule.
+- **Calibration:** `correlate_structural_drop_vs_breakout()` in `viral_alignment_backtest.py` for tuning risk weights before user flip.
+
 ## 2026-06-14 — Diagnosis synthesis kwargs contract (drift guard)
 
 - **Python:** `diagnosis_synthesis_contract.py` — all `synthesize_diagnosis_v2` params required keyword-only; both single-video (`finalize_video_narrative_layer`) and compare (`run_video_diagnosis`) call sites build kwargs through `diagnosis_synthesis_kwargs(**...)`.
