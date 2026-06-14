@@ -82,11 +82,33 @@ describe("computeComposerVisibility", () => {
     expect(v.loading).toBe(false);
   });
 
-  it("keeps the composer hidden on stream error with no persisted turn", () => {
-    // Error state is not "in flight", so the composer can return — the error
-    // banner + retry live alongside it. turnCount 0 → start composer eligible.
-    const v = computeComposerVisibility({ ...base, streamStatus: "error", turnCount: 0 });
+  it("hides the composer when session detail fetch failed", () => {
+    const v = computeComposerVisibility({
+      ...base,
+      hasSessionId: true,
+      detailFetchFailed: true,
+    });
+    expect(v.showStartComposer).toBe(false);
+  });
+
+  it("hides the composer when a session error banner is showing with no turn", () => {
+    const v = computeComposerVisibility({
+      ...base,
+      hasSessionId: true,
+      sessionErrorVisible: true,
+    });
+    expect(v.showStartComposer).toBe(false);
+  });
+
+  it("hides the composer on stream error with no persisted turn", () => {
+    const v = computeComposerVisibility({
+      ...base,
+      streamStatus: "error",
+      turnCount: 0,
+      hasSessionId: true,
+      sessionErrorVisible: true,
+    });
     expect(v.streamInFlight).toBe(false);
-    expect(v.showStartComposer).toBe(true);
+    expect(v.showStartComposer).toBe(false);
   });
 });

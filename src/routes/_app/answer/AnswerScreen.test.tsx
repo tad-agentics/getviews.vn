@@ -366,6 +366,7 @@ describe("AnswerScreen state transitions", () => {
       data: { session: makeSession(), turns: [] },
       isLoading: false,
       isError: false,
+      isSuccess: true,
       refetch,
     });
     renderScreen("/app/answer?session=sess-abc");
@@ -381,12 +382,29 @@ describe("AnswerScreen state transitions", () => {
       data: undefined,
       isLoading: false,
       isError: true,
+      isSuccess: false,
       error: new Error("http_500"),
       refetch: vi.fn(),
     });
     renderScreen("/app/answer?session=sess-abc");
     // HTTP-tagged error renders the "Server trả lỗi" copy.
     expect(screen.getByText(/Server trả lỗi \(HTTP 500\)/)).toBeTruthy();
+    expect(screen.queryByText(/Chưa có lượt trong phiên này/)).toBeNull();
+  });
+
+  it("does not show the empty-turns card when detail fetch failed with network error", () => {
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      isSuccess: false,
+      error: new TypeError("Failed to fetch"),
+      refetch: vi.fn(),
+    });
+    renderScreen("/app/answer?session=sess-abc");
+    expect(screen.getByText(/Không kết nối được máy chủ phân tích/)).toBeTruthy();
+    expect(screen.queryByText(/Chưa có lượt trong phiên này/)).toBeNull();
+    expect(screen.queryByTestId("follow-up-composer")).toBeNull();
   });
 
   it("renders the session-not-found banner when the detail fetch 404s", () => {

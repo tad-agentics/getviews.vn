@@ -17,6 +17,10 @@ export interface ComposerVisibilityInput {
   hasSessionId: boolean;
   detailLoading: boolean;
   hasDetailData: boolean;
+  /** Session detail query failed — block composer until user reloads. */
+  detailFetchFailed?: boolean;
+  /** Stream/session error banner is showing with no persisted turn. */
+  sessionErrorVisible?: boolean;
 }
 
 export interface ComposerVisibility {
@@ -32,6 +36,8 @@ export function computeComposerVisibility({
   hasSessionId,
   detailLoading,
   hasDetailData,
+  detailFetchFailed = false,
+  sessionErrorVisible = false,
 }: ComposerVisibilityInput): ComposerVisibility {
   const streamInFlight =
     streamStatus === "streaming" || (streamStatus === "done" && turnCount === 0);
@@ -41,7 +47,11 @@ export function computeComposerVisibility({
     streamInFlight ||
     (hasSessionId && detailLoading && !hasDetailData);
 
-  const showStartComposer = turnCount === 0 && !loading;
+  const showStartComposer =
+    turnCount === 0 &&
+    !loading &&
+    !detailFetchFailed &&
+    !sessionErrorVisible;
 
   return { streamInFlight, loading, showStartComposer };
 }

@@ -370,6 +370,8 @@ export default function AnswerScreen() {
     hasSessionId: Boolean(sessionId),
     detailLoading: detailQuery.isLoading,
     hasDetailData: Boolean(detailQuery.data),
+    detailFetchFailed: Boolean(sessionId && detailQuery.isError),
+    sessionErrorVisible: Boolean(sessionId && error && turnCount === 0),
   });
 
   const researchStage = useResearchStage(loading);
@@ -1245,7 +1247,12 @@ export default function AnswerScreen() {
   ]);
 
   const showIntentCtaRail = Boolean(
-    sessionId && lastPayload && !loading && !streamInFlight && turnCount > 0,
+    sessionId &&
+      lastPayload &&
+      !loading &&
+      !streamInFlight &&
+      turnCount > 0 &&
+      !detailQuery.isError,
   );
 
   const appendVideoTurnQuery = useCallback(
@@ -1527,7 +1534,11 @@ export default function AnswerScreen() {
                   <div className="h-4 w-2/3 rounded-md bg-[color:var(--gv-rule)]" />
                   <div className="mt-6 h-24 w-full rounded-[var(--gv-radius-md)] bg-[color:var(--gv-rule)]" />
                 </div>
-              ) : sessionId && !loading && !canResumeInterruptedStream ? (
+              ) : sessionId &&
+                !loading &&
+                !canResumeInterruptedStream &&
+                detailQuery.isSuccess &&
+                turnCount === 0 ? (
                 <div className="mt-4 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
                   <p className="gv-serif text-[17px] leading-snug text-[color:var(--gv-ink)]">
                     Chưa có lượt trong phiên này.
