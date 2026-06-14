@@ -8,7 +8,11 @@
 
 ## 0. Pre-flight — measure coverage first (thin pre-launch corpus)
 
-Most of these features only fire when the corpus is deep enough (claim-tier floors). On a thin corpus they may be empty most of the time — that's expected, but **measure it before flipping** so you know whether a flag will actually do anything. Parse the shadow logs (Cloud Logging) over the last N diagnoses for:
+Most of these features only fire when the corpus is deep enough (claim-tier floors). On a thin corpus they may be empty most of the time — that's expected, but **measure it before flipping** so you know whether a flag will actually do anything.
+
+### 0a. Cloud Logging (grounding + retention shadow)
+
+Parse shadow logs over the last N diagnoses:
 
 | Signal | Log line | Field to count |
 |---|---|---|
@@ -16,6 +20,73 @@ Most of these features only fire when the corpus is deep enough (claim-tier floo
 | Retention shadow | `[retention_shadow]` (`video_analyze.py:298`) | `struct_end` vs `syn_end` delta, `risk_count` distribution |
 | Extraction signals | `[extraction_signals_shadow]` (`video_analyze.py:269`) | non-null `ttfv` / `loop` / `dead_air` rate |
 | Calibration | `signal_calibration` table | rows with `adopted=true`, `rho_holdout - rho_baseline` |
+
+**Log Explorer filter (grounding, last 7d):**
+
+```
+resource.type="cloud_run_revision"
+jsonPayload.message=~"\\[diagnosis_grounding\\]"
+timestamp>="-P7D"
+```
+
+Export or pivot on: `hook_emitted`, `hook_buckets`, `comment_emitted`, `comment_sampled`.
+
+### 0b. Supabase admin SQL — retention + stored report coverage
+
+Run in Supabase SQL editor (service role / admin). Adjust `LIMIT` for N.
+
+```sql
+-- Last N on-demand video diagnoses (cached + answer turns with retention payload)
+WITH recent_vd AS (
+  SELECT
+    vd.video_id,
+    vd.computed_at,
+    jsonb_array_length(COALESCE(vd.retention_curve, '[]'::jsonb)) AS retention_pts,
+    (vd.niche_benchmark_curve IS NOT NULL) AS has_benchmark
+  FROM video_diagnostics vd
+  WHERE vd.source = 'on_demand'
+  ORDER BY vd.computed_at DESC
+  LIMIT 500
+),
+recent_turns AS (
+  SELECT
+    t.id,
+    t.created_at,
+    jsonb_array_length(
+      COALESCE(t.payload #> '{user_stats,retention_curve}', '[]'::jsonb)
+    ) AS retention_pts,
+    (t.payload #> '{user_stats,niche_benchmark_curve}') IS NOT NULL AS has_benchmark
+  FROM answer_turns t
+  WHERE t.kind = 'primary'
+    AND t.payload ? 'user_stats'
+  ORDER BY t.created_at DESC
+  LIMIT 500
+)
+SELECT
+  'video_diagnostics' AS src,
+  count(*) AS n,
+  round(100.0 * count(*) FILTER (WHERE retention_pts >= 2) / greatest(count(*), 1), 1)
+    AS pct_retention_chart,
+  round(100.0 * count(*) FILTER (WHERE has_benchmark) / greatest(count(*), 1), 1)
+    AS pct_niche_benchmark
+FROM recent_vd
+UNION ALL
+SELECT
+  'answer_turns' AS src,
+  count(*) AS n,
+  round(100.0 * count(*) FILTER (WHERE retention_pts >= 2) / greatest(count(*), 1), 1),
+  round(100.0 * count(*) FILTER (WHERE has_benchmark) / greatest(count(*), 1), 1)
+    AS pct_niche_benchmark
+FROM recent_turns;
+```
+
+**Grounding coverage** is log-only today (`[diagnosis_grounding]`); approximate pre-flip rates:
+
+| Metric | Source | Healthy pre-flip |
+|---|---|---|
+| `% hook_leaderboard_emitted` | Logs: `hook_emitted=true` | >0% once class bucket ≥ floor |
+| `% comment_block_emitted` | Logs: `comment_emitted=true` | sparse until comment sample ≥ 8 |
+| Mean `hook_buckets` / `buckets_above_floor` | Logs: `hook_buckets=` | mean ≥ 1 before Step 3 |
 
 If a flag's coverage is ~0% (e.g. no hook bucket ever clears the floor), flipping it is harmless but pointless — prioritize the FE flags and retention first, revisit grounding/calibration as the corpus grows.
 
@@ -82,5 +153,4 @@ Every flag is independently reversible — set it back to `false`/unset and beha
 A flag graduates from shadow to shipped when: coverage is non-trivial on the live corpus, the kill criteria held across the observation window, and (for grounding/calibration) the numbers are traceable to source. Record the flip date + observed coverage in `changelog.md` per flag.
 
 ## 4. Open items gating full value (track separately)
-- **Peer-reference timestamps** (B2) — not yet wired; until then peer contrast in the prompt stays non-time-anchored even with presentation V2 on.
 - **Extraction-signal calibration gating** — new signals surface unconditionally when `EXTRACTION_SIGNALS_V2` is on; tighten via Loop B once it registers predictive-ρ for them.

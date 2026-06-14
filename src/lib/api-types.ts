@@ -1177,6 +1177,8 @@ export interface ReferenceVideoCard {
   tiktok_url: string | null;
   /** R2-hosted MP4 from corpus ingest — present ⇒ inline playback; never an expiring CDN URL. */
   playback_url?: string | null;
+  /** Hook-window start (seconds) for peer MOMENT deep-link when wide-context timestamps are on. */
+  peer_hook_start_sec?: number | null;
   source: "corpus" | "live_search";
 }
 

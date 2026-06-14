@@ -51,6 +51,28 @@ describe("mapDiagnosisEmbeddedTiles", () => {
     expect(tiles[0].author_handle).toBe("@x");
   });
 
+  it("maps peer_hook_start_sec from reference_videos for MOMENT deep-link", () => {
+    const refs: ReferenceVideoCard[] = [
+      {
+        aweme_id: "222",
+        desc: null,
+        hook_type: "question",
+        content_format: null,
+        views: 9000,
+        engagement_rate: null,
+        author_handle: "peer",
+        thumbnail_url: "https://thumb/2.jpg",
+        tiktok_url: "https://tiktok.com/@peer/video/222",
+        playback_url: "https://cdn/videos/222.mp4",
+        peer_hook_start_sec: 0.4,
+        source: "corpus",
+      },
+    ];
+    const tiles = mapDiagnosisEmbeddedTiles([{ aweme_id: "222" }], refs);
+    expect(tiles[0].peer_hook_start_sec).toBe(0.4);
+    expect(tiles[0].playback_url).toContain("222.mp4");
+  });
+
   it("drops tile hints that are not in reference_videos (hallucinated aweme_id)", () => {
     const refs: ReferenceVideoCard[] = [
       {

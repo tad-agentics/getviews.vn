@@ -590,6 +590,7 @@ class ReferenceVideoCard(BaseModel):
     thumbnail_url: str | None = None
     tiktok_url: str | None = None
     source: Literal["corpus", "live_search"] = "corpus"
+    peer_hook_start_sec: float | None = None
 
 
 class ChannelContextVideo(BaseModel):

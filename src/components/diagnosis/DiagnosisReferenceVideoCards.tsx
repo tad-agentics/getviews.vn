@@ -225,10 +225,17 @@ export function DiagnosisReferenceVideoCards({
 
   if (!tiles.length) return null;
 
-  const playing =
+  const playingTile =
     playingIndex != null && tiles[playingIndex]?.playback_url
-      ? tileToPlayerVideo(tiles[playingIndex])
+      ? tiles[playingIndex]
       : null;
+  const playing = playingTile ? tileToPlayerVideo(playingTile) : null;
+  const playingStartSec =
+    playingTile?.peer_hook_start_sec != null &&
+    Number.isFinite(playingTile.peer_hook_start_sec) &&
+    playingTile.peer_hook_start_sec > 0
+      ? playingTile.peer_hook_start_sec
+      : undefined;
 
   return (
     <div
@@ -255,6 +262,7 @@ export function DiagnosisReferenceVideoCards({
           <VideoPlayerModal
             video={playing}
             allVideos={playerVideos}
+            startSec={playingStartSec}
             onClose={() => setPlayingIndex(null)}
           />
         </Suspense>
