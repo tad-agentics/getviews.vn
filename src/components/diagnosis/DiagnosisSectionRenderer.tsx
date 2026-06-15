@@ -142,16 +142,18 @@ function DistributionAxisEmbed({
   statsProse,
   boostEmbed,
 }: {
-  meta: VideoAnalyzeMeta;
+  /** Optional: only the stats-history strip needs `meta`; the boost block does not. */
+  meta?: VideoAnalyzeMeta | null;
   /** Deterministic/section-derived stats interpretation — kept with the timeline strip. */
   statsProse?: string;
   boostEmbed?: BoostEmbedProps | null;
 }) {
-  const showStats = hasStatsHistorySnapshots(meta.stats_history);
+  const showStats = Boolean(meta && hasStatsHistorySnapshots(meta.stats_history));
+  if (!showStats && !boostEmbed) return null;
 
   return (
     <div className="mt-3 flex flex-col gap-3">
-      {showStats ? (
+      {meta && showStats ? (
         <StatsHistoryStrip
           variant="embed"
           history={meta.stats_history}
@@ -244,6 +246,25 @@ function VideoContextAxesLayout({
             ? contextProse ?? ""
             : (axis.text_vi || axis.text || "").trim();
         const axisText = humanizeStatsProse(displayText.trim());
+        // Guard against a kicker-only axis (visual gap). Each axis's embeds are
+        // meta/prop-derived, so verify there is renderable body before drawing
+        // the divider + kicker — e.g. a synthesized distribution axis (empty
+        // text) when `meta` is unexpectedly absent.
+        const hasBody =
+          axis.axis_id === "context"
+            ? Boolean(axisText || meta)
+            : axis.axis_id === "distribution"
+              ? Boolean(
+                  axisText ||
+                    boostEmbed ||
+                    (meta && hasStatsHistorySnapshots(meta.stats_history)),
+                )
+              : Boolean(
+                  axisText ||
+                    creatorComparison ||
+                    channelPatternEmbed?.channelContext.available,
+                );
+        if (!hasBody) return null;
         return (
           <div
             key={axis.axis_id}
@@ -264,7 +285,7 @@ function VideoContextAxesLayout({
                 }
               />
             ) : null}
-            {axis.axis_id === "distribution" && meta ? (
+            {axis.axis_id === "distribution" && (meta || boostEmbed) ? (
               <DistributionAxisEmbed meta={meta} statsProse={statsProse} boostEmbed={boostEmbed} />
             ) : null}
             {axis.axis_id === "channel" ? (

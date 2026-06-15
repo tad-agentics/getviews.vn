@@ -942,6 +942,67 @@ describe("metadata context_axes layout", () => {
     expect(screen.getByLabelText("Diễn biến lượt xem theo thời gian")).toBeTruthy();
   });
 
+  it("skips a kicker-only distribution axis when meta is unavailable", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "metadata",
+          title_vi: "Phân tích bối cảnh & diễn biến",
+          context_axes: [
+            {
+              axis_id: "context",
+              title_vi: "Bối cảnh & khán giả",
+              text_vi: "**Ngách Làm đẹp** — đăng tối cuối tuần.",
+            },
+            {
+              // Synthesized axis with no prose; its strip is meta-derived.
+              axis_id: "distribution",
+              title_vi: "Diễn biến phân phối",
+              text_vi: "",
+            },
+          ],
+        }}
+        referenceVideos={[]}
+        // No videoEmbeds.metadata → meta undefined; distribution axis has no body.
+        videoEmbeds={{}}
+      />,
+    );
+
+    expect(screen.getByText("Bối cảnh & khán giả")).toBeTruthy();
+    expect(screen.queryByText("Diễn biến phân phối")).toBeNull();
+  });
+
+  it("renders the boost block on the distribution axis even when meta is unavailable", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "metadata",
+          title_vi: "Phân tích bối cảnh & diễn biến",
+          context_axes: [
+            {
+              axis_id: "context",
+              title_vi: "Bối cảnh & khán giả",
+              text_vi: "**Ngách Làm đẹp** — đăng tối cuối tuần.",
+            },
+            {
+              axis_id: "distribution",
+              title_vi: "Diễn biến phân phối",
+              text_vi: "**355K view** nhưng ER chỉ 2.1%.",
+            },
+          ],
+        }}
+        referenceVideos={[]}
+        // No videoEmbeds.metadata → meta undefined, but boostEmbed still carries the signal.
+        videoEmbeds={{}}
+        boostEmbed={{ attribution: "suspect_low", referenceEligible: false }}
+      />,
+    );
+
+    expect(screen.getByText("Diễn biến phân phối")).toBeTruthy();
+    expect(screen.getByText(/355K view/)).toBeTruthy();
+    expect(screen.getByLabelText("Phân loại nguồn lượt xem")).toBeTruthy();
+  });
+
   it("falls back to flat metadata layout when context_axes absent", () => {
     render(
       <DiagnosisSectionRenderer
