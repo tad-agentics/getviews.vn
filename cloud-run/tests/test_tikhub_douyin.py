@@ -319,6 +319,59 @@ async def test_budget_guard_fires_before_http(monkeypatch: pytest.MonkeyPatch) -
 # ── Cursor extraction ──────────────────────────────────────────────────
 
 
+def test_extract_awemes_business_data_video_search_v2() -> None:
+    """TikHub fetch_video_search_v2 returns cards under business_data[].data."""
+    payload = {
+        "business_data": [
+            {
+                "type": 1,
+                "data": {
+                    "type": 1,
+                    "aweme_info": {
+                        "aweme_id": "7350123",
+                        "statistics": {"play_count": 200000},
+                    },
+                },
+            },
+            {"type": 2, "data": {"type": 2, "card_info": {}}},
+        ],
+        "cursor": 20,
+    }
+    awemes = tikhub_douyin._extract_awemes(payload)
+    assert len(awemes) == 1
+    assert awemes[0]["aweme_id"] == "7350123"
+
+
+@pytest.mark.asyncio
+async def test_keyword_search_unwraps_business_data_cards() -> None:
+    patcher, _ = _patch_async_client(
+        {
+            "POST": _mock_response(
+                _envelope(
+                    {
+                        "business_data": [
+                            {
+                                "data": {
+                                    "aweme_info": {
+                                        "aweme_id": "99",
+                                        "statistics": {"play_count": 500000},
+                                    },
+                                },
+                            },
+                        ],
+                        "cursor": 0,
+                    },
+                ),
+            ),
+        },
+    )
+    with patcher:
+        awemes, next_cursor = await tikhub_douyin.fetch_douyin_keyword_search("养生")
+    assert len(awemes) == 1
+    assert awemes[0]["aweme_id"] == "99"
+    assert next_cursor is None
+
+
 def test_next_cursor_picks_first_non_zero_key() -> None:
     assert tikhub_douyin._next_cursor({"max_cursor": 100}) == 100
     assert tikhub_douyin._next_cursor({"cursor": 0, "next_cursor": 50}) == 50

@@ -50,7 +50,7 @@ def test_quality_gate_rejects_low_views() -> None:
     ok, reason = _passes_quality_gates(aweme)
     assert ok is False
     assert reason is not None
-    assert "views=" in reason
+    assert "popularity=" in reason
 
 
 def test_quality_gate_rejects_low_engagement_rate() -> None:
@@ -77,6 +77,14 @@ def test_quality_gate_handles_garbage_play_count() -> None:
     aweme = {"aweme_id": "1", "statistics": {"play_count": "not-a-number"}}
     ok, _ = _passes_quality_gates(aweme)
     assert ok is False
+
+
+def test_quality_gate_passes_when_play_count_zero_but_likes_high() -> None:
+    """TikHub search often returns play_count=0; digg_count is the reach proxy."""
+    aweme = _aweme_with_stats(views=0, likes=BATCH_DOUYIN_MIN_VIEWS + 50_000, saves=10_000)
+    ok, reason = _passes_quality_gates(aweme)
+    assert ok is True
+    assert reason is None
 
 
 # ── _fetch_active_douyin_niches ─────────────────────────────────────
@@ -121,6 +129,30 @@ async def test_existing_video_ids_scoped_per_niche() -> None:
 
 
 # ── _fetch_douyin_pool ──────────────────────────────────────────────
+
+
+def test_douyin_search_keyword_uses_head_term_before_middle_dot() -> None:
+    from getviews_pipeline.douyin_ingest import _douyin_search_keyword
+
+    assert _douyin_search_keyword("养生 · 健康生活") == "养生"
+    assert _douyin_search_keyword("美妆") == "美妆"
+
+
+@pytest.mark.asyncio
+async def test_pool_uses_head_term_for_compound_name_zh() -> None:
+    niche = {
+        "id": 1,
+        "slug": "wellness",
+        "name_zh": "养生 · 健康生活",
+        "signal_hashtags_zh": [],
+    }
+    kw_mock = AsyncMock(return_value=([], None))
+    with patch(
+        "getviews_pipeline.douyin_ingest.fetch_douyin_keyword_search",
+        new=kw_mock,
+    ):
+        await _fetch_douyin_pool(niche)
+    assert kw_mock.await_args.args[0] == "养生"
 
 
 @pytest.mark.asyncio

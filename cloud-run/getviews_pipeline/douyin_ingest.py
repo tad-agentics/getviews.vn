@@ -148,6 +148,22 @@ async def _existing_douyin_video_ids(client: Any, niche_id: int) -> set[str]:
 # ── Pool fetcher ────────────────────────────────────────────────────
 
 
+def _douyin_search_keyword(name_zh: str) -> str:
+    """Pick the TikHub keyword from a niche display name.
+
+    Taxonomy ``name_zh`` values are often compound labels
+    (``养生 · 健康生活``). TikHub ``fetch_video_search_v2`` returns thin /
+    low-signal pools for the full string — use the head term only.
+    """
+    raw = (name_zh or "").strip()
+    if not raw:
+        return ""
+    for sep in ("·", "・", "|"):
+        if sep in raw:
+            return raw.split(sep, 1)[0].strip()
+    return raw
+
+
 async def _fetch_douyin_pool(
     niche: dict[str, Any],
     *,
@@ -167,7 +183,7 @@ async def _fetch_douyin_pool(
 
     ``deep=True`` doubles the per-pool page count (manual ops only).
     """
-    name_zh = (niche.get("name_zh") or "").strip()
+    name_zh = _douyin_search_keyword(str(niche.get("name_zh") or ""))
     pages = 2 if deep else 1
     candidates: list[dict[str, Any]] = []
 
@@ -227,17 +243,23 @@ def _passes_quality_gates(aweme: dict[str, Any]) -> tuple[bool, str | None]:
         views = int(stats.get("play_count") or 0)
     except (TypeError, ValueError):
         views = 0
-    if views < BATCH_DOUYIN_MIN_VIEWS:
-        return False, f"views={views} < min={BATCH_DOUYIN_MIN_VIEWS}"
-
     likes = int(stats.get("digg_count") or 0)
     comments = int(stats.get("comment_count") or 0)
     shares = int(stats.get("share_count") or 0)
     saves = int(stats.get("collect_count") or 0)
-    er = (
-        (likes + comments + shares + saves) / max(views, 1) * 100.0
-        if views > 0 else 0.0
-    )
+
+    # TikHub keyword search often omits real play_count (returns 0) even for
+    # viral CN videos — same quirk as TikTok carousel feeds. Use digg_count as
+    # the popularity proxy when play_count is missing/zero.
+    popularity = views if views > 0 else likes
+    if popularity < BATCH_DOUYIN_MIN_VIEWS:
+        return False, (
+            f"popularity={popularity} < min={BATCH_DOUYIN_MIN_VIEWS} "
+            f"(play_count={views}, digg_count={likes})"
+        )
+
+    er_denom = views if views > 0 else max(likes, 1)
+    er = (likes + comments + shares + saves) / er_denom * 100.0
     if er < BATCH_DOUYIN_MIN_ER:
         return False, f"er={er:.2f}% < min={BATCH_DOUYIN_MIN_ER}%"
 

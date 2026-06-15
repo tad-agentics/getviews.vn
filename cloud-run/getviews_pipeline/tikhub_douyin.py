@@ -459,6 +459,7 @@ def _extract_awemes(data: Any) -> list[dict[str, Any]]:
     on the endpoint:
       • ``aweme_list``      — fetch_user_post_videos, fetch_challenge_posts
       • ``aweme_details``   — fetch_multi_video
+      • ``business_data``   — fetch_video_search_v2 (cards with ``data.aweme_info``)
       • ``data`` (list)     — fetch_video_search_v2 + general/multi search
       • ``data.data``       — older ED-shaped variant some endpoints use
     Each candidate item passes through ``aweme_from_feed_item`` (the
@@ -474,6 +475,18 @@ def _extract_awemes(data: Any) -> list[dict[str, Any]]:
             if isinstance(v, list):
                 raw = v
                 break
+        if raw is None:
+            business = data.get("business_data")
+            if isinstance(business, list):
+                raw = []
+                for card in business:
+                    if not isinstance(card, dict):
+                        continue
+                    inner_card = card.get("data")
+                    if isinstance(inner_card, dict):
+                        raw.append(inner_card)
+                    else:
+                        raw.append(card)
         if raw is None:
             inner = data.get("data")
             if isinstance(inner, list):
