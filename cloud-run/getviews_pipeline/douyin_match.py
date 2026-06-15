@@ -99,23 +99,66 @@ def migration_fit_from_adapt_level(level: str | None) -> str:
 
 def fetch_douyin_peer_row(sb: Any, *, niche_id: int, hook_type: str) -> dict[str, Any] | None:
     """Return one corpus row: same Douyin niche + hook_type, highest views."""
-
-    ht = normalize_hook_type(hook_type)
-    try:
-        res = (
-            sb.table("douyin_video_corpus")
-            .select("video_id, posted_at, indexed_at, adapt_level, views")
-            .eq("niche_id", niche_id)
-            .eq("hook_type", ht)
-            .order("views", desc=True)
-            .limit(1)
-            .execute()
-        )
-    except Exception:
-        logger.exception("[douyin_match] supabase query failed")
-        return None
-    rows = res.data or []
+    rows = fetch_douyin_peer_rows(
+        sb,
+        niche_id=niche_id,
+        hook_type=hook_type,
+        limit=1,
+    )
     return rows[0] if rows else None
+
+
+def fetch_douyin_peer_rows(
+    sb: Any,
+    *,
+    niche_id: int,
+    hook_type: str,
+    content_class_id: int | None = None,
+    limit: int = 1,
+    require_playback: bool = False,
+) -> list[dict[str, Any]]:
+    """Return up to ``limit`` Douyin corpus peers.
+
+    Prefers ``content_class_id`` match when provided; falls back to
+    ``niche_id`` + ``hook_type``. Optionally requires ``playback_url``.
+    """
+    ht = normalize_hook_type(hook_type)
+    lim = max(1, min(int(limit), 20))
+    select_cols = (
+        "video_id, douyin_url, niche_id, content_class_id, content_format, "
+        "creator_handle, creator_name, thumbnail_url, playback_url, video_url, "
+        "views, likes, comments, shares, engagement_rate, "
+        "adapt_level, sub_vi, title_vi, title_zh, hook_type, analysis_json"
+    )
+
+    def _query(*, cc: int | None, hook: str | None) -> list[dict[str, Any]]:
+        try:
+            q = (
+                sb.table("douyin_video_corpus")
+                .select(select_cols)
+                .eq("niche_id", niche_id)
+                .order("views", desc=True)
+                .limit(lim)
+            )
+            if cc is not None and cc > 0:
+                q = q.eq("content_class_id", cc)
+            if hook:
+                q = q.eq("hook_type", hook)
+            if require_playback:
+                q = q.not_.is_("playback_url", "null")
+            return q.execute().data or []
+        except Exception:
+            logger.exception("[douyin_match] supabase query failed")
+            return []
+
+    rows: list[dict[str, Any]] = []
+    if content_class_id is not None and content_class_id > 0:
+        rows = _query(cc=content_class_id, hook=ht if ht not in ("none", "other") else None)
+    if not rows and ht not in ("none", "other", ""):
+        rows = _query(cc=None, hook=ht)
+    if not rows:
+        rows = _query(cc=None, hook=None)
+    return rows[:lim]
 
 
 def enrich_analysis_with_douyin_match(

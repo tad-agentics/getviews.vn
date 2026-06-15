@@ -84,11 +84,12 @@ def fetch_douyin_feed(sb: Any) -> dict[str, Any]:
             .select(
                 "video_id, douyin_url, niche_id, "
                 "creator_handle, creator_name, "
-                "thumbnail_url, video_url, video_duration, "
+                "thumbnail_url, video_url, playback_url, video_duration, "
                 "views, likes, saves, engagement_rate, posted_at, "
                 "title_zh, title_vi, sub_vi, hashtags_zh, "
                 "adapt_level, adapt_reason, eta_weeks_min, eta_weeks_max, "
                 "cn_rise_pct, translator_notes, synth_computed_at, "
+                "content_class_id, content_format, "
                 "indexed_at"
             )
             .in_("niche_id", sorted(active_niche_ids))
@@ -164,6 +165,7 @@ def _serialize_video(row: dict[str, Any]) -> dict[str, Any]:
         "creator_name": row.get("creator_name"),
         "thumbnail_url": row.get("thumbnail_url"),
         "video_url": row.get("video_url"),
+        "playback_url": row.get("playback_url"),
         "video_duration": _float_or_none(row.get("video_duration")),
         "views": _int_or_none(row.get("views")) or 0,
         "likes": _int_or_none(row.get("likes")) or 0,

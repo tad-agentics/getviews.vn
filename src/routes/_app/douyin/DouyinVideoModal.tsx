@@ -1,10 +1,12 @@
-import { memo } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   ArrowRight,
   Bookmark,
   ExternalLink,
   Play,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 
@@ -127,77 +129,7 @@ function DouyinVideoModalBody({
   return (
     <div className="grid max-h-[88vh] grid-cols-1 overflow-hidden md:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
       {/* ── Phone preview ─────────────────────────────────────────── */}
-      <div className="relative bg-[color:var(--gv-ink)] md:min-h-[480px]">
-        <div
-          className="relative aspect-[9/16] w-full overflow-hidden"
-          style={
-            video.thumbnail_url
-              ? {
-                  backgroundImage: `url(${video.thumbnail_url})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }
-              : undefined
-          }
-        >
-          {/* Top dim → bottom dark gradient for overlay legibility */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 28%, transparent 60%, rgba(0,0,0,0.85) 100%)",
-            }}
-          />
-
-          {/* CN flag top-left */}
-          <span
-            className="gv-mono absolute left-2 top-2 rounded px-1.5 py-0.5 text-[11px] gv-kicker tracking-[0.05em] text-white"
-            style={{ background: "var(--gv-accent-deep)" }}
-            aria-label="Nguồn Douyin Trung Quốc"
-          >
-            CN
-          </span>
-
-          {/* Sub VN band */}
-          {subVI ? (
-            <div
-              className="absolute left-2 right-2 rounded p-1.5 text-center"
-              style={{ bottom: 60, background: "rgba(0,0,0,0.55)" }}
-            >
-              <p
-                className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-[0.05em]"
-                style={{ color: DOUYIN_SUB_VN_GREEN }}
-              >
-                Sub VN
-              </p>
-              <p className="line-clamp-2 text-[11px] font-medium leading-[1.25] text-white">
-                &quot;{subVI}&quot;
-              </p>
-            </div>
-          ) : null}
-
-          {/* Bottom — handle + views */}
-          <div className="absolute bottom-2 left-2.5 right-2.5 text-white">
-            {video.creator_handle ? (
-              <p className="gv-mono mb-0.5 truncate text-[11px] opacity-85">
-                抖音 @{video.creator_handle}
-              </p>
-            ) : null}
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="gv-mono">↑ {formatViews(video.views)}</span>
-            </div>
-          </div>
-
-          {/* Center play hint */}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/85"
-          >
-            <Play className="h-4 w-4 text-[color:var(--gv-ink)]" fill="currentColor" />
-          </span>
-        </div>
-      </div>
+      <DouyinPhonePreview video={video} subVI={subVI} />
 
       {/* ── Info panel ────────────────────────────────────────────── */}
       <div className="flex max-h-[88vh] flex-col overflow-hidden">
@@ -266,6 +198,150 @@ function DouyinVideoModalBody({
             </Btn>
           </div>
         </footer>
+      </div>
+    </div>
+  );
+}
+
+
+function DouyinPhonePreview({
+  video,
+  subVI,
+}: {
+  video: DouyinVideo;
+  subVI: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useState(true);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const playbackSrc = video.playback_url?.trim() ?? "";
+  const hasPlayback = Boolean(playbackSrc);
+
+  useEffect(() => {
+    if (!hasPlayback) return;
+    const el = videoRef.current;
+    if (!el) return;
+    void el.play().catch(() => setAutoplayBlocked(true));
+  }, [hasPlayback, playbackSrc]);
+
+  const handleManualPlay = useCallback(() => {
+    setAutoplayBlocked(false);
+    void videoRef.current?.play().catch(() => setAutoplayBlocked(true));
+  }, []);
+
+  return (
+    <div className="relative bg-[color:var(--gv-ink)] md:min-h-[480px]">
+      <div className="relative aspect-[9/16] w-full overflow-hidden">
+        {hasPlayback ? (
+          <video
+            ref={videoRef}
+            key={playbackSrc}
+            src={playbackSrc}
+            poster={video.thumbnail_url ?? undefined}
+            autoPlay
+            loop
+            playsInline
+            muted={muted}
+            controls
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <div
+            className="absolute inset-0"
+            style={
+              video.thumbnail_url
+                ? {
+                    backgroundImage: `url(${video.thumbnail_url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }
+                : undefined
+            }
+          />
+        )}
+
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 28%, transparent 60%, rgba(0,0,0,0.85) 100%)",
+          }}
+        />
+
+        <span
+          className="gv-mono absolute left-2 top-2 z-10 rounded px-1.5 py-0.5 text-[11px] gv-kicker tracking-[0.05em] text-white"
+          style={{ background: "var(--gv-accent-deep)" }}
+          aria-label="Nguồn Douyin Trung Quốc"
+        >
+          CN
+        </span>
+
+        {hasPlayback ? (
+          <button
+            type="button"
+            onClick={() => setMuted((v) => !v)}
+            aria-label={muted ? "Bật tiếng" : "Tắt tiếng"}
+            aria-pressed={!muted}
+            className="absolute right-2 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm"
+          >
+            {muted ? (
+              <VolumeX className="h-4 w-4" strokeWidth={2} aria-hidden />
+            ) : (
+              <Volume2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+            )}
+          </button>
+        ) : null}
+
+        {autoplayBlocked && hasPlayback ? (
+          <button
+            type="button"
+            onClick={handleManualPlay}
+            aria-label="Phát video"
+            className="absolute inset-0 z-[15] flex items-center justify-center bg-black/35 text-white"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/85 text-[color:var(--gv-ink)]">
+              <Play className="h-4 w-4" fill="currentColor" aria-hidden />
+            </span>
+          </button>
+        ) : null}
+
+        {subVI ? (
+          <div
+            className="pointer-events-none absolute left-2 right-2 z-10 rounded p-1.5 text-center"
+            style={{ bottom: 60, background: "rgba(0,0,0,0.55)" }}
+          >
+            <p
+              className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-[0.05em]"
+              style={{ color: DOUYIN_SUB_VN_GREEN }}
+            >
+              Sub VN
+            </p>
+            <p className="line-clamp-2 text-[11px] font-medium leading-[1.25] text-white">
+              &quot;{subVI}&quot;
+            </p>
+          </div>
+        ) : null}
+
+        <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 z-10 text-white">
+          {video.creator_handle ? (
+            <p className="gv-mono mb-0.5 truncate text-[11px] opacity-85">
+              抖音 @{video.creator_handle}
+            </p>
+          ) : null}
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="gv-mono">↑ {formatViews(video.views)}</span>
+          </div>
+        </div>
+
+        {!hasPlayback ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/85"
+          >
+            <Play className="h-4 w-4 text-[color:var(--gv-ink)]" fill="currentColor" />
+          </span>
+        ) : null}
       </div>
     </div>
   );

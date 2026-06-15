@@ -34,12 +34,15 @@ def _patch_pipeline(
     captured: dict[str, Any] = {"resolve_calls": [], "upserted_rows": None}
 
     return_tuples = [
-        ({"analysis": {"scenes": []}}, frames, [], "translation")
+        ({"analysis": {"scenes": []}}, frames, [], "translation", None)
         for frames in hook_frames_by_row
     ]
 
-    async def _resolve_side_effect(vid: str, existing: str | None):
+    async def _resolve_side_effect(
+        vid: str, existing: str | None, *, prefer_frame: bool = False
+    ):
         captured["resolve_calls"].append((vid, existing))
+        captured.setdefault("prefer_frame_flags", []).append(prefer_frame)
         if resolve_returns == "default":
             return f"https://r2.test/thumbnails/{vid}.webp"
         return resolve_returns
@@ -74,6 +77,8 @@ async def test_resolve_called_with_platform_cdn_url() -> None:
 
     assert result.inserted == 1
     assert captured["resolve_calls"] == [("v1", "https://douyinpic.com/old.jpg")]
+    # Frame-first parity with TikTok corpus — clip frame beats platform cover.
+    assert captured["prefer_frame_flags"] == [True]
     assert captured["upserted_rows"][0]["thumbnail_url"] == (
         "https://r2.test/thumbnails/v1.webp"
     )

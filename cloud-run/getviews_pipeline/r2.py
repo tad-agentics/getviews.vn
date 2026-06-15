@@ -695,8 +695,13 @@ def bank_video_clip(video_path: Path, video_id: str) -> str | None:
         clip_path.unlink(missing_ok=True)
 
 
-def upload_video(video_id: str, clip_path: Path) -> str | None:
-    """Upload a 720p/30s .mp4 clip to R2 at videos/{video_id}.mp4.
+def upload_video(
+    video_id: str,
+    clip_path: Path,
+    *,
+    max_bytes: int | None = None,
+) -> str | None:
+    """Upload a .mp4 clip to R2 at videos/{video_id}.mp4.
 
     Returns the permanent public URL (R2_VIDEO_PUBLIC_URL/videos/{video_id}.mp4)
     or None on any failure.
@@ -704,6 +709,9 @@ def upload_video(video_id: str, clip_path: Path) -> str | None:
     Key pattern: videos/{video_id}.mp4
     CacheControl: immutable — the clip content is stable once uploaded.
     Runs synchronously (call via run_in_executor for async contexts).
+
+    ``max_bytes`` defaults to ``_MAX_VIDEO_BYTES`` (60MB TikTok clip cap).
+    Douyin full-length banking passes ``DOUYIN_VIDEO_DOWNLOAD_MAX_BYTES``.
     """
     if not r2_configured():
         logger.warning("[r2] R2 not configured — skipping video upload for %s", video_id)
@@ -723,12 +731,13 @@ def upload_video(video_id: str, clip_path: Path) -> str | None:
         logger.warning("[r2] clip_path %s is empty — skipping upload", clip_path)
         return None
 
-    if size > _MAX_VIDEO_BYTES:
+    size_limit = max_bytes if max_bytes is not None else _MAX_VIDEO_BYTES
+    if size > size_limit:
         logger.warning(
             "[r2] clip %s is %.1fMB — exceeds %dMB limit, skipping upload",
             video_id,
             size / 1024 / 1024,
-            _MAX_VIDEO_BYTES // 1024 // 1024,
+            size_limit // 1024 // 1024,
         )
         return None
 
@@ -824,6 +833,122 @@ async def download_and_upload_video(
         return None
     finally:
         clip_path.unlink(missing_ok=True)
+
+
+def remux_video_faststart(source_path: Path, dest_path: Path) -> bool:
+    """Stream-copy ``source_path`` → ``dest_path`` with moov atom at front.
+
+    Enables progressive playback / seeking in ``<video>`` without re-encoding.
+    Returns True on success.
+    """
+    if not _ffmpeg_available():
+        logger.warning("[r2] ffmpeg not available — cannot remux %s", source_path)
+        return False
+    if not source_path.exists() or source_path.stat().st_size == 0:
+        return False
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(source_path),
+        "-c",
+        "copy",
+        "-movflags",
+        "+faststart",
+        str(dest_path),
+    ]
+    try:
+        res = subprocess.run(cmd, capture_output=True, timeout=120)
+        if res.returncode == 0 and dest_path.exists() and dest_path.stat().st_size > 0:
+            return True
+        logger.warning(
+            "[r2] faststart remux failed for %s: %s",
+            source_path,
+            res.stderr.decode(errors="replace")[:200],
+        )
+    except Exception as exc:
+        logger.warning("[r2] faststart remux error for %s: %s", source_path, exc)
+    return False
+
+
+def bank_local_video_to_r2(
+    video_id: str,
+    source_path: Path,
+    *,
+    max_bytes: int | None = None,
+) -> str | None:
+    """Remux local MP4 with +faststart and upload to ``videos/{video_id}.mp4``.
+
+    Used by Douyin ingest (reuse already-downloaded file) and backfill.
+    """
+    if not r2_configured() or not source_path.exists():
+        return None
+    out_path = Path("/tmp") / f"bank_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
+    try:
+        if not remux_video_faststart(source_path, out_path):
+            # Fall back to uploading the raw file if remux fails.
+            out_path = source_path
+            if not out_path.exists():
+                return None
+        return upload_video(video_id, out_path, max_bytes=max_bytes)
+    finally:
+        if out_path != source_path and out_path.exists():
+            out_path.unlink(missing_ok=True)
+
+
+async def download_and_upload_full_video(
+    video_urls: list[str],
+    video_id: str,
+    *,
+    headers: dict[str, str] | None = None,
+    max_bytes: int | None = None,
+) -> str | None:
+    """Download full-length MP4 from CDN URLs → remux +faststart → R2.
+
+    Used by Douyin backfill when no local ``video_path`` is available.
+    """
+    from getviews_pipeline.config import DEFAULT_VIDEO_DOWNLOAD_MAX_BYTES
+
+    if not r2_configured() or not video_urls:
+        return None
+
+    dl_max = max_bytes if max_bytes is not None else DEFAULT_VIDEO_DOWNLOAD_MAX_BYTES
+    hdrs = headers or {}
+
+    try:
+        video_path = await ensemble_download_video_with_headers(
+            video_urls,
+            headers=hdrs,
+            max_bytes=dl_max,
+        )
+    except Exception as exc:
+        logger.warning("[r2] full video download failed for %s: %s", video_id, exc)
+        return None
+
+    loop = asyncio.get_event_loop()
+    try:
+        return await loop.run_in_executor(
+            None,
+            lambda: bank_local_video_to_r2(video_id, video_path, max_bytes=dl_max),
+        )
+    finally:
+        video_path.unlink(missing_ok=True)
+
+
+async def ensemble_download_video_with_headers(
+    url_list: list[str],
+    *,
+    headers: dict[str, str],
+    max_bytes: int,
+) -> Path:
+    """Thin async wrapper — imports ensemble to avoid circular import at module load."""
+    from getviews_pipeline import ensemble
+
+    return await ensemble.download_video(
+        url_list,
+        headers=headers,
+        max_bytes=max_bytes,
+    )
 
 
 # ── Thumbnail upload ──────────────────────────────────────────────────────────

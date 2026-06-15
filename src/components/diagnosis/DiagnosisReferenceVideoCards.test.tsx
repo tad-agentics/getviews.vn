@@ -149,4 +149,26 @@ describe("DiagnosisReferenceVideoCards", () => {
 
     play.mockRestore();
   });
+
+  it("shows CN badge on Douyin reference tiles", () => {
+    render(
+      <DiagnosisReferenceVideoCards
+        tiles={[
+          {
+            aweme_id: "dy1",
+            video_url: "https://www.douyin.com/video/dy1",
+            thumbnail_url: "https://thumb/dy1.jpg",
+            views: 120_000,
+            caption_snippet: "Xu hướng Douyin",
+            posted_at: "",
+            source: "douyin",
+            author_handle: "cn_creator",
+            playback_url: "https://pub.r2.dev/videos/dy1.mp4",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByLabelText("Xu hướng Douyin Trung Quốc")).toBeTruthy();
+    expect(screen.getByText("CN")).toBeTruthy();
+  });
 });

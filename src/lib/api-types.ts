@@ -1188,11 +1188,13 @@ export interface ReferenceVideoCard {
   author_handle: string | null;
   thumbnail_url: string | null;
   tiktok_url: string | null;
+  /** Douyin attribution link — present when ``source`` is ``douyin``. */
+  douyin_url?: string | null;
   /** R2-hosted MP4 from corpus ingest — present ⇒ inline playback; never an expiring CDN URL. */
   playback_url?: string | null;
   /** Hook-window start (seconds) for peer MOMENT deep-link when wide-context timestamps are on. */
   peer_hook_start_sec?: number | null;
-  source: "corpus" | "live_search";
+  source: "corpus" | "live_search" | "douyin";
 }
 
 /** Partial payload streamed before final Vietnamese synthesis lands on `ReportV1`. */
@@ -1490,6 +1492,8 @@ export interface DouyinVideo {
   creator_name: string | null;
   thumbnail_url: string | null;
   video_url: string | null;
+  /** R2-hosted full-length MP4 for in-app playback (banked at ingest). */
+  playback_url: string | null;
   /** Seconds, fractional allowed. */
   video_duration: number | null;
   views: number;

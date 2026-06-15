@@ -13,6 +13,8 @@ import { formatViews } from "@/lib/formatters";
 /** One peer reference video shown under a diagnosis section. */
 export interface DiagnosisReferenceTile extends ChannelPerformerTile {
   aweme_id?: string;
+  /** ``corpus`` | ``douyin`` — drives CN flag + external link choice. */
+  source?: "corpus" | "live_search" | "douyin";
   /** Per-video comparison copy from synthesis (preferred). */
   narrative_vi?: string;
   author_handle?: string | null;
@@ -331,9 +333,13 @@ function sortReferenceVideoPool(cards: ReferenceVideoCard[]): ReferenceVideoCard
 
 /** When synthesis omits tiles, surface top corpus peers for niche_pattern. */
 export function referenceCardToTile(src: ReferenceVideoCard): DiagnosisReferenceTile {
+  const isDouyin = src.source === "douyin";
+  const externalUrl = isDouyin
+    ? String(src.douyin_url ?? "")
+    : String(src.tiktok_url ?? "");
   const tile: DiagnosisReferenceTile = {
     aweme_id: String(src.aweme_id),
-    video_url: String(src.tiktok_url ?? ""),
+    video_url: externalUrl,
     thumbnail_url: String(src.thumbnail_url ?? ""),
     views: Number(src.views ?? 0) || 0,
     caption_snippet: sanitizeReferenceCaptionSnippet(String(src.desc ?? "")).slice(0, 200),
@@ -343,6 +349,7 @@ export function referenceCardToTile(src: ReferenceVideoCard): DiagnosisReference
     hook_type: src.hook_type ?? null,
     playback_url: src.playback_url ?? null,
     peer_hook_start_sec: src.peer_hook_start_sec ?? null,
+    source: src.source,
   };
   return {
     ...tile,
@@ -361,7 +368,7 @@ export function fallbackNichePatternReferenceTiles(
     (r) =>
       r.aweme_id &&
       (!excludeIds || !excludeIds.has(String(r.aweme_id))) &&
-      (r.thumbnail_url || r.tiktok_url),
+      (r.thumbnail_url || r.tiktok_url || r.douyin_url),
   );
   const sameFormat = analyzedFmt
     ? eligible.filter((r) => String(r.content_format ?? "").toLowerCase() === analyzedFmt)
@@ -387,7 +394,8 @@ export class ReferenceTileAllocator {
     const analyzedFmt = analyzedContentFormat?.trim().toLowerCase() ?? "";
     const eligible = this.referenceVideos.filter((r) => {
       const id = r.aweme_id ? String(r.aweme_id) : "";
-      if (!id || !(r.thumbnail_url || r.tiktok_url)) return false;
+      const link = r.source === "douyin" ? r.douyin_url : r.tiktok_url;
+      if (!id || !(r.thumbnail_url || link)) return false;
       if (this.usedIds.has(id)) return false;
       if (extraExclude?.has(id)) return false;
       return true;

@@ -71,6 +71,7 @@ function ReferenceVideoCard({
   thumbOnly?: boolean;
 }) {
   const href = tile.video_url || undefined;
+  const isDouyin = tile.source === "douyin";
   const playable = Boolean(tile.playback_url) && onPlay != null;
   const handle = formatCreatorHandle(tile.author_handle);
   const narrative = referenceTileNarrative(tile);
@@ -153,6 +154,15 @@ function ReferenceVideoCard({
         placeholderClassName={panelClass}
         onAllCandidatesFailed={() => setThumbFailed(true)}
       />
+      {isDouyin ? (
+        <span
+          className="gv-mono pointer-events-none absolute left-2 top-2 z-[18] rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.05em] text-white"
+          style={{ background: "var(--gv-accent-deep)" }}
+          aria-label="Xu hướng Douyin Trung Quốc"
+        >
+          CN
+        </span>
+      ) : null}
       <div
         className="pointer-events-none absolute inset-0 z-[15] bg-gradient-to-b from-transparent from-40% to-black/70"
         aria-hidden
@@ -215,7 +225,11 @@ function ReferenceVideoCard({
         target="_blank"
         rel="noopener noreferrer"
         className={interactiveClass}
-        aria-label={tileLabel}
+        aria-label={
+          isDouyin
+            ? `${tileLabel} — Mở trên Douyin`
+            : tileLabel
+        }
       >
         {inner}
       </a>

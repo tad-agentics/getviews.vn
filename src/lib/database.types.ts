@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       acqe_run_state: {
@@ -1142,6 +1167,7 @@ export type Database = {
           analysis_json: Json
           cn_rise_pct: number | null
           comments: number
+          content_class_id: number | null
           content_format: string | null
           content_type: string
           created_at: string
@@ -1161,6 +1187,7 @@ export type Database = {
           indexed_at: string
           likes: number
           niche_id: number
+          playback_url: string | null
           posted_at: string | null
           saves: number
           shares: number
@@ -1181,6 +1208,7 @@ export type Database = {
           analysis_json: Json
           cn_rise_pct?: number | null
           comments?: number
+          content_class_id?: number | null
           content_format?: string | null
           content_type: string
           created_at?: string
@@ -1200,6 +1228,7 @@ export type Database = {
           indexed_at?: string
           likes?: number
           niche_id: number
+          playback_url?: string | null
           posted_at?: string | null
           saves?: number
           shares?: number
@@ -1220,6 +1249,7 @@ export type Database = {
           analysis_json?: Json
           cn_rise_pct?: number | null
           comments?: number
+          content_class_id?: number | null
           content_format?: string | null
           content_type?: string
           created_at?: string
@@ -1239,6 +1269,7 @@ export type Database = {
           indexed_at?: string
           likes?: number
           niche_id?: number
+          playback_url?: string | null
           posted_at?: string | null
           saves?: number
           shares?: number
@@ -2125,6 +2156,56 @@ export type Database = {
           },
         ]
       }
+      signal_calibration: {
+        Row: {
+          adopted: boolean
+          computed_at: string
+          content_class_id: number | null
+          id: string
+          rho_baseline: number
+          rho_holdout: number
+          sample_size: number
+          scope: string
+          w_format: number
+          w_hook: number
+          w_time: number
+        }
+        Insert: {
+          adopted?: boolean
+          computed_at?: string
+          content_class_id?: number | null
+          id?: string
+          rho_baseline: number
+          rho_holdout: number
+          sample_size: number
+          scope: string
+          w_format: number
+          w_hook: number
+          w_time: number
+        }
+        Update: {
+          adopted?: boolean
+          computed_at?: string
+          content_class_id?: number | null
+          id?: string
+          rho_baseline?: number
+          rho_holdout?: number
+          sample_size?: number
+          scope?: string
+          w_format?: number
+          w_hook?: number
+          w_time?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signal_calibration_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signal_grades: {
         Row: {
           computed_at: string
@@ -2165,6 +2246,41 @@ export type Database = {
             columns: ["niche_id"]
             isOneToOne: false
             referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signal_predictive_value: {
+        Row: {
+          computed_at: string
+          content_class_id: number | null
+          id: string
+          predictive_rho: number
+          sample_size: number
+          signal_type: string
+        }
+        Insert: {
+          computed_at?: string
+          content_class_id?: number | null
+          id?: string
+          predictive_rho: number
+          sample_size: number
+          signal_type: string
+        }
+        Update: {
+          computed_at?: string
+          content_class_id?: number | null
+          id?: string
+          predictive_rho?: number
+          sample_size?: number
+          signal_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signal_predictive_value_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
             referencedColumns: ["id"]
           },
         ]
@@ -2495,6 +2611,7 @@ export type Database = {
           dialect: string | null
           distribution_shape: string | null
           engagement_rate: number
+          extraction_quality: string
           face_appears_at: number | null
           first_frame_type: string | null
           first_seen_at: string | null
@@ -2520,6 +2637,7 @@ export type Database = {
           last_refetched_at: string | null
           last_refreshed_at: string | null
           likes: number
+          loop_score: number | null
           niche_resolution_confidence: number | null
           niche_resolution_source: string | null
           pain_points: Json | null
@@ -2545,6 +2663,7 @@ export type Database = {
           thumbnail_analysis_fetched_at: string | null
           thumbnail_url: string | null
           tiktok_url: string
+          time_to_first_value_sec: number | null
           tone: string | null
           topics: string[] | null
           transcript_snippet: string | null
@@ -2553,6 +2672,7 @@ export type Database = {
           video_id: string
           video_url: string | null
           views: number
+          words_per_sec: number | null
         }
         Insert: {
           analysis_json: Json
@@ -2577,6 +2697,7 @@ export type Database = {
           dialect?: string | null
           distribution_shape?: string | null
           engagement_rate?: number
+          extraction_quality?: string
           face_appears_at?: number | null
           first_frame_type?: string | null
           first_seen_at?: string | null
@@ -2602,6 +2723,7 @@ export type Database = {
           last_refetched_at?: string | null
           last_refreshed_at?: string | null
           likes?: number
+          loop_score?: number | null
           niche_resolution_confidence?: number | null
           niche_resolution_source?: string | null
           pain_points?: Json | null
@@ -2627,6 +2749,7 @@ export type Database = {
           thumbnail_analysis_fetched_at?: string | null
           thumbnail_url?: string | null
           tiktok_url: string
+          time_to_first_value_sec?: number | null
           tone?: string | null
           topics?: string[] | null
           transcript_snippet?: string | null
@@ -2635,6 +2758,7 @@ export type Database = {
           video_id: string
           video_url?: string | null
           views?: number
+          words_per_sec?: number | null
         }
         Update: {
           analysis_json?: Json
@@ -2659,6 +2783,7 @@ export type Database = {
           dialect?: string | null
           distribution_shape?: string | null
           engagement_rate?: number
+          extraction_quality?: string
           face_appears_at?: number | null
           first_frame_type?: string | null
           first_seen_at?: string | null
@@ -2684,6 +2809,7 @@ export type Database = {
           last_refetched_at?: string | null
           last_refreshed_at?: string | null
           likes?: number
+          loop_score?: number | null
           niche_resolution_confidence?: number | null
           niche_resolution_source?: string | null
           pain_points?: Json | null
@@ -2709,6 +2835,7 @@ export type Database = {
           thumbnail_analysis_fetched_at?: string | null
           thumbnail_url?: string | null
           tiktok_url?: string
+          time_to_first_value_sec?: number | null
           tone?: string | null
           topics?: string[] | null
           transcript_snippet?: string | null
@@ -2717,6 +2844,7 @@ export type Database = {
           video_id?: string
           video_url?: string | null
           views?: number
+          words_per_sec?: number | null
         }
         Relationships: [
           {
@@ -3464,6 +3592,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

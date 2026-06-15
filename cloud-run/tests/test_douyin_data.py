@@ -72,6 +72,7 @@ def test_serialize_video_coerces_types_and_safe_defaults() -> None:
         "creator_name": "Alice",
         "thumbnail_url": "https://cdn/thumb.jpg",
         "video_url": "https://cdn/v.mp4",
+        "playback_url": "https://r2.example/videos/v1.mp4",
         "video_duration": "32.5",
         "views": "1000000",
         "likes": "50000",
@@ -106,6 +107,7 @@ def test_serialize_video_coerces_types_and_safe_defaults() -> None:
     assert out["adapt_level"] == "green"
     assert len(out["translator_notes"]) == 2
     assert out["hashtags_zh"] == ["#养生", "#健康"]
+    assert out["playback_url"] == "https://r2.example/videos/v1.mp4"
 
 
 def test_serialize_video_handles_null_synth_fields() -> None:

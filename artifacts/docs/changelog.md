@@ -1,5 +1,16 @@
 # Changelog — GetViews.vn
 
+## 2026-06-16 — Douyin pipeline: in-app playback + reference integration
+
+- **Audit:** `artifacts/docs/douyin-pipeline-audit-v2.md` — gap matrix + remediation order.
+- **Phase 1 — Playback:** Per-call 200MB download/upload cap + Douyin CDN `Referer`; `bank_local_video_to_r2` (+faststart remux); ingest banks full MP4; `playback_url` column on `douyin_video_corpus`; feed serializer + `DouyinVideoModal` native `<video>`.
+- **Backfill:** `POST /batch/douyin-backfill-videos` (TikHub multi-info batch) + `POST /batch/douyin-backfill-content-class`.
+- **Phase 1c — Volume:** `batch_douyin_videos_per_niche` 10, `tikhub_douyin_daily_request_max` 150.
+- **Phase 2 — References:** `content_class_id` on Douyin corpus; `fetch_douyin_reference_awemes` merged into live diagnosis pool (`GETVIEWS_DOUYIN_REFERENCE_POOL`); FE CN badge + `source: douyin` reference cards.
+- **Phase 3a — HI-13:** `douyin_batch_extract.py` + `DOUYIN_INGEST_USE_GEMINI_BATCH` flag (default off).
+- **R2 janitor:** `douyin_video_corpus` IDs unioned into live set (orphan-only delete).
+- **Tests:** `test_douyin_playback_banking.py`, modal + reference card vitest updates.
+
 ## 2026-06-14 — Peer reference tile hover preview fix
 
 - **FE (`DiagnosisReferenceVideoCards`):** Hide thumbnail only after `video.play()` succeeds (parity with `VideoBody`); on play/load error keep poster visible instead of a blank white tile. Hover seeks to `peer_hook_start_sec` when set.

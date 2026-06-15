@@ -34,6 +34,7 @@ function _video(overrides: Partial<DouyinVideo> = {}): DouyinVideo {
     creator_name: "Alice",
     thumbnail_url: null,
     video_url: null,
+    playback_url: null,
     video_duration: 30,
     views: 1_200_000,
     likes: 80_000,
@@ -82,6 +83,9 @@ function _renderModal(props: {
 
 beforeEach(() => {
   navigate.mockReset();
+  HTMLMediaElement.prototype.play = vi
+    .fn()
+    .mockResolvedValue(undefined) as typeof HTMLMediaElement.prototype.play;
 });
 
 afterEach(() => {
@@ -208,5 +212,32 @@ describe("DouyinVideoModal — pending / sparse rows", () => {
     // none of the populated-row signals appear.
     expect(screen.queryByText(/Note văn hoá/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Chuyển thể sang VN/ })).toBeNull();
+  });
+});
+
+
+describe("DouyinVideoModal — in-app playback", () => {
+  it("renders a native video element when playback_url is present", () => {
+    _renderModal({
+      video: _video({
+        playback_url: "https://r2.example/videos/v1.mp4",
+        thumbnail_url: "https://cdn/thumb.jpg",
+      }),
+    });
+    const video = document.querySelector("video");
+    expect(video).toBeTruthy();
+    expect(video?.getAttribute("src")).toBe("https://r2.example/videos/v1.mp4");
+    expect(video?.getAttribute("poster")).toBe("https://cdn/thumb.jpg");
+  });
+
+  it("falls back to thumbnail background when playback_url is null", () => {
+    _renderModal({
+      video: _video({
+        playback_url: null,
+        thumbnail_url: "https://cdn/thumb.jpg",
+      }),
+    });
+    expect(document.querySelector("video")).toBeNull();
+    expect(screen.getByLabelText("Nguồn Douyin Trung Quốc")).toBeTruthy();
   });
 });

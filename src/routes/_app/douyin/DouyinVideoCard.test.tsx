@@ -30,6 +30,7 @@ function _video(overrides: Partial<DouyinVideo> = {}): DouyinVideo {
     creator_name: "Alice",
     thumbnail_url: "https://cdn/thumb.jpg",
     video_url: "https://cdn/v.mp4",
+    playback_url: null,
     video_duration: 51,
     views: 4_100_000,
     likes: 412_000,

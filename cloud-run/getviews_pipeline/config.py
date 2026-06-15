@@ -346,14 +346,36 @@ CAROUSEL_MAX_IMAGE_BYTES = int(
     os.environ.get("CAROUSEL_MAX_IMAGE_BYTES", str(15 * 1024 * 1024))
 )
 
+_CDN_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+
 CDN_HEADERS: dict[str, str] = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": _CDN_USER_AGENT,
     "Referer": "https://www.tiktok.com/",
     "Accept": "*/*",
 }
+
+# Douyin CDN play_addr requires douyin.com Referer — tiktok.com Referer 403s.
+DOUYIN_CDN_HEADERS: dict[str, str] = {
+    "User-Agent": _CDN_USER_AGENT,
+    "Referer": "https://www.douyin.com/",
+    "Accept": "*/*",
+}
+
+# Default TikTok ingest download/upload cap (60MB). Douyin full-video banking
+# passes a higher per-call limit via max_bytes kwargs.
+DEFAULT_VIDEO_DOWNLOAD_MAX_BYTES = 60 * 1024 * 1024
+DOUYIN_VIDEO_DOWNLOAD_MAX_BYTES = int(
+    os.environ.get("DOUYIN_VIDEO_DOWNLOAD_MAX_BYTES", str(200 * 1024 * 1024))
+)
+
+# Phase 2b — merge Douyin corpus rows into live diagnosis reference pool.
+GETVIEWS_DOUYIN_REFERENCE_POOL = _bool_env("GETVIEWS_DOUYIN_REFERENCE_POOL", False)
+
+# Phase 3a — HI-13 Gemini Batch for Douyin ingest (default off).
+DOUYIN_INGEST_USE_GEMINI_BATCH = _bool_env("DOUYIN_INGEST_USE_GEMINI_BATCH", False)
 
 # Residential proxy for TikTok CDN downloads (video + carousel images).
 # Without this, Cloud Run datacenter IPs will be blocked by TikTok.

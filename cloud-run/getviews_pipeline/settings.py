@@ -102,7 +102,7 @@ class _PipelineSettings(BaseSettings):
     tikhub_base_url: str = Field(default="https://api.tikhub.io")
     tikhub_api_key: str = Field(default="")
     tikhub_request_timeout_sec: float = Field(default=20.0, ge=1.0)
-    tikhub_douyin_daily_request_max: int = Field(default=50, ge=0)
+    tikhub_douyin_daily_request_max: int = Field(default=150, ge=0)
 
     # ── Corpus ingest ──────────────────────────────────────────────────────
     batch_videos_per_niche: int = Field(default=30, ge=1)
@@ -319,7 +319,7 @@ class _PipelineSettings(BaseSettings):
     batch_douyin_min_views: int = Field(default=100000, ge=0)
     batch_douyin_min_er: float = Field(default=2.5, ge=0.0)
     batch_douyin_hashtag_fetch_limit: int = Field(default=3, ge=1)
-    batch_douyin_videos_per_niche: int = Field(default=5, ge=1)
+    batch_douyin_videos_per_niche: int = Field(default=10, ge=1)
 
     # ── Resend ─────────────────────────────────────────────────────────────
     resend_api_key: str = Field(default="")

@@ -68,19 +68,28 @@ _LIST_PAGE_SIZE = 1000
 
 
 def _live_video_ids(client: Any) -> set[str]:
-    """Pull the live video_id set from video_corpus into memory.
+    """Pull live video_id sets from video_corpus + douyin_video_corpus.
 
-    Uses small page reads to avoid building one giant SELECT result
-    that PostgREST would refuse. Each row is just a TEXT id so memory
-    pressure is low (~50 bytes × N rows).
+    Douyin aweme_ids share the same ``videos/{id}.mp4`` R2 namespace as
+    TikTok corpus clips — both tables must be consulted so janitor never
+    deletes a banked Douyin MP4 while its corpus row still exists.
     """
+    ids: set[str] = set()
+    for table in ("video_corpus", "douyin_video_corpus"):
+        ids |= _paginate_video_ids(client, table)
+    logger.info("[r2-janitor] live corpus ids (tiktok+douyin): %d", len(ids))
+    return ids
+
+
+def _paginate_video_ids(client: Any, table: str) -> set[str]:
+    """Page through ``table.video_id`` into a set."""
     ids: set[str] = set()
     page_size = 5000
     last_seen: str | None = None
 
     while True:
         q = (
-            client.table("video_corpus")
+            client.table(table)
             .select("video_id")
             .order("video_id")
             .limit(page_size)
@@ -93,12 +102,12 @@ def _live_video_ids(client: Any) -> set[str]:
         for row in rows:
             vid = row.get("video_id")
             if vid:
-                ids.add(vid)
+                ids.add(str(vid))
         last_seen = rows[-1].get("video_id")
         if len(rows) < page_size:
             break
 
-    logger.info("[r2-janitor] live video_corpus ids: %d", len(ids))
+    logger.info("[r2-janitor] %s ids: %d", table, len(ids))
     return ids
 
 

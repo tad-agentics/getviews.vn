@@ -57,7 +57,7 @@ function _video(overrides: Partial<DouyinVideo> = {}): DouyinVideo {
     douyin_url: "https://www.douyin.com/video/v1",
     niche_id: 1,
     creator_handle: "alice", creator_name: "Alice",
-    thumbnail_url: null, video_url: null, video_duration: 30,
+    thumbnail_url: null, video_url: null, playback_url: null, video_duration: 30,
     views: 100_000, likes: 10_000, saves: 5_000,
     engagement_rate: 15, posted_at: null,
     title_zh: "睡前3件事", title_vi: "3 việc trước khi ngủ",

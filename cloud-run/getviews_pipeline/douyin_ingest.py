@@ -45,7 +45,14 @@ from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.douyin_metadata import build_douyin_corpus_row
 from getviews_pipeline.douyin_translator import translate_douyin_caption
+from getviews_pipeline.config import (
+    DOUYIN_CDN_HEADERS,
+    DOUYIN_INGEST_USE_GEMINI_BATCH,
+    DOUYIN_VIDEO_DOWNLOAD_MAX_BYTES,
+)
+from getviews_pipeline.douyin_content_class import resolve_content_class_from_analysis
 from getviews_pipeline.r2 import (
+    bank_local_video_to_r2,
     extract_and_upload,
     extract_and_upload_scene_frames,
     r2_configured,
@@ -381,8 +388,8 @@ def _upsert_douyin_shots_with_retry_sync(
 
 async def _analyze_translate_one(
     aweme: dict[str, Any],
-) -> tuple[dict[str, Any], list[str], list[tuple[int, str]], Any]:
-    """Returns ``(analysis, hook_frame_urls, scene_frame_pairs, translation_or_None)``.
+) -> tuple[dict[str, Any], list[str], list[tuple[int, str]], Any, str | None]:
+    """Returns ``(analysis, hook_frame_urls, scene_frame_pairs, translation, playback_url)``.
 
     Concurrency: video analysis (Gemini multimodal, slow — ~10s) runs
     in parallel with the Chinese→VN translation (Gemini text-only,
@@ -405,25 +412,30 @@ async def _analyze_translate_one(
             )
             analysis = await analyze_aweme(aweme, include_diagnosis=False)
             translation = await translation_task
-            return analysis, [], [], translation
+            return analysis, [], [], translation, None
 
         video_urls = ensemble.extract_video_urls(aweme)
         if not video_urls:
             return (
                 {"error": "No video URLs in aweme",
                  "metadata": ensemble.parse_metadata(aweme).model_dump()},
-                [], [], None,
+                [], [], None, None,
             )
 
         video_path: Path | None = None
+        playback_url: str | None = None
         try:
             try:
-                video_path = await ensemble.download_video(video_urls)
+                video_path = await ensemble.download_video(
+                    video_urls,
+                    headers=DOUYIN_CDN_HEADERS,
+                    max_bytes=DOUYIN_VIDEO_DOWNLOAD_MAX_BYTES,
+                )
             except Exception as exc:
                 return (
                     {"error": str(exc),
                      "metadata": ensemble.parse_metadata(aweme).model_dump()},
-                    [], [], None,
+                    [], [], None, None,
                 )
 
             vid = str(aweme.get("aweme_id", "") or "")
@@ -477,11 +489,29 @@ async def _analyze_translate_one(
                             vid, exc,
                         )
 
+            # Bank full-length standard play_addr MP4 to R2 for in-app playback.
+            if r2_configured() and video_path is not None:
+                loop = asyncio.get_event_loop()
+                try:
+                    playback_url = await loop.run_in_executor(
+                        None,
+                        lambda: bank_local_video_to_r2(
+                            vid,
+                            video_path,
+                            max_bytes=DOUYIN_VIDEO_DOWNLOAD_MAX_BYTES,
+                        ),
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "[douyin-ingest] video banking failed for %s: %s", vid, exc,
+                    )
+
             return (
                 analysis,
                 hook_frames if isinstance(hook_frames, list) else [],
                 scene_frame_pairs,
                 translation,
+                playback_url,
             )
         finally:
             if video_path is not None:
@@ -501,14 +531,24 @@ async def _ingest_candidate_awemes_douyin(
         return result
 
     logger.info(
-        "[douyin-ingest] niche=%s — analyzing %d candidates",
-        niche_name, len(candidates),
+        "[douyin-ingest] niche=%s — analyzing %d candidates (batch=%s)",
+        niche_name, len(candidates), DOUYIN_INGEST_USE_GEMINI_BATCH,
     )
 
-    gathered = await asyncio.gather(
-        *[_analyze_translate_one(a) for a in candidates],
-        return_exceptions=True,
-    )
+    if DOUYIN_INGEST_USE_GEMINI_BATCH:
+        from getviews_pipeline.douyin_batch_extract import (
+            analyze_douyin_awemes_gemini_batch,
+        )
+
+        gathered = await analyze_douyin_awemes_gemini_batch(
+            candidates,
+            niche_name=niche_name,
+        )
+    else:
+        gathered = await asyncio.gather(
+            *[_analyze_translate_one(a) for a in candidates],
+            return_exceptions=True,
+        )
 
     rows: list[dict[str, Any]] = []
     hook_frames_by_id: dict[str, list[str]] = {}
@@ -520,9 +560,10 @@ async def _ingest_candidate_awemes_douyin(
             result.failed += 1
             result.errors.append(str(gather_result))
             continue
-        analysis, hook_frames, scene_frame_pairs, translation = gather_result
+        analysis, hook_frames, scene_frame_pairs, translation, playback_url = gather_result
         row = build_douyin_corpus_row(
             aweme, analysis, niche_id, translation=translation,
+            playback_url=playback_url,
         )
         if row is None:
             result.skipped_quality += 1
@@ -537,14 +578,18 @@ async def _ingest_candidate_awemes_douyin(
     if not rows:
         return result
 
-    # ``thumbnails/{vid}.webp`` (360w). When frame[0] / legacy PNG on R2 are
-    # unavailable, fall back to mirroring the platform CDN URL — see
-    # ``resolve_ingest_thumbnail_url``.
+    # ``thumbnails/{vid}.webp`` (360w). ``prefer_frame=True`` (parity with the
+    # TikTok corpus frame-first directive): the clip's own opening frame
+    # (``frames/{id}/0.png``, extracted from the video we just downloaded)
+    # always wins over the platform ``douyinpic.com`` cover — which 403s from
+    # Cloud Run datacenter IPs anyway. Platform CDN mirror stays the last
+    # resort. See ``resolve_ingest_thumbnail_url``.
     if r2_configured():
         async def _row_thumbnail(row: dict[str, Any]) -> str | None:
             return await resolve_ingest_thumbnail_url(
                 str(row["video_id"]),
                 row.get("thumbnail_url"),
+                prefer_frame=True,
             )
 
         thumb_results = await asyncio.gather(

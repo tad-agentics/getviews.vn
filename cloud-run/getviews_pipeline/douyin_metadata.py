@@ -50,6 +50,7 @@ from typing import Any
 from getviews_pipeline import ensemble
 from getviews_pipeline.douyin_translator import CaptionTranslation
 from getviews_pipeline.ensemble import VideoMetadata, parse_metadata
+from getviews_pipeline.douyin_content_class import resolve_content_class_from_analysis
 from getviews_pipeline.hook_type_normalize import normalize_hook_type
 
 logger = logging.getLogger(__name__)
@@ -132,6 +133,7 @@ def build_douyin_corpus_row(
     niche_id: int,
     *,
     translation: CaptionTranslation | None = None,
+    playback_url: str | None = None,
 ) -> dict[str, Any] | None:
     """Map ``aweme + analysis [+ translation]`` → ``douyin_video_corpus``
     row dict ready for upsert.
@@ -231,6 +233,11 @@ def build_douyin_corpus_row(
     # as TikTok ingest because EnsembleData normalises the field name.
     content_type = ensemble.detect_content_type(aweme)
 
+    content_class_id, content_format = resolve_content_class_from_analysis(
+        analysis_json,
+        douyin_niche_id=niche_id,
+    )
+
     return {
         # ── Identity / FK ────────────────────────────────────────
         "video_id": video_id,
@@ -244,8 +251,11 @@ def build_douyin_corpus_row(
         # ── Media ────────────────────────────────────────────────
         "thumbnail_url": thumbnail_url,
         "video_url": video_url,
+        "playback_url": playback_url,
         "frame_urls": [],  # D2c fills via R2 extraction
         "analysis_json": analysis_json,
+        "content_class_id": content_class_id,
+        "content_format": content_format,
         # ── Metrics ──────────────────────────────────────────────
         "views": views,
         "likes": likes,

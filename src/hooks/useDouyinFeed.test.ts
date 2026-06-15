@@ -78,7 +78,7 @@ describe("useDouyinFeed", () => {
           douyin_url: "https://www.douyin.com/video/v1",
           niche_id: 1,
           creator_handle: "alice", creator_name: "Alice",
-          thumbnail_url: null, video_url: null, video_duration: null,
+          thumbnail_url: null, video_url: null, playback_url: null, video_duration: null,
           views: 100, likes: 10, saves: 5, engagement_rate: 5.5,
           posted_at: null,
           title_zh: "睡前3件事", title_vi: "3 việc trước khi ngủ",

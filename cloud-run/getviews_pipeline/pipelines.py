@@ -183,9 +183,13 @@ def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str
         or (r.get("metadata") or {}).get("views")
     )
     engagement_rate = r.get("engagement_rate")
+    is_douyin = bool(r.get("_from_douyin_corpus")) or source == "douyin"
     tiktok_url = None
-    if author_handle and aweme_id:
+    douyin_url = r.get("douyin_url") if is_douyin else None
+    if not is_douyin and author_handle and aweme_id:
         tiktok_url = f"https://tiktok.com/@{author_handle}/video/{aweme_id}"
+    if is_douyin and not douyin_url and aweme_id:
+        douyin_url = f"https://www.douyin.com/video/{aweme_id}"
     # Inline playback (2026-06-11): only ship the URL when it's an R2-hosted
     # clip from corpus ingest — never an expiring platform play URL. The FE
     # plays these in the existing VideoPlayerModal instead of bouncing the
@@ -207,8 +211,9 @@ def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str
         "author_handle": author_handle,
         "thumbnail_url": thumb,
         "tiktok_url": tiktok_url,
+        "douyin_url": douyin_url,
         "playback_url": playback_url,
-        "source": source,
+        "source": "douyin" if is_douyin else source,
     }
     if prox is not None:
         out["content_proximity_score"] = int(prox)
@@ -912,7 +917,7 @@ def _content_proximity_score(
 
 
 def _ref_rank_er(ref: dict[str, Any]) -> float:
-    if ref.get("_from_corpus"):
+    if ref.get("_from_corpus") or ref.get("_from_douyin_corpus"):
         return float(ref.get("_corpus_er") or 0.0)
     return _engagement_rate(ref)
 
@@ -1600,6 +1605,22 @@ async def _derive_class_after_user_analysis(
     return (cc, niche_id) if cc else (None, None)
 
 
+def _creator_slug_and_hook_from_user_res(
+    user_res: dict[str, Any],
+) -> tuple[str | None, str | None]:
+    """Extract two-axis niche slug + hook type from user video analysis."""
+    analysis = user_res.get("analysis")
+    if not isinstance(analysis, dict):
+        return None, None
+    nc = analysis.get("niche_classification")
+    slug = nc.get("creator_niche_slug") if isinstance(nc, dict) else None
+    ha = analysis.get("hook_analysis")
+    hook: str | None = None
+    if isinstance(ha, dict):
+        hook = ha.get("type") or ha.get("hook_type")
+    return (str(slug) if slug else None, str(hook) if hook else None)
+
+
 async def _load_corpus_ref_pool_and_picks(
     *,
     niche: str,
@@ -1609,6 +1630,8 @@ async def _load_corpus_ref_pool_and_picks(
     cached_ids: set[str],
     content_class_id: int | None,
     legacy_niche_id: int | None,
+    creator_niche_slug: str | None = None,
+    hook_type: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], str]:
     """Corpus ref pool + proximity picks (+ content-targeted merge)."""
     fetch_days = corpus_reference_fetch_days()
@@ -1673,6 +1696,33 @@ async def _load_corpus_ref_pool_and_picks(
         n=REF_N,
         recency_days=pick_days,
     )
+
+    # Phase 2b — prepend Douyin corpus peers (Supabase-only, flag-gated).
+    from getviews_pipeline.douyin_reference import fetch_douyin_reference_awemes
+
+    try:
+        dy_awemes = await fetch_douyin_reference_awemes(
+            get_service_client(),
+            creator_niche_slug=creator_niche_slug,
+            hook_type=hook_type,
+            content_class_id=content_class_id,
+            exclude_video_id=uid or None,
+        )
+        if dy_awemes:
+            corpus_pool = list(corpus_pool) + dy_awemes
+            pool = list(pool) + dy_awemes
+            # Prepend Douyin refs so at least one CN trend appears in picks.
+            dy_picks = [a for a in dy_awemes if str(a.get("aweme_id") or "") not in cached_ids]
+            picks = (dy_picks[:1] + list(picks))[:REF_N]
+            logger.info(
+                "[ref_source] douyin_merge slug=%s dy=%d picks=%d",
+                creator_niche_slug,
+                len(dy_awemes),
+                len(dy_picks),
+            )
+    except Exception as exc:
+        logger.warning("[ref_source] douyin merge failed: %s", exc)
+
     return corpus_pool, pool, picks, corpus_source
 
 
@@ -1798,6 +1848,30 @@ async def run_video_diagnosis(
                     "content_type": aweme.get("_corpus_content_type", "video"),
                 },
             }
+        # Douyin corpus peers — Supabase-only, skip live re-analysis.
+        if aweme.get("_from_douyin_corpus") and aweme.get("_corpus_analysis"):
+            stats = aweme.get("statistics") or {}
+            views = int(stats.get("play_count") or 0)
+            handle = (aweme.get("author") or {}).get("unique_id") or ""
+            corpus_analysis = aweme["_corpus_analysis"]
+            raw_hook_type = (corpus_analysis.get("hook_analysis") or {}).get("hook_type") or ""
+            return {
+                "aweme_id": aweme["aweme_id"],
+                "_from_douyin_corpus": True,
+                "niche_label": niche,
+                "analysis": corpus_analysis,
+                "metadata": {
+                    "video_id": aweme["aweme_id"],
+                    "author": {"username": handle},
+                    "views": views,
+                    "douyin_url": aweme.get("douyin_url", ""),
+                    "thumbnail_url": aweme.get("thumbnail_url"),
+                    "hook_type": raw_hook_type,
+                    "hook_type_vi": hook_type_vi(raw_hook_type),
+                    "niche_label": niche,
+                    "content_type": "video",
+                },
+            }
         async with sem:
             return await analyze_aweme(
                 aweme, include_diagnosis=False, full_analyses=fa
@@ -1842,6 +1916,7 @@ async def run_video_diagnosis(
             )
             ref_content_class_id = derived_cc
             ref_legacy_niche_id = derived_nid
+            _creator_slug, _hook = _creator_slug_and_hook_from_user_res(user_res)
             corpus_pool, pool, picks, corpus_source = await _load_corpus_ref_pool_and_picks(
                 niche=niche,
                 uid=uid,
@@ -1850,6 +1925,8 @@ async def run_video_diagnosis(
                 cached_ids=cached_ids,
                 content_class_id=ref_content_class_id,
                 legacy_niche_id=ref_legacy_niche_id,
+                creator_niche_slug=_creator_slug,
+                hook_type=_hook,
             )
         ref_results = await asyncio.gather(
             *[asyncio.create_task(_ref_with_timeout(a)) for a in picks],

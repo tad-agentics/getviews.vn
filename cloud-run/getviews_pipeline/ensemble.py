@@ -1149,10 +1149,25 @@ async def download_images(
     return success, failed_indices
 
 
-async def download_video(url_list: list[str]) -> Path:
-    """Stream-download first working URL to a temp mp4 path (403: retry same URL up to 3×)."""
+async def download_video(
+    url_list: list[str],
+    *,
+    headers: dict[str, str] | None = None,
+    max_bytes: int | None = None,
+) -> Path:
+    """Stream-download first working URL to a temp mp4 path (403: retry same URL up to 3×).
+
+    ``headers`` defaults to ``CDN_HEADERS`` (TikTok). Douyin banking passes
+    ``DOUYIN_CDN_HEADERS``. ``max_bytes`` defaults to 60MB (TikTok); Douyin
+    passes ``DOUYIN_VIDEO_DOWNLOAD_MAX_BYTES``.
+    """
     if not url_list:
         raise ValueError("No video download URLs available")
+
+    from getviews_pipeline.config import DEFAULT_VIDEO_DOWNLOAD_MAX_BYTES
+
+    req_headers = headers if headers is not None else CDN_HEADERS
+    _max_dl = max_bytes if max_bytes is not None else DEFAULT_VIDEO_DOWNLOAD_MAX_BYTES
 
     client = await get_cdn_client()  # proxied when RESIDENTIAL_PROXY_URL is set
     last_err: Exception | None = None
@@ -1161,7 +1176,7 @@ async def download_video(url_list: list[str]) -> Path:
             path = Path("/tmp") / f"{uuid.uuid4().hex}.mp4"
             try:
                 async with client.stream(
-                    "GET", url, headers=CDN_HEADERS, follow_redirects=True
+                    "GET", url, headers=req_headers, follow_redirects=True
                 ) as r:
                     if r.status_code == 403:
                         if attempt < 2:
@@ -1169,14 +1184,11 @@ async def download_video(url_list: list[str]) -> Path:
                             continue
                         r.raise_for_status()
                     r.raise_for_status()
-                    # Guard /tmp (RAM-backed tmpfs on Cloud Run): a livestream
-                    # VOD or mislabeled asset can run to hundreds of MB — cap
-                    # at the same 60MB ceiling r2.py enforces post-download.
-                    _max_dl = 60 * 1024 * 1024
                     clen = r.headers.get("content-length")
                     if clen and clen.isdigit() and int(clen) > _max_dl:
                         raise ValueError(
-                            f"video too large: {int(clen) // (1024 * 1024)}MB > 60MB cap"
+                            f"video too large: {int(clen) // (1024 * 1024)}MB > "
+                            f"{_max_dl // (1024 * 1024)}MB cap"
                         )
                     path.parent.mkdir(parents=True, exist_ok=True)
                     try:
@@ -1186,7 +1198,8 @@ async def download_video(url_list: list[str]) -> Path:
                                 written += len(chunk)
                                 if written > _max_dl:
                                     raise ValueError(
-                                        "video too large: exceeded 60MB cap mid-stream"
+                                        f"video too large: exceeded "
+                                        f"{_max_dl // (1024 * 1024)}MB cap mid-stream"
                                     )
                                 await f.write(chunk)
                     except Exception:
