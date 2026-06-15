@@ -311,6 +311,24 @@ export function formatNichePatternBridgeProse(
   return `${tileCount} clip dưới là video dẫn đầu ngách cùng${fmtClause} — mỗi clip minh họa một cách triển khai công thức đang thắng view trong ngách.`;
 }
 
+/**
+ * Mirrors Cloud Run ``_ref_has_visible_thumbnail`` — corpus rows with a
+ * populated ``thumbnail_url`` (usually post-R2 ingest) can render a tile;
+ * tiktok_url-only rows often 404 every ``corpusThumbnailSrcCandidates`` URL.
+ */
+export function referenceHasVisibleThumbnail(ref: ReferenceVideoCard): boolean {
+  return Boolean(ref.thumbnail_url?.trim());
+}
+
+function sortReferenceVideoPool(cards: ReferenceVideoCard[]): ReferenceVideoCard[] {
+  return [...cards].sort((a, b) => {
+    const thumbDelta =
+      (referenceHasVisibleThumbnail(b) ? 1 : 0) - (referenceHasVisibleThumbnail(a) ? 1 : 0);
+    if (thumbDelta !== 0) return thumbDelta;
+    return (Number(b.views) || 0) - (Number(a.views) || 0);
+  });
+}
+
 /** When synthesis omits tiles, surface top corpus peers for niche_pattern. */
 export function referenceCardToTile(src: ReferenceVideoCard): DiagnosisReferenceTile {
   const tile: DiagnosisReferenceTile = {
@@ -349,7 +367,7 @@ export function fallbackNichePatternReferenceTiles(
     ? eligible.filter((r) => String(r.content_format ?? "").toLowerCase() === analyzedFmt)
     : [];
   const pool = sameFormat.length > 0 ? sameFormat : eligible;
-  const sorted = [...pool].sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0));
+  const sorted = sortReferenceVideoPool(pool);
   return sorted.slice(0, limit).map(referenceCardToTile);
 }
 
@@ -378,7 +396,7 @@ export class ReferenceTileAllocator {
       ? eligible.filter((r) => String(r.content_format ?? "").toLowerCase() === analyzedFmt)
       : [];
     const pool = sameFormat.length > 0 ? sameFormat : eligible;
-    return [...pool].sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0));
+    return sortReferenceVideoPool(pool);
   }
 
   private markUsed(tiles: DiagnosisReferenceTile[]) {

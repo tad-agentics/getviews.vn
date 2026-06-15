@@ -14,6 +14,7 @@ import {
   partitionFindingsByChip,
   peerTilesForGapAtIndex,
   ReferenceTileAllocator,
+  referenceHasVisibleThumbnail,
   resolvePeerReferenceTiles,
   referenceTileNarrative,
   sanitizeReferenceCaptionSnippet,
@@ -702,7 +703,39 @@ function corpusRef(id: string, views: number, format = "review"): ReferenceVideo
   };
 }
 
+describe("referenceHasVisibleThumbnail", () => {
+  it("requires a non-empty thumbnail_url (mirrors Cloud Run ref picker)", () => {
+    expect(
+      referenceHasVisibleThumbnail({
+        ...corpusRef("1", 100),
+        thumbnail_url: "https://r2/thumbnails/1.webp",
+      }),
+    ).toBe(true);
+    expect(
+      referenceHasVisibleThumbnail({
+        ...corpusRef("2", 100),
+        thumbnail_url: null,
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("ReferenceTileAllocator", () => {
+  it("prefers peers with thumbnail_url when rotating fallback picks", () => {
+    const refs = [
+      { ...corpusRef("1", 1_000_000), thumbnail_url: "https://r2/1.webp" },
+      { ...corpusRef("2", 950_000), thumbnail_url: "https://r2/2.webp" },
+      { ...corpusRef("3", 900_000), thumbnail_url: "https://r2/3.webp" },
+      { ...corpusRef("4", 2_000_000), thumbnail_url: null },
+      { ...corpusRef("5", 1_800_000), thumbnail_url: null },
+    ];
+    const allocator = new ReferenceTileAllocator(refs);
+    const first = allocator.allocateFallback(3);
+    const second = allocator.allocateFallback(2);
+    expect(first.map((t) => t.aweme_id)).toEqual(["1", "2", "3"]);
+    expect(second.map((t) => t.aweme_id)).toEqual(["4", "5"]);
+  });
+
   it("rotates fallback peers across sections instead of repeating top-3", () => {
     const refs = [
       corpusRef("1", 1_000_000),
