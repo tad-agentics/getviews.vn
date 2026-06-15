@@ -1052,6 +1052,17 @@ export interface VideoStructureAxisBlock {
   embedded_tiles?: unknown[];
 }
 
+export type VideoContextAxisId = "context" | "distribution" | "channel";
+
+export interface VideoContextAxisBlock {
+  axis_id: VideoContextAxisId;
+  title_vi: string;
+  text_vi?: string;
+  text?: string;
+  findings?: DiagnosisFinding[];
+  embedded_tiles?: unknown[];
+}
+
 /** One section inside `diagnosis_vi.sections` — mirrors channel `ChannelSection` shape loosely for LLM JSON. */
 export interface DiagnosisSectionVi {
   section_id: VideoDiagnosisSectionId | string;
@@ -1064,6 +1075,8 @@ export interface DiagnosisSectionVi {
   next_video?: Record<string, unknown> | null;
   /** FE merge of script_structure + sound + persona — three-axis layout when present. */
   structure_axes?: VideoStructureAxisBlock[];
+  /** FE merge of metadata + boost_attribution + channel_pattern — context-axis layout when present. */
+  context_axes?: VideoContextAxisBlock[];
 }
 
 export interface DiagnosisEvidenceAnchorVi {

@@ -27,6 +27,7 @@ import type {
   ReferenceVideoCard,
   RetentionPoint,
   RetentionRiskEvent,
+  VideoContextAxisBlock,
   VideoSegment,
   VideoStructureAxisBlock,
 } from "@/lib/api-types";
@@ -57,6 +58,7 @@ import {
 } from "@/components/diagnosis/FindingEvidenceClip";
 import { humanizeStatsProse, splitVerdictProse } from "@/lib/humanizeStatsProse";
 import { CreatorComparisonEmbed } from "@/components/diagnosis/CreatorComparisonEmbed";
+import { BoostAttributionBlock } from "@/components/v2/answer/video/blocks/BoostAttributionBlock";
 import {
   ChannelContextLegacy,
   ChannelProofBlock,
@@ -85,6 +87,198 @@ import type {
   VideoAnalyzeMeta,
   VideoEnrichment,
 } from "@/lib/api-types";
+
+function ContextAxisEmbed({
+  meta,
+  enrichment,
+  introProse,
+  commentRadar,
+  crossFormatSignal,
+}: {
+  meta: VideoAnalyzeMeta;
+  enrichment?: VideoEnrichment | null;
+  /** Framing prose for ContextStrip — only set when the axis has no verdict prose of its own. */
+  introProse?: string;
+  commentRadar?: CommentRadarData | null;
+  crossFormatSignal?: CrossFormatSignal | null;
+}) {
+  const hasContextGrid = hasContextStripContent(meta, enrichment);
+  const showContext = hasContextGrid || Boolean(introProse?.trim());
+  const commentProse = buildCommentRadarProse(commentRadar);
+  const crossFormatProse =
+    isReportPresentationV2() && shouldShowCrossFormatSignal(crossFormatSignal)
+      ? buildCrossFormatStripProse(crossFormatSignal)
+      : "";
+
+  if (!showContext && !commentProse && !crossFormatProse && !commentRadar) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-3">
+      {showContext ? (
+        <ContextStrip
+          meta={meta}
+          enrichment={enrichment}
+          introProse={introProse}
+          variant="embed"
+        />
+      ) : null}
+      {commentProse ? (
+        <p className="m-0 text-sm leading-relaxed text-[color:var(--gv-ink-2)]">{commentProse}</p>
+      ) : null}
+      {crossFormatProse ? (
+        <p className="m-0 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-sm leading-relaxed text-[color:var(--gv-ink-2)]">
+          {crossFormatProse}
+        </p>
+      ) : null}
+      {commentRadar ? <CommentRadarTile data={commentRadar} embedded /> : null}
+    </div>
+  );
+}
+
+function DistributionAxisEmbed({
+  meta,
+  statsProse,
+  boostEmbed,
+}: {
+  meta: VideoAnalyzeMeta;
+  /** Deterministic/section-derived stats interpretation — kept with the timeline strip. */
+  statsProse?: string;
+  boostEmbed?: BoostEmbedProps | null;
+}) {
+  const showStats = hasStatsHistorySnapshots(meta.stats_history);
+
+  return (
+    <div className="mt-3 flex flex-col gap-3">
+      {showStats ? (
+        <StatsHistoryStrip
+          variant="embed"
+          history={meta.stats_history}
+          distributionShape={meta.distribution_shape}
+          interpretationProse={statsProse}
+        />
+      ) : null}
+      {boostEmbed ? (
+        <BoostAttributionBlock
+          attribution={boostEmbed.attribution}
+          referenceEligible={boostEmbed.referenceEligible}
+          findings={boostEmbed.findings}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ChannelAxisEmbed({
+  creatorComparison,
+  channelPatternEmbed,
+}: {
+  creatorComparison?: CreatorComparison | null;
+  channelPatternEmbed?: ChannelPatternEmbedProps | null;
+}) {
+  if (!creatorComparison && !channelPatternEmbed?.channelContext.available) {
+    return null;
+  }
+  return (
+    <div className="mt-3 flex flex-col gap-3">
+      {creatorComparison ? <CreatorComparisonEmbed data={creatorComparison} /> : null}
+      {channelPatternEmbed?.channelContext.available ? (
+        channelPatternEmbed.isV5 ? (
+          <ChannelProofBlock
+            channelContext={channelPatternEmbed.channelContext}
+            analyzedFormat={channelPatternEmbed.analyzedFormat}
+            creatorHandle={channelPatternEmbed.creatorHandle}
+            variant="embed"
+          />
+        ) : (
+          <ChannelContextLegacy
+            channelContext={channelPatternEmbed.channelContext}
+            metaTitle={channelPatternEmbed.metaTitle}
+            metaViews={channelPatternEmbed.metaViews}
+            variant="embed"
+          />
+        )
+      ) : null}
+    </div>
+  );
+}
+
+function VideoContextAxesLayout({
+  title,
+  axes,
+  fallbackProse,
+  videoEmbeds,
+  boostEmbed,
+  creatorComparison,
+  channelPatternEmbed,
+}: {
+  title: string;
+  axes: VideoContextAxisBlock[];
+  fallbackProse?: string;
+  videoEmbeds?: VideoDiagnosisSectionEmbeds;
+  boostEmbed?: BoostEmbedProps | null;
+  creatorComparison?: CreatorComparison | null;
+  channelPatternEmbed?: ChannelPatternEmbedProps | null;
+}) {
+  const metadataEmbed = videoEmbeds?.metadata;
+  const meta = metadataEmbed?.meta;
+
+  // Split the metadata-axis prose into context (Trục 1) vs stats-timeline
+  // interpretation (Trục 2 strip), mirroring the flat MetadataContextEmbed so
+  // the deterministic stats guidance is never dropped and never duplicated.
+  const contextAxisRaw = (() => {
+    const axis = axes.find((a) => a.axis_id === "context");
+    return (axis?.text_vi || axis?.text || "").trim();
+  })();
+  const { contextProse, statsProse } = meta
+    ? resolveMetadataStripProse({ sectionText: contextAxisRaw, fallbackProse, meta })
+    : { contextProse: contextAxisRaw || fallbackProse?.trim() || undefined, statsProse: undefined };
+
+  return (
+    <div className="mb-6">
+      <h3 className="text-base font-bold leading-snug text-[color:var(--foreground)]">{title}</h3>
+      {axes.map((axis) => {
+        const displayText =
+          axis.axis_id === "context"
+            ? contextProse ?? ""
+            : (axis.text_vi || axis.text || "").trim();
+        const axisText = humanizeStatsProse(displayText.trim());
+        return (
+          <div
+            key={axis.axis_id}
+            className="mt-5 border-t border-[color:var(--gv-rule)] pt-4 first:mt-3 first:border-t-0 first:pt-0"
+          >
+            <p className="gv-mono m-0 mb-2 text-[11px] gv-kicker tracking-[0.14em] text-[color:var(--gv-ink-3)]">
+              {axis.title_vi}
+            </p>
+            {axisText ? <SectionVerdictBlock text={axisText} /> : null}
+            {axis.axis_id === "context" && meta ? (
+              <ContextAxisEmbed
+                meta={meta}
+                enrichment={metadataEmbed?.enrichment}
+                introProse={axisText ? undefined : contextProse}
+                commentRadar={metadataEmbed?.commentRadar}
+                crossFormatSignal={
+                  metadataEmbed?.crossFormatSignal ?? videoEmbeds?.crossFormatSignal
+                }
+              />
+            ) : null}
+            {axis.axis_id === "distribution" && meta ? (
+              <DistributionAxisEmbed meta={meta} statsProse={statsProse} boostEmbed={boostEmbed} />
+            ) : null}
+            {axis.axis_id === "channel" ? (
+              <ChannelAxisEmbed
+                creatorComparison={creatorComparison}
+                channelPatternEmbed={channelPatternEmbed}
+              />
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function MetadataContextEmbed({
   meta,
@@ -694,6 +888,12 @@ export interface ChannelPatternEmbedProps {
   isV5: boolean;
 }
 
+export interface BoostEmbedProps {
+  attribution?: VideoAnalyzeMeta["boost_attribution"];
+  referenceEligible?: boolean | null;
+  findings?: DiagnosisFinding[] | null;
+}
+
 export interface VideoDiagnosisSectionEmbeds {
   metadata?: {
     meta: VideoAnalyzeMeta;
@@ -729,6 +929,7 @@ interface DiagnosisSectionRendererProps {
   evidenceAnchors?: DiagnosisEvidenceAnchorVi[];
   creatorComparison?: CreatorComparison | null;
   channelPatternEmbed?: ChannelPatternEmbedProps | null;
+  boostEmbed?: BoostEmbedProps | null;
   videoEmbeds?: VideoDiagnosisSectionEmbeds;
   fallbackProse?: string;
   /** Analyzed clip content_format — niche_pattern bridge + peer fallback. */
@@ -743,6 +944,7 @@ export function DiagnosisSectionRenderer({
   evidenceAnchors,
   creatorComparison,
   channelPatternEmbed,
+  boostEmbed,
   videoEmbeds,
   fallbackProse,
   analyzedContentFormat = null,
@@ -807,6 +1009,26 @@ export function DiagnosisSectionRenderer({
             (axis.embedded_tiles?.length ?? 0) > 0,
         )
       : [];
+  const isMetadataSection = sid === "metadata";
+  // Don't re-filter by axis text/findings/tiles: context & distribution axes
+  // carry meta-derived embeds (grid, stats strip) not reflected in axis fields.
+  // The merge already curates which axes are meaningful.
+  const contextAxes =
+    isMetadataSection && Array.isArray(section.context_axes) ? section.context_axes : [];
+
+  if (isMetadataSection && contextAxes.length > 0) {
+    return (
+      <VideoContextAxesLayout
+        title={title}
+        axes={contextAxes}
+        fallbackProse={fallbackProse}
+        videoEmbeds={videoEmbeds}
+        boostEmbed={boostEmbed}
+        creatorComparison={creatorComparison}
+        channelPatternEmbed={channelPatternEmbed}
+      />
+    );
+  }
 
   if (isVideoStructureSection && structureAxes.length > 0) {
     const closingTiles = buildDiagnosisReferenceTiles(section, referenceVideos, evidenceAnchors);

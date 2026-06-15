@@ -38,6 +38,8 @@ import { BoostAttributionBlock } from "@/components/v2/answer/video/blocks/Boost
 import { CarouselIntelStrip } from "@/components/v2/answer/video/blocks/CarouselIntelStrip";
 import { shouldShowBoostAttributionBlock } from "@/lib/boostAttributionLabels";
 import { mergeVideoStructureSections } from "@/lib/mergeVideoStructureSections";
+import { mergeVideoContextSections } from "@/lib/mergeVideoContextSections";
+import { hasStatsHistorySnapshots } from "@/lib/statsHistoryProse";
 import { resolveDiagnosisSections } from "@/lib/resolveDiagnosisSections";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
 import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/PerformanceTierChip";
@@ -283,12 +285,22 @@ export function VideoBody({
     });
   }, [performanceTier, report.video_id, report.source]);
 
-  const diagnosisSections = useMemo(() => {
-    const merged = mergeVideoStructureSections(
+  const { diagnosisSections, hasContextBlock, preMergeSectionIds } = useMemo(() => {
+    const structureMerged = mergeVideoStructureSections(
       resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, performanceTier),
     );
-    return merged.filter((s) => String(s.section_id) !== "next_video");
-  }, [narrativeVi, flopIssuesForNarrative, performanceTier]);
+    const preMergeSectionIds = new Set(structureMerged.map((s) => String(s.section_id)));
+    const contextResult = mergeVideoContextSections(structureMerged, {
+      hasStatsHistory: hasStatsHistorySnapshots(meta.stats_history),
+    });
+    return {
+      diagnosisSections: contextResult.sections.filter(
+        (s) => String(s.section_id) !== "next_video",
+      ),
+      hasContextBlock: contextResult.hasContextBlock,
+      preMergeSectionIds,
+    };
+  }, [narrativeVi, flopIssuesForNarrative, performanceTier, meta.stats_history]);
   const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
   const thumbnailEmbedSectionId = useMemo((): string | null => {
     if (!report.thumbnail_analysis) return null;
@@ -296,8 +308,8 @@ export function VideoBody({
     if (sectionIds.has("diagnosis")) return "diagnosis";
     return null;
   }, [report.thumbnail_analysis, diagnosisSections]);
-  const hasChannelPattern = sectionIds.has("channel_pattern");
-  const hasBoostAttribution = sectionIds.has("boost_attribution");
+  const hasChannelPattern = preMergeSectionIds.has("channel_pattern");
+  const hasBoostAttribution = preMergeSectionIds.has("boost_attribution");
   const adjunctTier = (
     ["hit", "average", "flop", "unknown"] as const
   ).includes(performanceTier as "hit" | "average" | "flop" | "unknown")
@@ -606,6 +618,8 @@ export function VideoBody({
             {diagnosisSections.map((sec, idx) => {
               const sid = String(sec.section_id);
               const sectionProse = diagnosisSectionText(sec);
+              const isContextAxesBlock =
+                sid === "metadata" && (sec.context_axes?.length ?? 0) > 0;
               return (
                 <Fragment key={`${sid}-${idx}`}>
                   <DiagnosisSectionRenderer
@@ -615,10 +629,13 @@ export function VideoBody({
                     evidenceAnchors={narrativeVi?.diagnosis_vi?.evidence_anchors}
                     embedThumbnailSupport={sid === thumbnailEmbedSectionId}
                     creatorComparison={
-                      sid === "channel_pattern" ? report.creator_comparison ?? null : undefined
+                      sid === "channel_pattern" || isContextAxesBlock
+                        ? report.creator_comparison ?? null
+                        : undefined
                     }
                     channelPatternEmbed={
-                      sid === "channel_pattern" && channelEffective?.available
+                      (sid === "channel_pattern" || isContextAxesBlock) &&
+                      channelEffective?.available
                         ? {
                             channelContext: channelEffective,
                             analyzedFormat: meta.content_format ?? null,
@@ -626,6 +643,17 @@ export function VideoBody({
                             metaTitle: meta.title,
                             metaViews: meta.views,
                             isV5,
+                          }
+                        : undefined
+                    }
+                    boostEmbed={
+                      isContextAxesBlock
+                        ? {
+                            attribution: meta.boost_attribution,
+                            referenceEligible: meta.reference_eligible,
+                            findings: sec.context_axes?.find(
+                              (a) => a.axis_id === "distribution",
+                            )?.findings,
                           }
                         : undefined
                     }
@@ -647,7 +675,7 @@ export function VideoBody({
                               : undefined
                     }
                   />
-                  {sid === "boost_attribution" ? (
+                  {sid === "boost_attribution" && !hasContextBlock ? (
                     <BoostAttributionBlock
                       attribution={meta.boost_attribution}
                       referenceEligible={meta.reference_eligible}

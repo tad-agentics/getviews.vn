@@ -828,3 +828,141 @@ describe("niche_pattern reference grid", () => {
     expect(screen.getByText(/2 clip dưới là video dẫn đầu ngách/)).toBeTruthy();
   });
 });
+
+describe("metadata context_axes layout", () => {
+  const metaFixture = {
+    niche_label: "Làm đẹp",
+    creator_median_views: 23_000,
+    target_vs_creator_median: 2.1,
+    stats_history: [
+      { at: "a", phase: "t0", views: 100, likes: 1, comments: 0, shares: 0 },
+      { at: "b", phase: "t6h", views: 500, likes: 5, comments: 1, shares: 0 },
+    ],
+    boost_attribution: "suspect_low",
+    reference_eligible: false,
+  } as never;
+
+  it("renders three axis kickers and per-axis prose when context_axes present", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "metadata",
+          title_vi: "Phân tích bối cảnh & diễn biến",
+          context_axes: [
+            {
+              axis_id: "context",
+              title_vi: "Bối cảnh & khán giả",
+              text_vi: "**Ngách Làm đẹp** — đăng tối cuối tuần.",
+            },
+            {
+              axis_id: "distribution",
+              title_vi: "Diễn biến phân phối",
+              text_vi: "**355K view** nhưng ER chỉ 2.1%.",
+            },
+            {
+              axis_id: "channel",
+              title_vi: "So với kênh của bạn",
+              text_vi: "**Vượt median kênh** 2.1×.",
+            },
+          ],
+        }}
+        referenceVideos={[]}
+        fallbackProse="Các chỉ số so với kênh, giọng điệu và đối tượng nhắm giúp đặt video trong bối cảnh."
+        videoEmbeds={{
+          metadata: {
+            meta: metaFixture,
+            enrichment: null,
+            commentRadar: null,
+            crossFormatSignal: null,
+          },
+        }}
+        boostEmbed={{
+          attribution: "suspect_low",
+          referenceEligible: false,
+        }}
+        creatorComparison={{
+          creator_handle: "@mydung",
+          total_posts_analyzed: 8,
+          median_views: 23_000,
+          target_vs_median: 2.1,
+          target_percentile: "top",
+          delta: 1,
+          hit: { views: 100_000 },
+          flop: { views: 5_000 },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Bối cảnh & khán giả")).toBeTruthy();
+    expect(screen.getByText("Diễn biến phân phối")).toBeTruthy();
+    expect(screen.getByText("So với kênh của bạn")).toBeTruthy();
+    expect(screen.getByText(/Ngách Làm đẹp/)).toBeTruthy();
+    expect(screen.getByText(/355K view/)).toBeTruthy();
+    expect(screen.getByText(/Vượt mức view thường trên kênh/)).toBeTruthy();
+    expect(screen.getByLabelText("Phân loại nguồn lượt xem")).toBeTruthy();
+    // fallbackProse must NOT render as a duplicate intro when axis-1 has its own verdict prose.
+    expect(
+      screen.queryByText(/Các chỉ số so với kênh, giọng điệu và đối tượng nhắm/),
+    ).toBeNull();
+  });
+
+  it("keeps the stats-history strip (with interpretation) on a prose-less distribution axis", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "metadata",
+          title_vi: "Phân tích bối cảnh & diễn biến",
+          context_axes: [
+            {
+              axis_id: "context",
+              title_vi: "Bối cảnh & khán giả",
+              text_vi: "**Ngách Làm đẹp** — đăng tối cuối tuần.",
+            },
+            {
+              // Synthesized axis: no prose, strip is meta-derived.
+              axis_id: "distribution",
+              title_vi: "Diễn biến phân phối",
+              text_vi: "",
+            },
+          ],
+        }}
+        referenceVideos={[]}
+        videoEmbeds={{
+          metadata: {
+            meta: metaFixture,
+            enrichment: null,
+            commentRadar: null,
+            crossFormatSignal: null,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Diễn biến phân phối")).toBeTruthy();
+    expect(screen.getByLabelText("Diễn biến lượt xem theo thời gian")).toBeTruthy();
+  });
+
+  it("falls back to flat metadata layout when context_axes absent", () => {
+    render(
+      <DiagnosisSectionRenderer
+        section={{
+          section_id: "metadata",
+          title_vi: "Phân tích bối cảnh & diễn biến",
+          text_vi: "Flat metadata prose.",
+        }}
+        referenceVideos={[]}
+        videoEmbeds={{
+          metadata: {
+            meta: metaFixture,
+            enrichment: null,
+            commentRadar: null,
+            crossFormatSignal: null,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.queryByText("Diễn biến phân phối")).toBeNull();
+    expect(screen.getByText("Phân tích bối cảnh & diễn biến")).toBeTruthy();
+  });
+});

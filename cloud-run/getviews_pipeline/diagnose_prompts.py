@@ -54,7 +54,7 @@ Quy tắc:
 - VERDICT-FIRST: câu đầu mỗi section là kết luận in đậm — đọc các câu đậm xuyên suốt bài là hiểu toàn bộ. Phần còn lại chỉ chứng minh + fix + reference.
 - ĐƠN VỊ CHÍNH là FINDINGS + REFERENCE, KHÔNG phải prose. Khi phân vân giữa viết thêm 1 đoạn giải thích và đưa thêm 1 finding/1 reference tile → luôn chọn finding/reference. Prose chỉ là 1 câu verdict dẫn vào.
 - DẠY VIỆC CẦN LÀM > chẩn đoán. Nén chẩn đoán còn 1 câu; dồn không gian cho fix cụ thể và reference video.
-- Chỉ tạo các section có trong SECTIONS_TO_EMIT, đúng thứ tự đó. KHÔNG tạo section riêng cho timing/giờ đăng. Khi `user_stats_trim.stats_history` có ≥2 mốc (t0/t6h/t24h), diễn giải trong section `metadata`: view/ER tăng hay đứng, `distribution_shape=spike_then_flat` nghĩa gì, tốt/chưa tốt và 1 fix cụ thể — không chỉ liệt kê số.
+- Chỉ tạo các section có trong SECTIONS_TO_EMIT, đúng thứ tự đó. KHÔNG tạo section riêng cho timing/giờ đăng. Khi `user_stats_trim.stats_history` có ≥2 mốc (t0/t6h/t24h), FE tự render strip «Diễn biến sau đăng» (kèm diễn giải view/ER + `distribution_shape=spike_then_flat` sẵn) trong Trục «Diễn biến phân phối» — KHÔNG liệt kê lại số/timeline trong prose; chỉ nêu kết luận nguồn phân phối nếu cần.
 
 FINDINGS (đơn vị hiển thị chính của section issue-based):
 - Section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure, commerce): 2-3 findings — đây là phần creator đọc kỹ nhất. Mỗi finding: title_vi (≤10 từ, "Vấn đề — hậu quả"), body_vi (1 câu + số liệu), fix_vi (1 hành động copy-paste: hook template, con số, thao tác cụ thể — KHÔNG "cải thiện hook").
@@ -64,6 +64,11 @@ FINDINGS (đơn vị hiển thị chính của section issue-based):
 - persona: khi emit riêng hoặc cùng script_structure — section.text 2-3 câu (≤55 từ) về giọng/chân thực; tối đa 2 findings; UI gộp vào trục «Giọng & persona» trong «Phân tích cấu trúc Video».
 - commerce: khi emit — section.text 2-3 câu (≤55 từ) về CTA giọng/caption/link; tối đa 2 findings; UI gộp vào trục «Kêu gọi hành động» trong «Phân tích cấu trúc Video» (KHÔNG block riêng).
 - Tín hiệu seeding/ads/boost (signal section_id=boost_attribution) chỉ được diễn đạt MỘT lần — trong text của section boost_attribution. KHÔNG lặp lại thành finding hay nhắc lại trong section khác.
+- KHỐI BỐI CẢNH (UI gộp metadata + boost_attribution + channel_pattern thành 3 trục liền mạch — vẫn emit 3 section_id riêng, KHÔNG đổi schema):
+  - metadata (Trục «Bối cảnh & khán giả»): ngách, thời điểm đăng, caption/hashtag/nhạc, comment-radar, cross-format — ai xem và video sống trong bối cảnh nào. Verdict-first, ≤90 từ. KHÔNG nhắc ads/seeding hay so sánh kênh ở đây.
+  - boost_attribution (Trục «Diễn biến phân phối»): nguồn reach organic vs ads/seeding và ý nghĩa của spike_then_flat cho nguồn đó — video được đẩy ra sao. Verdict-first, ≤90 từ. FE đã render strip diễn biến view/ER — KHÔNG liệt kê lại số theo mốc; KHÔNG lặp bối cảnh ngách hay so sánh median kênh.
+  - channel_pattern (Trục «So với kênh của bạn»): so median kênh, breakout trên kênh, định dạng nên nhân đôi — xem CHANNEL_PATTERN bên dưới. KHÔNG lặp stats_history hay boost signal.
+  - Ba prose đọc liên tiếp như một câu chuyện: bối cảnh → phân phối → so với kênh. KHÔNG mở mỗi section bằng «Video này…» — câu đầu mỗi trục là verdict độc lập.
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng câu.
 - Khi USER_EVIDENCE_DIGEST có hook_timeline / scene_pattern: body_vi của finding về hook/editing phải trích đúng mốc giây từ digest («text overlay chỉ xuất hiện 3.2s») — bằng chứng đến từng giây, không phỏng đoán.
 - evidence_ref (BẰNG CHỨNG TRONG CHÍNH CLIP): với mỗi finding ĐIỂM MẠNH (fix_vi «Tiếp tục»/«Giữ») và mỗi finding về hook/nhịp/cảnh, gắn evidence_ref {start_sec, end_sec, label_vi} = khoảng giây TRONG CLIP ĐANG PHÂN TÍCH chứng minh nhận định — lấy từ hook_timeline/scene_pattern trong USER_EVIDENCE_DIGEST. start_sec/end_sec phải nằm trong độ dài video; end_sec > start_sec; label_vi ≤6 từ tiếng Việt. KHÔNG bịa mốc giây khi digest không có timestamp tương ứng → bỏ evidence_ref (null). evidence_ref CHỈ trỏ vào clip đang phân tích, KHÔNG phải video peer.
@@ -81,7 +86,7 @@ REFERENCE TILES (làm bằng chứng nổi bật — không chôn trong prose):
 - Chỉ chọn video gần context (CTX_SUMMARY). Không đủ peer phù hợp → ít tile hơn hoặc [].
 - Section phân tích thuần (channel_pattern, compliance): tile tùy chọn, không bắt buộc. persona khi emit: prose + findings bắt buộc (trục «Giọng & persona»); peer refs thường nằm ở script_structure/sound.
 
-CHANNEL_PATTERN (Ref-style: kênh tự chứng minh):
+CHANNEL_PATTERN (Ref-style: kênh tự chứng minh — Trục 3 trong khối bối cảnh):
 - Dùng channel_context: trích số cụ thể (top video X views, bottom Y views, mức view thường của kênh). 1 câu verdict in đậm: video này so với mức thường của kênh thế nào + creator nên nhân đôi cái gì. ≤90 từ. Nếu source="live": ghi chú nhẹ dữ liệu kênh là live.
 - Nếu channel_context.recent_content_audit có mặt: được trích số đếm thật để nối video này với pattern kênh («video này không có mặt người — X/Y video gần nhất của kênh cũng vậy»; avg_views_with_face vs without nếu có). KHÔNG suy đoán ngoài số đếm.
 
