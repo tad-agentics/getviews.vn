@@ -15,6 +15,7 @@ import {
   peerTilesForGapAtIndex,
   resolvePeerReferenceTiles,
   referenceTileNarrative,
+  sanitizeReferenceCaptionSnippet,
   stripGenericReferenceBoilerplate,
   stripSectionProseForEmbeddedRefs,
   sectionProseHasNichePatternBridge,
@@ -356,11 +357,12 @@ describe("buildFindingInlinePeerProse", () => {
       ],
       "structure",
     );
-    expect(text).toContain("Với «Dead air»");
+    expect(text).toContain("Với **Dead air**:");
     expect(text).toContain("@peer1");
     expect(text).toContain("@peer2");
     expect(text).toContain("xen cận");
     expect(text).toContain("Đối chiếu nhịp cắt");
+    expect(text).toMatch(/@peer1[\s\S]*\n\n[\s\S]*@peer2/);
   });
 });
 
@@ -519,6 +521,63 @@ describe("referenceTileNarrative", () => {
     ).toBe(
       "Phân tích cách video này xây dựng format.",
     );
+  });
+
+  it("strips internal transcript marker from caption fallback", () => {
+    const marker =
+      "[Transcript không khả dụng — Gemini không nhận diện được tiếng Việt]";
+    expect(
+      referenceTileNarrative({
+        video_url: "",
+        thumbnail_url: "",
+        views: 1,
+        caption_snippet: `${marker} Get ready with meee makeup`,
+        posted_at: "",
+      }),
+    ).toContain("Get ready with meee makeup");
+    expect(
+      referenceTileNarrative({
+        video_url: "",
+        thumbnail_url: "",
+        views: 1,
+        caption_snippet: `${marker} Get ready with meee makeup`,
+        posted_at: "",
+      }),
+    ).not.toContain("Transcript không khả dụng");
+  });
+
+  it("strips internal transcript marker from cached narrative_vi", () => {
+    const marker =
+      "[Transcript không khả dụng — Gemini không nhận diện được tiếng Việt]";
+    expect(
+      referenceTileNarrative({
+        video_url: "",
+        thumbnail_url: "",
+        views: 1,
+        caption_snippet: "",
+        posted_at: "",
+        narrative_vi: `${marker} Peer mở text overlay sớm ở 0,4 giây đầu clip.`,
+      }),
+    ).not.toContain("Transcript không khả dụng");
+    expect(
+      referenceTileNarrative({
+        video_url: "",
+        thumbnail_url: "",
+        views: 1,
+        caption_snippet: "",
+        posted_at: "",
+        narrative_vi: `${marker} Peer mở text overlay sớm ở 0,4 giây đầu clip.`,
+      }),
+    ).toContain("Peer mở text overlay");
+  });
+});
+
+describe("sanitizeReferenceCaptionSnippet", () => {
+  it("removes transcript guard markers and collapses whitespace", () => {
+    const out = sanitizeReferenceCaptionSnippet(
+      "[Transcript không khả dụng] makeup   skincare",
+    );
+    expect(out).toBe("makeup skincare");
   });
 });
 

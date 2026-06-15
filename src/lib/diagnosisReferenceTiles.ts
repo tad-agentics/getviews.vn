@@ -65,8 +65,8 @@ export function mapDiagnosisEmbeddedTiles(
     const url = String(src.tiktok_url ?? row.video_url ?? row.tiktok_url ?? "");
     const thumb = String(src.thumbnail_url ?? row.thumbnail_url ?? "");
     const views = Number(src.views ?? row.views ?? 0) || 0;
-    const snip = String(
-      src.desc ?? row.caption_snippet ?? row.desc ?? "",
+    const snip = sanitizeReferenceCaptionSnippet(
+      String(src.desc ?? row.caption_snippet ?? row.desc ?? ""),
     ).slice(0, 200);
     const narrative = String(row.narrative_vi ?? row.narrative ?? "").trim();
     if (!url && !thumb && !snip && !narrative) continue;
@@ -132,9 +132,18 @@ const VIEW_COUNT_IN_NARRATIVE_RE = /\([\d.,]+[KM]?\s*view\)/iu;
 const LEGACY_WEAK_MIDDLE_RE =
   /^(?:đang vận hành cực kỳ hiệu quả|ghi nhận hiệu suất tương tác rất tốt|đạt các chỉ số tăng trưởng rất ấn tượng)\.\s*/iu;
 
+/** Mirrors ``analysis_guards.TRANSCRIPT_UNAVAILABLE_MARKER`` — strip before user-facing copy. */
+const INTERNAL_TRANSCRIPT_MARKER_RE =
+  /\[Transcript không khả dụng[^\]]*\]/giu;
+
+/** Remove internal transcript-failure markers from reference captions (cached reports). */
+export function sanitizeReferenceCaptionSnippet(text: string): string {
+  return text.replace(INTERNAL_TRANSCRIPT_MARKER_RE, " ").replace(/\s+/g, " ").trim();
+}
+
 /** Strip handle/view boilerplate from cached tile narratives (footer already shows both). */
 export function sanitizeReferenceTileNarrative(text: string): string {
-  let t = text.trim();
+  let t = sanitizeReferenceCaptionSnippet(text.trim());
   if (!t) return t;
   if (LEGACY_REF_NARRATIVE_LEAD_RE.test(t) || VIEW_COUNT_IN_NARRATIVE_RE.test(t)) {
     t = t.replace(
@@ -323,7 +332,7 @@ export function fallbackNichePatternReferenceTiles(
       video_url: String(src.tiktok_url ?? ""),
       thumbnail_url: String(src.thumbnail_url ?? ""),
       views: Number(src.views ?? 0) || 0,
-      caption_snippet: String(src.desc ?? "").slice(0, 200),
+      caption_snippet: sanitizeReferenceCaptionSnippet(String(src.desc ?? "")).slice(0, 200),
       posted_at: "",
       content_format: src.content_format ?? undefined,
       author_handle: src.author_handle ?? null,
@@ -399,8 +408,8 @@ export function buildFindingInlinePeerProse(
     return `${who} — ${body}.`;
   });
   const gapTitle = gap.title_vi?.trim();
-  const prefix = gapTitle ? `Với «${gapTitle}», ` : "";
-  const core = segments.join(" ");
+  const prefix = gapTitle ? `Với **${gapTitle}**:\n\n` : "";
+  const core = segments.join("\n\n");
   if (/đối chiếu|so 3 giây/i.test(core)) {
     return `${prefix}${core}`.trim();
   }
@@ -562,7 +571,7 @@ export function referenceTileNarrative(tile: DiagnosisReferenceTile): string {
     const cleaned = sanitizeReferenceTileNarrative(custom);
     if (cleaned.length >= 32) return cleaned;
   }
-  const desc = tile.caption_snippet?.trim();
+  const desc = sanitizeReferenceCaptionSnippet(tile.caption_snippet?.trim() ?? "");
   if (desc) {
     const clipped = desc.length > 180 ? `${desc.slice(0, 177)}…` : desc;
     return `cùng chủ đề «${clipped}» nhưng mở đầu và nhịp dẫn rõ hơn clip đang phân tích.`;

@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from getviews_pipeline.analysis_addressing import AddressingMode
+from getviews_pipeline.analysis_guards import strip_internal_transcript_marker
 
 _VIDEO_SECTION_MARKERS = re.compile(
     r"^=== (diagnosis|compliance|distribution|niche_pattern|channel_pattern|commerce|next_video) ===\s*$",
@@ -440,14 +441,14 @@ def resolve_embedded_tiles(
         aid = str(t.get("aweme_id") or "")
         src = by_id.get(aid) or {}
         narrative = str(t.get("narrative_vi") or t.get("narrative") or "").strip()
+        raw_caption = str(src.get("caption") or src.get("desc") or "")[:200]
+        caption_snippet = strip_internal_transcript_marker(raw_caption)[:200]
         out.append(
             {
                 "aweme_id": aid,
                 "thumbnail_url": src.get("thumbnail_url") or t.get("thumbnail_url"),
                 "views": int(src.get("views") or 0),
-                "caption_snippet": (str(src.get("caption") or src.get("desc") or ""))[
-                    :200
-                ],
+                "caption_snippet": caption_snippet,
                 "video_url": src.get("tiktok_url") or src.get("video_url"),
                 "content_format": src.get("content_format"),
                 "author_handle": src.get("author_handle"),

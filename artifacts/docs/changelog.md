@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Finding peer prose + transcript marker leak fix
+
+- **FE:** Gap finding cards render body + inline peer prose via `SectionProseBlocks` (paragraph breaks per clip, `**bold**` / guillemets / `<<>>` → `<strong>`). `sanitizeReferenceCaptionSnippet()` strips internal `[Transcript không khả dụng…]` from caption + cached `narrative_vi`.
+- **BE:** `corpus_context._reference_video_desc()` prefers `video_corpus.caption`, skips transcript guard marker; `analysis_guards.strip_internal_transcript_marker()`; `diagnose_parse.resolve_embedded_tiles` sanitizes `caption_snippet`.
+- **Tests:** `SectionProseBlocks.test.tsx`, `diagnosisReferenceTiles.test.ts`, `test_reference_video_desc.py`.
+- **Deploy:** Cloud Run user pod (reference pool desc) + Vercel (FE sanitize + presentation).
+
 ## 2026-06-14 — Cloud Run CORS preflight fix (OPTIONS 500)
 
 - **Cloud Run (`main.py`):** Wrap finished FastAPI `api` with outermost `CORSMiddleware` (Starlette global pattern) instead of `add_middleware` — production user pod returned HTTP 500 on every OPTIONS preflight, causing browser `Failed to fetch` on Home daily ritual + empty answer-session sidebar despite DB rows intact.

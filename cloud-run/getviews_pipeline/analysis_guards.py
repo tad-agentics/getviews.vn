@@ -162,6 +162,26 @@ def validate_transcript(
 
 TRANSCRIPT_UNAVAILABLE_MARKER = "[Transcript không khả dụng — Gemini không nhận diện được tiếng Việt]"
 
+_INTERNAL_TRANSCRIPT_MARKER_RE = re.compile(
+    re.escape(TRANSCRIPT_UNAVAILABLE_MARKER)
+    + r"|\[Transcript không khả dụng[^\]]*\]",
+    re.IGNORECASE,
+)
+
+
+def strip_internal_transcript_marker(text: str) -> str:
+    """Remove internal transcript-failure markers before creator-facing copy."""
+    if not text:
+        return ""
+    cleaned = _INTERNAL_TRANSCRIPT_MARKER_RE.sub(" ", text)
+    return " ".join(cleaned.split()).strip()
+
+
+def is_internal_transcript_marker(text: str) -> bool:
+    """True when ``text`` is only an internal transcript-unavailable marker."""
+    s = strip_internal_transcript_marker(text)
+    return not s and bool((text or "").strip())
+
 
 # ---------------------------------------------------------------------------
 # Timestamp clamping
@@ -453,7 +473,9 @@ __all__ = [
     "clamp_structural_error_timestamps",
     "clamp_timestamp",
     "is_cached_analysis_fresh",
+    "is_internal_transcript_marker",
     "scan_synthesis_for_fabricated_metrics",
+    "strip_internal_transcript_marker",
     "strip_out_of_range_timestamps",
     "validate_transcript",
 ]

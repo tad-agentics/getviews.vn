@@ -797,6 +797,31 @@ def _reference_recency_fields(row: dict[str, Any]) -> tuple[int, int]:
     return 0, 0
 
 
+def _reference_video_desc(row: dict[str, Any], corpus_analysis: dict[str, Any]) -> str:
+    """Creator-facing desc for reference pool rows — never leak transcript guards."""
+    from getviews_pipeline.analysis_guards import strip_internal_transcript_marker
+
+    caption = strip_internal_transcript_marker(str(row.get("caption") or ""))
+    if caption:
+        return caption[:200]
+
+    desc_bits: list[str] = []
+    transcript = strip_internal_transcript_marker(
+        str(corpus_analysis.get("audio_transcript") or ""),
+    )
+    if transcript:
+        desc_bits.append(transcript[:160])
+    topics = corpus_analysis.get("topics") or []
+    if isinstance(topics, list) and topics:
+        desc_bits.append(" ".join(str(t) for t in topics[:6]))
+    cc = corpus_analysis.get("content_context")
+    if isinstance(cc, dict):
+        sm = strip_internal_transcript_marker(str(cc.get("subject_matter") or ""))
+        if sm:
+            desc_bits.append(sm[:160])
+    return " ".join(desc_bits).strip()
+
+
 def _build_reference_awemes_from_rows(
     rows: list[dict[str, Any]],
     *,
@@ -825,19 +850,7 @@ def _build_reference_awemes_from_rows(
 
         breakout = float(row.get("breakout_multiplier") or 0.0)
 
-        desc_bits: list[str] = []
-        at = str(corpus_analysis.get("audio_transcript") or "").strip()
-        if at:
-            desc_bits.append(at[:160])
-        topics = corpus_analysis.get("topics") or []
-        if isinstance(topics, list) and topics:
-            desc_bits.append(" ".join(str(t) for t in topics[:6]))
-        cc = corpus_analysis.get("content_context")
-        if isinstance(cc, dict):
-            sm = str(cc.get("subject_matter") or "").strip()
-            if sm:
-                desc_bits.append(sm[:160])
-        ref_desc = " ".join(desc_bits).strip()
+        ref_desc = _reference_video_desc(row, corpus_analysis)
 
         awemes.append({
             "aweme_id": vid,
@@ -896,7 +909,8 @@ _REFERENCE_POOL_SELECT = (
     "video_id, creator_handle, views, likes, comments, shares, "
     "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
     "video_url, boost_attribution, extraction_quality, "
-    "indexed_at, posted_at, content_format, content_type, content_class_id, analysis_json"
+    "indexed_at, posted_at, content_format, content_type, content_class_id, "
+    "caption, analysis_json"
 )
 # Widen cohort when class-scoped pool is too thin (parity with REF_N / proximity pick).
 _REFERENCE_POOL_MIN_SCOPE_ROWS = 5

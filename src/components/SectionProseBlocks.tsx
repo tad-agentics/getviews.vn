@@ -12,25 +12,39 @@ import { humanizeStatsProse } from "@/lib/humanizeStatsProse";
 
 const BULLET_RE = /^[•\-*]\s+|^\d+[.)]\s+/;
 
+const INLINE_EMPHASIS_RE = /\*\*([^*]+)\*\*|«([^»]+)»|<<([^>]+)>>/g;
+
 /**
- * Render inline ``**bold**`` markdown as <strong> — Gemini emits emphasis
- * tokens inside section prose (next_video script bullets, verdict support
- * sentences) and the live audit (2026-06-12) caught literal ``**...**``
- * on the report. Unmatched ``**`` stays literal.
+ * Render inline emphasis as <strong> — supports ``**bold**``, French guillemets
+ * ``«…»``, and malformed ``<<…>>`` from synthesis. Unmatched delimiters stay literal.
  */
 export function renderInlineBold(text: string): ReactNode {
-  if (!text.includes("**")) return text;
-  const parts = text.split(/\*\*([^*]+)\*\*/g);
-  if (parts.length === 1) return text;
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
-      <strong key={i} className="font-semibold">
-        {part}
-      </strong>
-    ) : (
-      part
-    ),
-  );
+  if (!/\*\*|«|<<|>>/.test(text)) return text;
+
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  INLINE_EMPHASIS_RE.lastIndex = 0;
+  while ((match = INLINE_EMPHASIS_RE.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+    const emphasized = match[1] ?? match[2] ?? match[3];
+    if (!emphasized) {
+      lastIndex = match.index + match[0].length;
+      continue;
+    }
+    nodes.push(
+      <strong key={match.index} className="font-semibold">
+        {emphasized}
+      </strong>,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+  return nodes.length === 1 && typeof nodes[0] === "string" ? nodes[0] : nodes;
 }
 
 type Block =

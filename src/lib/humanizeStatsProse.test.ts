@@ -77,3 +77,12 @@ describe("splitVerdictProse", () => {
     });
   });
 });
+
+describe("humanizeStatsProse gap titles", () => {
+  it("preserves **bold** gap titles when humanizing dead air jargon inside markers", () => {
+    const raw = "Với **Dead air giữa clip**:\n\nClip @struct — tránh dead air.";
+    const out = humanizeStatsProse(raw);
+    expect(out).toContain("**khoảng lặng giữa clip**");
+    expect(out).not.toContain("****");
+  });
+});

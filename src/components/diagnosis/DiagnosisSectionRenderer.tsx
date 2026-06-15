@@ -194,7 +194,7 @@ function SectionFindingCard({
     peerTiles.length > 0
       ? buildFindingInlinePeerProse(finding, peerTiles, bridgeTopic)
       : "";
-  const combinedBody = [body_vi, peerProse].filter(Boolean).join(" ");
+  const combinedBody = [body_vi, peerProse].filter(Boolean).join("\n\n");
   if (!title_vi && !combinedBody && !fix_vi && !finding.evidence_ref && peerTiles.length === 0) {
     return null;
   }
@@ -210,9 +210,11 @@ function SectionFindingCard({
           </h4>
         ) : null}
         {combinedBody ? (
-          <p className="mt-1.5 max-w-[640px] text-sm leading-relaxed text-foreground">
-            {combinedBody}
-          </p>
+          <SectionProseBlocks
+            text={combinedBody}
+            wrapperClassName="mt-1.5 max-w-[640px] space-y-3"
+            paragraphClassName="text-sm leading-relaxed text-foreground"
+          />
         ) : null}
         {showPeerMissing && peerTiles.length === 0 ? (
           <p className="mt-1.5 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-3)]">

@@ -347,8 +347,8 @@ describe("video structure strength-gap layout", () => {
     );
     expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(2);
     expect(screen.getAllByText(/Clip @struct/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/Clip @struct2/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/Với «Dead air giữa clip»/)).toBeTruthy();
+    expect(screen.getByText("khoảng lặng giữa clip", { selector: "strong" })).toBeTruthy();
+    expect(screen.getByText(/Clip @struct2/)).toBeTruthy();
   });
 
   it("falls back to corpus peers under structure axis gaps when embedded_tiles are empty", () => {
@@ -496,7 +496,7 @@ describe("hook_analysis strength-gap layout (#1)", () => {
     expect(screen.getByText("ĐIỂM MẠNH")).toBeTruthy();
     expect(screen.getByText("THIẾU SÓT")).toBeTruthy();
     expect(screen.getAllByText(/Clip @hook/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/đối chiếu text overlay, lời thoại và visual layering/)).toBeTruthy();
+    expect(screen.getByText(/đối chiếu chữ trên màn hình, lời thoại và visual layering/)).toBeTruthy();
     expect(screen.queryByText(/Để xử lý «Overlay trễ»/)).toBeNull();
     // Peer card inline under the gap (one gap → one tile).
     expect(container.querySelectorAll("a[href*='tiktok.com']").length).toBe(1);
