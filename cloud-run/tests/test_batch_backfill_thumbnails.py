@@ -153,6 +153,7 @@ def test_frame_copy_path_skips_cdn_and_writes_r2_url(client: TestClient) -> None
         "ed_missing_post": 0,
         "ed_no_cover": 0,
         "ed_upload_failed": 0,
+        "ed_batch_skipped": 0,
     }
     cdn_mock.assert_not_awaited()
     assert fake_sb.video_corpus.updates == [
@@ -291,7 +292,7 @@ def test_already_r2_rows_are_skipped(client: TestClient) -> None:
 
     with _patch_r2_env(), \
          patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
-         patch("getviews_pipeline.r2.r2_public_thumbnail_exists", return_value=True), \
+         patch("getviews_pipeline.r2.r2_public_thumbnail_status", return_value="exists"), \
          patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail", frame_mock), \
          patch("getviews_pipeline.r2.download_and_upload_thumbnail", cdn_mock), \
          patch("getviews_pipeline.supabase_client.get_service_client",
@@ -308,13 +309,13 @@ def test_already_r2_rows_are_skipped(client: TestClient) -> None:
 
 
 def test_phantom_r2_url_is_reprocessed(client: TestClient) -> None:
-    """DB URL has R2 prefix but object is missing → frame copy heals the row."""
+    """DB URL has R2 prefix but object is CONFIRMED missing (404) → frame copy heals."""
     rows = [{"video_id": "vP", "thumbnail_url": f"{_R2_PUBLIC}/thumbnails/vP.png"}]
     fake_sb = _FakeSb(rows)
 
     with _patch_r2_env(), \
          patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
-         patch("getviews_pipeline.r2.r2_public_thumbnail_exists", return_value=False), \
+         patch("getviews_pipeline.r2.r2_public_thumbnail_status", return_value="missing"), \
          patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail",
                return_value=f"{_R2_PUBLIC}/thumbnails/vP.png"), \
          patch("getviews_pipeline.r2.download_and_upload_thumbnail",
@@ -375,12 +376,12 @@ def test_pagination_reads_past_first_1000(client: TestClient) -> None:
     needs = [{"video_id": f"n{i}", "thumbnail_url": None} for i in range(5)]
     sb = _PaginatingSb(on_r2 + needs)
 
-    def _thumb_exists(vid: str) -> bool:
-        return vid.startswith("r")
+    def _thumb_status(vid: str) -> str:
+        return "exists" if vid.startswith("r") else "missing"
 
     with _patch_r2_env(), \
          patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
-         patch("getviews_pipeline.r2.r2_public_thumbnail_exists", side_effect=_thumb_exists), \
+         patch("getviews_pipeline.r2.r2_public_thumbnail_status", side_effect=_thumb_status), \
          patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail",
                side_effect=lambda vid: f"{_R2_PUBLIC}/thumbnails/{vid}.png"), \
          patch("getviews_pipeline.r2.download_and_upload_thumbnail",
@@ -479,3 +480,94 @@ def test_cdn_mirror_exception_falls_through_to_null(client: TestClient) -> None:
     assert body["nulled"] == 1
     assert body["from_ed"] == 0
     assert body["failed"] == 0
+
+
+# ── 11. R2 head_object "unknown" (throttle/5xx) must NOT null or reprocess ──
+
+
+def test_unknown_r2_status_leaves_row_untouched(client: TestClient) -> None:
+    """2026-06-15 incident regression guard: a phantom-prefix row whose R2
+    existence check is INCONCLUSIVE (throttle / 429 / 5xx → "unknown") must be
+    LEFT ALONE — not reclassified as phantom, never nulled. A transient error
+    must never destroy a healthy thumbnail pointer."""
+    rows = [{"video_id": "vU", "thumbnail_url": f"{_R2_PUBLIC}/thumbnails/vU.webp"}]
+    fake_sb = _FakeSb(rows)
+    frame_mock = MagicMock(return_value="must-not-be-called")
+    cdn_mock = AsyncMock(return_value="must-not-be-called")
+
+    with _patch_r2_env(), \
+         patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
+         patch("getviews_pipeline.r2.r2_public_thumbnail_status", return_value="unknown"), \
+         patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail", frame_mock), \
+         patch("getviews_pipeline.r2.download_and_upload_thumbnail", cdn_mock), \
+         patch("getviews_pipeline.supabase_client.get_service_client",
+               return_value=fake_sb):
+        resp = _post(client)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 0  # row skipped, not queued for backfill
+    assert body["nulled"] == 0
+    frame_mock.assert_not_called()
+    cdn_mock.assert_not_awaited()
+    assert fake_sb.video_corpus.updates == []  # pointer untouched
+
+
+# ── 12. ED batch fetch failure must NOT null the batch ──────────────
+
+
+def test_ed_batch_failure_skips_not_nulls(client: TestClient) -> None:
+    """A transient ED/proxy failure on ``fetch_post_multi_info`` is not evidence
+    a thumbnail is gone — rows are skipped (counted ``ed_batch_skipped``) and
+    left untouched, NEVER nulled (would destroy recoverable pointers)."""
+    rows = [{"video_id": "vE", "thumbnail_url": None}]
+    fake_sb = _FakeSb(rows)
+
+    with _patch_r2_env(), \
+         patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
+         patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail", return_value=None), \
+         patch("getviews_pipeline.r2.download_and_upload_thumbnail",
+               new=AsyncMock(return_value=None)), \
+         patch("getviews_pipeline.ensemble.fetch_post_multi_info",
+               new=AsyncMock(side_effect=RuntimeError("ED 429 SlowDown"))), \
+         patch("getviews_pipeline.supabase_client.get_service_client",
+               return_value=fake_sb):
+        resp = _post(client)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ed_batch_skipped"] == 1
+    assert body["nulled"] == 0
+    assert body["failed"] == 0
+    assert fake_sb.video_corpus.updates == []  # not nulled
+
+
+# ── 13. ED cover exists but upload fails → do NOT null (video is live) ──
+
+
+def test_ed_cover_upload_failure_does_not_null(client: TestClient) -> None:
+    """ED returns a fresh cover (video is LIVE) but the download/upload fails
+    transiently → count ``ed_upload_failed`` and leave the row untouched. Nulling
+    a live video's pointer on a transient upload error is wrong."""
+    rows = [{"video_id": "vC", "thumbnail_url": None}]
+    fake_sb = _FakeSb(rows)
+
+    with _patch_r2_env(), \
+         patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
+         patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail", return_value=None), \
+         patch("getviews_pipeline.routers.batch._cover_url_from_ensemble_post",
+               return_value="https://tiktok.cdn/cover.jpg"), \
+         patch("getviews_pipeline.ensemble.fetch_post_multi_info",
+               new=AsyncMock(return_value=[{"aweme_detail": {"aweme_id": "vC"}}])), \
+         patch("getviews_pipeline.r2.download_and_upload_thumbnail",
+               new=AsyncMock(return_value=None)), \
+         patch("getviews_pipeline.supabase_client.get_service_client",
+               return_value=fake_sb):
+        resp = _post(client)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ed_upload_failed"] == 1
+    assert body["nulled"] == 0
+    assert body["failed"] == 0
+    assert fake_sb.video_corpus.updates == []  # not nulled

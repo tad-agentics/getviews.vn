@@ -22,7 +22,7 @@ import shutil
 import subprocess
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import boto3
 from botocore.config import Config
@@ -81,23 +81,42 @@ def r2_configured() -> bool:
     return bool(R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_PUBLIC_URL)
 
 
-def r2_object_exists(key: str) -> bool:
-    """Return True when ``key`` is present in the configured R2 bucket."""
+def r2_object_status(key: str) -> Literal["exists", "missing", "unknown"]:
+    """Tri-state existence check that distinguishes a real 404 from a transient error.
+
+    - ``"exists"``  — head_object succeeded.
+    - ``"missing"`` — definitive 404 / NoSuchKey / NotFound.
+    - ``"unknown"`` — R2 unreachable / throttled (429 SlowDown) / 5xx / not
+      configured. Callers MUST NOT treat ``"unknown"`` as missing on any
+      destructive path (e.g. NULLing a thumbnail pointer): a 2026-06-15 incident
+      nulled ~2.8K healthy rows when throttle errors were mistaken for 404s.
+    """
     if not r2_configured() or not R2_BUCKET_NAME or not key:
-        return False
+        return "unknown"
     try:
         client = _get_r2_client()
         client.head_object(Bucket=R2_BUCKET_NAME, Key=key)
-        return True
+        return "exists"
     except ClientError as exc:
-        code = str(exc.response.get("Error", {}).get("Code", ""))
-        if code in ("404", "NoSuchKey", "NotFound"):
-            return False
-        logger.warning("[r2] head_object failed for %s: %s", key, exc)
-        return False
-    except (BotoCoreError, Exception) as exc:
+        err = exc.response.get("Error", {})
+        code = str(err.get("Code", ""))
+        http_status = str(exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode", ""))
+        if code in ("404", "NoSuchKey", "NotFound") or http_status == "404":
+            return "missing"
+        # 403/429/5xx/SlowDown/etc. are inconclusive — do NOT report as missing.
+        logger.warning("[r2] head_object inconclusive for %s: %s", key, exc)
+        return "unknown"
+    except (BotoCoreError, Exception) as exc:  # noqa: BLE001
         logger.warning("[r2] head_object error for %s: %s", key, exc)
-        return False
+        return "unknown"
+
+
+def r2_object_exists(key: str) -> bool:
+    """Return True when ``key`` is present. False on a real 404 AND on transient
+    errors — callers that must not act destructively on uncertainty should use
+    ``r2_object_status`` and handle ``"unknown"`` explicitly.
+    """
+    return r2_object_status(key) == "exists"
 
 
 def r2_public_thumbnail_exists(video_id: str) -> bool:
@@ -105,6 +124,13 @@ def r2_public_thumbnail_exists(video_id: str) -> bool:
     if not video_id:
         return False
     return r2_object_exists(f"thumbnails/{video_id}{_THUMB_EXT}")
+
+
+def r2_public_thumbnail_status(video_id: str) -> Literal["exists", "missing", "unknown"]:
+    """Tri-state variant of ``r2_public_thumbnail_exists`` — see ``r2_object_status``."""
+    if not video_id:
+        return "unknown"
+    return r2_object_status(f"thumbnails/{video_id}{_THUMB_EXT}")
 
 
 def _get_r2_client() -> Any:

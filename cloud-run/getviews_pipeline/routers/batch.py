@@ -907,8 +907,12 @@ async def batch_backfill_thumbnails(
          ``fetch_post_multi_info`` for rows still missing a thumbnail, then
          ``download_and_upload_thumbnail`` for each fresh cover URL.
          Use when the row never got frame[0] on R2 and CDN is dead/empty.
-      4. **NULL the column** — when all steps miss, set ``thumbnail_url=NULL``
-         so the FE uses ``<VideoThumbnail>`` placeholder.
+      4. **NULL the column** — only when the object is CONFIRMED gone: R2
+         returns a definitive 404 (``r2_object_status`` == "missing") AND ED has
+         no post / no cover. Transient R2/ED errors (throttle, 5xx, network) are
+         reported "unknown" and the row is left UNTOUCHED — never nulled. A
+         throttle must not destroy a healthy pointer (2026-06-15 incident: a
+         large run mistook 429s for 404s and nulled ~2.8K healthy rows).
 
     Rows whose ``thumbnail_url`` already points at a **live** R2 object
     (verified via ``head_object``) are skipped. Phantom DB URLs — R2 prefix
@@ -923,7 +927,7 @@ async def batch_backfill_thumbnails(
         copy_first_frame_to_thumbnail,
         download_and_upload_thumbnail,
         r2_configured,
-        r2_public_thumbnail_exists,
+        r2_public_thumbnail_status,
     )
     from getviews_pipeline.supabase_client import get_service_client
 
@@ -960,7 +964,7 @@ async def batch_backfill_thumbnails(
             break
         page += 1
 
-    thumb_exists_cache: dict[str, bool] = {}
+    thumb_status_cache: dict[str, str] = {}
 
     def _row_needs_thumbnail_backfill(row: dict[str, Any]) -> bool:
         url = (row.get("thumbnail_url") or "").strip()
@@ -969,9 +973,12 @@ async def batch_backfill_thumbnails(
         if not url.startswith(r2_prefix):
             return True
         vid = str(row["video_id"])
-        if vid not in thumb_exists_cache:
-            thumb_exists_cache[vid] = r2_public_thumbnail_exists(vid)
-        return not thumb_exists_cache[vid]
+        if vid not in thumb_status_cache:
+            thumb_status_cache[vid] = r2_public_thumbnail_status(vid)
+        # Only reprocess a CONFIRMED-missing object. On "unknown" (R2 throttle /
+        # transient error) leave the row untouched — never reclassify a healthy
+        # row as phantom on uncertainty (2026-06-15 mass-NULL incident).
+        return thumb_status_cache[vid] == "missing"
 
     to_backfill = [r for r in rows if _row_needs_thumbnail_backfill(r)]
     if limit is not None:
@@ -1001,6 +1008,7 @@ async def batch_backfill_thumbnails(
 
     from_frame = from_cdn = from_ed = nulled = failed = 0
     ed_missing_post = ed_no_cover = ed_upload_failed = 0
+    ed_batch_skipped = 0  # transient ED/proxy failures — left untouched, NOT nulled
     CHUNK = 10
     for i in range(0, len(to_backfill), CHUNK):
         chunk = to_backfill[i: i + CHUNK]
@@ -1076,16 +1084,14 @@ async def batch_backfill_thumbnails(
         try:
             fresh_posts = await ensemble.fetch_post_multi_info(vids)
         except Exception as exc:  # noqa: BLE001
-            logger.error("[backfill-thumbnails] ED multi_info failed for batch: %s", exc)
-            for row in need_ed:
-                try:
-                    _set_thumb(str(row["video_id"]), None)
-                    nulled += 1
-                except Exception as dbe:  # noqa: BLE001
-                    logger.warning(
-                        "[backfill-thumbnails] DB null after ED fail for %s: %s", row["video_id"], dbe,
-                    )
-                    failed += 1
+            # Transient ED/proxy failure is NOT evidence a thumbnail is gone —
+            # leave rows untouched (next run retries). Nulling here destroyed
+            # recoverable pointers in the 2026-06-15 incident.
+            logger.error(
+                "[backfill-thumbnails] ED multi_info failed — skipping %d rows (not nulling): %s",
+                len(need_ed), exc,
+            )
+            ed_batch_skipped += len(need_ed)
             continue
 
         fresh_by_id: dict[str, dict[str, Any]] = {}
@@ -1139,21 +1145,16 @@ async def batch_backfill_thumbnails(
                     )
                     failed += 1
             else:
+                # A fresh ED cover EXISTS (video is live) but the download/upload
+                # failed transiently — do NOT null. Leave untouched; next run retries.
                 ed_upload_failed += 1
-                try:
-                    _set_thumb(vid, None)
-                    nulled += 1
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning(
-                        "[backfill-thumbnails] DB patch failed (null) for %s: %s", vid, exc,
-                    )
-                    failed += 1
 
     logger.info(
         "[backfill-thumbnails] done — from_frame=%d from_cdn=%d from_ed=%d "
-        "nulled=%d failed=%d ed_missing_post=%d ed_no_cover=%d ed_upload_failed=%d total=%d",
+        "nulled=%d failed=%d ed_missing_post=%d ed_no_cover=%d ed_upload_failed=%d "
+        "ed_batch_skipped=%d total=%d",
         from_frame, from_cdn, from_ed, nulled, failed,
-        ed_missing_post, ed_no_cover, ed_upload_failed, len(to_backfill),
+        ed_missing_post, ed_no_cover, ed_upload_failed, ed_batch_skipped, len(to_backfill),
     )
     return JSONResponse({
         "ok": True,
@@ -1165,6 +1166,7 @@ async def batch_backfill_thumbnails(
         "ed_missing_post": ed_missing_post,
         "ed_no_cover": ed_no_cover,
         "ed_upload_failed": ed_upload_failed,
+        "ed_batch_skipped": ed_batch_skipped,
         "total": len(to_backfill),
         "ed_fallback": ed_fallback,
         "limit": limit,
