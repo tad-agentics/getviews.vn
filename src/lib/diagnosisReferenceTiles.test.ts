@@ -13,6 +13,7 @@ import {
   mapDiagnosisEmbeddedTiles,
   partitionFindingsByChip,
   peerTilesForGapAtIndex,
+  ReferenceTileAllocator,
   resolvePeerReferenceTiles,
   referenceTileNarrative,
   sanitizeReferenceCaptionSnippet,
@@ -683,6 +684,64 @@ describe("fallbackNichePatternReferenceTiles", () => {
     );
     expect(out).toHaveLength(1);
     expect(out[0].aweme_id).toBe("2");
+  });
+});
+
+function corpusRef(id: string, views: number, format = "review"): ReferenceVideoCard {
+  return {
+    aweme_id: id,
+    desc: `Clip ${id}`,
+    hook_type: null,
+    content_format: format,
+    views,
+    engagement_rate: null,
+    author_handle: `@u${id}`,
+    thumbnail_url: `https://thumb/${id}.jpg`,
+    tiktok_url: `https://tiktok.com/${id}`,
+    source: "corpus",
+  };
+}
+
+describe("ReferenceTileAllocator", () => {
+  it("rotates fallback peers across sections instead of repeating top-3", () => {
+    const refs = [
+      corpusRef("1", 1_000_000),
+      corpusRef("2", 900_000),
+      corpusRef("3", 800_000),
+      corpusRef("4", 700_000),
+      corpusRef("5", 600_000),
+      corpusRef("6", 500_000),
+    ];
+    const allocator = new ReferenceTileAllocator(refs);
+    const first = allocator.allocateFallback(3);
+    const second = allocator.allocateFallback(3);
+    const firstIds = first.map((t) => t.aweme_id);
+    const secondIds = second.map((t) => t.aweme_id);
+    expect(firstIds).toEqual(["1", "2", "3"]);
+    expect(secondIds).toEqual(["4", "5", "6"]);
+    for (const id of secondIds) {
+      expect(firstIds).not.toContain(id);
+    }
+  });
+
+  it("swaps duplicate synthesis tiles for unused corpus peers when possible", () => {
+    const refs = [
+      corpusRef("1", 1_000_000),
+      corpusRef("2", 900_000),
+      corpusRef("3", 800_000),
+      corpusRef("4", 700_000),
+    ];
+    const allocator = new ReferenceTileAllocator(refs);
+    const section = {
+      section_id: "diagnosis",
+      embedded_tiles: [{ aweme_id: "1" }, { aweme_id: "1" }, { aweme_id: "2" }],
+      findings: [],
+    };
+    const tiles = allocator.allocateSectionTiles(section, undefined, 3, "review");
+    const ids = tiles.map((t) => t.aweme_id);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+    expect(ids.filter((id) => id === "1")).toHaveLength(1);
   });
 });
 

@@ -43,6 +43,7 @@ import {
   GAP_PEER_MISSING_VI,
   partitionFindingsByChip,
   peerTilesForGapAtIndex,
+  ReferenceTileAllocator,
   resolvePeerReferenceTiles,
   sectionProseHasNichePatternBridge,
   stripSectionProseForEmbeddedRefs,
@@ -732,17 +733,22 @@ function resolveStructureAxisPeerTiles(
   referenceVideos: ReferenceVideoCard[],
   evidenceAnchors: DiagnosisEvidenceAnchorVi[] | undefined,
   analyzedContentFormat: string | null | undefined,
+  referenceAllocator?: ReferenceTileAllocator | null,
 ): DiagnosisReferenceTile[] {
-  const built = buildDiagnosisReferenceTiles(axisSection, referenceVideos, evidenceAnchors);
+  const built = referenceAllocator
+    ? referenceAllocator.allocateSectionTiles(axisSection, evidenceAnchors, 3, analyzedContentFormat ?? null)
+    : buildDiagnosisReferenceTiles(axisSection, referenceVideos, evidenceAnchors);
   if (built.length > 0) return built;
   const { gaps } = partitionFindingsByChip(axisFindings);
   if (!gaps.length || !referenceVideos.length) return [];
   const fallbackLimit = gaps.length === 1 ? 3 : gaps.length;
-  return fallbackNichePatternReferenceTiles(
-    referenceVideos,
-    fallbackLimit,
-    analyzedContentFormat,
-  );
+  return referenceAllocator
+    ? referenceAllocator.allocateFallback(fallbackLimit, analyzedContentFormat ?? null)
+    : fallbackNichePatternReferenceTiles(
+        referenceVideos,
+        fallbackLimit,
+        analyzedContentFormat,
+      );
 }
 
 function VideoStructureAxesLayout({
@@ -755,6 +761,7 @@ function VideoStructureAxesLayout({
   analyzedContentFormat,
   blockClosing,
   closingTiles,
+  referenceAllocator,
 }: {
   title: string;
   axes: VideoStructureAxisBlock[];
@@ -773,6 +780,7 @@ function VideoStructureAxesLayout({
   analyzedContentFormat?: string | null;
   blockClosing?: string;
   closingTiles?: DiagnosisReferenceTile[];
+  referenceAllocator?: ReferenceTileAllocator | null;
 }) {
   const hasRhythmAxis = axes.some((axis) => axis.axis_id === "rhythm");
   return (
@@ -800,6 +808,7 @@ function VideoStructureAxesLayout({
           referenceVideos,
           evidenceAnchors,
           analyzedContentFormat,
+          referenceAllocator,
         );
         return (
           <div key={axis.axis_id} className="mt-5 border-t border-[color:var(--gv-rule)] pt-4 first:mt-3 first:border-t-0 first:pt-0">
@@ -957,6 +966,8 @@ interface DiagnosisSectionRendererProps {
   analyzedContentFormat?: string | null;
   /** Render cover stop-power tile under this section's verdict prose. */
   embedThumbnailSupport?: boolean;
+  /** Cross-section peer dedup — one instance per report render in VideoBody. */
+  referenceAllocator?: ReferenceTileAllocator | null;
 }
 
 export function DiagnosisSectionRenderer({
@@ -970,14 +981,32 @@ export function DiagnosisSectionRenderer({
   fallbackProse,
   analyzedContentFormat = null,
   embedThumbnailSupport = false,
+  referenceAllocator = null,
 }: DiagnosisSectionRendererProps) {
   const title = sectionTitle(section);
   const sid = String(section.section_id);
-  const referenceTiles = buildDiagnosisReferenceTiles(
-    section,
-    referenceVideos,
-    evidenceAnchors,
-  );
+  const isVideoStructureSection = sid === "script_structure";
+  const isMetadataSection = sid === "metadata";
+  const structureAxes =
+    isVideoStructureSection && Array.isArray(section.structure_axes)
+      ? section.structure_axes.filter(
+          (axis) =>
+            (axis.text_vi || axis.text || "").trim() ||
+            (axis.findings?.length ?? 0) > 0 ||
+            (axis.embedded_tiles?.length ?? 0) > 0,
+        )
+      : [];
+  const contextAxes =
+    isMetadataSection && Array.isArray(section.context_axes) ? section.context_axes : [];
+  const defersReferenceAllocation =
+    (isMetadataSection && contextAxes.length > 0) ||
+    (isVideoStructureSection && structureAxes.length > 0);
+
+  const referenceTiles = defersReferenceAllocation
+    ? []
+    : referenceAllocator
+      ? referenceAllocator.allocateSectionTiles(section, evidenceAnchors, 3, analyzedContentFormat)
+      : buildDiagnosisReferenceTiles(section, referenceVideos, evidenceAnchors);
   const findings = (section.findings ?? []).filter(
     (f) => f.title_vi || f.body_vi || f.fix_vi,
   );
@@ -985,7 +1014,9 @@ export function DiagnosisSectionRenderer({
   const isNichePatternSection = sid === "niche_pattern";
   const displayTiles =
     isNichePatternSection && peerTiles.length === 0 && referenceVideos.length > 0
-      ? fallbackNichePatternReferenceTiles(referenceVideos, 3, analyzedContentFormat)
+      ? referenceAllocator
+        ? referenceAllocator.allocateFallback(3, analyzedContentFormat)
+        : fallbackNichePatternReferenceTiles(referenceVideos, 3, analyzedContentFormat)
       : peerTiles;
   const sectionOnlyText = sectionText(section);
   const rawText =
@@ -1010,7 +1041,6 @@ export function DiagnosisSectionRenderer({
       ? stripSectionProseForEmbeddedRefs(rawText)
       : rawText;
 
-  const isVideoStructureSection = sid === "script_structure";
   const isHookSection = sid === "hook_analysis";
   const isDiagnosisSection = sid === "diagnosis";
   const thumbnailSupportEmbed =
@@ -1021,21 +1051,6 @@ export function DiagnosisSectionRenderer({
         embedded
       />
     ) : null;
-  const structureAxes =
-    isVideoStructureSection && Array.isArray(section.structure_axes)
-      ? section.structure_axes.filter(
-          (axis) =>
-            (axis.text_vi || axis.text || "").trim() ||
-            (axis.findings?.length ?? 0) > 0 ||
-            (axis.embedded_tiles?.length ?? 0) > 0,
-        )
-      : [];
-  const isMetadataSection = sid === "metadata";
-  // Don't re-filter by axis text/findings/tiles: context & distribution axes
-  // carry meta-derived embeds (grid, stats strip) not reflected in axis fields.
-  // The merge already curates which axes are meaningful.
-  const contextAxes =
-    isMetadataSection && Array.isArray(section.context_axes) ? section.context_axes : [];
 
   if (isMetadataSection && contextAxes.length > 0) {
     return (
@@ -1052,7 +1067,9 @@ export function DiagnosisSectionRenderer({
   }
 
   if (isVideoStructureSection && structureAxes.length > 0) {
-    const closingTiles = buildDiagnosisReferenceTiles(section, referenceVideos, evidenceAnchors);
+    const closingTiles = referenceAllocator
+      ? referenceAllocator.allocateSectionTiles(section, evidenceAnchors, 3, analyzedContentFormat)
+      : buildDiagnosisReferenceTiles(section, referenceVideos, evidenceAnchors);
     return (
       <VideoStructureAxesLayout
         title={title}
@@ -1064,6 +1081,7 @@ export function DiagnosisSectionRenderer({
         analyzedContentFormat={analyzedContentFormat}
         blockClosing={sectionText(section)}
         closingTiles={closingTiles.length > 0 ? closingTiles : undefined}
+        referenceAllocator={referenceAllocator}
       />
     );
   }

@@ -312,39 +312,135 @@ export function formatNichePatternBridgeProse(
 }
 
 /** When synthesis omits tiles, surface top corpus peers for niche_pattern. */
+export function referenceCardToTile(src: ReferenceVideoCard): DiagnosisReferenceTile {
+  const tile: DiagnosisReferenceTile = {
+    aweme_id: String(src.aweme_id),
+    video_url: String(src.tiktok_url ?? ""),
+    thumbnail_url: String(src.thumbnail_url ?? ""),
+    views: Number(src.views ?? 0) || 0,
+    caption_snippet: sanitizeReferenceCaptionSnippet(String(src.desc ?? "")).slice(0, 200),
+    posted_at: "",
+    content_format: src.content_format ?? undefined,
+    author_handle: src.author_handle ?? null,
+    hook_type: src.hook_type ?? null,
+    playback_url: src.playback_url ?? null,
+    peer_hook_start_sec: src.peer_hook_start_sec ?? null,
+  };
+  return {
+    ...tile,
+    narrative_vi: referenceTileNarrative(tile),
+  };
+}
+
 export function fallbackNichePatternReferenceTiles(
   referenceVideos: ReferenceVideoCard[],
   limit = 3,
   analyzedContentFormat?: string | null,
+  excludeIds?: ReadonlySet<string>,
 ): DiagnosisReferenceTile[] {
   const analyzedFmt = analyzedContentFormat?.trim().toLowerCase() ?? "";
   const eligible = referenceVideos.filter(
-    (r) => r.aweme_id && (r.thumbnail_url || r.tiktok_url),
+    (r) =>
+      r.aweme_id &&
+      (!excludeIds || !excludeIds.has(String(r.aweme_id))) &&
+      (r.thumbnail_url || r.tiktok_url),
   );
   const sameFormat = analyzedFmt
     ? eligible.filter((r) => String(r.content_format ?? "").toLowerCase() === analyzedFmt)
     : [];
   const pool = sameFormat.length > 0 ? sameFormat : eligible;
   const sorted = [...pool].sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0));
-  return sorted.slice(0, limit).map((src) => {
-    const tile: DiagnosisReferenceTile = {
-      aweme_id: String(src.aweme_id),
-      video_url: String(src.tiktok_url ?? ""),
-      thumbnail_url: String(src.thumbnail_url ?? ""),
-      views: Number(src.views ?? 0) || 0,
-      caption_snippet: sanitizeReferenceCaptionSnippet(String(src.desc ?? "")).slice(0, 200),
-      posted_at: "",
-      content_format: src.content_format ?? undefined,
-      author_handle: src.author_handle ?? null,
-      hook_type: src.hook_type ?? null,
-      playback_url: src.playback_url ?? null,
-      peer_hook_start_sec: src.peer_hook_start_sec ?? null,
-    };
-    return {
-      ...tile,
-      narrative_vi: referenceTileNarrative(tile),
-    };
-  });
+  return sorted.slice(0, limit).map(referenceCardToTile);
+}
+
+/**
+ * Tracks aweme_ids already shown in this report render so fallback peer
+ * picks rotate through the corpus instead of repeating the same top-3 everywhere.
+ */
+export class ReferenceTileAllocator {
+  private usedIds = new Set<string>();
+
+  constructor(private readonly referenceVideos: ReferenceVideoCard[]) {}
+
+  private sortedPool(
+    analyzedContentFormat?: string | null,
+    extraExclude?: ReadonlySet<string>,
+  ): ReferenceVideoCard[] {
+    const analyzedFmt = analyzedContentFormat?.trim().toLowerCase() ?? "";
+    const eligible = this.referenceVideos.filter((r) => {
+      const id = r.aweme_id ? String(r.aweme_id) : "";
+      if (!id || !(r.thumbnail_url || r.tiktok_url)) return false;
+      if (this.usedIds.has(id)) return false;
+      if (extraExclude?.has(id)) return false;
+      return true;
+    });
+    const sameFormat = analyzedFmt
+      ? eligible.filter((r) => String(r.content_format ?? "").toLowerCase() === analyzedFmt)
+      : [];
+    const pool = sameFormat.length > 0 ? sameFormat : eligible;
+    return [...pool].sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0));
+  }
+
+  private markUsed(tiles: DiagnosisReferenceTile[]) {
+    for (const tile of tiles) {
+      if (tile.aweme_id) this.usedIds.add(String(tile.aweme_id));
+    }
+  }
+
+  /** Prefer synthesis-linked tiles; swap duplicates for unused corpus peers when possible. */
+  private diversify(
+    tiles: DiagnosisReferenceTile[],
+    analyzedContentFormat?: string | null,
+  ): DiagnosisReferenceTile[] {
+    const out: DiagnosisReferenceTile[] = [];
+    const picked = new Set<string>();
+    for (const tile of tiles) {
+      const id = tile.aweme_id ? String(tile.aweme_id) : "";
+      if (id && (this.usedIds.has(id) || picked.has(id))) {
+        const alt = this.sortedPool(analyzedContentFormat, picked)[0];
+        if (alt) {
+          const replacement = referenceCardToTile(alt);
+          out.push(replacement);
+          picked.add(String(alt.aweme_id));
+          continue;
+        }
+      }
+      out.push(tile);
+      if (id) picked.add(id);
+    }
+    return out;
+  }
+
+  allocateSectionTiles(
+    section: DiagnosisSectionVi,
+    evidenceAnchors: DiagnosisEvidenceAnchorVi[] | undefined,
+    limit = 3,
+    analyzedContentFormat?: string | null,
+  ): DiagnosisReferenceTile[] {
+    const built = buildDiagnosisReferenceTiles(section, this.referenceVideos, evidenceAnchors);
+    const tiles =
+      built.length > 0
+        ? this.diversify(built, analyzedContentFormat).slice(0, limit)
+        : fallbackNichePatternReferenceTiles(
+            this.referenceVideos,
+            limit,
+            analyzedContentFormat,
+            this.usedIds,
+          );
+    this.markUsed(tiles);
+    return tiles;
+  }
+
+  allocateFallback(limit: number, analyzedContentFormat?: string | null): DiagnosisReferenceTile[] {
+    const tiles = fallbackNichePatternReferenceTiles(
+      this.referenceVideos,
+      limit,
+      analyzedContentFormat,
+      this.usedIds,
+    );
+    this.markUsed(tiles);
+    return tiles;
+  }
 }
 
 function sentenceCaseVi(text: string): string {

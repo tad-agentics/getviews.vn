@@ -71,6 +71,7 @@ import {
   shouldShowMetadataBlock,
   shouldShowScriptStructureBlock,
 } from "@/lib/videoAdjunctSections";
+import { ReferenceTileAllocator } from "@/lib/diagnosisReferenceTiles";
 import type {
   BrightSpotSignal,
   ChannelContext,
@@ -201,6 +202,12 @@ export function VideoBody({
     narrativeReady?.format_cards ?? report.format_cards;
   const refVideos: ReferenceVideoCard[] =
     preSynth?.reference_videos ?? report.reference_videos ?? [];
+  // Fresh per render: the allocator is stateful (accumulates usedIds as each
+  // section pulls peers). Memoizing it would let usedIds grow across re-renders
+  // (hover/preview state), shifting reference videos on every interaction.
+  // Recreating each render keeps allocation deterministic in section order.
+  const referenceAllocator =
+    refVideos.length > 0 ? new ReferenceTileAllocator(refVideos) : null;
   const brightEffective: BrightSpotSignal | undefined =
     narrativeReady?.bright_spot_signal ??
     preSynth?.bright_spot_signal ??
@@ -625,6 +632,7 @@ export function VideoBody({
                   <DiagnosisSectionRenderer
                     section={sec}
                     referenceVideos={refVideos}
+                    referenceAllocator={referenceAllocator}
                     analyzedContentFormat={meta.content_format ?? null}
                     evidenceAnchors={narrativeVi?.diagnosis_vi?.evidence_anchors}
                     embedThumbnailSupport={sid === thumbnailEmbedSectionId}
@@ -769,6 +777,7 @@ export function VideoBody({
               findings: [],
             }}
             referenceVideos={refVideos}
+            referenceAllocator={referenceAllocator}
             videoEmbeds={videoSectionEmbeds}
             fallbackProse={buildScriptStructureFallbackProse(duration)}
           />
@@ -784,6 +793,7 @@ export function VideoBody({
               findings: [],
             }}
             referenceVideos={refVideos}
+            referenceAllocator={referenceAllocator}
             videoEmbeds={videoSectionEmbeds}
             fallbackProse={buildMetadataFallbackProse(meta)}
           />

@@ -70,6 +70,40 @@ function collapseJargonDuplicates(text: string): string {
     .replace(/góc nhìn\s+góc nhìn\s+POV/gi, "góc nhìn POV");
 }
 
+/** Collapse consecutive (and near-adjacent) repeats of an expanded enum label. */
+function collapseRepeatedPhrase(text: string, phrase: string): string {
+  if (!phrase.trim()) return text;
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const phraseRe = new RegExp(escaped, "gi");
+  const globalMatches = text.match(phraseRe);
+  if (!globalMatches || globalMatches.length <= 1) return text;
+  let out = text.replace(
+    new RegExp(`(?:${escaped})(?:\\s*[,;]?\\s*${escaped})+`, "gi"),
+    phrase,
+  );
+  const sentences = out.split(/(?<=[.!?…])\s+/);
+  out = sentences
+    .map((sentence) => {
+      const matches = sentence.match(new RegExp(escaped, "gi"));
+      if (!matches || matches.length <= 1) return sentence;
+      let kept = false;
+      return sentence
+        .replace(new RegExp(escaped, "gi"), () => {
+          if (!kept) {
+            kept = true;
+            return phrase;
+          }
+          return "";
+        })
+        .replace(/\s{2,}/g, " ")
+        .replace(/\s+([,.;])/g, "$1")
+        .trim();
+    })
+    .filter(Boolean)
+    .join(" ");
+  return out.trim();
+}
+
 const ENUM_PROSE_VI: Record<string, string> = {
   ...HOOK_NAMES_VI,
   ...STYLE_TAG_VI,
@@ -102,7 +136,9 @@ export function humanizeStatsProse(text: string): string {
     if (!Number.isFinite(n) || n <= 0) return `${raw} view`;
     return `${formatViews(n)} view`;
   });
-  return collapseJargonDuplicates(substituteEnumCodesInProse(out));
+  out = collapseJargonDuplicates(substituteEnumCodesInProse(out));
+  out = collapseRepeatedPhrase(out, "Organic (không quảng bá)");
+  return out;
 }
 
 /** Split v6 section text into bold verdict + optional support sentences (redesign 2026-05). */

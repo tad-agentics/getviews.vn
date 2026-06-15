@@ -50,6 +50,14 @@ describe("humanizeStatsProse", () => {
     );
     expect(out).toBe("Hook góc nhìn POV hiện tại tạo cảm giác chân thật.");
   });
+
+  it("collapses repeated Organic enum expansion in boost attribution prose", () => {
+    const out = humanizeStatsProse(
+      "Cần cẩn trọng benchmark organic, organic và organic để không lệch organic.",
+    );
+    expect(out.match(/Organic \(không quảng bá\)/gi)?.length).toBe(1);
+    expect(out).toContain("Organic (không quảng bá)");
+  });
 });
 
 describe("splitVerdictProse", () => {
