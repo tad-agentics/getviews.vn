@@ -441,7 +441,7 @@ def resolve_embedded_tiles(
         aid = str(t.get("aweme_id") or "")
         src = by_id.get(aid) or {}
         narrative = str(t.get("narrative_vi") or t.get("narrative") or "").strip()
-        raw_caption = str(src.get("caption") or src.get("desc") or "")[:200]
+        raw_caption = str(src.get("caption") or src.get("desc") or "")
         caption_snippet = strip_internal_transcript_marker(raw_caption)[:200]
         out.append(
             {

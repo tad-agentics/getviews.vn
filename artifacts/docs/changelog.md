@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Caption sanitize-before-truncate (embedded tiles)
+
+- **BE (`diagnose_parse.resolve_embedded_tiles`):** Strip internal transcript marker before `[:200]` on `caption_snippet` so marker prefix no longer consumes the truncation budget.
+- **Tests:** `test_resolve_embedded_tiles_caption.py`; FE regression in `diagnosisReferenceTiles.test.ts`.
+
 ## 2026-06-14 — Finding peer prose + transcript marker leak fix
 
 - **FE:** Gap finding cards render body + inline peer prose via `SectionProseBlocks` (paragraph breaks per clip, `**bold**` / guillemets / `<<>>` → `<strong>`). `sanitizeReferenceCaptionSnippet()` strips internal `[Transcript không khả dụng…]` from caption + cached `narrative_vi`.

@@ -579,6 +579,31 @@ describe("sanitizeReferenceCaptionSnippet", () => {
     );
     expect(out).toBe("makeup skincare");
   });
+
+  it("strips marker before truncation in mapDiagnosisEmbeddedTiles", () => {
+    const marker =
+      "[Transcript không khả dụng — Gemini không nhận diện được tiếng Việt]";
+    const tail = "B".repeat(250);
+    const tiles = mapDiagnosisEmbeddedTiles(
+      [{ aweme_id: "111" }],
+      [
+        {
+          aweme_id: "111",
+          desc: `${marker} ${tail}`,
+          hook_type: null,
+          content_format: null,
+          views: 1000,
+          engagement_rate: null,
+          author_handle: "@peer",
+          thumbnail_url: "https://t/1.jpg",
+          tiktok_url: "https://tiktok.com/@peer/video/111",
+          source: "corpus",
+        },
+      ],
+    );
+    expect(tiles[0].caption_snippet).toBe(tail.slice(0, 200));
+    expect(tiles[0].caption_snippet).not.toContain("Transcript không khả dụng");
+  });
 });
 
 describe("formatNichePatternBridgeProse", () => {
