@@ -316,8 +316,8 @@ class _PipelineSettings(BaseSettings):
 
     # ── Douyin ingest ──────────────────────────────────────────────────────
     batch_douyin_concurrency: int = Field(default=2, ge=1, le=32)
-    batch_douyin_min_views: int = Field(default=100000, ge=0)
-    batch_douyin_min_er: float = Field(default=2.5, ge=0.0)
+    batch_douyin_min_views: int = Field(default=50_000, ge=0)
+    batch_douyin_min_er: float = Field(default=2.0, ge=0.0)
     batch_douyin_hashtag_fetch_limit: int = Field(default=3, ge=1)
     batch_douyin_videos_per_niche: int = Field(default=10, ge=1)
 

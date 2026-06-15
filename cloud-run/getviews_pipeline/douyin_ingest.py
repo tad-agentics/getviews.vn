@@ -6,12 +6,12 @@ Vietnamese TikTok ``corpus_ingest.run_batch_ingest`` shape but:
 
   • Smaller surface area — no quota / hashtag-yield ranker / pattern
     fingerprinter / VN-classifier passes (those land in D5+ if needed).
-  • Higher view threshold — Douyin's mainland-CN scale runs ~10×
-    larger than VN TikTok, so the default ``BATCH_DOUYIN_MIN_VIEWS``
-    is 100K (vs 20K on VN).
-  • Engagement-rate threshold tuned for Douyin's save+share-heavy
-    signals (``_safe_engagement_rate`` in ``douyin_metadata.py``
-    includes ``saves`` in the numerator).
+  • Popularity floor — default ``BATCH_DOUYIN_MIN_VIEWS`` is 50K
+    (2.5× VN ``batch_min_views`` 20K). TikHub search often returns
+    ``play_count=0``; the gate falls back to ``digg_count`` (likes).
+  • Engagement-rate floor — ``BATCH_DOUYIN_MIN_ER`` defaults to 2.0%
+    (parity with VN video ingest). Numerator includes saves (Douyin
+    signal); see ``_safe_engagement_rate`` in ``douyin_metadata.py``.
   • Concurrent translation + Gemini video analysis (gather both —
     analysis is much slower so translation is essentially free).
 
