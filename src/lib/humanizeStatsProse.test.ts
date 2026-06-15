@@ -43,6 +43,13 @@ describe("humanizeStatsProse", () => {
     expect(out.toLowerCase()).toContain("tỷ lệ xem hết");
     expect(out).toBe("Thiếu ngắt nhịp ở giây 5 — tỷ lệ xem hết thấp hơn chuẩn.");
   });
+
+  it("collapses duplicated góc nhìn POV label from cached BE prose", () => {
+    const out = humanizeStatsProse(
+      "Hook góc nhìn góc nhìn POV hiện tại tạo cảm giác chân thật.",
+    );
+    expect(out).toBe("Hook góc nhìn POV hiện tại tạo cảm giác chân thật.");
+  });
 });
 
 describe("splitVerdictProse", () => {

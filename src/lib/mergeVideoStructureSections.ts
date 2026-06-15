@@ -4,7 +4,6 @@ import type {
   VideoStructureAxisBlock,
   VideoStructureAxisId,
 } from "@/lib/api-types";
-import { isReportPresentationV2 } from "@/lib/presentationV2";
 
 /** Unified FE block for editing + sound + script_structure + persona + commerce (after hook_analysis). */
 export const VIDEO_STRUCTURE_SECTION_TITLE = "Phân tích cấu trúc Video";
@@ -70,14 +69,9 @@ function buildStructureAxes(
   commerce: DiagnosisSectionVi | undefined,
 ): VideoStructureAxisBlock[] {
   const axes: VideoStructureAxisBlock[] = [];
-  // Presentation v2 (A1b): script_structure.text becomes the block-level closing
-  // ("TÓM LẠI & KHUYẾN NGHỊ"), so the rhythm axis renders findings/tiles only.
-  // Flag off → legacy behavior: rhythm axis keeps the script prose (no closing).
-  const rhythmSource =
-    script && isReportPresentationV2()
-      ? { ...script, text: "", text_vi: "" }
-      : script;
-  const rhythm = buildAxisBlock("rhythm", rhythmSource);
+  // Rhythm axis always carries script_structure prose under «Nhịp & cắt» before
+  // strengths/gaps. Presentation v2 no longer relocates that text to block closing.
+  const rhythm = buildAxisBlock("rhythm", script);
   if (rhythm) axes.push(rhythm);
   const editingAxis = buildAxisBlock("editing", editing);
   if (editingAxis) axes.push(editingAxis);
@@ -160,9 +154,9 @@ function mergeDiagnosisSection(
     Array.isArray(commerce?.embedded_tiles) ? commerce.embedded_tiles : [],
   );
 
-  // Block-level closing only in presentation v2; legacy keeps text empty so the
-  // merged block has no standalone prose (rhythm axis carries it instead).
-  const closingText = script && isReportPresentationV2() ? sectionBody(script) : "";
+  // Block-level closing was v2-only relocation of script prose; rhythm axis now
+  // owns that commentary inline under «Nhịp & cắt».
+  const closingText = "";
 
   return {
     section_id: "script_structure",

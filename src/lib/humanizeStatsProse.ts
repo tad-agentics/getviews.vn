@@ -66,7 +66,8 @@ const JARGON_REPLACEMENTS: ReadonlyArray<[RegExp, string]> = [
 function collapseJargonDuplicates(text: string): string {
   return text
     .replace(/ngắt nhịp\s*\(\s*ngắt nhịp\s*\)/gi, "ngắt nhịp")
-    .replace(/\(\s*ngắt nhịp\s*\)\s*\(\s*ngắt nhịp\s*\)/gi, "(ngắt nhịp)");
+    .replace(/\(\s*ngắt nhịp\s*\)\s*\(\s*ngắt nhịp\s*\)/gi, "(ngắt nhịp)")
+    .replace(/góc nhìn\s+góc nhìn\s+POV/gi, "góc nhìn POV");
 }
 
 const ENUM_PROSE_VI: Record<string, string> = {

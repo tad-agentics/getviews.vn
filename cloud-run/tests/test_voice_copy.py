@@ -109,6 +109,22 @@ def test_humanize_stats_prose_completion_rate_and_duplicate_jargon() -> None:
     assert "ngắt nhịp" in out.lower()
 
 
+def test_humanize_stats_prose_pov_slug_does_not_double_goc_nhin() -> None:
+    already = (
+        "Hook góc nhìn POV hiện tại tạo cảm giác chân thật nhưng chưa đủ mạnh "
+        "để chiếm lĩnh top các dạng hook đang tích lũy view cao nhất trong ngách."
+    )
+    assert humanize_stats_prose(already) == already
+
+    raw_slug = (
+        "Hook pov hiện tại tạo cảm giác chân thật nhưng chưa đủ mạnh "
+        "để chiếm lĩnh top các dạng hook đang tích lũy view cao nhất trong ngách."
+    )
+    out = humanize_stats_prose(raw_slug)
+    assert "góc nhìn góc nhìn" not in out.lower()
+    assert "Hook góc nhìn POV hiện tại" in out
+
+
 def test_humanize_video_report_out_sanitizes_enrichment() -> None:
     out = {
         "narrative_vi": {"headline_vi": "Format faceless — pain point yếu"},

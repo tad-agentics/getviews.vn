@@ -96,6 +96,21 @@ def _collapse_jargon_duplicates(text: str) -> str:
         text,
         flags=re.IGNORECASE,
     )
+    # ``pov`` slug → «góc nhìn POV» must not re-match the POV token already labeled.
+    text = re.sub(r"góc nhìn\s+góc nhìn\s+POV", "góc nhìn POV", text, flags=re.IGNORECASE)
+    return text
+
+
+def _substitute_content_format_slugs(text: str) -> str:
+    """Expand raw content-format slugs; guard ``pov`` so POV is not doubled."""
+    for slug, label in _CONTENT_FORMAT_SLUG_VI.items():
+        slug_pat = slug.replace("_", r"[\s_-]")
+        if slug == "pov":
+            # Skip «POV» when prose already says «góc nhìn POV» (Gemini or prior pass).
+            pattern = rf"(?<!góc nhìn )\b{slug_pat}\b"
+        else:
+            pattern = rf"\b{slug_pat}\b"
+        text = re.sub(pattern, label, text, flags=re.IGNORECASE)
     return text
 
 
@@ -151,9 +166,7 @@ def humanize_stats_prose(text: str) -> str:
     out = _TRUNG_VI_RE.sub(_GENERIC_MEDIAN, out)
     for pattern, replacement in _JARGON_SUBS:
         out = pattern.sub(replacement, out)
-    for slug, label in _CONTENT_FORMAT_SLUG_VI.items():
-        slug_pat = slug.replace("_", r"[\s_-]")
-        out = re.sub(rf"\b{slug_pat}\b", label, out, flags=re.IGNORECASE)
+    out = _substitute_content_format_slugs(out)
     out = _substitute_enum_codes_in_prose(out)
     return _collapse_jargon_duplicates(out)
 
