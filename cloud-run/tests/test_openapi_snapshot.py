@@ -18,7 +18,7 @@ import pytest
 def app():  # type: ignore[return]
     try:
         import main as m  # type: ignore[import-not-found]
-        return m.app
+        return m.api
     except Exception as exc:  # pragma: no cover
         pytest.skip(f"Cannot import main: {exc}")
 

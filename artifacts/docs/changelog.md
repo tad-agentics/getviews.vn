@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Cloud Run CORS preflight fix (OPTIONS 500)
+
+- **Cloud Run (`main.py`):** Wrap finished FastAPI `api` with outermost `CORSMiddleware` (Starlette global pattern) instead of `add_middleware` — production user pod returned HTTP 500 on every OPTIONS preflight, causing browser `Failed to fetch` on Home daily ritual + empty answer-session sidebar despite DB rows intact.
+- **Removed:** `allow_private_network=True` (public `*.run.app` does not need Private Network Access).
+- **Tests:** `cloud-run/tests/test_cors_preflight_global.py` — GET preflight on `/health`, `/home/daily-ritual`, `/answer/sessions`.
+- **Deploy:** Redeploy **user** pod only (`./deploy.sh user` or `SKIP_BUILD=1` after CI image). Verify: `curl -X OPTIONS -H 'Origin: https://getviews.vn' -H 'Access-Control-Request-Method: GET' …/health` → 200.
+
 ## 2026-06-14 — CI unblock + staged flag rollback (wide_context, proposed_findings)
 
 - **CI:** `references.py` import order (Ruff I001/E402); retention chart strokes use `--gv-accent` / `--gv-ink-3` (check-tokens).

@@ -18,8 +18,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.cors import CORSMiddleware
 
 from getviews_pipeline import telemetry
 from getviews_pipeline.session_store import replay_buffer_sweeper
@@ -30,6 +30,33 @@ logger = logging.getLogger(__name__)
 # Initialise OTel as early as possible so all spans — including those from
 # FastAPI auto-instrumentation — are captured.
 telemetry.setup_telemetry(service_name="getviews-pipeline")
+
+# Shared CORS config — applied as the outermost ASGI wrapper (see ``app`` below).
+# Starlette places ``ServerErrorMiddleware`` inside ``FastAPI.add_middleware``;
+# wrapping the finished app ensures OPTIONS preflight and 5xx responses still
+# carry CORS headers (production was returning bare 500 on OPTIONS → browser
+# "Failed to fetch" for every cross-origin GET with Authorization).
+_CORS_KWARGS: dict = {
+    "allow_origins": [
+        "https://getviews.vn",
+        "https://www.getviews.vn",
+    ],
+    "allow_origin_regex": r"https://.*\.vercel\.app|http://localhost:\d+",
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": [
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "Accept-Language",
+        "X-Requested-With",
+        "apikey",
+        "Idempotency-Key",
+    ],
+    # Public Cloud Run URLs do not need Private Network Access. Leaving this off
+    # avoids brittle preflight handling on some Starlette / Cloud Run combos.
+    "max_age": 86400,
+}
 
 
 @asynccontextmanager
@@ -63,47 +90,15 @@ async def lifespan(app: FastAPI):
             pass
 
 
-app = FastAPI(title="GetViews Pipeline", version="0.1.0", lifespan=lifespan)
-telemetry.instrument_fastapi(app)
-
-# ── CORS ──────────────────────────────────────────────────────────────────────
-# Use allow_origin_regex only — FastAPI CORSMiddleware does not support wildcard
-# subdomains in allow_origins. The regex covers production, Vercel previews, and
-# local dev on any port.
-app.add_middleware(
-    CORSMiddleware,
-    # Exact production origins + regex for previews / localhost (Starlette matches
-    # allow_origins first, then allow_origin_regex — avoids edge cases where only
-    # regex is evaluated against www vs apex).
-    allow_origins=[
-        "https://getviews.vn",
-        "https://www.getviews.vn",
-    ],
-    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:\d+",
-    allow_credentials=True,
-    # ``*`` → all methods (Starlette); avoids preflight 400 when clients add PATCH/HEAD/etc.
-    allow_methods=["*"],
-    allow_headers=[
-        "Authorization",
-        "Content-Type",
-        "Accept",
-        "Accept-Language",
-        "X-Requested-With",
-        "apikey",
-        "Idempotency-Key",
-    ],
-    # Chrome Private Network Access: without this, preflight can return 400 and the
-    # browser reports "CORS ... does not have HTTP ok status" for cross-origin fetches.
-    allow_private_network=True,
-    max_age=86400,
-)
+api = FastAPI(title="GetViews Pipeline", version="0.1.0", lifespan=lifespan)
+telemetry.instrument_fastapi(api)
 
 
 # ── Global error handler ──────────────────────────────────────────────────────
 # Catches unhandled errors BEFORE the response body is opened (e.g. route lookup,
 # middleware, dependency injection). Errors that occur DURING an open SSE stream
 # cannot change the HTTP status — they are sent as error SSE tokens instead.
-@app.exception_handler(Exception)
+@api.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     if isinstance(exc, HTTPException):
         return await http_exception_handler(request, exc)
@@ -138,20 +133,24 @@ from getviews_pipeline.routers.script import router as script_router
 from getviews_pipeline.routers.video import router as video_router
 
 # /health is mounted on every shape — Cloud Run liveness probe needs it.
-app.include_router(health_router)
+api.include_router(health_router)
 
 if SERVICE_ROLE in {"all", "user"}:
-    app.include_router(video_router)
-    app.include_router(script_router)
-    app.include_router(home_router)
-    app.include_router(answer_router)
-    app.include_router(douyin_router)
+    api.include_router(video_router)
+    api.include_router(script_router)
+    api.include_router(home_router)
+    api.include_router(answer_router)
+    api.include_router(douyin_router)
 
 # When split-deployed, pg_cron may still POST to the user service URL. Forward the
 # heaviest scheduled jobs to the batch origin (see ``batch_proxy`` module).
 if SERVICE_ROLE == "user":
-    app.include_router(batch_proxy_router)
+    api.include_router(batch_proxy_router)
 
 if SERVICE_ROLE in {"all", "batch"}:
-    app.include_router(batch_router)
-    app.include_router(admin_router)
+    api.include_router(batch_router)
+    api.include_router(admin_router)
+
+# Uvicorn entry — outermost CORS so preflight never hits ServerErrorMiddleware
+# without CORS headers. Tests: use ``api`` for dependency_overrides / OpenAPI.
+app = CORSMiddleware(api, **_CORS_KWARGS)

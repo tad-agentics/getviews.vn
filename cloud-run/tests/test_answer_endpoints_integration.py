@@ -137,7 +137,7 @@ class _FakeSupabase:
 
 @pytest.fixture
 def client_with_user() -> TestClient:
-    from cloud_run_main import app  # type: ignore  # noqa: F401
+    from cloud_run_main import api, app as asgi_app  # type: ignore  # noqa: F401
 
     from getviews_pipeline.deps import require_user
 
@@ -148,11 +148,11 @@ def client_with_user() -> TestClient:
             "access_token": "fake-token",
         }
 
-    app.dependency_overrides[require_user] = _fake_user
+    api.dependency_overrides[require_user] = _fake_user
     try:
-        yield TestClient(app)
+        yield TestClient(asgi_app)
     finally:
-        app.dependency_overrides.pop(require_user, None)
+        api.dependency_overrides.pop(require_user, None)
 
 
 # -----------------------------------------------------------------------------
@@ -325,9 +325,9 @@ def test_create_answer_session_missing_auth_returns_401() -> None:
 
     if "cloud_run_main" not in sys.modules:
         sys.modules["cloud_run_main"] = importlib.import_module("main")
-    from cloud_run_main import app  # type: ignore
+    from cloud_run_main import app as asgi_app  # type: ignore
 
-    c = TestClient(app)
+    c = TestClient(asgi_app)
     res = c.post(
         "/answer/sessions",
         json={

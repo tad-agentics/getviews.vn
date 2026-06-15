@@ -77,7 +77,7 @@ def fresh_inflight() -> Any:
 @pytest.fixture
 def client_with_user() -> TestClient:
     from getviews_pipeline.deps import require_user
-    from main import app  # type: ignore[import-not-found]
+    from main import api, app as asgi_app  # type: ignore[import-not-found]
 
     async def _fake_user() -> dict[str, Any]:
         return {
@@ -86,11 +86,11 @@ def client_with_user() -> TestClient:
             "access_token": "fake-token",
         }
 
-    app.dependency_overrides[require_user] = _fake_user
+    api.dependency_overrides[require_user] = _fake_user
     try:
-        yield TestClient(app)
+        yield TestClient(asgi_app)
     finally:
-        app.dependency_overrides.pop(require_user, None)
+        api.dependency_overrides.pop(require_user, None)
 
 
 # -- Tests ----------------------------------------------------------------
