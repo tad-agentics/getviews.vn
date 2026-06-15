@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-06-14 — Peer reference tile hover preview fix
+
+- **FE (`DiagnosisReferenceVideoCards`):** Hide thumbnail only after `video.play()` succeeds (parity with `VideoBody`); on play/load error keep poster visible instead of a blank white tile. Hover seeks to `peer_hook_start_sec` when set.
+- **Tests:** `keeps thumbnail visible when hover preview play fails`.
+
 ## 2026-06-14 — Caption sanitize-before-truncate (embedded tiles)
 
 - **BE (`diagnose_parse.resolve_embedded_tiles`):** Strip internal transcript marker before `[:200]` on `caption_snippet` so marker prefix no longer consumes the truncation budget.

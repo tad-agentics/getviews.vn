@@ -96,9 +96,16 @@ function ReferenceVideoCard({
       el.src = clipSrc;
       el.load();
     }
-    void el.play().catch(() => {});
-    setHoverClip(true);
-  }, [canHoverClip, clipSrc]);
+    el.currentTime =
+      tile.peer_hook_start_sec != null &&
+      Number.isFinite(tile.peer_hook_start_sec) &&
+      tile.peer_hook_start_sec > 0
+        ? tile.peer_hook_start_sec
+        : 0;
+    void el.play()
+      .then(() => setHoverClip(true))
+      .catch(() => setHoverClip(false));
+  }, [canHoverClip, clipSrc, tile.peer_hook_start_sec]);
 
   const stopHoverClip = useCallback(() => {
     setHoverClip(false);
@@ -106,6 +113,10 @@ function ReferenceVideoCard({
     if (!el) return;
     el.pause();
     el.currentTime = 0;
+  }, []);
+
+  const handleHoverClipError = useCallback(() => {
+    setHoverClip(false);
   }, []);
 
   const tileLabel = `Video tham chiếu${handle ? ` ${handle}` : ""}${viewsLabel ? ` · ${viewsLabel}` : ""}${narrative ? `: ${narrative}` : ""}`;
@@ -124,6 +135,7 @@ function ReferenceVideoCard({
           loop
           playsInline
           preload="none"
+          onError={handleHoverClipError}
           className={`pointer-events-none absolute inset-0 z-[5] h-full w-full object-cover transition-opacity duration-200 ease-out ${
             hoverClip ? "opacity-100" : "opacity-0"
           }`}

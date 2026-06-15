@@ -113,4 +113,40 @@ describe("DiagnosisReferenceVideoCards", () => {
     const lastCall = modalSpy.mock.calls.at(-1)?.[0];
     expect(lastCall?.startSec).toBe(0.4);
   });
+
+  it("keeps thumbnail visible when hover preview play fails", async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockRejectedValue(
+      new Error("autoplay blocked"),
+    );
+
+    const { container } = render(
+      <DiagnosisReferenceVideoCards
+        tiles={[
+          {
+            aweme_id: "7644540069277125909",
+            video_url: "https://tiktok.com/@peer/video/7644540069277125909",
+            thumbnail_url: "https://pub.r2.dev/thumbnails/7644540069277125909.webp",
+            views: 120_000,
+            caption_snippet: "",
+            posted_at: "",
+            narrative_vi: "",
+            author_handle: "peer",
+            playback_url: "https://pub.r2.dev/videos/7644540069277125909.mp4",
+          },
+        ]}
+        inlineInFinding
+      />,
+    );
+
+    const tile = container.querySelector("[style*='aspect-ratio']");
+    expect(tile).toBeTruthy();
+    fireEvent.mouseEnter(tile!);
+    await waitFor(() => expect(play).toHaveBeenCalled());
+
+    const img = container.querySelector("img");
+    expect(img?.className).toContain("opacity-100");
+    expect(img?.className).not.toContain("opacity-0");
+
+    play.mockRestore();
+  });
 });
