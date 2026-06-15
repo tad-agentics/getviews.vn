@@ -137,7 +137,8 @@ class _FakeSupabase:
 
 @pytest.fixture
 def client_with_user() -> TestClient:
-    from cloud_run_main import api, app as asgi_app  # type: ignore  # noqa: F401
+    from cloud_run_main import api  # type: ignore  # noqa: F401
+    from cloud_run_main import app as asgi_app
 
     from getviews_pipeline.deps import require_user
 

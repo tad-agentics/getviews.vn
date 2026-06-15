@@ -77,7 +77,8 @@ def fresh_inflight() -> Any:
 @pytest.fixture
 def client_with_user() -> TestClient:
     from getviews_pipeline.deps import require_user
-    from main import api, app as asgi_app  # type: ignore[import-not-found]
+    from main import api  # type: ignore[import-not-found]
+    from main import app as asgi_app
 
     async def _fake_user() -> dict[str, Any]:
         return {
