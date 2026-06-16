@@ -460,6 +460,7 @@ async def fetch_douyin_video_statistics(
 
     Douyin web/search endpoints often omit ``play_count``; TikHub documents
     that this App V3 statistics endpoint is the supported source.
+    Falls back per-id statistics + ``fetch_one_video`` when batch calls fail.
     Returns ``aweme_id → statistics`` dicts (play_count, digg_count, …).
     """
     cleaned = [a.strip() for a in (aweme_ids or []) if a and a.strip()]
@@ -469,12 +470,57 @@ async def fetch_douyin_video_statistics(
     out: dict[str, dict[str, Any]] = {}
     for i in range(0, len(cleaned), _STATISTICS_CHUNK):
         chunk = cleaned[i : i + _STATISTICS_CHUNK]
-        data = await _tikhub_request(
-            "GET",
-            "/api/v1/douyin/app/v3/fetch_multi_video_statistics",
-            params={"aweme_ids": ",".join(chunk)},
-        )
-        out.update(_parse_video_statistics_payload(data))
+        try:
+            data = await _tikhub_request(
+                "GET",
+                "/api/v1/douyin/app/v3/fetch_multi_video_statistics",
+                params={"aweme_ids": ",".join(chunk)},
+            )
+            out.update(_parse_video_statistics_payload(data))
+        except ValueError as exc:
+            logger.warning(
+                "[tikhub] multi statistics failed (%d ids): %s",
+                len(chunk),
+                exc,
+            )
+
+        for aid in chunk:
+            if int((out.get(aid) or {}).get("play_count") or 0) > 0:
+                continue
+            try:
+                data = await _tikhub_request(
+                    "GET",
+                    "/api/v1/douyin/app/v3/fetch_video_statistics",
+                    params={"aweme_ids": aid},
+                )
+                out.update(_parse_video_statistics_payload(data))
+            except ValueError as exc:
+                logger.warning("[tikhub] single statistics failed %s: %s", aid, exc)
+
+            if int((out.get(aid) or {}).get("play_count") or 0) > 0:
+                continue
+            try:
+                detail = await _tikhub_request(
+                    "GET",
+                    "/api/v1/douyin/app/v3/fetch_one_video",
+                    params={"aweme_id": aid},
+                )
+                aweme = (
+                    detail.get("aweme_detail")
+                    if isinstance(detail.get("aweme_detail"), dict)
+                    else detail
+                )
+                if isinstance(aweme, dict):
+                    stats = aweme.get("statistics")
+                    if isinstance(stats, dict) and stats:
+                        out.update(
+                            _parse_video_statistics_payload(
+                                [{"aweme_id": aid, **stats}],
+                            ),
+                        )
+            except ValueError as exc:
+                logger.warning("[tikhub] app fetch_one_video failed %s: %s", aid, exc)
+
     return out
 
 
