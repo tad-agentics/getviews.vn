@@ -68,6 +68,7 @@ from getviews_pipeline.douyin_stats_hydrate import (
 from getviews_pipeline.tikhub_douyin import (
     fetch_douyin_hashtag_posts,
     fetch_douyin_keyword_search,
+    fetch_douyin_video_billboard,
 )
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,12 @@ BATCH_DOUYIN_CONCURRENCY = _settings.batch_douyin_concurrency
 BATCH_DOUYIN_MIN_VIEWS = _settings.batch_douyin_min_views
 BATCH_DOUYIN_MIN_ER = _settings.batch_douyin_min_er
 BATCH_DOUYIN_HASHTAG_FETCH_LIMIT = _settings.batch_douyin_hashtag_fetch_limit
+BATCH_DOUYIN_KEYWORD_FETCH_LIMIT = _settings.batch_douyin_keyword_fetch_limit
 BATCH_DOUYIN_VIDEOS_PER_NICHE = _settings.batch_douyin_videos_per_niche
+BATCH_DOUYIN_HYDRATE_CAP = _settings.batch_douyin_hydrate_cap
+BATCH_DOUYIN_USE_BILLBOARD = _settings.batch_douyin_use_billboard
+BATCH_DOUYIN_BILLBOARD_PAGES = _settings.batch_douyin_billboard_pages
+BATCH_DOUYIN_BILLBOARD_PAGE_SIZE = _settings.batch_douyin_billboard_page_size
 
 
 # ── Result types ────────────────────────────────────────────────────
@@ -125,7 +131,10 @@ async def _fetch_active_douyin_niches(client: Any) -> list[dict[str, Any]]:
     def _q() -> list[dict[str, Any]]:
         res = (
             client.table("douyin_niche_taxonomy")
-            .select("id, slug, name_vn, name_zh, signal_hashtags_zh")
+            .select(
+                "id, slug, name_vn, name_zh, "
+                "signal_hashtags_zh, signal_keywords_zh"
+            )
             .eq("active", True)
             .order("id")
             .execute()
@@ -170,43 +179,112 @@ def _douyin_search_keyword(name_zh: str) -> str:
     return raw
 
 
+def _niche_keywords(niche: dict[str, Any]) -> list[str]:
+    """Ordered, deduped keyword list for one niche: the ``name_zh`` head
+    term first, then ``signal_keywords_zh`` (capped). Empty terms drop."""
+    out: list[str] = []
+    seen: set[str] = set()
+    head = _douyin_search_keyword(str(niche.get("name_zh") or ""))
+    extra = list(niche.get("signal_keywords_zh") or [])
+    for kw in [head, *extra]:
+        cleaned = (kw or "").strip().lstrip("#")
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        out.append(cleaned)
+        if len(out) >= BATCH_DOUYIN_KEYWORD_FETCH_LIMIT:
+            break
+    return out
+
+
+def _niche_match_terms(niche: dict[str, Any]) -> set[str]:
+    """CN substring terms used to decide whether a cross-niche billboard
+    video belongs to this niche. Union of keywords + hashtags (no ``#``)."""
+    terms: set[str] = set()
+    for kw in _niche_keywords(niche):
+        terms.add(kw.lower())
+    for tag in niche.get("signal_hashtags_zh") or []:
+        cleaned = (tag or "").strip().lstrip("#").lower()
+        if cleaned:
+            terms.add(cleaned)
+    return {t for t in terms if t}
+
+
+def _aweme_match_haystack(aweme: dict[str, Any]) -> str:
+    """Lowercased caption + hashtag text for niche substring matching."""
+    haystack = str(aweme.get("desc") or "").lower()
+    for extra in aweme.get("text_extra") or []:
+        if isinstance(extra, dict):
+            name = extra.get("hashtag_name") or extra.get("hashtag") or ""
+            haystack += " " + str(name).lower()
+    return haystack
+
+
+def _aweme_matches_niche(aweme: dict[str, Any], terms: set[str]) -> bool:
+    """True when a billboard aweme's caption / hashtags hit any niche term.
+
+    Defensive: billboard rows missing ``desc`` and ``text_extra`` (ranking
+    stubs) never match, so they're dropped rather than mis-bucketed."""
+    if not terms:
+        return False
+    haystack = _aweme_match_haystack(aweme)
+    if not haystack.strip():
+        return False
+    return any(term in haystack for term in terms)
+
+
+def _stub_like_count(aweme: dict[str, Any]) -> int:
+    """Like count from the search/billboard stub (before hydration).
+
+    Search payloads usually carry ``digg_count`` even when ``play_count``
+    is absent — we use it as the viral proxy to rank the pool before the
+    (costly) statistics hydration so the most promising candidates win the
+    capped hydration slots."""
+    stats = aweme.get("statistics") or {}
+    try:
+        return int(stats.get("digg_count") or stats.get("diggCount") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 async def _fetch_douyin_pool(
     niche: dict[str, Any],
     *,
     deep: bool = False,
+    billboard_pool: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Fan-in keyword + hashtag candidates for one niche.
+    """Fan-in keyword + hashtag + billboard candidates for one niche.
 
     Strategy:
-      • One ``fetch_douyin_keyword_search`` call seeded with the niche's
-        Vietnamese display name's Chinese mirror (``name_zh``) — gets
-        the broad top-engagement pool.
-      • Top-N hashtag pages from ``signal_hashtags_zh`` — narrows to
-        the curated trend pool.
+      • ``fetch_douyin_keyword_search`` for each niche keyword (the
+        ``name_zh`` head term + ``signal_keywords_zh``, capped by
+        ``BATCH_DOUYIN_KEYWORD_FETCH_LIMIT``) — broad top-engagement pool.
+      • Top-N hashtag pages from ``signal_hashtags_zh`` — curated trend pool.
+      • ``billboard_pool`` (optional, already assigned to this niche by the
+        orchestrator) — cross-niche viral supplement. Re-filtered here for
+        safety.
 
-    Dedupe across pools is by ``aweme_id`` so a video that surfaces in
-    both keyword + hashtag pools only goes through Gemini once.
+    Dedupe across pools is by ``aweme_id`` so a video surfacing in more
+    than one pool only goes through Gemini once.
 
     ``deep=True`` doubles the per-pool page count (manual ops only).
     """
-    name_zh = _douyin_search_keyword(str(niche.get("name_zh") or ""))
     pages = 2 if deep else 1
     candidates: list[dict[str, Any]] = []
 
-    # Keyword pool — ED `/douyin/keyword/search` accepts CN keywords
-    # directly (no romanization needed).
-    if name_zh:
+    # Keyword pool — TikHub keyword search accepts CN keywords directly.
+    for keyword in _niche_keywords(niche):
         cursor: int | None = 0
         for _ in range(pages):
             try:
                 awemes, cursor = await fetch_douyin_keyword_search(
-                    name_zh, cursor=cursor or 0,
+                    keyword, cursor=cursor or 0,
                 )
                 candidates.extend(awemes)
             except Exception as exc:
                 logger.warning(
-                    "[douyin-ingest] keyword fetch failed niche=%s: %s",
-                    niche.get("slug"), exc,
+                    "[douyin-ingest] keyword fetch failed niche=%s kw=%s: %s",
+                    niche.get("slug"), keyword, exc,
                 )
                 break
             if not cursor:
@@ -216,14 +294,28 @@ async def _fetch_douyin_pool(
     raw_hashtags = niche.get("signal_hashtags_zh") or []
     fetch_hashtags = list(raw_hashtags)[: BATCH_DOUYIN_HASHTAG_FETCH_LIMIT]
     for tag in fetch_hashtags:
-        try:
-            awemes, _ = await fetch_douyin_hashtag_posts(tag, cursor=0)
-            candidates.extend(awemes)
-        except Exception as exc:
-            logger.warning(
-                "[douyin-ingest] hashtag fetch failed niche=%s tag=%s: %s",
-                niche.get("slug"), tag, exc,
-            )
+        cursor = 0
+        for _ in range(pages):
+            try:
+                awemes, cursor = await fetch_douyin_hashtag_posts(
+                    tag, cursor=cursor or 0,
+                )
+                candidates.extend(awemes)
+            except Exception as exc:
+                logger.warning(
+                    "[douyin-ingest] hashtag fetch failed niche=%s tag=%s: %s",
+                    niche.get("slug"), tag, exc,
+                )
+                break
+            if not cursor:
+                break
+
+    # Billboard pool — videos pre-assigned to this niche by the orchestrator.
+    if billboard_pool:
+        terms = _niche_match_terms(niche)
+        for a in billboard_pool:
+            if isinstance(a, dict) and _aweme_matches_niche(a, terms):
+                candidates.append(a)
 
     # Dedupe by aweme_id within the pool.
     seen: set[str] = set()
@@ -237,6 +329,72 @@ async def _fetch_douyin_pool(
         seen.add(vid)
         deduped.append(a)
     return deduped
+
+
+async def _fetch_billboard_pool() -> list[dict[str, Any]]:
+    """Fetch the cross-niche Douyin video hot-list once per run.
+
+    Pulls the total board (sub_type=1001) over the configured page count
+    and dedupes by aweme_id. Fails open — any error returns ``[]`` so the
+    billboard never blocks the keyword/hashtag pools.
+    """
+    if not BATCH_DOUYIN_USE_BILLBOARD:
+        return []
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for page in range(1, BATCH_DOUYIN_BILLBOARD_PAGES + 1):
+        try:
+            awemes = await fetch_douyin_video_billboard(
+                sub_type=1001,
+                date=168,
+                page=page,
+                page_size=BATCH_DOUYIN_BILLBOARD_PAGE_SIZE,
+            )
+        except Exception as exc:
+            logger.warning("[douyin-ingest] billboard fetch failed page=%d: %s", page, exc)
+            break
+        if not awemes:
+            break
+        for a in awemes:
+            if not isinstance(a, dict):
+                continue
+            vid = str(a.get("aweme_id") or "")
+            if not vid or vid in seen:
+                continue
+            seen.add(vid)
+            out.append(a)
+    logger.info("[douyin-ingest] billboard pool size=%d", len(out))
+    return out
+
+
+def _assign_billboard_to_niches(
+    billboard_pool: list[dict[str, Any]],
+    niches: list[dict[str, Any]],
+) -> dict[int, list[dict[str, Any]]]:
+    """Bucket each billboard video into AT MOST ONE niche.
+
+    A billboard caption can contain terms from multiple niches (e.g.
+    ``美食vlog`` matches both food and lifestyle). Without single-assignment
+    the same video would enter several niche pools, get analyzed by Gemini
+    multiple times (the real cost ceiling), and flip-flop ``niche_id`` on
+    the ``on_conflict=video_id`` upsert. Assigning to the first matching
+    niche (taxonomy order) keeps one video → one niche → one analysis.
+    """
+    assignment: dict[int, list[dict[str, Any]]] = {}
+    if not billboard_pool:
+        return assignment
+    niche_terms = [(int(n["id"]), _niche_match_terms(n)) for n in niches]
+    for aweme in billboard_pool:
+        if not isinstance(aweme, dict):
+            continue
+        haystack = _aweme_match_haystack(aweme)
+        if not haystack.strip():
+            continue
+        for niche_id, terms in niche_terms:
+            if terms and any(term in haystack for term in terms):
+                assignment.setdefault(niche_id, []).append(aweme)
+                break
+    return assignment
 
 
 # ── Quality gates ──────────────────────────────────────────────────
@@ -682,13 +840,14 @@ async def ingest_douyin_niche(
     client: Any,
     *,
     deep: bool = False,
+    billboard_pool: list[dict[str, Any]] | None = None,
 ) -> DouyinIngestResult:
     """Fetch candidate pool → dedupe → quality-gate → analyze + upsert."""
     niche_id = int(niche["id"])
     niche_name = str(niche.get("slug") or niche.get("name_vn") or "?")
     result = DouyinIngestResult(niche_id=niche_id, niche_name=niche_name)
 
-    pool = await _fetch_douyin_pool(niche, deep=deep)
+    pool = await _fetch_douyin_pool(niche, deep=deep, billboard_pool=billboard_pool)
     result.fetched = len(pool)
     if not pool:
         return result
@@ -705,7 +864,15 @@ async def ingest_douyin_niche(
     if not deduped:
         return result
 
-    hydrated = await hydrate_awemes_statistics(deduped)
+    # Bound the (costly) statistics hydration: keep the highest-liked
+    # candidates only. A wide multi-keyword + hashtag + billboard pool can
+    # be 100s of rows; hydrating all of them would dominate the TikHub
+    # daily budget even though we only ever ingest BATCH_DOUYIN_VIDEOS_PER_NICHE.
+    if len(deduped) > BATCH_DOUYIN_HYDRATE_CAP:
+        deduped.sort(key=_stub_like_count, reverse=True)
+        deduped = deduped[:BATCH_DOUYIN_HYDRATE_CAP]
+
+    hydrated = await hydrate_awemes_statistics(deduped, deep_fallback=False)
 
     qualified: list[dict[str, Any]] = []
     for aweme in hydrated:
@@ -760,12 +927,20 @@ async def run_douyin_batch_ingest(
         len(niches), BATCH_DOUYIN_CONCURRENCY, deep,
     )
 
+    # Cross-niche viral hot-list fetched once, then bucketed so each video
+    # belongs to exactly one niche (no duplicate Gemini analysis).
+    billboard_pool = await _fetch_billboard_pool()
+    billboard_by_niche = _assign_billboard_to_niches(billboard_pool, niches)
+
     sem = asyncio.Semaphore(max(1, BATCH_DOUYIN_CONCURRENCY))
 
     async def _one(n: dict[str, Any]) -> DouyinIngestResult:
         async with sem:
             try:
-                return await ingest_douyin_niche(n, client, deep=deep)
+                return await ingest_douyin_niche(
+                    n, client, deep=deep,
+                    billboard_pool=billboard_by_niche.get(int(n["id"])),
+                )
             except Exception as exc:
                 logger.exception(
                     "[douyin-ingest] niche %s failed: %s",

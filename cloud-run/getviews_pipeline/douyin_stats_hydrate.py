@@ -78,12 +78,18 @@ def merge_aweme_statistics_fields(
     return merged
 
 
-async def _fetch_statistics_map(aweme_ids: list[str]) -> dict[str, dict[str, Any]]:
+async def _fetch_statistics_map(
+    aweme_ids: list[str],
+    *,
+    deep_fallback: bool = True,
+) -> dict[str, dict[str, Any]]:
     stats_by_id: dict[str, dict[str, Any]] = {}
     for i in range(0, len(aweme_ids), _STATISTICS_CHUNK):
         chunk = aweme_ids[i : i + _STATISTICS_CHUNK]
         try:
-            stats_by_id.update(await fetch_douyin_video_statistics(chunk))
+            stats_by_id.update(
+                await fetch_douyin_video_statistics(chunk, deep_fallback=deep_fallback)
+            )
         except Exception as exc:
             logger.warning(
                 "[douyin-stats] statistics fetch failed for chunk %s: %s",
@@ -95,8 +101,14 @@ async def _fetch_statistics_map(aweme_ids: list[str]) -> dict[str, dict[str, Any
 
 async def hydrate_awemes_statistics(
     awemes: list[dict[str, Any]],
+    *,
+    deep_fallback: bool = True,
 ) -> list[dict[str, Any]]:
-    """Return awemes with TikHub statistics merged where play_count was missing."""
+    """Return awemes with TikHub statistics merged where play_count was missing.
+
+    ``deep_fallback`` is forwarded to ``fetch_douyin_video_statistics``: the
+    ingest path passes ``False`` (batch-only — drop unresolved candidates)
+    while backfill keeps the default ``True`` (per-id recovery)."""
     if not awemes:
         return []
 
@@ -109,7 +121,7 @@ async def hydrate_awemes_statistics(
     if not need_ids:
         return list(awemes)
 
-    stats_by_id = await _fetch_statistics_map(need_ids)
+    stats_by_id = await _fetch_statistics_map(need_ids, deep_fallback=deep_fallback)
 
     out: list[dict[str, Any]] = []
     for aweme in awemes:

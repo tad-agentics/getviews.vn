@@ -131,6 +131,10 @@ async def test_video_statistics_batches_aweme_ids() -> None:
                             "play_count": 1_200_000,
                             "digg_count": 50_000,
                         },
+                        "999": {
+                            "play_count": 3_400,
+                            "digg_count": 12,
+                        },
                     },
                 ),
             ),
@@ -139,11 +143,74 @@ async def test_video_statistics_batches_aweme_ids() -> None:
     with patcher:
         out = await tikhub_douyin.fetch_douyin_video_statistics(["7350123", "999"])
     assert out["7350123"]["play_count"] == 1_200_000
+    # Both ids resolved by the batch call → no per-id fallback fires.
     call = client.get.call_args
     assert call.args[0].endswith(
         "/api/v1/douyin/app/v3/fetch_multi_video_statistics",
     )
     assert call.kwargs["params"] == {"aweme_ids": "7350123,999"}
+
+
+@pytest.mark.asyncio
+async def test_video_statistics_no_deep_fallback_skips_per_id_calls() -> None:
+    """deep_fallback=False (ingest path): batch only, unresolved ids dropped."""
+    patcher, client = _patch_async_client(
+        {"GET": _mock_response(_envelope({"7350123": {"play_count": 1_000}}))},
+    )
+    with patcher:
+        out = await tikhub_douyin.fetch_douyin_video_statistics(
+            ["7350123", "999"], deep_fallback=False,
+        )
+    assert out["7350123"]["play_count"] == 1_000
+    assert "999" not in out
+    # Exactly one GET (the batch) — no per-id recovery for "999".
+    assert client.get.call_count == 1
+
+
+# ── Public API: fetch_douyin_video_billboard ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_video_billboard_sends_expected_params() -> None:
+    aweme = {"aweme_id": "7350123", "desc": "数码开箱"}
+    patcher, client = _patch_async_client(
+        {"GET": _mock_response(_envelope({"aweme_list": [aweme]}))},
+    )
+    with patcher:
+        out = await tikhub_douyin.fetch_douyin_video_billboard(
+            sub_type=1001, date=168, page=2, page_size=20,
+        )
+    assert [a["aweme_id"] for a in out] == ["7350123"]
+    call = client.get.call_args
+    assert call.args[0].endswith("/api/v1/douyin/web/fetch_video_billboard")
+    assert call.kwargs["params"] == {
+        "date": 168, "page": 2, "page_size": 20, "sub_type": 1001,
+    }
+
+
+def test_extract_billboard_awemes_from_aweme_list() -> None:
+    data = {"aweme_list": [{"aweme_id": "1"}, {"aweme_id": "2"}]}
+    out = tikhub_douyin._extract_billboard_awemes(data)
+    assert [a["aweme_id"] for a in out] == ["1", "2"]
+
+
+def test_extract_billboard_awemes_from_nested_list_rows() -> None:
+    data = {
+        "data": {
+            "list": [
+                {"rank": 1, "aweme_info": {"aweme_id": "a", "desc": "x"}},
+                {"rank": 2, "item": {"aweme_id": "b", "video": {}}},
+                {"rank": 3, "title": "stub-no-video"},
+            ],
+        },
+    }
+    out = tikhub_douyin._extract_billboard_awemes(data)
+    assert [a["aweme_id"] for a in out] == ["a", "b"]
+
+
+def test_extract_billboard_awemes_empty_on_unknown_shape() -> None:
+    assert tikhub_douyin._extract_billboard_awemes({"foo": "bar"}) == []
+    assert tikhub_douyin._extract_billboard_awemes(None) == []
 
 
 def test_parse_video_statistics_payload_handles_list_shape() -> None:

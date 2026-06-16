@@ -372,6 +372,42 @@ async def fetch_douyin_keyword_search(
     return awemes, next_cursor
 
 
+async def fetch_douyin_video_billboard(
+    *,
+    sub_type: int = 1001,
+    date: int = 168,
+    page: int = 1,
+    page_size: int = 20,
+) -> list[dict[str, Any]]:
+    """Douyin video hot-list (榜单) — cross-niche viral pool.
+
+    TikHub ``GET /api/v1/douyin/web/fetch_video_billboard``. Returns the
+    flattened aweme dicts (same canonical shape as keyword/hashtag pools)
+    so the ingest pool fetcher can dedupe + niche-filter them uniformly.
+
+    Params (per TikHub docs):
+      • ``sub_type`` — 1001 total / 1002 low-fans-explosion /
+        1003 high-completion / 1004 high-follower-growth / 1005 high-like.
+      • ``date`` — window in hours: 1 / 24 / 72 / 168 (7d).
+
+    Billboard rows are ranking entries that may nest the aweme under a
+    few keys; ``_extract_billboard_awemes`` is defensive about the shape.
+    Returns ``[]`` on any thin / unexpected payload rather than raising —
+    the billboard is a supplement, never the sole pool.
+    """
+    data = await _tikhub_request(
+        "GET",
+        "/api/v1/douyin/web/fetch_video_billboard",
+        params={
+            "date": date,
+            "page": page,
+            "page_size": page_size,
+            "sub_type": sub_type,
+        },
+    )
+    return _extract_billboard_awemes(data)
+
+
 async def fetch_douyin_hashtag_posts(
     hashtag: str,
     *,
@@ -455,13 +491,23 @@ _STATISTICS_CHUNK = 50
 
 async def fetch_douyin_video_statistics(
     aweme_ids: list[str],
+    *,
+    deep_fallback: bool = True,
 ) -> dict[str, dict[str, Any]]:
     """Batch play_count / digg_count via TikHub's dedicated statistics route.
 
     Douyin web/search endpoints often omit ``play_count``; TikHub documents
     that this App V3 statistics endpoint is the supported source.
-    Falls back per-id statistics + ``fetch_one_video`` when batch calls fail.
     Returns ``aweme_id → statistics`` dicts (play_count, digg_count, …).
+
+    ``deep_fallback`` (default True) controls the per-id recovery for ids
+    the batch call didn't resolve: single ``fetch_video_statistics`` then
+    ``fetch_one_video``. This is essential for **backfill** (every corpus
+    row must get a real play_count) but is up to 2 extra calls **per id**.
+    The **ingest** path passes ``deep_fallback=False`` — a candidate whose
+    play_count can't be batch-resolved is simply dropped by the quality
+    gate, so paying 2 calls/candidate would blow the TikHub daily budget
+    on large pools for no benefit.
     """
     cleaned = [a.strip() for a in (aweme_ids or []) if a and a.strip()]
     if not cleaned:
@@ -483,6 +529,9 @@ async def fetch_douyin_video_statistics(
                 len(chunk),
                 exc,
             )
+
+        if not deep_fallback:
+            continue
 
         for aid in chunk:
             if int((out.get(aid) or {}).get("play_count") or 0) > 0:
@@ -633,6 +682,55 @@ def _extract_awemes(data: Any) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for item in raw:
         normalised = aweme_from_feed_item(item)
+        if normalised:
+            out.append(normalised)
+    return out
+
+
+def _extract_billboard_awemes(data: Any) -> list[dict[str, Any]]:
+    """Walk a Douyin video-billboard payload to the list of aweme dicts.
+
+    Billboard endpoints wrap each ranking row differently from the feed
+    endpoints — the aweme can sit at the row root, under ``aweme_info`` /
+    ``item`` / ``aweme``, or the list itself lives under ``list`` /
+    ``video_list`` rather than ``aweme_list``. We try ``_extract_awemes``
+    first (handles ``aweme_list`` / ``data`` list shapes), then fall back
+    to the billboard-specific list keys. Every candidate passes through
+    ``aweme_from_feed_item`` so only rows that actually carry an
+    ``aweme_id`` survive — ranking stubs without a video are dropped.
+    """
+    primary = _extract_awemes(data)
+    if primary:
+        return primary
+    if not isinstance(data, dict):
+        return []
+    raw: Any = None
+    for key in ("list", "video_list", "billboard_list", "items"):
+        v = data.get(key)
+        if isinstance(v, list):
+            raw = v
+            break
+    if raw is None:
+        inner = data.get("data")
+        if isinstance(inner, dict):
+            for key in ("list", "video_list", "billboard_list", "items"):
+                v = inner.get(key)
+                if isinstance(v, list):
+                    raw = v
+                    break
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        candidate = (
+            row.get("aweme_info")
+            or row.get("aweme")
+            or row.get("item")
+            or row
+        )
+        normalised = aweme_from_feed_item(candidate)
         if normalised:
             out.append(normalised)
     return out

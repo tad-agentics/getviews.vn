@@ -19,10 +19,16 @@ from getviews_pipeline.douyin_ingest import (
     BATCH_DOUYIN_MIN_VIEWS,
     BATCH_DOUYIN_VIDEOS_PER_NICHE,
     DouyinBatchSummary,
+    _assign_billboard_to_niches,
+    _aweme_matches_niche,
     _existing_douyin_video_ids,
     _fetch_active_douyin_niches,
+    _fetch_billboard_pool,
     _fetch_douyin_pool,
+    _niche_keywords,
+    _niche_match_terms,
     _passes_quality_gates,
+    _stub_like_count,
     _upsert_douyin_shots_with_retry_sync,
     build_douyin_shot_rows,
     ingest_douyin_niche,
@@ -50,7 +56,7 @@ def test_quality_gate_rejects_low_views() -> None:
     ok, reason = _passes_quality_gates(aweme)
     assert ok is False
     assert reason is not None
-    assert "popularity=" in reason
+    assert "play_count=" in reason
 
 
 def test_quality_gate_rejects_low_engagement_rate() -> None:
@@ -211,6 +217,209 @@ async def test_pool_returns_empty_when_no_name_zh_or_hashtags() -> None:
     assert out == []
     kw.assert_not_called()
     ht.assert_not_called()
+
+
+# ── multi-keyword pool (signal_keywords_zh) ─────────────────────────
+
+
+def test_niche_keywords_head_term_first_then_signal_keywords_capped() -> None:
+    niche = {
+        "name_zh": "科技 · 数码",
+        "signal_keywords_zh": ["数码", "手机评测", "黑科技", "extra"],
+    }
+    kws = _niche_keywords(niche)
+    assert kws[0] == "科技"
+    assert len(kws) == 3
+    assert "数码" in kws
+
+
+def test_niche_keywords_dedupes_head_against_signal() -> None:
+    niche = {"name_zh": "美妆", "signal_keywords_zh": ["美妆", "护肤"]}
+    assert _niche_keywords(niche) == ["美妆", "护肤"]
+
+
+@pytest.mark.asyncio
+async def test_pool_runs_keyword_search_per_niche_keyword() -> None:
+    """Each distinct keyword fires its own keyword search call."""
+    niche = {
+        "id": 1, "slug": "tech", "name_zh": "科技",
+        "signal_hashtags_zh": [],
+        "signal_keywords_zh": ["数码", "手机评测"],
+    }
+    kw_mock = AsyncMock(return_value=([], None))
+    with patch(
+        "getviews_pipeline.douyin_ingest.fetch_douyin_keyword_search",
+        new=kw_mock,
+    ):
+        await _fetch_douyin_pool(niche)
+    called_keywords = {c.args[0] for c in kw_mock.await_args_list}
+    assert called_keywords == {"数码", "手机评测", "科技"}
+
+
+# ── billboard pool filtering + assignment ───────────────────────────
+
+
+def test_aweme_matches_niche_on_desc_substring() -> None:
+    terms = _niche_match_terms(
+        {"name_zh": "科技", "signal_keywords_zh": ["数码"], "signal_hashtags_zh": ["#开箱"]}
+    )
+    assert _aweme_matches_niche({"desc": "今天开箱一台新手机"}, terms) is True
+    assert _aweme_matches_niche({"desc": "今天做了一道家常菜"}, terms) is False
+
+
+def test_aweme_matches_niche_on_hashtag_text_extra() -> None:
+    terms = _niche_match_terms(
+        {"name_zh": "科技", "signal_keywords_zh": [], "signal_hashtags_zh": ["#数码"]}
+    )
+    aweme = {"desc": "", "text_extra": [{"hashtag_name": "数码"}]}
+    assert _aweme_matches_niche(aweme, terms) is True
+
+
+def test_aweme_matches_niche_drops_stub_without_text() -> None:
+    terms = _niche_match_terms(
+        {"name_zh": "科技", "signal_keywords_zh": ["数码"], "signal_hashtags_zh": []}
+    )
+    assert _aweme_matches_niche({"aweme_id": "1"}, terms) is False
+
+
+@pytest.mark.asyncio
+async def test_pool_appends_matching_billboard_videos_only() -> None:
+    niche = {
+        "id": 6, "slug": "tech", "name_zh": "科技",
+        "signal_hashtags_zh": [], "signal_keywords_zh": ["数码"],
+    }
+    billboard = [
+        {"aweme_id": "hit", "desc": "数码新品评测"},
+        {"aweme_id": "miss", "desc": "亲子育儿日常"},
+    ]
+    with patch(
+        "getviews_pipeline.douyin_ingest.fetch_douyin_keyword_search",
+        new=AsyncMock(return_value=([], None)),
+    ), patch(
+        "getviews_pipeline.douyin_ingest.fetch_douyin_hashtag_posts",
+        new=AsyncMock(return_value=([], None)),
+    ):
+        out = await _fetch_douyin_pool(niche, billboard_pool=billboard)
+    assert [str(a["aweme_id"]) for a in out] == ["hit"]
+
+
+def test_assign_billboard_to_one_niche_only() -> None:
+    """A caption matching two niches lands in the first (taxonomy order)."""
+    niches = [
+        {"id": 5, "name_zh": "美食", "signal_keywords_zh": ["美食"], "signal_hashtags_zh": []},
+        {"id": 3, "name_zh": "生活方式", "signal_keywords_zh": ["vlog"], "signal_hashtags_zh": []},
+    ]
+    # "美食vlog" matches both food (美食) and lifestyle (vlog).
+    billboard = [{"aweme_id": "x", "desc": "美食vlog 今天吃什么"}]
+    assignment = _assign_billboard_to_niches(billboard, niches)
+    assert assignment == {5: [billboard[0]]}
+
+
+def test_assign_billboard_skips_unmatched_and_stubs() -> None:
+    niches = [{"id": 5, "name_zh": "美食", "signal_keywords_zh": ["美食"], "signal_hashtags_zh": []}]
+    billboard = [
+        {"aweme_id": "stub"},                       # no text → skip
+        {"aweme_id": "other", "desc": "科技数码"},   # no food term → skip
+    ]
+    assert _assign_billboard_to_niches(billboard, niches) == {}
+
+
+# ── _fetch_billboard_pool ───────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_fetch_billboard_pool_dedupes_across_pages() -> None:
+    pages = {
+        1: [{"aweme_id": "a"}, {"aweme_id": "b"}],
+        2: [{"aweme_id": "b"}, {"aweme_id": "c"}],
+    }
+
+    async def _fake_billboard(*, sub_type, date, page, page_size):  # noqa: ARG001
+        return pages.get(page, [])
+
+    with patch(
+        "getviews_pipeline.douyin_ingest.BATCH_DOUYIN_USE_BILLBOARD", True,
+    ), patch(
+        "getviews_pipeline.douyin_ingest.BATCH_DOUYIN_BILLBOARD_PAGES", 2,
+    ), patch(
+        "getviews_pipeline.douyin_ingest.fetch_douyin_video_billboard",
+        new=AsyncMock(side_effect=_fake_billboard),
+    ):
+        out = await _fetch_billboard_pool()
+    assert sorted(str(a["aweme_id"]) for a in out) == ["a", "b", "c"]
+
+
+@pytest.mark.asyncio
+async def test_fetch_billboard_pool_fails_open_on_error() -> None:
+    with patch(
+        "getviews_pipeline.douyin_ingest.BATCH_DOUYIN_USE_BILLBOARD", True,
+    ), patch(
+        "getviews_pipeline.douyin_ingest.fetch_douyin_video_billboard",
+        new=AsyncMock(side_effect=RuntimeError("tikhub 500")),
+    ):
+        out = await _fetch_billboard_pool()
+    assert out == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_billboard_pool_disabled_returns_empty() -> None:
+    bb_mock = AsyncMock(return_value=[{"aweme_id": "x"}])
+    with patch(
+        "getviews_pipeline.douyin_ingest.BATCH_DOUYIN_USE_BILLBOARD", False,
+    ), patch(
+        "getviews_pipeline.douyin_ingest.fetch_douyin_video_billboard",
+        new=bb_mock,
+    ):
+        out = await _fetch_billboard_pool()
+    assert out == []
+    bb_mock.assert_not_called()
+
+
+# ── hydration cap ───────────────────────────────────────────────────
+
+
+def test_stub_like_count_reads_digg_count() -> None:
+    assert _stub_like_count({"statistics": {"digg_count": 1234}}) == 1234
+    assert _stub_like_count({"statistics": {}}) == 0
+    assert _stub_like_count({}) == 0
+
+
+@pytest.mark.asyncio
+async def test_niche_caps_hydration_to_top_liked_candidates() -> None:
+    """Pool larger than the hydrate cap → only the highest-liked rows reach
+    the (costly) statistics hydration, batch-only (deep_fallback=False)."""
+    niche = {"id": 1, "slug": "wellness", "name_zh": "养生", "signal_hashtags_zh": []}
+    pool = [
+        {"aweme_id": str(i), "statistics": {"digg_count": i}}
+        for i in range(100)
+    ]
+
+    captured: dict[str, Any] = {}
+
+    async def _fake_hydrate(awemes, *, deep_fallback=True):
+        captured["count"] = len(awemes)
+        captured["deep_fallback"] = deep_fallback
+        captured["ids"] = [a["aweme_id"] for a in awemes]
+        return []  # nothing qualifies → ingest stops after hydration
+
+    with patch(
+        "getviews_pipeline.douyin_ingest._fetch_douyin_pool",
+        new=AsyncMock(return_value=pool),
+    ), patch(
+        "getviews_pipeline.douyin_ingest._existing_douyin_video_ids",
+        new=AsyncMock(return_value=set()),
+    ), patch(
+        "getviews_pipeline.douyin_ingest.hydrate_awemes_statistics",
+        new=_fake_hydrate,
+    ):
+        from getviews_pipeline.douyin_ingest import BATCH_DOUYIN_HYDRATE_CAP
+        await ingest_douyin_niche(niche, client=MagicMock())
+
+    assert captured["count"] == BATCH_DOUYIN_HYDRATE_CAP
+    assert captured["deep_fallback"] is False
+    # Highest digg_count (99) kept; lowest (0) dropped.
+    assert "99" in captured["ids"]
+    assert "0" not in captured["ids"]
 
 
 # ── build_douyin_shot_rows ──────────────────────────────────────────
@@ -389,7 +598,7 @@ async def test_batch_run_aggregates_per_niche_results() -> None:
         {"id": 2, "slug": "tech", "name_zh": "科技"},
     ]
 
-    async def _fake_ingest(n, _client, deep=False):  # noqa: ARG001
+    async def _fake_ingest(n, _client, deep=False, billboard_pool=None):  # noqa: ARG001
         from getviews_pipeline.douyin_ingest import DouyinIngestResult
         r = DouyinIngestResult(niche_id=int(n["id"]), niche_name=n["slug"])
         r.fetched = 5
@@ -404,6 +613,9 @@ async def test_batch_run_aggregates_per_niche_results() -> None:
     ), patch(
         "getviews_pipeline.douyin_ingest._fetch_active_douyin_niches",
         new=AsyncMock(return_value=niches),
+    ), patch(
+        "getviews_pipeline.douyin_ingest._fetch_billboard_pool",
+        new=AsyncMock(return_value=[]),
     ), patch(
         "getviews_pipeline.douyin_ingest.ingest_douyin_niche",
         new=AsyncMock(side_effect=_fake_ingest),
@@ -427,7 +639,7 @@ async def test_batch_run_isolates_per_niche_failures() -> None:
         {"id": 2, "slug": "tech", "name_zh": "科技"},
     ]
 
-    async def _fake_ingest(n, _client, deep=False):  # noqa: ARG001
+    async def _fake_ingest(n, _client, deep=False, billboard_pool=None):  # noqa: ARG001
         from getviews_pipeline.douyin_ingest import DouyinIngestResult
         if int(n["id"]) == 1:
             raise RuntimeError("niche 1 broke")
@@ -441,6 +653,9 @@ async def test_batch_run_isolates_per_niche_failures() -> None:
     ), patch(
         "getviews_pipeline.douyin_ingest._fetch_active_douyin_niches",
         new=AsyncMock(return_value=niches),
+    ), patch(
+        "getviews_pipeline.douyin_ingest._fetch_billboard_pool",
+        new=AsyncMock(return_value=[]),
     ), patch(
         "getviews_pipeline.douyin_ingest.ingest_douyin_niche",
         new=AsyncMock(side_effect=_fake_ingest),
@@ -464,7 +679,7 @@ async def test_batch_run_filters_by_niche_ids() -> None:
 
     seen_niche_ids: list[int] = []
 
-    async def _fake_ingest(n, _client, deep=False):  # noqa: ARG001
+    async def _fake_ingest(n, _client, deep=False, billboard_pool=None):  # noqa: ARG001
         seen_niche_ids.append(int(n["id"]))
         from getviews_pipeline.douyin_ingest import DouyinIngestResult
         return DouyinIngestResult(niche_id=int(n["id"]), niche_name=n["slug"])
@@ -475,6 +690,9 @@ async def test_batch_run_filters_by_niche_ids() -> None:
     ), patch(
         "getviews_pipeline.douyin_ingest._fetch_active_douyin_niches",
         new=AsyncMock(return_value=niches),
+    ), patch(
+        "getviews_pipeline.douyin_ingest._fetch_billboard_pool",
+        new=AsyncMock(return_value=[]),
     ), patch(
         "getviews_pipeline.douyin_ingest.ingest_douyin_niche",
         new=AsyncMock(side_effect=_fake_ingest),

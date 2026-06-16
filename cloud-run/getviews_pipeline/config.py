@@ -152,7 +152,7 @@ except (TypeError, ValueError):
 # VN ingest is unaffected if Douyin overruns. Bump after the first
 # week of clean cron runs.
 TIKHUB_DOUYIN_DAILY_REQUEST_MAX = int(
-    os.environ.get("TIKHUB_DOUYIN_DAILY_REQUEST_MAX", "50")
+    os.environ.get("TIKHUB_DOUYIN_DAILY_REQUEST_MAX", "250")
 )
 
 

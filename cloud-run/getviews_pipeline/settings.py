@@ -318,8 +318,19 @@ class _PipelineSettings(BaseSettings):
     batch_douyin_concurrency: int = Field(default=2, ge=1, le=32)
     batch_douyin_min_views: int = Field(default=50_000, ge=0)
     batch_douyin_min_er: float = Field(default=2.0, ge=0.0)
-    batch_douyin_hashtag_fetch_limit: int = Field(default=3, ge=1)
-    batch_douyin_videos_per_niche: int = Field(default=10, ge=1)
+    batch_douyin_hashtag_fetch_limit: int = Field(default=5, ge=1)
+    batch_douyin_keyword_fetch_limit: int = Field(default=3, ge=1)
+    batch_douyin_videos_per_niche: int = Field(default=20, ge=1)
+    # Cap on candidates hydrated (TikHub statistics call) per niche. The
+    # pool is sorted by stub like-count and truncated to this before the
+    # statistics fetch — bounds the dominant TikHub cost so a wide pool
+    # doesn't blow the daily budget. Keep ≥ videos_per_niche.
+    batch_douyin_hydrate_cap: int = Field(default=40, ge=1)
+    # Cross-niche "hot video" billboard pool (TikHub fetch_video_billboard).
+    # Fetched once per run, each video assigned to one niche by signal match.
+    batch_douyin_use_billboard: bool = Field(default=True)
+    batch_douyin_billboard_pages: int = Field(default=2, ge=1, le=10)
+    batch_douyin_billboard_page_size: int = Field(default=20, ge=1, le=50)
 
     # ── Resend ─────────────────────────────────────────────────────────────
     resend_api_key: str = Field(default="")
