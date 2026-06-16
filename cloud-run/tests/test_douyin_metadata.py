@@ -224,6 +224,21 @@ def test_row_carries_engagement_metrics_with_saves() -> None:
     assert row["engagement_rate"] == 14.6
 
 
+def test_row_keeps_zero_views_without_hydrated_play_count() -> None:
+    aweme = _aweme()
+    aweme["statistics"] = {
+        "play_count": 0,
+        "digg_count": 250_000,
+        "comment_count": 1_000,
+        "share_count": 500,
+        "collect_count": 10_000,
+    }
+    row = build_douyin_corpus_row(aweme, _analysis(), niche_id=1)
+    assert row is not None
+    assert row["views"] == 0
+    assert row["likes"] == 250_000
+
+
 def test_row_carries_posted_at_iso_when_create_time_set() -> None:
     row = build_douyin_corpus_row(_aweme(), _analysis(), niche_id=1)
     assert row is not None

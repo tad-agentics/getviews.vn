@@ -32,6 +32,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from getviews_pipeline.douyin_metadata import resolve_douyin_play_count
+
 logger = logging.getLogger(__name__)
 
 
@@ -167,7 +169,10 @@ def _serialize_video(row: dict[str, Any]) -> dict[str, Any]:
         "video_url": row.get("video_url"),
         "playback_url": row.get("playback_url"),
         "video_duration": _float_or_none(row.get("video_duration")),
-        "views": _int_or_none(row.get("views")) or 0,
+        "views": resolve_douyin_play_count(
+            views=_int_or_none(row.get("views")) or 0,
+            likes=_int_or_none(row.get("likes")) or 0,
+        ),
         "likes": _int_or_none(row.get("likes")) or 0,
         "saves": _int_or_none(row.get("saves")) or 0,
         "engagement_rate": _float_or_none(row.get("engagement_rate")),

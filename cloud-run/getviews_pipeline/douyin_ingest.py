@@ -24,7 +24,9 @@ Per-niche flow:
   2. ``_existing_douyin_video_ids(client, niche_id)`` — dedupe set
      scoped to this niche so re-running a niche doesn't re-ingest its
      own rows.
-  3. Quality gates — ``views ≥ BATCH_DOUYIN_MIN_VIEWS`` AND
+  2b. ``hydrate_awemes_statistics`` — TikHub post-detail fetch for
+     real ``play_count`` (keyword search often returns 0).
+  3. Quality gates — ``play_count ≥ BATCH_DOUYIN_MIN_VIEWS`` AND
      ``engagement_rate ≥ BATCH_DOUYIN_MIN_ER``.
   4. ``_ingest_candidate_awemes_douyin`` — analyze + translate +
      upsert (with R2 frame extraction when configured).
@@ -59,6 +61,10 @@ from getviews_pipeline.r2 import (
     resolve_ingest_thumbnail_url,
 )
 from getviews_pipeline.runtime import get_analysis_semaphore
+from getviews_pipeline.douyin_stats_hydrate import (
+    aweme_play_count,
+    hydrate_awemes_statistics,
+)
 from getviews_pipeline.tikhub_douyin import (
     fetch_douyin_hashtag_posts,
     fetch_douyin_keyword_search,
@@ -237,29 +243,25 @@ async def _fetch_douyin_pool(
 
 
 def _passes_quality_gates(aweme: dict[str, Any]) -> tuple[bool, str | None]:
-    """Returns ``(passes, reason_if_skipped)``. Cheap pre-Gemini filter."""
+    """Returns ``(passes, reason_if_skipped)``. Cheap pre-Gemini filter.
+
+    Callers must run ``hydrate_awemes_statistics`` first so ``play_count``
+    reflects TikHub post-detail, not keyword-search stubs.
+    """
+    views = aweme_play_count(aweme)
     stats = aweme.get("statistics") or {}
-    try:
-        views = int(stats.get("play_count") or 0)
-    except (TypeError, ValueError):
-        views = 0
     likes = int(stats.get("digg_count") or 0)
     comments = int(stats.get("comment_count") or 0)
     shares = int(stats.get("share_count") or 0)
     saves = int(stats.get("collect_count") or 0)
 
-    # TikHub keyword search often omits real play_count (returns 0) even for
-    # viral CN videos — same quirk as TikTok carousel feeds. Use digg_count as
-    # the popularity proxy when play_count is missing/zero.
-    popularity = views if views > 0 else likes
-    if popularity < BATCH_DOUYIN_MIN_VIEWS:
+    if views < BATCH_DOUYIN_MIN_VIEWS:
         return False, (
-            f"popularity={popularity} < min={BATCH_DOUYIN_MIN_VIEWS} "
-            f"(play_count={views}, digg_count={likes})"
+            f"play_count={views} < min={BATCH_DOUYIN_MIN_VIEWS} "
+            f"(digg_count={likes})"
         )
 
-    er_denom = views if views > 0 else max(likes, 1)
-    er = (likes + comments + shares + saves) / er_denom * 100.0
+    er = (likes + comments + shares + saves) / views * 100.0
     if er < BATCH_DOUYIN_MIN_ER:
         return False, f"er={er:.2f}% < min={BATCH_DOUYIN_MIN_ER}%"
 
@@ -700,8 +702,13 @@ async def ingest_douyin_niche(
             continue
         deduped.append(aweme)
 
+    if not deduped:
+        return result
+
+    hydrated = await hydrate_awemes_statistics(deduped)
+
     qualified: list[dict[str, Any]] = []
-    for aweme in deduped:
+    for aweme in hydrated:
         ok, reason = _passes_quality_gates(aweme)
         if not ok:
             result.skipped_quality += 1

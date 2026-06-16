@@ -204,6 +204,19 @@ def test_serialize_video_drops_blank_hashtags() -> None:
     assert out["hashtags_zh"] == ["#养生", "#健康"]
 
 
+def test_serialize_video_keeps_zero_views_without_backfill() -> None:
+    row = {
+        "video_id": "v1",
+        "niche_id": 1,
+        "views": 0,
+        "likes": 250_000,
+        "saves": 0,
+    }
+    out = _serialize_video(row)
+    assert out["views"] == 0
+    assert out["likes"] == 250_000
+
+
 def test_serialize_video_handles_garbage_numeric_fields() -> None:
     """A bad ingest could leave non-numeric strings in numeric columns —
     the serializer must coerce to None instead of raising."""

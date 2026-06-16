@@ -99,10 +99,10 @@ describe("DouyinVideoCard", () => {
     expect(screen.queryByText(/\+\d+%/)).toBeNull();
   });
 
-  it("shows em dash for zero views", () => {
+  it("shows em dash when views and likes are both zero", () => {
     render(
       <DouyinVideoCard
-        video={_video({ views: 0 })}
+        video={_video({ views: 0, likes: 0 })}
         saved={false}
         onToggleSave={vi.fn()}
       />,

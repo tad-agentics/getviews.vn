@@ -389,6 +389,35 @@ async def batch_douyin_backfill_videos(
     return JSONResponse({"ok": True, **summary})
 
 
+class BatchDouyinBackfillViewsRequest(StrictBody):
+    """Refresh play_count from TikHub post-detail for rows with views=0."""
+
+    limit: int = Field(default=100, ge=1, le=500)
+
+
+@router.post("/batch/douyin-backfill-views")
+async def batch_douyin_backfill_views(
+    request: Request,
+    body: BatchDouyinBackfillViewsRequest = BatchDouyinBackfillViewsRequest(),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.douyin_backfill import backfill_douyin_views
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info("POST /batch/douyin-backfill-views limit=%s", body.limit)
+    client = get_service_client()
+    async with record_job_run(client, "batch/douyin-backfill-views") as obs_summary:
+        try:
+            summary = await backfill_douyin_views(client, limit=body.limit)
+        except Exception as exc:
+            logger.exception("Douyin views backfill failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(summary)
+
+    return JSONResponse({"ok": True, **summary})
+
+
 class BatchDouyinBackfillContentClassRequest(StrictBody):
     limit: int = Field(default=500, ge=1, le=5000)
 

@@ -140,6 +140,85 @@ def backfill_douyin_content_class_ids(
     return {"scanned": len(rows), "updated": updated}
 
 
+async def backfill_douyin_views(
+    client: Any,
+    *,
+    limit: int = 100,
+) -> dict[str, Any]:
+    """Re-fetch ``play_count`` via TikHub post-detail for rows stuck at views=0."""
+    from getviews_pipeline.douyin_stats_hydrate import aweme_engagement_metrics
+
+    limit = max(1, min(int(limit), 500))
+    res = (
+        client.table("douyin_video_corpus")
+        .select("video_id")
+        .eq("views", 0)
+        .order("indexed_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    rows = res.data or []
+    if not rows:
+        return {"requested": 0, "updated": 0, "failed": 0, "skipped": 0}
+
+    video_ids = [str(r["video_id"]) for r in rows if r.get("video_id")]
+    aweme_by_id: dict[str, dict[str, Any]] = {}
+
+    chunk_size = 20
+    for i in range(0, len(video_ids), chunk_size):
+        chunk = video_ids[i : i + chunk_size]
+        try:
+            awemes = await fetch_douyin_post_multi_info(chunk)
+            for aweme in awemes:
+                aid = str(aweme.get("aweme_id") or "")
+                if aid:
+                    aweme_by_id[aid] = aweme
+        except Exception as exc:
+            logger.warning("[douyin-views-backfill] multi fetch failed: %s", exc)
+
+    updated = 0
+    failed = 0
+    skipped = 0
+
+    for vid in video_ids:
+        aweme = aweme_by_id.get(vid)
+        if not aweme:
+            try:
+                aweme = await fetch_douyin_post_info(vid)
+            except Exception as exc:
+                logger.warning(
+                    "[douyin-views-backfill] post info failed %s: %s", vid, exc,
+                )
+                failed += 1
+                continue
+
+        metrics = aweme_engagement_metrics(aweme)
+        if int(metrics["views"]) <= 0:
+            skipped += 1
+            continue
+
+        try:
+            client.table("douyin_video_corpus").update(metrics).eq(
+                "video_id", vid,
+            ).execute()
+            client.table("douyin_video_shots").update(
+                {"views": metrics["views"]},
+            ).eq("video_id", vid).execute()
+            updated += 1
+        except Exception as exc:
+            logger.warning(
+                "[douyin-views-backfill] db update failed %s: %s", vid, exc,
+            )
+            failed += 1
+
+    return {
+        "requested": len(video_ids),
+        "updated": updated,
+        "failed": failed,
+        "skipped": skipped,
+    }
+
+
 async def run_backfill_douyin_playback_sync(
     client: Any,
     *,

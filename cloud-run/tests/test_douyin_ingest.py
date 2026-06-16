@@ -79,12 +79,13 @@ def test_quality_gate_handles_garbage_play_count() -> None:
     assert ok is False
 
 
-def test_quality_gate_passes_when_play_count_zero_but_likes_high() -> None:
-    """TikHub search often returns play_count=0; digg_count is the reach proxy."""
+def test_quality_gate_rejects_zero_play_count_even_when_likes_high() -> None:
+    """Pre-hydration search stubs must not pass on digg_count alone."""
     aweme = _aweme_with_stats(views=0, likes=BATCH_DOUYIN_MIN_VIEWS + 50_000, saves=10_000)
     ok, reason = _passes_quality_gates(aweme)
-    assert ok is True
-    assert reason is None
+    assert ok is False
+    assert reason is not None
+    assert "play_count=0" in reason
 
 
 # ── _fetch_active_douyin_niches ─────────────────────────────────────

@@ -88,6 +88,16 @@ def build_douyin_url(aweme_id: str) -> str:
 _HANDLE_NOISE_RE = re.compile(r"\s+")
 
 
+def resolve_douyin_play_count(*, views: int, likes: int) -> int:
+    """Return Douyin ``play_count`` only — no likes proxy.
+
+    ``likes`` is accepted for call-site symmetry but ignored; callers
+    hydrate aweme statistics via ``douyin_stats_hydrate`` first.
+    """
+    _ = likes
+    return views if views > 0 else 0
+
+
 def _normalize_handle(raw: str | None) -> str:
     """Mirror of corpus_ingest._normalize_handle but kept local so the
     Douyin module doesn't import from corpus_ingest (avoids circular
@@ -184,11 +194,42 @@ def build_douyin_corpus_row(
     metadata = analysis.get("metadata") or {}
     metrics = metadata.get("metrics") or {}
 
-    views = int(metrics.get("views") or raw_stats.get("play_count") or 0)
-    likes = int(metrics.get("likes") or raw_stats.get("digg_count") or 0)
-    comments = int(metrics.get("comments") or raw_stats.get("comment_count") or 0)
-    shares = int(metrics.get("shares") or raw_stats.get("share_count") or 0)
-    saves = int(metrics.get("bookmarks") or raw_stats.get("collect_count") or 0)
+    if raw_stats:
+        likes = int(
+            raw_stats.get("digg_count")
+            or raw_stats.get("diggCount")
+            or metrics.get("likes")
+            or 0
+        )
+        comments = int(
+            raw_stats.get("comment_count")
+            or metrics.get("comments")
+            or 0
+        )
+        shares = int(
+            raw_stats.get("share_count")
+            or metrics.get("shares")
+            or 0
+        )
+        saves = int(
+            raw_stats.get("collect_count")
+            or metrics.get("bookmarks")
+            or 0
+        )
+    else:
+        likes = int(metrics.get("likes") or 0)
+        comments = int(metrics.get("comments") or 0)
+        shares = int(metrics.get("shares") or 0)
+        saves = int(metrics.get("bookmarks") or 0)
+
+    stats_views = int(raw_stats.get("play_count") or raw_stats.get("playCount") or 0)
+    metrics_views = int(metrics.get("views") or 0)
+    # When aweme ``statistics`` is present, trust it over Gemini metadata —
+    # TikHub search often returns play_count=0 while digg_count is real.
+    if raw_stats:
+        views = resolve_douyin_play_count(views=stats_views, likes=likes)
+    else:
+        views = resolve_douyin_play_count(views=metrics_views, likes=likes)
     engagement_rate = _safe_engagement_rate(
         er_from_analysis=analysis.get("engagement_rate") or metadata.get("engagement_rate"),
         views=views,
