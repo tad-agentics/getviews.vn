@@ -1617,7 +1617,7 @@ def _creator_slug_and_hook_from_user_res(
     ha = analysis.get("hook_analysis")
     hook: str | None = None
     if isinstance(ha, dict):
-        hook = ha.get("type") or ha.get("hook_type")
+        hook = ha.get("hook_type") or ha.get("type")
     return (str(slug) if slug else None, str(hook) if hook else None)
 
 

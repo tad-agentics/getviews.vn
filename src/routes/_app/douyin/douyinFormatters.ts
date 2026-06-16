@@ -7,13 +7,6 @@
 
 import type { DouyinVideo } from "@/lib/api-types";
 
-/**
- * Douyin "Sub VN" caption-on-video green. The GV palette pivoted to
- * magenta+sky with no green-on-dark token; this localized constant
- * keeps the hex out of inline ``style={{}}`` calls.
- */
-export const DOUYIN_SUB_VN_GREEN = "#7CD9A3";
-
 /** Text shown in the card's centered Sub VN band (matches ``DouyinVideoCard``). */
 export function douyinCardSubText(video: DouyinVideo): string {
   return (video.sub_vi || video.title_vi || video.title_zh || "").trim();

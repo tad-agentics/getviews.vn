@@ -289,6 +289,12 @@ def _warn_unbounded_budgets() -> None:
             "Tier-3 intent classification is uncapped — a stuck client could "
             "blow through Gemini quota."
         )
+    if TIKHUB_DOUYIN_DAILY_REQUEST_MAX <= 0:
+        logger.warning(
+            "[budget] TIKHUB_DOUYIN_DAILY_REQUEST_MAX=0 (unlimited). "
+            "Set a per-day cap to protect the TikHub Douyin budget "
+            "(mirrors ED_BATCH_DAILY_REQUEST_MAX)."
+        )
     if GEMINI_DAILY_USD_MAX <= 0:
         logger.warning(
             "[budget] GEMINI_DAILY_USD_MAX=0 (unlimited). "

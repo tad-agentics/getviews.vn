@@ -418,6 +418,8 @@
   --gv-signal-declining-bg: rgb(239 68 68 / 10%);
 
   /* ── Radii ─────────────────────────────────────────────────────── */
+  --gv-douyin-rise:      #7CD9A3; /* Douyin Sub VN / rise chip mint (Kho Douyin) */
+
   --gv-radius-sm:      6px;
   --gv-radius-md:      12px;
   --gv-radius-lg:      18px;

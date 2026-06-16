@@ -177,6 +177,29 @@ def test_endpoint_503_on_ensemble_budget_exceeded(client: TestClient) -> None:
     assert resp.status_code == 503
 
 
+def test_endpoint_503_on_tikhub_budget_exceeded(client: TestClient) -> None:
+    """TikHub daily-budget exhaustion returns 503 (not 500) for cron retry hygiene."""
+    from getviews_pipeline.ensemble import TikHubDailyBudgetExceeded
+
+    with patch(
+        "getviews_pipeline.douyin_ingest.run_douyin_batch_ingest",
+        new=AsyncMock(side_effect=TikHubDailyBudgetExceeded("daily TikHub cap")),
+    ), patch(
+        "getviews_pipeline.batch_observability.record_job_run",
+        _fake_record_job_run,
+    ), patch(
+        "getviews_pipeline.supabase_client.get_service_client",
+        return_value=MagicMock(),
+    ):
+        resp = client.post(
+            "/batch/douyin-ingest",
+            headers={"X-Batch-Secret": _SECRET},
+            json={},
+        )
+    assert resp.status_code == 503
+    assert "TikHub" in resp.json().get("detail", "")
+
+
 def test_endpoint_500_on_unexpected_exception(client: TestClient) -> None:
     """Any other Exception bubbles up as 500 (visible in pg_cron failure
     log + Cloud Run access logs)."""

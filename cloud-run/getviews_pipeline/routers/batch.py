@@ -317,7 +317,10 @@ async def batch_douyin_ingest(
     """
     from getviews_pipeline.batch_observability import record_job_run
     from getviews_pipeline.douyin_ingest import run_douyin_batch_ingest
-    from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
+    from getviews_pipeline.ensemble import (
+        EnsembleDailyBudgetExceeded,
+        TikHubDailyBudgetExceeded,
+    )
     from getviews_pipeline.supabase_client import get_service_client
 
     logger.info(
@@ -334,6 +337,12 @@ async def batch_douyin_ingest(
             )
         except EnsembleDailyBudgetExceeded as exc:
             logger.error("Douyin batch ingest aborted (ED daily budget): %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+        except TikHubDailyBudgetExceeded as exc:
+            logger.error("Douyin batch ingest aborted (TikHub daily budget): %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=str(exc),

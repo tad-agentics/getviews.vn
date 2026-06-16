@@ -102,7 +102,6 @@ class _PipelineSettings(BaseSettings):
     tikhub_base_url: str = Field(default="https://api.tikhub.io")
     tikhub_api_key: str = Field(default="")
     tikhub_request_timeout_sec: float = Field(default=20.0, ge=1.0)
-    tikhub_douyin_daily_request_max: int = Field(default=150, ge=0)
 
     # ── Corpus ingest ──────────────────────────────────────────────────────
     batch_videos_per_niche: int = Field(default=30, ge=1)

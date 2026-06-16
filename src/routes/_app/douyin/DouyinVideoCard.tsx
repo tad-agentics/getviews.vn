@@ -5,7 +5,6 @@ import type { DouyinVideo } from "@/lib/api-types";
 import { formatViews } from "@/lib/formatters";
 
 import {
-  DOUYIN_SUB_VN_GREEN,
   douyinCardSubText,
   formatDuration,
   formatRelativeIso,
@@ -202,8 +201,7 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
             </span>
             {rise ? (
               <span
-                className="gv-mono shrink-0"
-                style={{ color: DOUYIN_SUB_VN_GREEN }}
+                className="gv-mono shrink-0 text-[color:var(--gv-douyin-rise)]"
                 aria-label={`Tăng ${rise} so với 14 ngày trước`}
               >
                 {rise}
