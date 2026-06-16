@@ -391,8 +391,8 @@ async def fetch_douyin_video_billboard(
 
     Legacy params kept for call-site stability:
       • ``date`` — hours window; mapped to ``date_window``: <=1 → hourly (1),
-        else daily (2). TikHub's billboard API does not expose 72h/168h
-        granular windows on this route.
+        else daily (24). TikHub docs mention ``2`` for daily but that value
+        returns 参数不合法 (verified 2026-06); ``24`` is the working daily window.
       • ``sub_type`` — ignored (old web billboard subtype); the billboard
         API filters via ``tags`` vertical ids instead (we pass empty = all).
 
@@ -401,7 +401,7 @@ async def fetch_douyin_video_billboard(
     unexpected payloads — billboard is a supplement, never the sole pool.
     """
     _ = sub_type  # legacy subtype ids (1001–1005) — not on billboard API v2
-    date_window = 1 if int(date) <= 1 else 2
+    date_window = _billboard_date_window(date)
     data = await _tikhub_request(
         "POST",
         "/api/v1/douyin/billboard/fetch_hot_total_video_list",
@@ -415,7 +415,16 @@ async def fetch_douyin_video_billboard(
     awemes = _extract_billboard_awemes(data)
     if not awemes:
         keys = list(data.keys()) if isinstance(data, dict) else type(data).__name__
-        logger.info("[tikhub] billboard parsed 0 awemes; payload keys=%s", keys)
+        inner_msg = ""
+        if isinstance(data, dict):
+            inner_code = data.get("code")
+            if inner_code not in (None, 0, 200):
+                inner_msg = str(data.get("message") or data.get("msg") or "")
+        logger.info(
+            "[tikhub] billboard parsed 0 awemes; payload keys=%s%s",
+            keys,
+            f" inner_error={inner_msg[:120]}" if inner_msg else "",
+        )
         return awemes
 
     # Ranking rows are often stubs (item_id + title). Hydrate to full awemes
@@ -726,6 +735,15 @@ def _parse_json_maybe(value: Any) -> Any:
     return value
 
 
+def _billboard_date_window(date: int) -> int:
+    """Map legacy ingest ``date`` (hours) to TikHub billboard ``date_window``.
+
+    TikHub accepts ``1`` (hourly) and ``24`` (daily). The documented ``2``
+    for daily returns 参数不合法 (verified live 2026-06).
+    """
+    return 1 if int(date) <= 1 else 24
+
+
 def _billboard_rows(data: Any) -> list[dict[str, Any]]:
     """Unwrap a TikHub billboard payload to a list of ranking row dicts."""
     payload = _parse_json_maybe(data)
@@ -735,6 +753,12 @@ def _billboard_rows(data: Any) -> list[dict[str, Any]]:
             payload = inner
         elif isinstance(payload.get("data"), dict):
             payload = payload["data"]
+
+    # Douyin-Billboard inner envelope: {code, data: {page, objs}, message}
+    if isinstance(payload, dict) and isinstance(payload.get("data"), dict):
+        nested = payload["data"]
+        if any(isinstance(nested.get(k), list) for k in ("objs", "obj_list", "list")):
+            payload = nested
 
     if isinstance(payload, list):
         return [r for r in payload if isinstance(r, dict)]

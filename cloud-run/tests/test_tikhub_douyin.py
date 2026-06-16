@@ -187,8 +187,15 @@ async def test_video_billboard_sends_expected_params() -> None:
         "/api/v1/douyin/billboard/fetch_hot_total_video_list",
     )
     assert call.kwargs["json"] == {
-        "page": 2, "page_size": 20, "date_window": 2, "tags": [],
+        "page": 2, "page_size": 20, "date_window": 24, "tags": [],
     }
+
+
+def test_billboard_date_window_maps_daily_to_24_not_2() -> None:
+    assert tikhub_douyin._billboard_date_window(168) == 24
+    assert tikhub_douyin._billboard_date_window(72) == 24
+    assert tikhub_douyin._billboard_date_window(1) == 1
+    assert tikhub_douyin._billboard_date_window(0) == 1
 
 
 def test_extract_billboard_awemes_from_aweme_list() -> None:
