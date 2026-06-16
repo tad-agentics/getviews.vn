@@ -184,12 +184,6 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
               background: "rgba(0,0,0,0.55)",
             }}
           >
-            <p
-              className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-[0.05em]"
-              style={{ color: DOUYIN_SUB_VN_GREEN }}
-            >
-              Sub VN
-            </p>
             <p className="line-clamp-2 text-[11px] font-medium leading-[1.25] text-white">
               &quot;{subText}&quot;
             </p>

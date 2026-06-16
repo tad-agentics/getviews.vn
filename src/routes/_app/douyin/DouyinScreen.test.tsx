@@ -125,7 +125,7 @@ describe("DouyinScreen — D4b §II surface", () => {
       refetch: vi.fn(),
     });
     _renderScreen();
-    expect(screen.getByText(/XU HƯỚNG DOUYIN · DỊCH NGHĨA VIỆT HÓA/)).toBeTruthy();
+    expect(screen.getByText(/XU HƯỚNG DOUYIN · HOOK VIỆT HÓA/)).toBeTruthy();
     expect(screen.getByText(/Xu hướng Douyin/)).toBeTruthy();
     expect(screen.getByText("Wellness video 1")).toBeTruthy();
     expect(screen.getByText("Wellness video 2")).toBeTruthy();
@@ -138,12 +138,12 @@ describe("DouyinScreen — D4b §II surface", () => {
       isPending: false, isError: false, refetch: vi.fn(),
     });
     _renderScreen();
-    // 3 total videos — all have title_vi for the Sub VN band (hero shows "3" twice).
+    // 3 total videos — all have title_vi for the hook overlay (hero shows "3" twice).
     expect(screen.getByText("Video tuyển chọn")).toBeTruthy();
     expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("Có phụ đề VN")).toBeTruthy();
+    expect(screen.getByText("Hook Việt hoá")).toBeTruthy();
     // §II header counter mirrors the visible-grid count.
-    expect(screen.getByText(/3 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
+    expect(screen.getByText(/3 video — Hook Việt hoá sẵn/)).toBeTruthy();
   });
 
   it("filters the grid + hero stats when a niche chip is clicked", () => {
@@ -156,7 +156,7 @@ describe("DouyinScreen — D4b §II surface", () => {
     expect(screen.queryByText("Wellness video 1")).toBeNull();
     expect(screen.queryByText("Wellness video 2")).toBeNull();
     expect(screen.getByText("Tech video 1")).toBeTruthy();
-    expect(screen.getByText(/1 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
+    expect(screen.getByText(/1 video — Hook Việt hoá sẵn/)).toBeTruthy();
     expect(screen.getByText(/mảng tech/)).toBeTruthy();
   });
 
@@ -237,7 +237,7 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     expect(screen.queryByText("Wellness video 1")).toBeNull();
     expect(screen.queryByText("Wellness video 2")).toBeNull();
     expect(screen.getByText("Tech video 1")).toBeTruthy();
-    expect(screen.getByText(/1 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
+    expect(screen.getByText(/1 video — Hook Việt hoá sẵn/)).toBeTruthy();
   });
 
   it("sorts the grid by views DESC when the sort dropdown is changed", () => {
@@ -294,7 +294,7 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     // Click resets back to ALL.
     fireEvent.click(resetLink);
     expect(screen.queryByRole("button", { name: /Xoá bộ lọc/ })).toBeNull();
-    expect(screen.getByText(/3 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
+    expect(screen.getByText(/3 video — Hook Việt hoá sẵn/)).toBeTruthy();
   });
 
   it("auto-applies the user's primary niche when the slug has matches", () => {
@@ -352,7 +352,7 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     _renderScreen();
     expect(screen.queryByText(/Đang lọc theo ngách bạn theo dõi/)).toBeNull();
     // Grid stays at full corpus.
-    expect(screen.getByText(/3 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
+    expect(screen.getByText(/3 video — Hook Việt hoá sẵn/)).toBeTruthy();
   });
 });
 

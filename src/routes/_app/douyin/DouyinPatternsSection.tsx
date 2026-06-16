@@ -226,7 +226,7 @@ function SectionHeader({ meta }: { meta: HeaderMeta }) {
           3 mẫu kịch bản dẫn trước xu hướng Việt Nam
         </h2>
         <p className="m-0 mt-1.5 max-w-[620px] text-xs leading-snug text-[color:var(--gv-ink-3)]">
-          Các cấu trúc nội dung lặp lại hiệu quả trên Douyin, sẵn phụ đề tiếng Việt, kèm lưu ý văn hóa và đánh giá khả năng chuyển thể. Click để xem chi tiết.
+          Các cấu trúc nội dung lặp lại hiệu quả trên Douyin, hook Việt hoá sẵn, kèm lưu ý văn hóa và đánh giá khả năng chuyển thể. Click để xem chi tiết.
         </p>
       </div>
       {freshLabel ? (

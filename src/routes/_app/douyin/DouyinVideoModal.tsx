@@ -25,7 +25,6 @@ import { formatViews } from "@/lib/formatters";
 import { scriptPrefillFromDeeplink } from "@/lib/scriptPrefill";
 
 import {
-  DOUYIN_SUB_VN_GREEN,
   formatDuration,
   formatRisePct,
 } from "./douyinFormatters";
@@ -294,12 +293,6 @@ function DouyinPhonePreview({
             className="pointer-events-none absolute left-2 right-2 z-10 rounded p-1.5 text-center"
             style={{ bottom: 60, background: "rgba(0,0,0,0.55)" }}
           >
-            <p
-              className="gv-mono mb-0.5 text-[11px] gv-kicker tracking-[0.05em]"
-              style={{ color: DOUYIN_SUB_VN_GREEN }}
-            >
-              Sub VN
-            </p>
             <p className="line-clamp-2 text-[11px] font-medium leading-[1.25] text-white">
               &quot;{subVI}&quot;
             </p>

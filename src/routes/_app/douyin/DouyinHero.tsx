@@ -3,13 +3,13 @@ import { memo } from "react";
 /**
  * D4b — Kho Douyin hero block.
  *
- * Dark ink card with corpus stats: video count, Sub VN band coverage,
+ * Dark ink card with corpus stats: video count, hook overlay coverage,
  * and saved-set size.
  */
 
 export type DouyinHeroProps = {
   totalInPool: number;
-  /** Rows with text for the card's Sub VN band (sub_vi, title_vi, or title_zh). */
+  /** Rows with hook overlay text (sub_vi, title_vi, or title_zh). */
   subViCount: number;
   savedCount: number;
   scopeLabel: string | null;
@@ -38,7 +38,7 @@ export const DouyinHero = memo(function DouyinHero({
 
       {/* Kicker */}
       <p className="gv-mono mb-2.5 text-[11px] gv-kicker tracking-[0.06em] text-[color:var(--gv-accent)]">
-        TRUNG QUỐC · XU HƯỚNG DOUYIN · DỊCH NGHĨA VIỆT HÓA · CẬP NHẬT MỖI 24H
+        TRUNG QUỐC · XU HƯỚNG DOUYIN · HOOK VIỆT HÓA · CẬP NHẬT MỖI 24H
       </p>
 
       {/* H1 — accent highlight on "không cần VPN". */}
@@ -48,11 +48,11 @@ export const DouyinHero = memo(function DouyinHero({
       >
         Xu hướng Douyin{" "}
         <span className="text-[color:var(--gv-accent)]">không cần VPN</span> —
-        sẵn phụ đề Việt hóa, xem trước và tự đánh giá chuyển thể.
+        hook được Việt hoá, xem trước và tự đánh giá chuyển thể.
       </h1>
 
       <p className="m-0 mb-5 max-w-[640px] text-[14px] leading-[1.5] text-[color:var(--gv-ink-3)]">
-        {totalInPool} video tuyển chọn từ Douyin · Phụ đề tiếng Việt hiển thị sẵn · Lưu video hay vào kho cá nhân · Bạn tự quyết định format nào phù hợp kênh VN.
+        {totalInPool} video tuyển chọn từ Douyin · Hook Việt hoá hiển thị sẵn · Lưu video hay vào kho cá nhân · Bạn tự quyết định format nào phù hợp kênh VN.
       </p>
 
       {/* Stats grid — 2 cols on mobile (avoid cramping at 360px),
@@ -64,9 +64,9 @@ export const DouyinHero = memo(function DouyinHero({
           sub={scopeLabel ? `mảng ${scopeLabel}` : "tất cả các mảng"}
         />
         <HeroNum
-          label="Có phụ đề VN"
+          label="Hook Việt hoá"
           value={subViCount}
-          sub="sẵn trên thẻ video"
+          sub="trên thẻ video"
         />
         <HeroNum
           label="Đã lưu"

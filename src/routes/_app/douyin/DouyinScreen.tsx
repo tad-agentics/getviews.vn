@@ -227,7 +227,7 @@ function DouyinScreenMain() {
           </p>
           <div className="mb-3.5 flex items-baseline justify-between gap-3">
             <h2 className="gv-tight m-0 text-[22px] font-medium leading-tight text-[color:var(--gv-ink)]">
-              {visibleVideos.length} video — Sẵn phụ đề tiếng Việt
+              {visibleVideos.length} video — Hook Việt hoá sẵn
             </h2>
             {filtersActive ? (
               <button
