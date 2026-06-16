@@ -20,6 +20,7 @@ canonical aweme list. That validates production with zero call cost.
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -172,19 +173,21 @@ async def test_video_statistics_no_deep_fallback_skips_per_id_calls() -> None:
 
 @pytest.mark.asyncio
 async def test_video_billboard_sends_expected_params() -> None:
-    aweme = {"aweme_id": "7350123", "desc": "数码开箱"}
+    aweme = {"aweme_id": "7350123", "desc": "数码开箱", "video": {"play_addr": {}}}
     patcher, client = _patch_async_client(
-        {"GET": _mock_response(_envelope({"aweme_list": [aweme]}))},
+        {"POST": _mock_response(_envelope({"aweme_list": [aweme]}))},
     )
     with patcher:
         out = await tikhub_douyin.fetch_douyin_video_billboard(
             sub_type=1001, date=168, page=2, page_size=20,
         )
     assert [a["aweme_id"] for a in out] == ["7350123"]
-    call = client.get.call_args
-    assert call.args[0].endswith("/api/v1/douyin/web/fetch_video_billboard")
-    assert call.kwargs["params"] == {
-        "date": 168, "page": 2, "page_size": 20, "sub_type": 1001,
+    call = client.post.call_args
+    assert call.args[0].endswith(
+        "/api/v1/douyin/billboard/fetch_hot_total_video_list",
+    )
+    assert call.kwargs["json"] == {
+        "page": 2, "page_size": 20, "date_window": 2, "tags": [],
     }
 
 
@@ -206,6 +209,42 @@ def test_extract_billboard_awemes_from_nested_list_rows() -> None:
     }
     out = tikhub_douyin._extract_billboard_awemes(data)
     assert [a["aweme_id"] for a in out] == ["a", "b"]
+
+
+def test_extract_billboard_awemes_from_objs_item_id_stubs() -> None:
+    """Douyin-Billboard API returns item_id + item_title, not full awemes."""
+    data = {
+        "objs": [
+            {"item_id": "7123456789012345678", "item_title": "数码开箱测评"},
+            {"item_id": "7999999999999999999", "item_title": "美食探店"},
+        ],
+    }
+    out = tikhub_douyin._extract_billboard_awemes(data)
+    assert len(out) == 2
+    assert out[0]["aweme_id"] == "7123456789012345678"
+    assert out[0]["desc"] == "数码开箱测评"
+
+
+def test_extract_billboard_awemes_parses_json_string_data() -> None:
+    inner = json.dumps({"objs": [{"item_id": "123", "item_title": "t"}]})
+    out = tikhub_douyin._extract_billboard_awemes({"data": inner})
+    assert [a["aweme_id"] for a in out] == ["123"]
+
+
+@pytest.mark.asyncio
+async def test_video_billboard_hydrates_stubs_via_multi_info() -> None:
+    stub_payload = {"objs": [{"item_id": "99", "item_title": "数码"}]}
+    full_aweme = {"aweme_id": "99", "desc": "数码", "video": {"play_addr": {}}}
+    patcher, client = _patch_async_client({
+        "POST": [
+            _mock_response(_envelope(stub_payload)),
+            _mock_response(_envelope({"aweme_details": [full_aweme]})),
+        ],
+    })
+    with patcher:
+        out = await tikhub_douyin.fetch_douyin_video_billboard(page=1, page_size=5)
+    assert out == [full_aweme]
+    assert client.post.call_count == 2
 
 
 def test_extract_billboard_awemes_empty_on_unknown_shape() -> None:

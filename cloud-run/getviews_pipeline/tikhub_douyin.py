@@ -381,31 +381,58 @@ async def fetch_douyin_video_billboard(
 ) -> list[dict[str, Any]]:
     """Douyin video hot-list (榜单) — cross-niche viral pool.
 
-    TikHub ``GET /api/v1/douyin/web/fetch_video_billboard``. Returns the
-    flattened aweme dicts (same canonical shape as keyword/hashtag pools)
-    so the ingest pool fetcher can dedupe + niche-filter them uniformly.
+    TikHub retired ``GET /api/v1/douyin/web/fetch_video_billboard`` (404 as
+    of 2026-06). The live route is the Douyin-Billboard API:
 
-    Params (per TikHub docs):
-      • ``sub_type`` — 1001 total / 1002 low-fans-explosion /
-        1003 high-completion / 1004 high-follower-growth / 1005 high-like.
-      • ``date`` — window in hours: 1 / 24 / 72 / 168 (7d).
+      ``POST /api/v1/douyin/billboard/fetch_hot_total_video_list``
 
-    Billboard rows are ranking entries that may nest the aweme under a
-    few keys; ``_extract_billboard_awemes`` is defensive about the shape.
-    Returns ``[]`` on any thin / unexpected payload rather than raising —
-    the billboard is a supplement, never the sole pool.
+    Returns flattened aweme dicts (same canonical shape as keyword/hashtag
+    pools) so the ingest pool fetcher can dedupe + niche-filter uniformly.
+
+    Legacy params kept for call-site stability:
+      • ``date`` — hours window; mapped to ``date_window``: <=1 → hourly (1),
+        else daily (2). TikHub's billboard API does not expose 72h/168h
+        granular windows on this route.
+      • ``sub_type`` — ignored (old web billboard subtype); the billboard
+        API filters via ``tags`` vertical ids instead (we pass empty = all).
+
+    Billboard rows may nest the aweme under several keys;
+    ``_extract_billboard_awemes`` is defensive. Returns ``[]`` on thin /
+    unexpected payloads — billboard is a supplement, never the sole pool.
     """
+    _ = sub_type  # legacy subtype ids (1001–1005) — not on billboard API v2
+    date_window = 1 if int(date) <= 1 else 2
     data = await _tikhub_request(
-        "GET",
-        "/api/v1/douyin/web/fetch_video_billboard",
-        params={
-            "date": date,
+        "POST",
+        "/api/v1/douyin/billboard/fetch_hot_total_video_list",
+        json={
             "page": page,
             "page_size": page_size,
-            "sub_type": sub_type,
+            "date_window": date_window,
+            "tags": [],
         },
     )
-    return _extract_billboard_awemes(data)
+    awemes = _extract_billboard_awemes(data)
+    if not awemes:
+        keys = list(data.keys()) if isinstance(data, dict) else type(data).__name__
+        logger.info("[tikhub] billboard parsed 0 awemes; payload keys=%s", keys)
+        return awemes
+
+    # Ranking rows are often stubs (item_id + title). Hydrate to full awemes
+    # when none of the rows carry a ``video`` block (needed for analysis).
+    stubs_only = all(
+        isinstance(a, dict) and a.get("aweme_id") and not a.get("video")
+        for a in awemes
+    )
+    if stubs_only:
+        ids = [str(a["aweme_id"]) for a in awemes if a.get("aweme_id")]
+        try:
+            full = await fetch_douyin_post_multi_info(ids)
+            if full:
+                return full
+        except ValueError as exc:
+            logger.warning("[tikhub] billboard multi-info hydrate failed: %s", exc)
+    return awemes
 
 
 async def fetch_douyin_hashtag_posts(
@@ -687,52 +714,105 @@ def _extract_awemes(data: Any) -> list[dict[str, Any]]:
     return out
 
 
+def _parse_json_maybe(value: Any) -> Any:
+    """Parse TikHub ``data`` fields that arrive as JSON strings."""
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.startswith("{") or stripped.startswith("["):
+            try:
+                return json.loads(stripped)
+            except json.JSONDecodeError:
+                pass
+    return value
+
+
+def _billboard_rows(data: Any) -> list[dict[str, Any]]:
+    """Unwrap a TikHub billboard payload to a list of ranking row dicts."""
+    payload = _parse_json_maybe(data)
+    if isinstance(payload, dict) and "data" in payload:
+        inner = _parse_json_maybe(payload["data"])
+        if isinstance(inner, (dict, list)):
+            payload = inner
+        elif isinstance(payload.get("data"), dict):
+            payload = payload["data"]
+
+    if isinstance(payload, list):
+        return [r for r in payload if isinstance(r, dict)]
+
+    if not isinstance(payload, dict):
+        return []
+
+    for key in (
+        "objs", "obj_list", "item_list", "list", "video_list",
+        "billboard_list", "items", "aweme_list", "rank_list", "videos",
+    ):
+        v = payload.get(key)
+        if isinstance(v, list):
+            return [r for r in v if isinstance(r, dict)]
+
+    inner = _parse_json_maybe(payload.get("data"))
+    if isinstance(inner, list):
+        return [r for r in inner if isinstance(r, dict)]
+    if isinstance(inner, dict):
+        return _billboard_rows(inner)
+    return []
+
+
+def _row_to_aweme_stub(row: dict[str, Any]) -> dict[str, Any] | None:
+    """Best-effort aweme dict from a billboard ranking row."""
+    for candidate in (
+        row.get("aweme_info"),
+        row.get("aweme"),
+        row.get("item"),
+        row,
+    ):
+        if isinstance(candidate, dict):
+            normalised = aweme_from_feed_item(candidate)
+            if normalised:
+                return normalised
+
+    aid = (
+        row.get("item_id")
+        or row.get("aweme_id")
+        or row.get("itemId")
+        or row.get("gid")
+    )
+    if aid is None:
+        return None
+    aid_str = str(aid).strip()
+    if not aid_str.isdigit():
+        return None
+    desc = (
+        row.get("item_title")
+        or row.get("title")
+        or row.get("desc")
+        or row.get("item_desc")
+        or ""
+    )
+    return {"aweme_id": aid_str, "desc": str(desc)}
+
+
 def _extract_billboard_awemes(data: Any) -> list[dict[str, Any]]:
     """Walk a Douyin video-billboard payload to the list of aweme dicts.
 
-    Billboard endpoints wrap each ranking row differently from the feed
-    endpoints — the aweme can sit at the row root, under ``aweme_info`` /
-    ``item`` / ``aweme``, or the list itself lives under ``list`` /
-    ``video_list`` rather than ``aweme_list``. We try ``_extract_awemes``
-    first (handles ``aweme_list`` / ``data`` list shapes), then fall back
-    to the billboard-specific list keys. Every candidate passes through
-    ``aweme_from_feed_item`` so only rows that actually carry an
-    ``aweme_id`` survive — ranking stubs without a video are dropped.
+    The Douyin-Billboard API (``fetch_hot_total_video_list``) often returns
+    ranking rows with ``item_id`` + ``item_title`` rather than full aweme
+    envelopes. We normalise those into minimal stubs (``aweme_id`` + ``desc``)
+    so niche substring matching still works; ``fetch_douyin_video_billboard``
+    may hydrate stubs to full awemes via ``fetch_douyin_post_multi_info``.
     """
-    primary = _extract_awemes(data)
-    if primary:
-        return primary
-    if not isinstance(data, dict):
-        return []
-    raw: Any = None
-    for key in ("list", "video_list", "billboard_list", "items"):
-        v = data.get(key)
-        if isinstance(v, list):
-            raw = v
-            break
-    if raw is None:
-        inner = data.get("data")
-        if isinstance(inner, dict):
-            for key in ("list", "video_list", "billboard_list", "items"):
-                v = inner.get(key)
-                if isinstance(v, list):
-                    raw = v
-                    break
-    if not isinstance(raw, list):
-        return []
+    rows = _billboard_rows(data)
     out: list[dict[str, Any]] = []
-    for row in raw:
-        if not isinstance(row, dict):
+    seen: set[str] = set()
+    for row in rows:
+        aweme = _row_to_aweme_stub(row)
+        if not aweme:
             continue
-        candidate = (
-            row.get("aweme_info")
-            or row.get("aweme")
-            or row.get("item")
-            or row
-        )
-        normalised = aweme_from_feed_item(candidate)
-        if normalised:
-            out.append(normalised)
+        vid = str(aweme.get("aweme_id") or "")
+        if not vid or vid in seen:
+            continue
+        seen.add(vid)
+        out.append(aweme)
     return out
 
 
