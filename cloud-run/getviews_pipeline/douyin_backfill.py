@@ -145,8 +145,9 @@ async def backfill_douyin_views(
     *,
     limit: int = 100,
 ) -> dict[str, Any]:
-    """Re-fetch ``play_count`` via TikHub post-detail for rows stuck at views=0."""
+    """Re-fetch ``play_count`` via TikHub statistics API for rows at views=0."""
     from getviews_pipeline.douyin_stats_hydrate import aweme_engagement_metrics
+    from getviews_pipeline.tikhub_douyin import fetch_douyin_video_statistics
 
     limit = max(1, min(int(limit), 500))
     res = (
@@ -162,37 +163,26 @@ async def backfill_douyin_views(
         return {"requested": 0, "updated": 0, "failed": 0, "skipped": 0}
 
     video_ids = [str(r["video_id"]) for r in rows if r.get("video_id")]
-    aweme_by_id: dict[str, dict[str, Any]] = {}
-
-    chunk_size = 20
+    stats_by_id: dict[str, dict[str, Any]] = {}
+    chunk_size = 50
     for i in range(0, len(video_ids), chunk_size):
         chunk = video_ids[i : i + chunk_size]
         try:
-            awemes = await fetch_douyin_post_multi_info(chunk)
-            for aweme in awemes:
-                aid = str(aweme.get("aweme_id") or "")
-                if aid:
-                    aweme_by_id[aid] = aweme
+            stats_by_id.update(await fetch_douyin_video_statistics(chunk))
         except Exception as exc:
-            logger.warning("[douyin-views-backfill] multi fetch failed: %s", exc)
+            logger.warning("[douyin-views-backfill] statistics fetch failed: %s", exc)
 
     updated = 0
     failed = 0
     skipped = 0
 
     for vid in video_ids:
-        aweme = aweme_by_id.get(vid)
-        if not aweme:
-            try:
-                aweme = await fetch_douyin_post_info(vid)
-            except Exception as exc:
-                logger.warning(
-                    "[douyin-views-backfill] post info failed %s: %s", vid, exc,
-                )
-                failed += 1
-                continue
+        stats = stats_by_id.get(vid)
+        if not stats:
+            skipped += 1
+            continue
 
-        metrics = aweme_engagement_metrics(aweme)
+        metrics = aweme_engagement_metrics({"statistics": stats})
         if int(metrics["views"]) <= 0:
             skipped += 1
             continue

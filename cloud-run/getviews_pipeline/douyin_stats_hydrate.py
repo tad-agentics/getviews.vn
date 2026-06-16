@@ -1,8 +1,9 @@
-"""Hydrate Douyin aweme ``statistics`` from TikHub post-detail endpoints.
+"""Hydrate Douyin aweme ``statistics`` from TikHub's statistics API.
 
-Keyword/hashtag **search** often returns ``play_count: 0`` while
-``fetch_one_video_v2`` / ``fetch_multi_video`` return the real view
-count. Ingest and backfill call these helpers before persisting metrics.
+Keyword/hashtag **search** and even post-detail endpoints often omit
+``play_count``. TikHub documents
+``GET /api/v1/douyin/app/v3/fetch_multi_video_statistics`` as the
+supported source for play counts on Douyin.
 """
 
 from __future__ import annotations
@@ -10,14 +11,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from getviews_pipeline.tikhub_douyin import (
-    fetch_douyin_post_info,
-    fetch_douyin_post_multi_info,
-)
+from getviews_pipeline.tikhub_douyin import fetch_douyin_video_statistics
 
 logger = logging.getLogger(__name__)
 
-_MULTI_CHUNK = 20
+_STATISTICS_CHUNK = 50
 
 
 def aweme_play_count(aweme: dict[str, Any]) -> int:
@@ -66,56 +64,52 @@ def aweme_engagement_metrics(aweme: dict[str, Any]) -> dict[str, int | float]:
     }
 
 
-def merge_aweme_detail_statistics(
+def merge_aweme_statistics_fields(
     base: dict[str, Any],
-    detail: dict[str, Any],
+    stats: dict[str, Any],
 ) -> dict[str, Any]:
-    """Overlay detail ``statistics`` onto a search aweme (shallow copy)."""
+    """Overlay statistics fields onto a search aweme (shallow copy)."""
     merged = dict(base)
-    detail_stats = detail.get("statistics")
-    if isinstance(detail_stats, dict) and detail_stats:
+    if stats:
         merged["statistics"] = {
             **(base.get("statistics") or {}),
-            **detail_stats,
+            **stats,
         }
     return merged
+
+
+async def _fetch_statistics_map(aweme_ids: list[str]) -> dict[str, dict[str, Any]]:
+    stats_by_id: dict[str, dict[str, Any]] = {}
+    for i in range(0, len(aweme_ids), _STATISTICS_CHUNK):
+        chunk = aweme_ids[i : i + _STATISTICS_CHUNK]
+        try:
+            stats_by_id.update(await fetch_douyin_video_statistics(chunk))
+        except Exception as exc:
+            logger.warning(
+                "[douyin-stats] statistics fetch failed for chunk %s: %s",
+                chunk[:3],
+                exc,
+            )
+    return stats_by_id
 
 
 async def hydrate_awemes_statistics(
     awemes: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Return awemes with post-detail statistics merged where needed."""
+    """Return awemes with TikHub statistics merged where play_count was missing."""
     if not awemes:
         return []
 
-    by_id: dict[str, dict[str, Any]] = {}
     need_ids: list[str] = []
     for aweme in awemes:
         vid = str(aweme.get("aweme_id") or "").strip()
-        if not vid:
-            continue
-        by_id[vid] = aweme
-        if aweme_statistics_need_hydration(aweme):
+        if vid and aweme_statistics_need_hydration(aweme):
             need_ids.append(vid)
 
     if not need_ids:
         return list(awemes)
 
-    detail_by_id: dict[str, dict[str, Any]] = {}
-    for i in range(0, len(need_ids), _MULTI_CHUNK):
-        chunk = need_ids[i : i + _MULTI_CHUNK]
-        try:
-            details = await fetch_douyin_post_multi_info(chunk)
-            for detail in details:
-                did = str(detail.get("aweme_id") or "").strip()
-                if did:
-                    detail_by_id[did] = detail
-        except Exception as exc:
-            logger.warning(
-                "[douyin-stats] multi fetch failed for chunk %s: %s",
-                chunk[:3],
-                exc,
-            )
+    stats_by_id = await _fetch_statistics_map(need_ids)
 
     out: list[dict[str, Any]] = []
     for aweme in awemes:
@@ -124,21 +118,16 @@ async def hydrate_awemes_statistics(
             out.append(aweme)
             continue
 
-        detail = detail_by_id.get(vid)
-        if detail is None:
-            try:
-                detail = await fetch_douyin_post_info(vid)
-            except Exception as exc:
-                logger.warning(
-                    "[douyin-stats] post info failed for %s: %s", vid, exc,
-                )
-                out.append(aweme)
-                continue
+        stats = stats_by_id.get(vid)
+        if not stats:
+            logger.debug("[douyin-stats] no statistics payload for %s", vid)
+            out.append(aweme)
+            continue
 
-        hydrated = merge_aweme_detail_statistics(aweme, detail)
+        hydrated = merge_aweme_statistics_fields(aweme, stats)
         if aweme_play_count(hydrated) <= 0:
             logger.debug(
-                "[douyin-stats] %s still play_count=0 after detail fetch", vid,
+                "[douyin-stats] %s still play_count=0 after statistics fetch", vid,
             )
         out.append(hydrated)
 

@@ -117,6 +117,46 @@ async def test_post_info_unwraps_data_when_aweme_lives_at_root() -> None:
     assert result == aweme
 
 
+# ── Public API: fetch_douyin_video_statistics ─────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_video_statistics_batches_aweme_ids() -> None:
+    patcher, client = _patch_async_client(
+        {
+            "GET": _mock_response(
+                _envelope(
+                    {
+                        "7350123": {
+                            "play_count": 1_200_000,
+                            "digg_count": 50_000,
+                        },
+                    },
+                ),
+            ),
+        },
+    )
+    with patcher:
+        out = await tikhub_douyin.fetch_douyin_video_statistics(["7350123", "999"])
+    assert out["7350123"]["play_count"] == 1_200_000
+    call = client.get.call_args
+    assert call.args[0].endswith(
+        "/api/v1/douyin/app/v3/fetch_multi_video_statistics",
+    )
+    assert call.kwargs["params"] == {"aweme_ids": "7350123,999"}
+
+
+def test_parse_video_statistics_payload_handles_list_shape() -> None:
+    out = tikhub_douyin._parse_video_statistics_payload(
+        [
+            {"aweme_id": "1", "play_count": 100, "digg_count": 10},
+            {"aweme_id": "2", "play_count": 200, "digg_count": 20},
+        ],
+    )
+    assert out["1"]["play_count"] == 100
+    assert out["2"]["play_count"] == 200
+
+
 # ── Public API: fetch_douyin_post_multi_info ───────────────────────────
 
 

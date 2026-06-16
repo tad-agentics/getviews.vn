@@ -50,6 +50,7 @@ What it deliberately re-uses:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 from typing import Any
@@ -449,7 +450,95 @@ async def fetch_douyin_user_posts(
     return out
 
 
+_STATISTICS_CHUNK = 50
+
+
+async def fetch_douyin_video_statistics(
+    aweme_ids: list[str],
+) -> dict[str, dict[str, Any]]:
+    """Batch play_count / digg_count via TikHub's dedicated statistics route.
+
+    Douyin web/search endpoints often omit ``play_count``; TikHub documents
+    that this App V3 statistics endpoint is the supported source.
+    Returns ``aweme_id → statistics`` dicts (play_count, digg_count, …).
+    """
+    cleaned = [a.strip() for a in (aweme_ids or []) if a and a.strip()]
+    if not cleaned:
+        return {}
+
+    out: dict[str, dict[str, Any]] = {}
+    for i in range(0, len(cleaned), _STATISTICS_CHUNK):
+        chunk = cleaned[i : i + _STATISTICS_CHUNK]
+        data = await _tikhub_request(
+            "GET",
+            "/api/v1/douyin/app/v3/fetch_multi_video_statistics",
+            params={"aweme_ids": ",".join(chunk)},
+        )
+        out.update(_parse_video_statistics_payload(data))
+    return out
+
+
 # ── Helpers ──────────────────────────────────────────────────────────
+
+
+def _parse_video_statistics_payload(data: Any) -> dict[str, dict[str, Any]]:
+    """Normalise TikHub statistics payloads to ``aweme_id → stats``."""
+    payload = data
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except json.JSONDecodeError:
+            return {}
+    if isinstance(payload, dict) and isinstance(payload.get("data"), (list, dict)):
+        inner = payload.get("data")
+        if inner is not None:
+            payload = inner
+
+    out: dict[str, dict[str, Any]] = {}
+
+    def _normalise_stats(raw: dict[str, Any]) -> dict[str, Any]:
+        return {
+            k: raw[k]
+            for k in (
+                "play_count",
+                "playCount",
+                "digg_count",
+                "diggCount",
+                "comment_count",
+                "share_count",
+                "collect_count",
+                "download_count",
+            )
+            if k in raw
+        }
+
+    def _ingest(aweme_id: str, raw: dict[str, Any]) -> None:
+        aid = (aweme_id or "").strip()
+        if not aid or not isinstance(raw, dict):
+            return
+        stats = raw.get("statistics") if isinstance(raw.get("statistics"), dict) else raw
+        normalised = _normalise_stats(stats)
+        if normalised:
+            out[aid] = normalised
+
+    if isinstance(payload, list):
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            _ingest(str(item.get("aweme_id") or item.get("item_id") or ""), item)
+    elif isinstance(payload, dict):
+        for key, value in payload.items():
+            if not isinstance(value, dict):
+                continue
+            if str(key).isdigit():
+                _ingest(str(key), value)
+            else:
+                _ingest(str(value.get("aweme_id") or value.get("item_id") or ""), value)
+        if not out:
+            for item in payload.get("statistics_list") or []:
+                if isinstance(item, dict):
+                    _ingest(str(item.get("aweme_id") or ""), item)
+    return out
 
 
 def _extract_awemes(data: Any) -> list[dict[str, Any]]:
