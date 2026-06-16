@@ -94,29 +94,19 @@ afterEach(() => {
 
 
 describe("DouyinVideoModal — populated row", () => {
-  it("renders title VN, title ZH, the 2x2 stats grid, the adapt strip and 2 translator notes", () => {
+  it("renders title VN, title ZH, the 2x2 stats grid, and translator notes", () => {
     _renderModal({ video: _video() });
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByText("3 việc trước khi ngủ")).toBeTruthy();
     expect(screen.getByText("睡前3件事")).toBeTruthy();
-    // D7 — stats grid is now VIEW / SAVE / TĂNG 14N / THỜI LƯỢNG
-    // (design pack ``screens/douyin.jsx`` lines 1078-1086).
-    // formatViews keeps one decimal: "1.2M" / "14.0K".
-    expect(screen.getByText("1.2M")).toBeTruthy(); // views
-    expect(screen.getByText("14.0K")).toBeTruthy(); // saves
-    expect(screen.getByText("0:30")).toBeTruthy(); // duration (30s → 0:30)
-    // Adapt strip
-    expect(screen.getByText(/Khả năng chuyển thể về Việt Nam/)).toBeTruthy();
-    expect(screen.getByText("Dịch thẳng")).toBeTruthy();
-    expect(screen.getByText(/Routine ngủ phù hợp/)).toBeTruthy();
-    expect(screen.getByText("2–4 tuần")).toBeTruthy();
-    // The +35% rise appears in the stats grid (TĂNG 14N) AND in the
-    // adapt strip "Đà ở CN" cell — both source the same cn_rise_pct.
+    expect(screen.getByText("1.2M")).toBeTruthy();
+    expect(screen.getByText("14.0K")).toBeTruthy();
+    expect(screen.getByText("0:30")).toBeTruthy();
     expect(screen.getAllByText("+35%").length).toBeGreaterThanOrEqual(1);
-    // Translator notes — 2 rows + tags
     expect(screen.getByText(/Chú thích văn hóa \(2\)/)).toBeTruthy();
     expect(screen.getByText("TỪ NGỮ")).toBeTruthy();
     expect(screen.getByText("BỐI CẢNH")).toBeTruthy();
+    expect(screen.queryByText(/Khả năng chuyển thể về Việt Nam/)).toBeNull();
   });
 
   it("navigates to /app/answer with composer prefill on Adapt CTA click", () => {
@@ -166,22 +156,16 @@ describe("DouyinVideoModal — populated row", () => {
 });
 
 
-describe("DouyinVideoModal — pending / sparse rows", () => {
-  it("renders the CHỜ chip and suppresses ETA / cn_rise / translator notes when synth hasn't graded the row", () => {
+describe("DouyinVideoModal — sparse rows", () => {
+  it("omits translator notes section when the list is empty", () => {
     _renderModal({
       video: _video({
-        adapt_level: null,
-        adapt_reason: null,
-        eta_weeks_min: null,
-        eta_weeks_max: null,
         cn_rise_pct: null,
         translator_notes: [],
       }),
     });
-    expect(screen.getByText("CHỜ")).toBeTruthy();
-    expect(screen.queryByText(/ETA về VN/)).toBeNull();
-    expect(screen.queryByText(/Đà ở CN/)).toBeNull();
-    expect(screen.queryByText(/Note văn hoá/)).toBeNull();
+    expect(screen.queryByText(/Chú thích văn hóa/)).toBeNull();
+    expect(screen.queryByText(/Khả năng chuyển thể/)).toBeNull();
   });
 
   it("hides 'Mở trên Douyin' when douyin_url is missing", () => {

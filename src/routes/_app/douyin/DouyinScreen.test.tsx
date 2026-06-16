@@ -77,9 +77,9 @@ function _feed(overrides: Partial<DouyinFeedResponse> = {}): DouyinFeedResponse 
       { id: 2, slug: "tech", name_vn: "Tech", name_zh: "科技", name_en: "Tech" },
     ],
     videos: [
-      _video({ video_id: "w1", niche_id: 1, title_vi: "Wellness video 1", adapt_level: "green" }),
-      _video({ video_id: "w2", niche_id: 1, title_vi: "Wellness video 2", adapt_level: "yellow" }),
-      _video({ video_id: "t1", niche_id: 2, title_vi: "Tech video 1", adapt_level: "green" }),
+      _video({ video_id: "w1", niche_id: 1, title_vi: "Wellness video 1", sub_vi: "Sub w1" }),
+      _video({ video_id: "w2", niche_id: 1, title_vi: "Wellness video 2" }),
+      _video({ video_id: "t1", niche_id: 2, title_vi: "Tech video 1", sub_vi: "Sub t1" }),
     ],
     ...overrides,
   };
@@ -138,11 +138,10 @@ describe("DouyinScreen — D4b §II surface", () => {
       isPending: false, isError: false, refetch: vi.fn(),
     });
     _renderScreen();
-    // 3 total videos, 2 green (w1 + t1).
+    // 3 total videos — all have title_vi for the Sub VN band (hero shows "3" twice).
     expect(screen.getByText("Video tuyển chọn")).toBeTruthy();
-    expect(screen.getByText("3")).toBeTruthy();
-    expect(screen.getByText("Dễ chuyển thể (Xanh)")).toBeTruthy();
-    expect(screen.getByText("2")).toBeTruthy();
+    expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Có phụ đề VN")).toBeTruthy();
     // §II header counter mirrors the visible-grid count.
     expect(screen.getByText(/3 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
   });
@@ -241,27 +240,6 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     expect(screen.getByText(/1 video — Sẵn phụ đề tiếng Việt/)).toBeTruthy();
   });
 
-  it("filters the grid via an adapt-level chip and excludes pending rows", () => {
-    useDouyinFeed.mockReturnValue({
-      data: _feed({
-        videos: [
-          _video({ video_id: "g1", niche_id: 1, adapt_level: "green", title_vi: "Green only" }),
-          _video({ video_id: "y1", niche_id: 1, adapt_level: "yellow", title_vi: "Yellow only" }),
-          _video({ video_id: "p1", niche_id: 1, adapt_level: null, title_vi: "Pending only" }),
-        ],
-      }),
-      isPending: false, isError: false, refetch: vi.fn(),
-    });
-    _renderScreen();
-    // The card adapt-chip text is also "XANH" inside an article[role=
-    // button], so exact-name match is required to hit the toolbar chip.
-    fireEvent.click(screen.getByRole("button", { name: "XANH" }));
-    expect(screen.getByText("Green only")).toBeTruthy();
-    expect(screen.queryByText("Yellow only")).toBeNull();
-    // Pending rows ARE excluded from level chips by design.
-    expect(screen.queryByText("Pending only")).toBeNull();
-  });
-
   it("sorts the grid by views DESC when the sort dropdown is changed", () => {
     useDouyinFeed.mockReturnValue({
       data: _feed({
@@ -308,7 +286,9 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     });
     _renderScreen();
     expect(screen.queryByRole("button", { name: /Xoá bộ lọc/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "XANH" }));
+    fireEvent.change(screen.getByLabelText(/Tìm trong Kho Douyin/), {
+      target: { value: "wellness" },
+    });
     const resetLink = screen.getByRole("button", { name: /Xoá bộ lọc/ });
     expect(resetLink).toBeTruthy();
     // Click resets back to ALL.

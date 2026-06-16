@@ -21,6 +21,7 @@ import { DouyinPatternsSection } from "./DouyinPatternsSection";
 import { DouyinToolbar } from "./DouyinToolbar";
 import { DouyinVideoCard } from "./DouyinVideoCard";
 import { DouyinVideoModal } from "./DouyinVideoModal";
+import { douyinCardSubText } from "./douyinFormatters";
 import {
   INITIAL_FILTERS,
   applyFiltersAndSort,
@@ -150,7 +151,7 @@ function DouyinScreenMain() {
         : allVideos.filter((v) => v.niche_id === activeNicheId);
     return {
       totalInPool: pool.length,
-      greenCount: pool.filter((v) => v.adapt_level === "green").length,
+      subViCount: pool.filter((v) => Boolean(douyinCardSubText(v))).length,
     };
   }, [allVideos, activeNicheId]);
 
@@ -206,7 +207,7 @@ function DouyinScreenMain() {
         <main className="mx-auto w-full max-w-[1400px] px-5 pb-20 pt-6 sm:px-7">
           <DouyinHero
             totalInPool={heroStats.totalInPool}
-            greenCount={heroStats.greenCount}
+            subViCount={heroStats.subViCount}
             savedCount={savedCount}
             scopeLabel={scopeLabel}
           />

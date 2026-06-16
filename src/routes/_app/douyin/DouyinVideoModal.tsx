@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { Btn } from "@/components/v2/Btn";
 import type {
-  DouyinAdaptLevel,
   DouyinTranslatorNote,
   DouyinVideo,
 } from "@/lib/api-types";
@@ -26,31 +25,16 @@ import { formatViews } from "@/lib/formatters";
 import { scriptPrefillFromDeeplink } from "@/lib/scriptPrefill";
 
 import {
-  ADAPT_META,
   DOUYIN_SUB_VN_GREEN,
-  PENDING_ADAPT_META,
   formatDuration,
-  formatEtaWeeks,
   formatRisePct,
 } from "./douyinFormatters";
 
 /**
- * D4d (2026-06-04) — Kho Douyin · video modal.
+ * D4d — Kho Douyin · video modal.
  *
- * Per design pack ``screens/douyin.jsx`` lines 949-1240. Two-column
- * shell:
- *   • Left: 9:16 phone preview with thumbnail / overlays / Sub VN band.
- *   • Right: title VN + ZH, mini stat grid, adapt strip with reason +
- *           ETA + cn_rise_pct, NOTE VĂN HOÁ section (one row per
- *           translator note tagged TỪ NGỮ / BỐI CẢNH / NHẠC NỀN /
- *           ĐẠO CỤ / KHÔNG LỜI / TITLE), and a 3-button CTA row.
- *
- * The "Adapt sang VN → Kịch bản" CTA opens Answer composer via
- * ``scriptPrefillFromDeeplink`` (``topic`` + ``hook`` from Douyin metadata).
- *
- * Synth-pending rows (``adapt_level=null``) render the CHỜ chip and
- * suppress the reason / ETA / cn_rise lines + translator notes section
- * — they have no graded content yet.
+ * Two-column shell: phone preview (R2 playback or thumb) + stats,
+ * translator notes, and CTAs (lưu / mở Douyin / chuyển thể → Kịch bản).
  */
 
 export type DouyinVideoModalProps = {
@@ -72,8 +56,8 @@ export const DouyinVideoModal = memo(function DouyinVideoModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="!max-w-[960px] gap-0 overflow-hidden border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-0"
-        onInteractOutside={() => onOpenChange(false)}
+        overlayClassName="z-[400]"
+        className="!z-[401] !max-w-[960px] gap-0 overflow-hidden border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-0"
       >
         {video ? (
           <DouyinVideoModalBody
@@ -163,7 +147,6 @@ function DouyinVideoModalBody({
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
           <StatsGrid video={video} />
-          <AdaptStrip video={video} />
           <TranslatorNotesSection notes={video.translator_notes} />
         </div>
 
@@ -405,79 +388,6 @@ function Stat({
         {value}
       </p>
     </div>
-  );
-}
-
-
-// ── Adapt strip ─────────────────────────────────────────────────────
-
-
-function AdaptStrip({ video }: { video: DouyinVideo }) {
-  const meta =
-    video.adapt_level !== null
-      ? ADAPT_META[video.adapt_level as DouyinAdaptLevel]
-      : null;
-  const eta = formatEtaWeeks(video.eta_weeks_min, video.eta_weeks_max);
-  const rise = formatRisePct(video.cn_rise_pct);
-
-  return (
-    <section
-      className="mb-5 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4"
-      aria-label="Đánh giá khả năng chuyển thể về Việt Nam"
-    >
-      <p className="gv-mono mb-2 text-[11px] font-semibold gv-kicker tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
-        Khả năng chuyển thể về Việt Nam
-      </p>
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span
-          className={
-            "gv-mono inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] " +
-            (meta ? meta.toneClass : PENDING_ADAPT_META.toneClass)
-          }
-          data-adapt-level={video.adapt_level ?? "pending"}
-        >
-          <span aria-hidden className="block h-1 w-1 rounded-full bg-current" />
-          {meta ? meta.short : "CHỜ"}
-        </span>
-        <span className="text-[12px] text-[color:var(--gv-ink-2)]">
-          {meta ? meta.label : "Đang chờ duyệt — Hệ thống đang đánh giá cho video này."}
-        </span>
-      </div>
-
-      {video.adapt_reason ? (
-        <p className="mb-2 text-sm leading-snug text-[color:var(--gv-ink-2)]">
-          {video.adapt_reason}
-        </p>
-      ) : null}
-
-      {(eta || rise) && video.adapt_level !== null ? (
-        <dl className="mt-2 grid grid-cols-2 gap-3 text-[11px]">
-          {eta ? (
-            <div>
-              <dt className="gv-kicker text-[color:var(--gv-ink-4)]">
-                Thời gian về Việt Nam
-              </dt>
-              <dd className="gv-mono mt-0.5 text-[12px] text-[color:var(--gv-ink)]">
-                {eta}
-              </dd>
-            </div>
-          ) : null}
-          {rise ? (
-            <div>
-              <dt className="gv-kicker text-[color:var(--gv-ink-4)]">
-                Đà tăng tại Trung Quốc (14 ngày)
-              </dt>
-              <dd
-                className="gv-mono mt-0.5 text-[12px]"
-                style={{ color: "var(--gv-pos-deep)" }}
-              >
-                {rise}
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-      ) : null}
-    </section>
   );
 }
 

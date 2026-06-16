@@ -1,29 +1,23 @@
 import { memo } from "react";
 
 /**
- * D4b (2026-06-04) — Kho Douyin hero block.
+ * D4b — Kho Douyin hero block.
  *
- * Per design pack ``screens/douyin.jsx`` lines 530-564: dark ink card,
- * faint 抖音 watermark in the top-right, accent-highlighted serif H1,
- * 3 hero stats grid (VIDEO TRONG KHO / DỄ ADAPT (XANH) / ĐÃ LƯU).
- *
- * Stats are passed in by the parent screen — the saved count comes
- * from ``useDouyinSavedSet``, the corpus + green counts come from
- * filtering ``useDouyinFeed`` data.
+ * Dark ink card with corpus stats: video count, Sub VN band coverage,
+ * and saved-set size.
  */
 
 export type DouyinHeroProps = {
   totalInPool: number;
-  greenCount: number;
+  /** Rows with text for the card's Sub VN band (sub_vi, title_vi, or title_zh). */
+  subViCount: number;
   savedCount: number;
-  /** When set, the niche-filter chip strip is active so the hero
-   *  ``sub`` reads "ngách <label>" instead of "tất cả ngách". */
   scopeLabel: string | null;
 };
 
 export const DouyinHero = memo(function DouyinHero({
   totalInPool,
-  greenCount,
+  subViCount,
   savedCount,
   scopeLabel,
 }: DouyinHeroProps) {
@@ -54,12 +48,11 @@ export const DouyinHero = memo(function DouyinHero({
       >
         Xu hướng Douyin{" "}
         <span className="text-[color:var(--gv-accent)]">không cần VPN</span> —
-        sẵn phụ đề Việt hóa, đánh giá khả năng chuyển thể.
+        sẵn phụ đề Việt hóa, xem trước và tự đánh giá chuyển thể.
       </h1>
 
-      {/* Caption */}
       <p className="m-0 mb-5 max-w-[640px] text-[14px] leading-[1.5] text-[color:var(--gv-ink-3)]">
-        {totalInPool} video tuyển chọn từ Douyin · Phụ đề tiếng Việt hiển thị sẵn · Lưu ý văn hóa bổ ích · Đánh giá mức độ khả thi Xanh / Vàng / Đỏ khi chuyển thể về Việt Nam.
+        {totalInPool} video tuyển chọn từ Douyin · Phụ đề tiếng Việt hiển thị sẵn · Lưu video hay vào kho cá nhân · Bạn tự quyết định format nào phù hợp kênh VN.
       </p>
 
       {/* Stats grid — 2 cols on mobile (avoid cramping at 360px),
@@ -71,9 +64,9 @@ export const DouyinHero = memo(function DouyinHero({
           sub={scopeLabel ? `mảng ${scopeLabel}` : "tất cả các mảng"}
         />
         <HeroNum
-          label="Dễ chuyển thể (Xanh)"
-          value={greenCount}
-          sub="sử dụng được ngay"
+          label="Có phụ đề VN"
+          value={subViCount}
+          sub="sẵn trên thẻ video"
         />
         <HeroNum
           label="Đã lưu"

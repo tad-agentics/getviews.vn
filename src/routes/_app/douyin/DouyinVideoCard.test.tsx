@@ -1,14 +1,5 @@
 /**
- * D4b (2026-06-04) — DouyinVideoCard tests.
- *
- * Targets:
- *   • Renders the card body (title VN + title ZH + adapt chip + relative time).
- *   • Save toggle stops propagation + calls onToggleSave.
- *   • Card click calls onOpen when provided; falls back to opening
- *     douyin_url in a new tab when not.
- *   • Adapt chip uses the right tone class per level + falls back to
- *     "ĐANG CHỜ DUYỆT" for null adapt_level.
- *   • Hides duration / sub band / handle / rise when their data is missing.
+ * D4b — DouyinVideoCard tests.
  */
 
 import React from "react";
@@ -67,7 +58,7 @@ describe("DouyinVideoCard", () => {
     expect(screen.getByText("睡前3件事")).toBeTruthy();
     expect(screen.getByText(/3 việc trước khi ngủ/)).toBeTruthy();
     expect(screen.getByText(/抖音 @alice/)).toBeTruthy();
-    expect(screen.getByText(/4\.1M/)).toBeTruthy();
+    expect(screen.getByText(/4\.1M view/)).toBeTruthy();
     expect(screen.getByText(/\+240%/)).toBeTruthy();
     expect(screen.getByText("0:51")).toBeTruthy();
   });
@@ -108,48 +99,26 @@ describe("DouyinVideoCard", () => {
     expect(screen.queryByText(/\+\d+%/)).toBeNull();
   });
 
-  it("renders 'CHỜ' chip when adapt_level is null", () => {
+  it("shows em dash for zero views", () => {
     render(
       <DouyinVideoCard
-        video={_video({ adapt_level: null })}
+        video={_video({ views: 0 })}
         saved={false}
         onToggleSave={vi.fn()}
       />,
     );
-    expect(screen.getByText("CHỜ")).toBeTruthy();
+    expect(screen.getByText(/— view/)).toBeTruthy();
   });
 
-  it("renders 'XANH' chip when adapt_level is green", () => {
+  it("renders a video element for hover preview when playback_url is present", () => {
     render(
       <DouyinVideoCard
-        video={_video({ adapt_level: "green" })}
+        video={_video({ playback_url: "https://r2.example/videos/v1.mp4" })}
         saved={false}
         onToggleSave={vi.fn()}
       />,
     );
-    expect(screen.getByText("XANH")).toBeTruthy();
-  });
-
-  it("renders 'VÀNG' chip when adapt_level is yellow", () => {
-    render(
-      <DouyinVideoCard
-        video={_video({ adapt_level: "yellow" })}
-        saved={false}
-        onToggleSave={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("VÀNG")).toBeTruthy();
-  });
-
-  it("renders 'ĐỎ' chip when adapt_level is red", () => {
-    render(
-      <DouyinVideoCard
-        video={_video({ adapt_level: "red" })}
-        saved={false}
-        onToggleSave={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("ĐỎ")).toBeTruthy();
+    expect(document.querySelector("video")).toBeTruthy();
   });
 
   it("save toggle calls onToggleSave with video_id and stops propagation", () => {
@@ -165,7 +134,6 @@ describe("DouyinVideoCard", () => {
     );
     fireEvent.click(screen.getByLabelText(/Lưu vào kho/));
     expect(onToggleSave).toHaveBeenCalledWith("v1");
-    // Click did NOT bubble to the card click handler.
     expect(onOpen).not.toHaveBeenCalled();
   });
 

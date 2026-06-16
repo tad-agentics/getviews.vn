@@ -64,7 +64,6 @@ describe("douyinFilters · hasAnyFilter", () => {
   it("returns true when any field deviates", () => {
     expect(hasAnyFilter({ ...INITIAL_FILTERS, nicheSlug: "tech" })).toBe(true);
     expect(hasAnyFilter({ ...INITIAL_FILTERS, search: "abc" })).toBe(true);
-    expect(hasAnyFilter({ ...INITIAL_FILTERS, adaptLevel: "green" })).toBe(true);
     expect(hasAnyFilter({ ...INITIAL_FILTERS, sort: "views" })).toBe(true);
     expect(hasAnyFilter({ ...INITIAL_FILTERS, savedOnly: true })).toBe(true);
   });
@@ -110,23 +109,7 @@ describe("douyinFilters · applyFilters", () => {
     expect(out).toHaveLength(4);
   });
 
-  it("filters by adapt level — pending rows are excluded from level chips", () => {
-    const greenOnly = applyFilters(
-      videos,
-      { ...INITIAL_FILTERS, adaptLevel: "green" },
-      { slugToNicheId, savedIds: new Set() },
-    );
-    expect(greenOnly.map((v) => v.video_id)).toEqual(["w1", "t1"]);
-
-    const yellowOnly = applyFilters(
-      videos,
-      { ...INITIAL_FILTERS, adaptLevel: "yellow" },
-      { slugToNicheId, savedIds: new Set() },
-    );
-    expect(yellowOnly.map((v) => v.video_id)).toEqual(["w2"]);
-  });
-
-  it("filters by case-insensitive substring across title_vi / title_zh / creator_handle / adapt_reason", () => {
+  it("filters by case-insensitive substring across title_vi / title_zh / creator_handle", () => {
     const yogaOnly = applyFilters(
       videos,
       { ...INITIAL_FILTERS, search: "YOGA" },
@@ -151,13 +134,12 @@ describe("douyinFilters · applyFilters", () => {
     expect(out.map((v) => v.video_id)).toEqual(["w1", "p1"]);
   });
 
-  it("composes filters AND-style (niche + adapt + search)", () => {
+  it("composes filters AND-style (niche + search)", () => {
     const out = applyFilters(
       videos,
       {
         ...INITIAL_FILTERS,
         nicheSlug: "tech",
-        adaptLevel: "green",
         search: "iphone",
       },
       { slugToNicheId, savedIds: new Set() },
@@ -226,15 +208,15 @@ describe("douyinFilters · sortVideos", () => {
 describe("douyinFilters · applyFiltersAndSort", () => {
   it("filters first, then sorts the survivors", () => {
     const videos = [
-      _video({ video_id: "w1", niche_id: 1, adapt_level: "green", cn_rise_pct: 80 }),
-      _video({ video_id: "w2", niche_id: 1, adapt_level: "yellow", cn_rise_pct: 90 }),
-      _video({ video_id: "w3", niche_id: 1, adapt_level: "green", cn_rise_pct: 50 }),
+      _video({ video_id: "w1", niche_id: 1, cn_rise_pct: 80 }),
+      _video({ video_id: "w2", niche_id: 1, cn_rise_pct: 90 }),
+      _video({ video_id: "w3", niche_id: 1, cn_rise_pct: 50 }),
     ];
     const out = applyFiltersAndSort(
       videos,
-      { ...INITIAL_FILTERS, adaptLevel: "green", sort: "rise" },
+      { ...INITIAL_FILTERS, nicheSlug: "wellness", sort: "rise" },
       { slugToNicheId, savedIds: new Set() },
     );
-    expect(out.map((v) => v.video_id)).toEqual(["w1", "w3"]);
+    expect(out.map((v) => v.video_id)).toEqual(["w2", "w1", "w3"]);
   });
 });

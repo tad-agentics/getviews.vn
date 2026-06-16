@@ -50,14 +50,17 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  overlayClassName,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   /** Radix default close — set false when the shell renders its own (e.g. PatternModal). */
   showCloseButton?: boolean;
+  /** Optional overlay stack class (e.g. ``z-[400]`` above AppLayout chrome). */
+  overlayClassName?: string;
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
