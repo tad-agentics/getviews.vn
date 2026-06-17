@@ -442,6 +442,8 @@ def _fetch_latest_calibration(
     scope: str,
     content_class_id: int | None,
 ) -> dict[str, Any] | None:
+    if client is None:
+        return None
     q = (
         client.table("signal_calibration")
         .select(
@@ -465,6 +467,8 @@ def _fetch_latest_predictive(
     signal_type: str,
     content_class_id: int | None,
 ) -> dict[str, Any] | None:
+    if client is None:
+        return None
     q = (
         client.table("signal_predictive_value")
         .select("predictive_rho,sample_size,computed_at")
@@ -484,7 +488,12 @@ def _fetch_latest_predictive(
 def _service_client_cached() -> Any:
     from getviews_pipeline.supabase_client import get_service_client
 
-    return get_service_client()
+    try:
+        return get_service_client()
+    except Exception:  # noqa: BLE001
+        # No Supabase env / unreachable → degrade to static weights rather than
+        # crash the diagnosis manifest. Calibration is an enhancement layer.
+        return None
 
 
 def _clear_reader_caches() -> None:

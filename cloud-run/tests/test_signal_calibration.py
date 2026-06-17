@@ -17,6 +17,7 @@ from getviews_pipeline.signal_calibration import (
     _ttl_cache,
     adopt_guard,
     build_calibration_priors,
+    calibration_row_for_class,
     run_signal_calibration,
     signal_salience_multiplier,
     simplex_weights,
@@ -134,6 +135,37 @@ def test_viral_score_weights_ladder_class_then_global() -> None:
     ):
         assert viral_score_weights(7) == (0.6, 0.25, 0.15)
         assert viral_score_weights(99) == (W_HOOK, W_FORMAT, W_TIME)
+
+
+@patch.object(settings, "signal_calibration_adaptive", True)
+def test_readers_degrade_to_static_when_client_unavailable() -> None:
+    """Flag ON but no Supabase client (missing env / unreachable) must NOT crash
+    the manifest — readers fall back to static weights / None. Guards the
+    2026-06-16 cloud-run pytest regression (get_service_client raised ValueError
+    on unset SUPABASE_URL, crashing every manifest-building test)."""
+    viral_score_weights.cache_clear()
+    calibration_row_for_class.cache_clear()
+    with patch(
+        "getviews_pipeline.signal_calibration._service_client_cached",
+        return_value=None,
+    ):
+        assert viral_score_weights(7) == (W_HOOK, W_FORMAT, W_TIME)
+        assert calibration_row_for_class(7) is None
+        assert build_calibration_priors(7) is None
+
+
+@patch.object(settings, "signal_calibration_adaptive", True)
+def test_service_client_cached_swallows_missing_env() -> None:
+    """get_service_client() raising (unset SUPABASE_URL) → None, not a crash."""
+    from getviews_pipeline import signal_calibration as sc
+
+    sc._service_client_cached.cache_clear()
+    with patch(
+        "getviews_pipeline.supabase_client.get_service_client",
+        side_effect=ValueError("Environment variable 'SUPABASE_URL' is not set"),
+    ):
+        assert sc._service_client_cached() is None
+    sc._service_client_cached.cache_clear()
 
 
 def test_run_signal_calibration_writes_when_gate_met() -> None:

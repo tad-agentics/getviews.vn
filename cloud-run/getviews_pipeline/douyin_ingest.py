@@ -45,14 +45,17 @@ from typing import Any
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme
-from getviews_pipeline.douyin_metadata import build_douyin_corpus_row
-from getviews_pipeline.douyin_translator import translate_douyin_caption
 from getviews_pipeline.config import (
     DOUYIN_CDN_HEADERS,
     DOUYIN_INGEST_USE_GEMINI_BATCH,
     DOUYIN_VIDEO_DOWNLOAD_MAX_BYTES,
 )
-from getviews_pipeline.douyin_content_class import resolve_content_class_from_analysis
+from getviews_pipeline.douyin_metadata import build_douyin_corpus_row
+from getviews_pipeline.douyin_stats_hydrate import (
+    aweme_play_count,
+    hydrate_awemes_statistics,
+)
+from getviews_pipeline.douyin_translator import translate_douyin_caption
 from getviews_pipeline.r2 import (
     bank_local_video_to_r2,
     extract_and_upload,
@@ -61,10 +64,6 @@ from getviews_pipeline.r2 import (
     resolve_ingest_thumbnail_url,
 )
 from getviews_pipeline.runtime import get_analysis_semaphore
-from getviews_pipeline.douyin_stats_hydrate import (
-    aweme_play_count,
-    hydrate_awemes_statistics,
-)
 from getviews_pipeline.tikhub_douyin import (
     fetch_douyin_hashtag_posts,
     fetch_douyin_keyword_search,
