@@ -186,6 +186,12 @@ def test_deep_relax_salience_can_be_disabled(monkeypatch) -> None:
 def test_deep_relax_salience_emits_borderline_metadata_section(monkeypatch) -> None:
     from getviews_pipeline import settings as settings_mod
 
+    # This test exercises the salience *threshold* gate (0.45 deep-relax vs 0.50
+    # strict). The default-on ``diagnosis_salience_rank_only`` flag short-circuits
+    # ``_has_gate`` to emit on any signal regardless of threshold, so pin it off to
+    # measure the ``getviews_deep_relax_salience`` effect this test is about.
+    monkeypatch.setattr(settings_mod.settings, "diagnosis_salience_rank_only", False)
+
     ctx = build_diagnosis_ctx(
         user_analysis={"hook_analysis": {"hook_type": "question", "first_frame_type": "face"}},
         user_stats={"caption": "hi", "views": 50_000},
