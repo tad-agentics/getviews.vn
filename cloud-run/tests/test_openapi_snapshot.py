@@ -10,52 +10,65 @@ is fast and does not require an actual HTTP server.
 
 from __future__ import annotations
 
-import json
-import subprocess
-import sys
-import textwrap
-from pathlib import Path
-
 import pytest
 
-_CLOUD_RUN_ROOT = Path(__file__).resolve().parents[1]
-
-# Enumerate ``main.api`` routes in a *pristine* subprocess interpreter. Importing
-# main in-process is unreliable for this guard: the shared pytest session imports
-# main (and its routers) under many monkeypatched/aliased states, and a
-# module-scoped fixture can capture an early/degraded ``api`` whose routers were
-# not yet attached. A clean ``python -c "import main"`` measures exactly what
-# Cloud Run boots, with zero session-state coupling — which is the whole point of
-# a "did every router get included?" snapshot.
-_ENUMERATE_ROUTES_SRC = textwrap.dedent(
-    """
-    import json
-    import main
-
-    routes = []
-    for route in main.api.routes:
-        path = getattr(route, "path", None)
-        for method in (getattr(route, "methods", None) or ()):
-            routes.append([method.upper(), path])
-    print(json.dumps(routes))
-    """
+# Every router module ``main`` mounts. They are imported (and reloaded) *before*
+# ``main`` so ``include_router()`` always copies a fully-decorated APIRouter.
+# Without this, a cold ``import main`` (e.g. when this module's fixture is the
+# first to import it in the session) can include a router whose ``@router.get``
+# decorators have not all run yet — yielding only the 8 default FastAPI routes.
+# Production is unaffected (uvicorn imports the routers transitively first), but
+# the test-session import order is not guaranteed, so we make it deterministic.
+_ROUTER_MODULES = (
+    "getviews_pipeline.routers.health",
+    "getviews_pipeline.routers.video",
+    "getviews_pipeline.routers.script",
+    "getviews_pipeline.routers.home",
+    "getviews_pipeline.routers.answer",
+    "getviews_pipeline.routers.douyin",
+    "getviews_pipeline.routers.batch_proxy",
+    "getviews_pipeline.routers.batch",
+    "getviews_pipeline.routers.admin",
 )
+
+
+def _route_set(app: object) -> set[tuple[str, str]]:
+    result: set[tuple[str, str]] = set()
+    for route in getattr(app, "routes", []):
+        path = getattr(route, "path", None)
+        for method in getattr(route, "methods", None) or ():
+            result.add((method.upper(), path))
+    return result
 
 
 @pytest.fixture(scope="module")
 def registered() -> set[tuple[str, str]]:
-    """Return {(method, path)} for all routes on a freshly-booted ``main.api``."""
-    proc = subprocess.run(
-        [sys.executable, "-c", _ENUMERATE_ROUTES_SRC],
-        cwd=str(_CLOUD_RUN_ROOT),
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode != 0:  # pragma: no cover — heavy deps absent (e.g. local dev)
-        pytest.skip(f"Cannot import main in subprocess: {proc.stderr.strip()[-800:]}")
-    # The route JSON is the final stdout line; ignore any stray import-time prints.
-    payload = next(line for line in reversed(proc.stdout.splitlines()) if line.strip())
-    return {(method, path) for method, path in json.loads(payload)}
+    """{(method, path)} for ``main.api`` built from fully-populated routers."""
+    import importlib
+    import os
+    import sys
+
+    try:
+        per_router = {}
+        for name in _ROUTER_MODULES:
+            mod = importlib.import_module(name)
+            per_router[name.rsplit(".", 1)[-1]] = len(getattr(mod.router, "routes", []))
+        # Rebuild main against the now fully-imported routers so include_router
+        # copies their complete route tables regardless of prior import order.
+        sys.modules.pop("main", None)
+        m = importlib.import_module("main")
+    except Exception as exc:  # pragma: no cover — heavy deps absent (e.g. local dev)
+        pytest.skip(f"Cannot import main: {exc}")
+
+    result = _route_set(m.api)
+    if len(result) < 49:  # diagnostics surface in pytest's captured stdout on failure
+        print("\n[openapi-diag] main.__file__:", getattr(m, "__file__", "?"))
+        print("[openapi-diag] SERVICE_ROLE env:", repr(os.environ.get("SERVICE_ROLE")))
+        print("[openapi-diag] main.SERVICE_ROLE:", repr(getattr(m, "SERVICE_ROLE", "?")))
+        print("[openapi-diag] api route count:", len(result))
+        print("[openapi-diag] per-router route counts:", per_router)
+        print("[openapi-diag] sample api paths:", sorted({p for _, p in result})[:12])
+    return result
 
 
 _REQUIRED_ROUTES: list[tuple[str, str]] = [
