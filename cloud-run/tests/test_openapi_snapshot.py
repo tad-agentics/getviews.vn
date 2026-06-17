@@ -10,28 +10,52 @@ is fast and does not require an actual HTTP server.
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
+
 import pytest
 
+_CLOUD_RUN_ROOT = Path(__file__).resolve().parents[1]
 
-# Importing main builds the app and all middleware — skip if heavy deps are absent.
-@pytest.fixture(scope="module")
-def app():  # type: ignore[return]
-    try:
-        import main as m  # type: ignore[import-not-found]
-        return m.api
-    except Exception as exc:  # pragma: no cover
-        pytest.skip(f"Cannot import main: {exc}")
+# Enumerate ``main.api`` routes in a *pristine* subprocess interpreter. Importing
+# main in-process is unreliable for this guard: the shared pytest session imports
+# main (and its routers) under many monkeypatched/aliased states, and a
+# module-scoped fixture can capture an early/degraded ``api`` whose routers were
+# not yet attached. A clean ``python -c "import main"`` measures exactly what
+# Cloud Run boots, with zero session-state coupling — which is the whole point of
+# a "did every router get included?" snapshot.
+_ENUMERATE_ROUTES_SRC = textwrap.dedent(
+    """
+    import json
+    import main
 
-
-def _route_set(app) -> set[tuple[str, str]]:  # type: ignore[type-arg]
-    """Return {(method, path)} for all registered routes."""
-    result: set[tuple[str, str]] = set()
-    for route in app.routes:
+    routes = []
+    for route in main.api.routes:
         path = getattr(route, "path", None)
-        methods = getattr(route, "methods", None) or set()
-        for m in methods:
-            result.add((m.upper(), path))
-    return result
+        for method in (getattr(route, "methods", None) or ()):
+            routes.append([method.upper(), path])
+    print(json.dumps(routes))
+    """
+)
+
+
+@pytest.fixture(scope="module")
+def registered() -> set[tuple[str, str]]:
+    """Return {(method, path)} for all routes on a freshly-booted ``main.api``."""
+    proc = subprocess.run(
+        [sys.executable, "-c", _ENUMERATE_ROUTES_SRC],
+        cwd=str(_CLOUD_RUN_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:  # pragma: no cover — heavy deps absent (e.g. local dev)
+        pytest.skip(f"Cannot import main in subprocess: {proc.stderr.strip()[-800:]}")
+    # The route JSON is the final stdout line; ignore any stray import-time prints.
+    payload = next(line for line in reversed(proc.stdout.splitlines()) if line.strip())
+    return {(method, path) for method, path in json.loads(payload)}
 
 
 _REQUIRED_ROUTES: list[tuple[str, str]] = [
@@ -98,9 +122,8 @@ _REQUIRED_ROUTES: list[tuple[str, str]] = [
 ]
 
 
-def test_all_required_routes_registered(app) -> None:  # type: ignore[type-arg]
+def test_all_required_routes_registered(registered: set[tuple[str, str]]) -> None:
     """Every route in _REQUIRED_ROUTES must be present in the live app."""
-    registered = _route_set(app)
     missing = [r for r in _REQUIRED_ROUTES if r not in registered]
     assert not missing, (
         f"Routes missing from app after refactor: {missing}\n"
@@ -108,9 +131,8 @@ def test_all_required_routes_registered(app) -> None:  # type: ignore[type-arg]
     )
 
 
-def test_route_count_not_decreased(app) -> None:  # type: ignore[type-arg]
+def test_route_count_not_decreased(registered: set[tuple[str, str]]) -> None:
     """Total route count must not drop below the known baseline."""
-    registered = _route_set(app)
     # 49 app routes after Phase C /stream removal; FastAPI adds openapi/docs.
     assert len(registered) >= 49, (
         f"Only {len(registered)} routes registered. "
