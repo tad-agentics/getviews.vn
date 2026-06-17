@@ -244,12 +244,19 @@ def test_v6_lightreel_generative_rules_pinned() -> None:
 # ── Salience-structure audit fixes (2026-06-11) ──────────────────────
 
 
-def test_section_cap_keeps_highest_salience_not_display_order() -> None:
+def test_section_cap_keeps_highest_salience_not_display_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """When the 7-section cap bites, non-priority slots go to the sections
     with the strongest signals — not to whichever has the lowest static
     display_order."""
     from getviews_pipeline.diagnose_sections import _reorder_and_cap_sections
+    from getviews_pipeline.settings import settings
     from getviews_pipeline.signals.base import Signal
+
+    # Guards the legacy cap-DROP path; rank-only mode (default on) keeps all
+    # sections by design, so pin it off to exercise the cap.
+    monkeypatch.setattr(settings, "diagnosis_salience_rank_only", False)
 
     def sig(sid: str, sal: float) -> Signal:
         return Signal(id=f"{sid}_s", section_id=sid, taxonomy_ref="t",
@@ -277,12 +284,19 @@ def test_section_cap_keeps_highest_salience_not_display_order() -> None:
     assert "persona" in legacy and "sound" in legacy and "editing" in legacy
 
 
-def test_section_cap_reserves_script_structure_over_context_sections() -> None:
+def test_section_cap_reserves_script_structure_over_context_sections(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Anatomy (script_structure) survives the cap even with zero signal salience,
     displacing the weakest context section (mukbang regression — the structure
     block was lost to channel/commerce/boost)."""
     from getviews_pipeline.diagnose_sections import _reorder_and_cap_sections
+    from getviews_pipeline.settings import settings
     from getviews_pipeline.signals.base import Signal
+
+    # Guards the legacy cap-DROP path; rank-only mode (default on) keeps all
+    # sections by design, so pin it off to exercise the cap.
+    monkeypatch.setattr(settings, "diagnosis_salience_rank_only", False)
 
     def sig(sid: str, sal: float) -> Signal:
         return Signal(id=f"{sid}_s", section_id=sid, taxonomy_ref="t",
