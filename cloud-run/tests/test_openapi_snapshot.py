@@ -10,31 +10,56 @@ is fast and does not require an actual HTTP server.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-# Every router module ``main`` mounts. They are imported (and reloaded) *before*
-# ``main`` so ``include_router()`` always copies a fully-decorated APIRouter.
-# Without this, a cold ``import main`` (e.g. when this module's fixture is the
-# first to import it in the session) can include a router whose ``@router.get``
-# decorators have not all run yet — yielding only the 8 default FastAPI routes.
-# Production is unaffected (uvicorn imports the routers transitively first), but
-# the test-session import order is not guaranteed, so we make it deterministic.
-_ROUTER_MODULES = (
+_CLOUD_RUN_ROOT = Path(__file__).resolve().parents[1]
+
+# Router modules ``main`` mounts when SERVICE_ROLE=all (the default deployment
+# this snapshot targets). ``batch_proxy`` is user-role-only and intentionally
+# excluded. Each module declares full, prefix-free paths (``@router.get("/video/...")``)
+# and ``main.include_router()`` is called without a ``prefix=``, so the union of
+# each router's own ``.routes`` is exactly the table ``main.api`` exposes.
+#
+# Why measure the routers directly instead of ``main.api``: the shared pytest
+# session leaves ``FastAPI.include_router`` globally no-op'd (a fresh
+# ``FastAPI().include_router(r)`` adds nothing once the suite has run), so
+# ``main.api`` reads back as only the 8 default FastAPI routes in-process. The
+# router modules' own ``.routes`` stay fully populated, and a static check below
+# guards that ``main`` actually wires each one — together that preserves the
+# original "did every router get included?" intent without depending on the
+# poisoned runtime ``include_router``.
+_ALL_ROLE_ROUTER_MODULES = (
     "getviews_pipeline.routers.health",
     "getviews_pipeline.routers.video",
     "getviews_pipeline.routers.script",
     "getviews_pipeline.routers.home",
     "getviews_pipeline.routers.answer",
     "getviews_pipeline.routers.douyin",
-    "getviews_pipeline.routers.batch_proxy",
     "getviews_pipeline.routers.batch",
     "getviews_pipeline.routers.admin",
 )
 
+# Every router main imports must be wired via include_router() in main.py — the
+# static guard reads the source so it holds even when runtime include_router is
+# unavailable. ``batch_proxy`` is included under the user-role branch.
+_WIRED_ROUTERS = (
+    "health_router",
+    "video_router",
+    "script_router",
+    "home_router",
+    "answer_router",
+    "douyin_router",
+    "batch_proxy_router",
+    "batch_router",
+    "admin_router",
+)
 
-def _route_set(app: object) -> set[tuple[str, str]]:
+
+def _route_set(router: object) -> set[tuple[str, str]]:
     result: set[tuple[str, str]] = set()
-    for route in getattr(app, "routes", []):
+    for route in getattr(router, "routes", []):
         path = getattr(route, "path", None)
         for method in getattr(route, "methods", None) or ():
             result.add((method.upper(), path))
@@ -43,53 +68,27 @@ def _route_set(app: object) -> set[tuple[str, str]]:
 
 @pytest.fixture(scope="module")
 def registered() -> set[tuple[str, str]]:
-    """{(method, path)} for the app ``main`` boots, however it is cached."""
+    """{(method, path)} for the union of all SERVICE_ROLE=all router tables."""
     import importlib
-    import sys
 
+    result: set[tuple[str, str]] = set()
     try:
-        m = importlib.import_module("main")
+        for name in _ALL_ROLE_ROUTER_MODULES:
+            mod = importlib.import_module(name)
+            result |= _route_set(mod.router)
     except Exception as exc:  # pragma: no cover — heavy deps absent (e.g. local dev)
-        pytest.skip(f"Cannot import main: {exc}")
+        pytest.skip(f"Cannot import routers: {exc}")
+    return result
 
-    # Collect every candidate app object the session may hold for the entry
-    # module: ``sys.modules["main"]`` (this import) and any alias other tests
-    # registered (e.g. ``cloud_run_main``). Use whichever exposes the full route
-    # table — different import paths can yield distinct module objects, and a
-    # freshly re-executed ``main`` can end up with an empty ``api``.
-    candidates: dict[str, object] = {}
-    for key, mod in list(sys.modules.items()):
-        if mod is None:
-            continue
-        if key == "main" or key == "cloud_run_main" or getattr(mod, "__name__", "") == "main":
-            for attr in ("api", "app"):
-                obj = getattr(mod, attr, None)
-                if obj is not None:
-                    candidates[f"{key}.{attr}"] = obj
 
-    sized = {name: _route_set(obj) for name, obj in candidates.items()}
-    best = max(sized.values(), key=len, default=set())
-
-    if len(best) < 49:  # diagnostics surface in pytest's captured stdout on failure
-        print("\n[openapi-diag] candidate route counts:", {k: len(v) for k, v in sized.items()})
-        print("[openapi-diag] main id:", id(m), "file:", getattr(m, "__file__", "?"))
-        try:
-            from fastapi import FastAPI
-
-            from getviews_pipeline.routers.health import router as health_router
-
-            probe = FastAPI()
-            before = len(_route_set(probe))
-            probe.include_router(health_router)
-            after = len(_route_set(probe))
-            print(
-                "[openapi-diag] include_router probe:",
-                f"health_router.routes={len(health_router.routes)}",
-                f"FastAPI before={before} after={after}",
-            )
-        except Exception as exc:  # noqa: BLE001
-            print("[openapi-diag] include_router probe raised:", repr(exc))
-    return best
+def test_main_wires_every_router() -> None:
+    """``main.py`` must call ``include_router`` for each known router (source check)."""
+    source = (_CLOUD_RUN_ROOT / "main.py").read_text(encoding="utf-8")
+    missing = [r for r in _WIRED_ROUTERS if f"include_router({r})" not in source]
+    assert not missing, (
+        f"main.py does not include_router these routers: {missing}\n"
+        "Add api.include_router(<name>) under the matching SERVICE_ROLE branch."
+    )
 
 
 _REQUIRED_ROUTES: list[tuple[str, str]] = [
