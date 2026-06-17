@@ -43,32 +43,53 @@ def _route_set(app: object) -> set[tuple[str, str]]:
 
 @pytest.fixture(scope="module")
 def registered() -> set[tuple[str, str]]:
-    """{(method, path)} for ``main.api`` built from fully-populated routers."""
+    """{(method, path)} for the app ``main`` boots, however it is cached."""
     import importlib
-    import os
     import sys
 
     try:
-        per_router = {}
-        for name in _ROUTER_MODULES:
-            mod = importlib.import_module(name)
-            per_router[name.rsplit(".", 1)[-1]] = len(getattr(mod.router, "routes", []))
-        # Rebuild main against the now fully-imported routers so include_router
-        # copies their complete route tables regardless of prior import order.
-        sys.modules.pop("main", None)
         m = importlib.import_module("main")
     except Exception as exc:  # pragma: no cover — heavy deps absent (e.g. local dev)
         pytest.skip(f"Cannot import main: {exc}")
 
-    result = _route_set(m.api)
-    if len(result) < 49:  # diagnostics surface in pytest's captured stdout on failure
-        print("\n[openapi-diag] main.__file__:", getattr(m, "__file__", "?"))
-        print("[openapi-diag] SERVICE_ROLE env:", repr(os.environ.get("SERVICE_ROLE")))
-        print("[openapi-diag] main.SERVICE_ROLE:", repr(getattr(m, "SERVICE_ROLE", "?")))
-        print("[openapi-diag] api route count:", len(result))
-        print("[openapi-diag] per-router route counts:", per_router)
-        print("[openapi-diag] sample api paths:", sorted({p for _, p in result})[:12])
-    return result
+    # Collect every candidate app object the session may hold for the entry
+    # module: ``sys.modules["main"]`` (this import) and any alias other tests
+    # registered (e.g. ``cloud_run_main``). Use whichever exposes the full route
+    # table — different import paths can yield distinct module objects, and a
+    # freshly re-executed ``main`` can end up with an empty ``api``.
+    candidates: dict[str, object] = {}
+    for key, mod in list(sys.modules.items()):
+        if mod is None:
+            continue
+        if key == "main" or key == "cloud_run_main" or getattr(mod, "__name__", "") == "main":
+            for attr in ("api", "app"):
+                obj = getattr(mod, attr, None)
+                if obj is not None:
+                    candidates[f"{key}.{attr}"] = obj
+
+    sized = {name: _route_set(obj) for name, obj in candidates.items()}
+    best = max(sized.values(), key=len, default=set())
+
+    if len(best) < 49:  # diagnostics surface in pytest's captured stdout on failure
+        print("\n[openapi-diag] candidate route counts:", {k: len(v) for k, v in sized.items()})
+        print("[openapi-diag] main id:", id(m), "file:", getattr(m, "__file__", "?"))
+        try:
+            from fastapi import FastAPI
+
+            from getviews_pipeline.routers.health import router as health_router
+
+            probe = FastAPI()
+            before = len(_route_set(probe))
+            probe.include_router(health_router)
+            after = len(_route_set(probe))
+            print(
+                "[openapi-diag] include_router probe:",
+                f"health_router.routes={len(health_router.routes)}",
+                f"FastAPI before={before} after={after}",
+            )
+        except Exception as exc:  # noqa: BLE001
+            print("[openapi-diag] include_router probe raised:", repr(exc))
+    return best
 
 
 _REQUIRED_ROUTES: list[tuple[str, str]] = [
