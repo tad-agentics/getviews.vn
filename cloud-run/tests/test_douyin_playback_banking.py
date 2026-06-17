@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from getviews_pipeline import ensemble
 from getviews_pipeline.config import DOUYIN_CDN_HEADERS
 from getviews_pipeline.douyin_batch_extract import build_douyin_caption_extraction_prefix
 from getviews_pipeline.douyin_data import _serialize_video
 from getviews_pipeline.douyin_metadata import build_douyin_corpus_row
 from getviews_pipeline.douyin_reference import _build_douyin_reference_aweme
-from getviews_pipeline import ensemble
 
 
 def test_build_douyin_caption_extraction_prefix_includes_cn_desc() -> None:

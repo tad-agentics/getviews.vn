@@ -48,9 +48,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from getviews_pipeline import ensemble
+from getviews_pipeline.douyin_content_class import resolve_content_class_from_analysis
 from getviews_pipeline.douyin_translator import CaptionTranslation
 from getviews_pipeline.ensemble import VideoMetadata, parse_metadata
-from getviews_pipeline.douyin_content_class import resolve_content_class_from_analysis
 from getviews_pipeline.hook_type_normalize import normalize_hook_type
 
 logger = logging.getLogger(__name__)

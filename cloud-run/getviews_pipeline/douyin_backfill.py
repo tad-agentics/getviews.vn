@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
@@ -11,8 +10,8 @@ from getviews_pipeline.config import DOUYIN_CDN_HEADERS, DOUYIN_VIDEO_DOWNLOAD_M
 from getviews_pipeline.douyin_content_class import resolve_content_class_from_analysis
 from getviews_pipeline.r2 import download_and_upload_full_video
 from getviews_pipeline.tikhub_douyin import (
-    fetch_douyin_post_multi_info,
     fetch_douyin_post_info,
+    fetch_douyin_post_multi_info,
 )
 
 logger = logging.getLogger(__name__)

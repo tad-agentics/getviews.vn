@@ -23,6 +23,7 @@ from getviews_pipeline.config import (
     DOUYIN_VIDEO_DOWNLOAD_MAX_BYTES,
     GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
 )
+from getviews_pipeline.douyin_translator import translate_douyin_caption
 from getviews_pipeline.gemini import (
     build_video_corpus_batch_jsonl_record,
     parse_batch_extraction_analysis_json,
@@ -38,7 +39,6 @@ from getviews_pipeline.r2 import (
 )
 from getviews_pipeline.runtime import get_analysis_semaphore
 from getviews_pipeline.vietnamese_slang import merge_lexicon_slang_into_video_analysis_dict
-from getviews_pipeline.douyin_translator import translate_douyin_caption
 
 logger = logging.getLogger(__name__)
 
